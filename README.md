@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/brand/komori.svg" alt="Komori logo" width="160">
+  <img src="src-tauri/icons/icon.svg" alt="Komori logo" width="160">
 </p>
 
 <h1 align="center">Komori</h1>
