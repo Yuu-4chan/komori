@@ -1,0 +1,2 @@
+# Keep formatter input identical on Windows and Linux, even with core.autocrlf=true.
+* text=auto eol=lf

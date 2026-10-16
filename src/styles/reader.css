@@ -1,0 +1,2339 @@
+/* The Reader: the book fills the window, and the sidebar floats over it or is
+ * pinned beside it. */
+.reader-shell {
+  --reader-sidebar-width: clamp(410px, 28vw, 490px);
+  /* Room above and below the book's pages for the centered pills. */
+  --reader-pill-space: 3.5rem;
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--reader-page);
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 20;
+  top: 0.75rem;
+  left: 0.75rem;
+  padding: 0.7rem 1rem;
+  transform: translateY(-200%);
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+  border-radius: var(--radius-sm);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* The window has no system frame: a strip along the top drags it, under the sidebar, and the
+   window controls sit in the top right in the Reader theme's footer color. */
+.reader-drag-strip {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2rem;
+}
+
+.reader-window-controls {
+  position: absolute;
+  z-index: 7;
+  top: 0;
+  right: 0;
+}
+
+.reader-window-controls .window-controls__button {
+  color: var(--reader-footer-text);
+}
+
+.reader-window-controls .window-controls__button:not(.window-controls__button--close):hover {
+  color: var(--reader-ink);
+  background: color-mix(in srgb, var(--reader-ink) 10%, transparent);
+}
+
+.reader-sidebar-hotspot {
+  position: absolute;
+  z-index: 4;
+  inset: 0 auto 0 0;
+  width: 18px;
+}
+
+.reader-reading-area {
+  position: absolute;
+  inset: 0;
+  transition: left var(--duration-normal) var(--ease-out);
+}
+
+.reader-shell--pinned .reader-reading-area {
+  left: calc(var(--reader-sidebar-width) + 28px);
+}
+
+.reader-sidebar {
+  position: absolute;
+  z-index: 5;
+  --scroll-radius: 26px;
+  inset: 0 auto 0 14px;
+  width: min(var(--reader-sidebar-width), calc(100% - 28px));
+  height: min(calc(100% - 28px), max(600px, 86%), 960px);
+  margin-block: auto;
+  display: flex;
+  flex-direction: column;
+  /* Clipped rather than hidden, so revealing a control inside never scrolls the sidebar itself
+     and hides its top bar. */
+  overflow: clip;
+  background: var(--surface-sidebar);
+  border: 1px solid var(--border-medium);
+  border-radius: 26px;
+  box-shadow:
+    0 24px 60px rgba(18, 25, 48, 0.18),
+    0 4px 16px rgba(18, 25, 48, 0.08);
+  backdrop-filter: blur(18px);
+  transition:
+    transform var(--duration-normal) var(--ease-out),
+    opacity var(--duration-normal) var(--ease-out);
+}
+
+.reader-sidebar--hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(calc(-100% - 26px));
+}
+
+/* Back on the left, Appearance and pin on the right: round buttons with no title between. */
+.reader-sidebar__topbar {
+  min-height: 60px;
+  padding: var(--space-3) calc(20px - var(--scroll-radius, 0px) * 0.3) 0;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reader-sidebar__top-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.reader-sidebar__control.icon-button {
+  width: 40px;
+  height: 40px;
+  color: var(--text-secondary);
+  background: var(--surface-card);
+  border-color: var(--border-soft);
+  border-radius: 50%;
+  box-shadow: var(--shadow-xs);
+}
+
+.reader-sidebar__control.icon-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Appearance and pin share one pressed state. */
+.reader-sidebar__control--active.icon-button,
+.reader-sidebar__control--active.icon-button:not(:disabled):hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: var(--border-accent);
+}
+
+.reader-sidebar__content {
+  min-height: 0;
+  flex: 1;
+  padding: var(--space-4) calc(20px - var(--scroll-radius, 0px) * 0.3);
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* The contents fill the sidebar in their own box, which scrolls rather than the sidebar. */
+.reader-sidebar__content--contents {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+
+.reader-sidebar__content--contents > .reader-sidebar__section {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The open book: its cover beside its title, author and series. */
+.reader-sidebar__identity {
+  flex: none;
+  margin: var(--space-4) calc(20px - var(--scroll-radius, 0px) * 0.3) 0;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-4);
+}
+
+.reader-sidebar__book {
+  min-width: 0;
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
+.reader-sidebar .reader-sidebar__book h2 {
+  margin: 0.15rem 0 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: var(--line-compact);
+}
+
+.reader-sidebar .reader-sidebar__book p {
+  margin: 0.45rem 0 0;
+  font-size: var(--font-size-3);
+  line-height: 1.35;
+}
+
+.reader-sidebar .reader-sidebar__book p.reader-sidebar__series {
+  color: var(--text-muted);
+  font-size: var(--font-size-2);
+}
+
+/* Along the sidebar's bottom: the current chapter and its read share, then the book's position
+   beside a bar of how far it is read. */
+.reader-sidebar__status {
+  flex: none;
+  margin: 0 calc(20px - var(--scroll-radius, 0px) * 0.3) var(--space-4);
+  padding: 0.8rem 1rem;
+  display: grid;
+  gap: 0.45rem;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.reader-sidebar__status-chapter {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.reader-sidebar__status-chapter strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-3);
+  font-weight: 700;
+}
+
+.reader-sidebar__chapter-percent {
+  flex: none;
+  padding: 0.1rem 0.55rem;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.reader-sidebar__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.reader-sidebar__progress-bar {
+  height: 6px;
+  min-width: 3rem;
+  flex: 1;
+  overflow: hidden;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-pill);
+}
+
+.reader-sidebar__progress-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent-base);
+  border-radius: inherit;
+}
+
+.reader-sidebar__progress small {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The panels' tools under the book's card: four equal floating tiles, each icon over its name. */
+.reader-sidebar__tools {
+  flex: none;
+  margin: var(--space-4) calc(20px - var(--scroll-radius, 0px) * 0.3) 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.reader-sidebar__tool {
+  min-width: 0;
+  min-height: 3.25rem;
+  padding: 0.4rem 0.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  color: var(--text-secondary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  font: inherit;
+  font-size: var(--font-size-2);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.reader-sidebar__tool svg {
+  width: 21px;
+  height: 21px;
+}
+
+.reader-sidebar__tool > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-sidebar__tool:hover {
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+}
+
+.reader-sidebar__tool[aria-pressed="true"] {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: var(--border-accent);
+}
+
+.reader-sidebar__tool:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.reader-sidebar__title {
+  flex: 1;
+}
+
+.reader-sidebar__book-icon {
+  width: 7.5rem;
+  height: 10.5rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--accent-strong);
+  background: linear-gradient(145deg, var(--accent-soft), var(--accent-faint));
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.reader-sidebar__book-icon svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.reader-sidebar__cover {
+  width: 7.5rem;
+  height: 10.5rem;
+  flex: none;
+  object-fit: cover;
+  background: var(--accent-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.reader-sidebar p.reader-sidebar__availability {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.reader-viewport__message p.reader-viewport__author {
+  margin-top: var(--space-2);
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+
+.reader-viewport__eyebrow {
+  color: var(--accent-strong);
+  font-size: var(--font-size-1);
+  font-weight: 760;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.reader-sidebar h2 {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-4);
+  line-height: var(--line-compact);
+}
+
+.reader-sidebar p {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+  line-height: var(--line-body);
+}
+
+.reader-sidebar__section h3 {
+  margin: 0 0 var(--space-2) 0.25rem;
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  font-weight: 650;
+}
+
+.reader-sidebar__error {
+  color: var(--danger) !important;
+}
+
+.reader-bookmarks,
+.reader-bookmarks form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.reader-bookmarks__list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+}
+
+/* Each card: its icon and text, then its actions centered on the right; messages and the rename
+   form take the card's full width below. */
+.reader-bookmarks__item {
+  padding: var(--space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-2);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+}
+
+.reader-bookmarks__item:hover,
+.reader-bookmarks__item:focus-within {
+  border-color: var(--border-accent);
+}
+
+.reader-bookmarks__item > :not(.reader-bookmarks__jump, .reader-bookmarks__actions) {
+  grid-column: 1 / -1;
+}
+
+.reader-bookmarks__item > .reader-bookmarks__actions {
+  grid-row: 1;
+  grid-column: 2;
+  margin: 0;
+  flex-wrap: nowrap;
+}
+
+.reader-bookmarks__jump {
+  width: 100%;
+  padding: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.reader-bookmarks__jump[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.reader-bookmarks__icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: color-mix(in srgb, var(--warning) 60%, var(--text-primary));
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface-card));
+  border-radius: var(--radius-sm);
+}
+
+.reader-bookmarks__copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.reader-bookmarks__copy strong,
+.reader-bookmarks__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-bookmarks__copy strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-3);
+}
+
+.reader-bookmarks__copy small {
+  font-size: var(--font-size-2);
+}
+
+.reader-bookmarks__copy em,
+.reader-sidebar .reader-bookmarks__hint {
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  font-style: normal;
+}
+
+.reader-bookmarks__actions {
+  margin-top: var(--space-2);
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.reader-bookmarks__actions .icon-button {
+  width: 30px;
+  height: 30px;
+}
+
+.reader-bookmarks__actions .icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* The contents scroll by themselves as a timeline: a dot per entry on one line, filled for the
+   entries read, ringed for the current one and hollow for the rest. */
+.reader-contents {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border-soft);
+  overscroll-behavior: contain;
+}
+
+/* The contents sit under their label, between two hairlines. */
+.reader-sidebar__content--contents #reader-contents-heading {
+  margin: 0;
+  padding: 0 0.25rem var(--space-2);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-soft);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+
+.reader-sidebar__content--contents .reader-contents__list {
+  padding-block: var(--space-1);
+}
+
+.reader-contents__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reader-contents__item {
+  min-width: 0;
+}
+
+.reader-contents__entry,
+.reader-contents__group {
+  --dot-x: 0.95rem;
+  --dot-y: calc(0.5rem + 0.7em);
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.4rem;
+  padding: 0.5rem 0.75rem 0.5rem calc(2.1rem + var(--contents-depth) * 0.9rem);
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-3);
+  line-height: 1.4;
+  text-align: start;
+}
+
+/* The line runs from each dot to the next one. */
+.reader-contents__entry::after,
+.reader-contents__group::after {
+  position: absolute;
+  top: var(--dot-y);
+  left: calc(var(--dot-x) - 1px);
+  width: 2px;
+  height: 100%;
+  background: var(--border-medium);
+  content: "";
+}
+
+.reader-contents__item[data-last] > ::after {
+  display: none;
+}
+
+.reader-contents__entry::before,
+.reader-contents__group::before {
+  position: absolute;
+  z-index: 1;
+  top: var(--dot-y);
+  left: var(--dot-x);
+  width: 9px;
+  height: 9px;
+  box-sizing: border-box;
+  background: var(--surface-card);
+  border: 2px solid color-mix(in srgb, var(--text-muted) 55%, var(--surface-card));
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  content: "";
+}
+
+.reader-contents__item[data-progress="read"] > * {
+  color: var(--text-primary);
+}
+
+.reader-contents__item[data-progress="read"] > ::before {
+  background: var(--accent-base);
+  border-color: var(--accent-base);
+}
+
+.reader-contents__item[data-progress="read"] > ::after {
+  background: var(--accent-base);
+}
+
+.reader-contents__item[data-progress="current"] > ::before {
+  width: 15px;
+  height: 15px;
+  border: 3px solid var(--accent-base);
+}
+
+.reader-contents__entry {
+  background: transparent;
+  cursor: pointer;
+}
+
+.reader-contents__entry:hover,
+.reader-contents__entry:focus-visible {
+  color: var(--accent-strong);
+  background: var(--accent-faint);
+}
+
+.reader-contents__entry:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.reader-contents__entry[aria-current="location"] {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.reader-contents__entry[aria-disabled="true"] {
+  cursor: wait;
+  opacity: 0.52;
+}
+
+.reader-contents__group {
+  font-weight: 650;
+}
+.reader-appearance-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+}
+
+.reader-subpanel-heading__eyebrow {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.reader-sidebar .reader-subpanel-heading h2 {
+  margin: 0;
+  font-size: var(--font-size-4);
+  line-height: var(--line-compact);
+}
+
+.reader-sidebar .reader-subpanel-heading p {
+  margin-top: 0.45rem;
+}
+
+.reader-appearance-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.reader-appearance-card > :not(.reader-appearance-card__title, .reader-appearance-card__hint) {
+  padding: 0.15rem 0.85rem;
+  background: var(--surface-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+}
+
+.reader-appearance-card > .reader-theme-grid {
+  padding: 0.6rem;
+}
+
+.reader-appearance-card__title {
+  margin: 0 0 0 0.25rem;
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  font-weight: 650;
+}
+
+.reader-appearance-card__hint {
+  margin: 0 0.25rem;
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  line-height: 1.5;
+}
+
+/* Every Appearance setting is a row like an inspector's: its name on the left, its control on
+   the right, rows divided by hairlines. */
+.reader-appearance-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.reader-appearance-rows > * {
+  min-width: 0;
+  padding: 0.5rem 0;
+}
+
+.reader-appearance-rows > * + * {
+  border-top: 1px solid var(--border-soft);
+}
+
+.reader-appearance-rows > :is(.stepper-field, .select-field, .choice-field),
+.reader-appearance-rows > .reader-font-field > .select-field,
+.reader-custom-theme-grid > .color-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 11.5rem);
+  align-items: center;
+  gap: 0 var(--space-3);
+}
+
+.reader-appearance-rows :is(.stepper-field__label > span, .select-field__label > :is(label, span)),
+.reader-appearance-rows .choice-field__label,
+.reader-custom-theme-grid .color-field__label {
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+  font-weight: 550;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.reader-appearance-rows :is(.stepper-field__label, .select-field__label) {
+  min-height: 0;
+}
+
+.reader-appearance-rows :is(.stepper, .select-control select, .font-picker__input-control),
+.reader-custom-theme-grid :is(.color-field__swatch, .color-field__hex) {
+  min-height: 2.25rem;
+  height: 2.25rem;
+}
+
+.reader-appearance-rows .segmented-control {
+  width: 100%;
+  min-width: 0;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+.reader-appearance-rows .segmented-control button {
+  min-height: 1.85rem;
+  padding: 0 0.4rem;
+  font-size: var(--font-size-1);
+}
+
+/* View mode's four choices keep the full width under their name. */
+.reader-appearance-rows > .reader-view-choice > .choice-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.reader-appearance-rows > .reader-font-field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.reader-appearance-rows > .reader-font-field > small {
+  justify-self: end;
+  text-align: right;
+}
+
+/* Switches sit in the rows like any other control. */
+.reader-appearance-rows > .toggle-setting {
+  min-height: 0;
+  padding: 0.5rem 0;
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.reader-appearance-rows > * + .toggle-setting {
+  border-top: 1px solid var(--border-soft);
+}
+
+.reader-appearance-rows > .toggle-setting .toggle-setting__text strong {
+  font-size: var(--font-size-2);
+  font-weight: 550;
+}
+
+.reader-appearance-rows > .toggle-setting:focus-visible {
+  outline-offset: 0;
+}
+
+/* The theme swatches, four to a row: presets, saved custom themes, then Custom. */
+.reader-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.reader-theme-swatch {
+  min-width: 0;
+  padding: 6px;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: 13px;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.reader-theme-swatch:not(:disabled):hover {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--accent-faint) 48%, var(--surface-subtle));
+  border-color: var(--border-accent);
+  box-shadow: 0 9px 18px rgba(37, 60, 112, 0.09);
+}
+
+.reader-theme-swatch:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.reader-theme-swatch--active,
+.reader-theme-swatch--active:not(:disabled):hover {
+  color: var(--accent-strong);
+  border-color: var(--accent-base);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-base) 12%, transparent);
+}
+
+.reader-theme-swatch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.reader-theme-swatch__preview {
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border-radius: 9px;
+  font-family: "Noto Serif JP", "Yu Mincho", serif;
+  font-size: 17px;
+}
+
+/* The Custom swatch. */
+.reader-theme-swatch--new .reader-theme-swatch__preview {
+  color: #ffffff;
+  background: linear-gradient(135deg, #8da0ff, #c99bd8);
+}
+
+.reader-theme-swatch small {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 650;
+  text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The chosen custom theme's name and colors, below the swatches. */
+.reader-custom-theme {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reader-custom-theme-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.reader-custom-theme-grid > .color-field {
+  padding: 0.45rem 0;
+}
+
+.reader-custom-theme-grid > .color-field + .color-field {
+  border-top: 1px solid var(--border-soft);
+}
+
+.reader-custom-theme-grid .color-field__row {
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+}
+
+.reader-custom-theme__delete.button {
+  align-self: flex-start;
+  min-height: 2.4rem;
+}
+
+.reader-reading-area {
+  /* A light scheme keeps the book's iframe transparent over the page in the dark theme
+     and in dark Reader themes. */
+  color-scheme: light;
+  background: transparent;
+}
+
+.reader-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.reader-viewport__page {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+/* A continuous book scrolls under the Reader's own scrollbar at the window's edge, never
+   beside its narrowed column. */
+.reader-viewport__host * {
+  scrollbar-width: none;
+}
+
+.reader-scrollbar {
+  position: absolute;
+  z-index: 3;
+  touch-action: none;
+}
+
+/* Below the window controls, along the right edge. */
+.reader-scrollbar--vertical {
+  inset: 2rem 0 0 auto;
+  width: 12px;
+}
+
+.reader-scrollbar--horizontal {
+  inset: auto 0 0 0;
+  height: 12px;
+}
+
+/* The application's thumb in the Reader theme's ink. */
+.reader-scrollbar__thumb {
+  position: absolute;
+  border-radius: var(--radius-pill);
+  background-color: color-mix(in srgb, var(--reader-ink) 26%, transparent);
+  transition: background-color var(--duration-normal) var(--ease-out);
+}
+
+.reader-scrollbar:hover .reader-scrollbar__thumb {
+  background-color: color-mix(in srgb, var(--reader-ink) 42%, transparent);
+}
+
+.reader-scrollbar--vertical .reader-scrollbar__thumb {
+  top: calc((100% - var(--reader-scroll-thumb)) * var(--reader-scroll-along));
+  right: 3px;
+  width: 6px;
+  height: var(--reader-scroll-thumb);
+}
+
+.reader-scrollbar--horizontal .reader-scrollbar__thumb {
+  left: calc((100% - var(--reader-scroll-thumb)) * var(--reader-scroll-along));
+  bottom: 3px;
+  width: var(--reader-scroll-thumb);
+  height: 6px;
+}
+
+.reader-viewport__host {
+  position: absolute;
+  /* A chosen max height centers a shorter reading area, never over the footer pill. */
+  inset: max(var(--reader-pill-space), (100% - var(--reader-max-height, 100%)) / 2)
+    max(0px, (100% - var(--reader-max-width, 100%)) / 2);
+  /* A continuous vertical book's margin, never more than a quarter of the width. */
+  padding-inline: min(var(--reader-side-inset, 0px), 25%);
+}
+
+.reader-contents__copy {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.reader-contents__location {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-2);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* While a book opens, it lays out (a continuous book, all of it) and moves to the reading
+   position unseen, so neither its text nor its scrollbar jumps behind the message. */
+.reader-viewport__host[aria-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reader-viewport__message {
+  z-index: 1;
+  width: min(100% - 3rem, 31rem);
+  padding: clamp(2rem, 4vw, 4rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.reader-viewport__message > svg {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: var(--space-5);
+  color: var(--accent-strong);
+}
+
+.reader-viewport__message[role="alert"] > svg {
+  color: var(--danger);
+}
+
+.reader-viewport__message h2 {
+  margin: var(--space-3) 0 0;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.reader-viewport__message p {
+  margin: var(--space-3) 0 0;
+  color: var(--text-secondary);
+  line-height: var(--line-body);
+}
+
+/*
+ * While a change lays the book out again, a pill like the footer's says so at the top.
+ * It appears only once the layout takes a moment, so quick changes do not flash it.
+ */
+.reader-layout-status {
+  position: absolute;
+  z-index: 2;
+  top: 17px;
+  left: 50%;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  transform: translateX(-50%);
+  color: var(--reader-footer-text);
+  background: color-mix(in srgb, var(--reader-page) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--reader-ink) 8%, transparent);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: reader-layout-status-in 150ms ease-out 300ms both;
+}
+
+.reader-vn-reveal {
+  position: absolute;
+  z-index: 2;
+  right: 20px;
+  bottom: 18px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--reader-ink) 16%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--reader-page) 92%, transparent);
+  color: var(--reader-footer-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.reader-view-choice .segmented-control {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@keyframes reader-layout-status-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The lookup popup beside the selected text: a borderless floating sheet of entries, each with
+   its actions on its headword's row. Colors inherit the application by default; a chosen popup
+   preset supplies its own scoped semantic tokens. */
+.reader-lookup {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  box-shadow:
+    0 24px 64px rgba(12, 16, 32, 0.2),
+    0 6px 18px rgba(12, 16, 32, 0.1);
+  animation: reader-lookup-in 140ms var(--ease-out);
+}
+:root[data-theme="dark"] .reader-lookup[data-popup-theme="application"],
+.reader-lookup[data-popup-theme="night"] {
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+@keyframes reader-lookup-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.reader-lookup .anki-action,
+.lookup-entry__actions .anki-action,
+.lookup-entry__actions .icon-button {
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+}
+.lookup-entry__actions .icon-button:not(:disabled):hover {
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+}
+.lookup-entry__actions {
+  margin-left: auto;
+  display: flex;
+  flex: none;
+  gap: 2px;
+  align-items: center;
+}
+.lookup-entry__actions .anki-action-group {
+  display: flex;
+  gap: 2px;
+}
+.reader-lookup .anki-action--blocked:disabled,
+.lookup-entry__actions .anki-action--blocked:disabled {
+  opacity: 0.45;
+}
+.reader-lookup__action.icon-button {
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+}
+.reader-lookup__action.icon-button:not(:disabled):hover {
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+}
+.reader-lookup__body {
+  min-height: 0;
+  flex: 1;
+  padding: 4px 14px 18px 22px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.reader-lookup__body .dictionary-results__message {
+  padding: var(--space-4) 0;
+}
+.reader-lookup__body .empty-state {
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-4);
+}
+.reader-lookup__empty {
+  display: grid;
+  justify-items: center;
+}
+.reader-lookup__entries {
+  display: flex;
+  flex-direction: column;
+}
+/* A one-kanji lookup's Kanji card keeps the Dictionary page's card, flattened into the sheet. */
+.reader-lookup__entries > [data-popup-expression] > .dictionary-kanji-card {
+  margin-bottom: var(--space-3);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* One headword. */
+.reader-lookup__entries > [data-popup-expression] + [data-popup-expression] {
+  margin-top: 6px;
+  border-top: 1px solid var(--border-medium);
+}
+.lookup-entry__header {
+  padding: 14px 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+/* The headword, its reading, voice and tags, with the entry's actions on the same row: the
+   actions center on the headword's own line, also when tags wrap or furigana sits above. */
+.lookup-entry__headline {
+  --lookup-headword-line: 42px;
+  --lookup-reading-line: 0px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.lookup-entry-failure {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.lookup-entry--furigana .lookup-entry__headline {
+  --lookup-reading-line: 16px;
+}
+.lookup-entry__word {
+  min-width: 0;
+  min-height: calc(var(--lookup-headword-line) + var(--lookup-reading-line));
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding-top: var(--lookup-reading-line);
+}
+.lookup-entry__headline > .lookup-entry__actions {
+  height: var(--lookup-headword-line);
+  margin-top: var(--lookup-reading-line);
+}
+.lookup-entry__expression {
+  color: var(--text-primary);
+  font-family: "Noto Serif JP", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", serif;
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.lookup-entry__expression .dictionary-result-card__kanji {
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.14em;
+  text-decoration-color: transparent;
+}
+.lookup-entry__expression .dictionary-result-card__kanji:hover {
+  text-decoration-color: currentColor;
+}
+/* Furigana sits right above its kanji run: a ruby's reading stacked over its base, so the
+   serif headword's tall line box does not push the reading away. */
+.lookup-entry__expression ruby {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: bottom;
+}
+.lookup-entry__ruby-base {
+  white-space: nowrap;
+}
+/* The reading spans its whole kanji run with its kana spread evenly across it; a reading wider
+   than its run stays centered over it. */
+.lookup-entry__expression rt {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  display: flex;
+  justify-content: space-around;
+  min-width: 100%;
+  margin-bottom: 1px;
+  transform: translateX(-50%);
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+.lookup-entry__reading {
+  color: var(--text-muted);
+  font-family: "Noto Serif JP", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", serif;
+  font-size: 20px;
+}
+.lookup-entry .dictionary-audio-button {
+  width: 30px;
+  height: 30px;
+}
+.lookup-entry .dictionary-result-card__tags {
+  margin: 0;
+  gap: 6px;
+}
+.lookup-entry .dictionary-result-card__tags span {
+  padding: 4px 11px;
+  color: var(--accent-ink);
+  background: var(--popup-tag, color-mix(in srgb, var(--accent-base) 17%, var(--surface-card)));
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.lookup-entry .dictionary-result-card__tags span[data-category] {
+  color: color-mix(in srgb, var(--tag-color) var(--tag-ink-share), var(--tag-ink-toward));
+  background: color-mix(in srgb, var(--tag-color) var(--tag-tint-share), var(--surface-card));
+}
+.lookup-entry__notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lookup-entry__notes > span {
+  padding: 2px 9px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+}
+.lookup-entry__frequencies {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+}
+.lookup-entry__frequencies li {
+  max-width: 100%;
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.lookup-entry__frequencies span {
+  max-width: 11rem;
+  padding: 2px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border-right: 1px solid var(--border-soft);
+}
+.lookup-entry__frequencies strong {
+  padding: 2px 8px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.lookup-entry__frequencies .lookup-entry__more {
+  border-style: dashed;
+}
+.lookup-entry__more button {
+  padding: 2px 9px;
+  color: var(--accent-ink);
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.lookup-entry__more button:hover {
+  background: var(--accent-faint);
+}
+.lookup-entry .dictionary-pitch {
+  padding-top: 0;
+}
+.lookup-entry .dictionary-pitch h3 {
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Each dictionary's definitions: a numbered, collapsible section. */
+.lookup-entry__definitions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lookup-definition + .lookup-definition {
+  border-top: 1px solid var(--border-soft);
+}
+.lookup-definition__toggle {
+  width: 100%;
+  padding: 12px 2px 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  color: var(--text-primary);
+  background: transparent;
+  cursor: pointer;
+}
+.lookup-definition__toggle:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.lookup-definition__index {
+  min-width: 32px;
+  height: 26px;
+  padding: 0 8px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent-base) 14%, var(--surface-card));
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.lookup-definition__source {
+  min-width: 0;
+  padding: 3px 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent-base) 14%, var(--surface-card));
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.lookup-definition__caret {
+  margin-left: auto;
+  flex: none;
+  color: var(--text-muted);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.lookup-definition__toggle:hover .lookup-definition__caret {
+  color: var(--text-primary);
+}
+.lookup-definition--closed .lookup-definition__caret {
+  transform: rotate(-90deg);
+}
+.lookup-definition--closed .lookup-definition__toggle {
+  padding-bottom: 12px;
+}
+.lookup-definition__body {
+  padding: 0 4px 14px 44px;
+  font-size: 15px;
+  line-height: 1.65;
+}
+.lookup-definition__body .dictionary-glossary {
+  max-width: none;
+  margin-top: 4px;
+}
+.lookup-definition__body .dictionary-glossary:first-child {
+  margin-top: 0;
+}
+/* Numbered senses in soft circles. */
+.lookup-definition__body .dictionary-glossary ol {
+  padding-inline-start: 2rem;
+  list-style: none;
+  counter-reset: lookup-sense;
+}
+.lookup-definition__body .dictionary-glossary ol > li {
+  position: relative;
+  counter-increment: lookup-sense;
+}
+/* A dictionary that numbers its own senses (①, ②…) keeps its markers instead of the circles. */
+.lookup-definition__body .dictionary-glossary ol > li[style*="list-style-type"],
+.lookup-definition__body .dictionary-glossary ol[style*="list-style-type"] > li {
+  list-style-position: outside;
+}
+.lookup-definition__body .dictionary-glossary ol > li[style*="list-style-type"]::before,
+.lookup-definition__body .dictionary-glossary ol[style*="list-style-type"] > li::before {
+  content: none;
+}
+.lookup-definition__body .dictionary-glossary ol > li::before {
+  content: counter(lookup-sense);
+  position: absolute;
+  top: 0.18em;
+  left: -2rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+/* The bottom-center pill: book position and percentage, then the chapter's. */
+.reader-footer,
+.reader-reading-status-top {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  max-width: calc(100% - 72px);
+  min-height: 30px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1) var(--space-4);
+  transform: translateX(-50%);
+  color: var(--reader-footer-text);
+  background: color-mix(in srgb, var(--reader-page) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--reader-ink) 8%, transparent);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.reader-footer {
+  bottom: 17px;
+}
+
+/* After a far jump, the way back to the previous place, above the pill. */
+.reader-return-point {
+  position: absolute;
+  z-index: 2;
+  bottom: 55px;
+  left: 50%;
+  max-width: calc(100% - 72px);
+  min-height: 30px;
+  padding: 0 3px 0 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  transform: translateX(-50%);
+  color: var(--reader-ink);
+  background: color-mix(in srgb, var(--reader-page) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--reader-ink) 8%, transparent);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-xs);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.reader-return-point button {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  cursor: pointer;
+}
+
+.reader-return-point button:disabled {
+  cursor: default;
+}
+
+.reader-return-point__back {
+  padding: 0 10px 0 8px;
+}
+
+.reader-return-point__dismiss {
+  width: 24px;
+  justify-content: center;
+  padding: 0;
+  color: var(--reader-footer-text) !important;
+}
+
+.reader-return-point button:hover {
+  background: color-mix(in srgb, var(--reader-ink) 8%, transparent);
+}
+
+.reader-return-point button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.reader-reading-status-top {
+  top: 17px;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+}
+
+.reader-reading-status-top > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reader-footer__values {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  white-space: nowrap;
+}
+
+.reader-footer__values > span + span,
+.reader-footer__values + .reader-footer__values,
+.reader-reading-status-top > span + span {
+  position: relative;
+}
+
+/* A small dot separates footer values. */
+.reader-footer__values > span + span::before,
+.reader-footer__values + .reader-footer__values::before,
+.reader-reading-status-top > span + span::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--space-4) / -2 - 1.5px);
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  transform: translateY(-50%);
+  background: currentColor;
+  border-radius: 50%;
+  opacity: 0.4;
+}
+
+.reader-search-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+.reader-search-panel h2 {
+  margin: var(--space-2) 0;
+}
+.reader-search-panel header p,
+.reader-search-summary {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+/* One rounded field, like the Dictionary's: the field itself shows focus, never the input. */
+.reader-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+}
+.reader-search-row .button {
+  min-height: 2.75rem;
+}
+.reader-search-box {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  color: var(--text-muted);
+  background: var(--surface-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+.reader-search-box:focus-within {
+  border-color: var(--border-accent);
+  box-shadow: 0 0 0 3px var(--accent-faint);
+}
+.reader-search-box svg {
+  flex: none;
+}
+.reader-search-box input {
+  min-width: 0;
+  width: 100%;
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: inherit;
+}
+.reader-search-box input::-webkit-search-cancel-button {
+  display: none;
+}
+.reader-search-box input::placeholder {
+  color: var(--text-muted);
+}
+.reader-search-box .icon-button {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+.reader-search-scope {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  margin-top: var(--space-3);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+}
+.reader-search-scope button {
+  min-height: 34px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.reader-search-scope button[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--surface-card);
+  font-weight: 700;
+}
+.reader-search-results {
+  display: grid;
+  gap: var(--space-2);
+}
+.reader-search-result {
+  width: 100%;
+  padding: var(--space-3);
+  text-align: left;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.reader-search-result:hover,
+.reader-search-result[aria-current="location"] {
+  border-color: var(--border-accent);
+  background: var(--surface-subtle);
+}
+.reader-search-result[aria-disabled="true"] {
+  cursor: wait;
+}
+.reader-search-result__topline {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: center;
+}
+.reader-search-result__topline strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.reader-search-result__topline > span {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.reader-search-result p {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-family: "Yu Mincho", serif;
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.reader-search-result mark {
+  color: var(--text-primary);
+  background: var(--accent-soft);
+  border-radius: 3px;
+}
+
+.reader-footer abbr {
+  text-decoration: none;
+}
+
+.reader-images-panel header p,
+.reader-images-panel > p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.reader-image-stack {
+  display: grid;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+.reader-image-card {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  background: var(--surface-card);
+  cursor: pointer;
+}
+.reader-image-card:hover {
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-soft);
+}
+.reader-image-art {
+  height: 240px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--surface-subtle);
+  font-size: 13px;
+}
+.reader-image-art img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: scale-down;
+}
+.reader-image-card__meta {
+  display: block;
+  padding: 12px;
+  font-size: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.reader-image-card-wrap > button + button {
+  margin-top: var(--space-2);
+}
+.reader-image-viewer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: var(--space-4);
+  border: 0;
+  background: rgba(9, 14, 24, 0.92);
+  color: #f8faff;
+  overflow: hidden;
+}
+.reader-image-viewer[open] {
+  display: grid;
+  place-items: center;
+}
+.reader-image-viewer::backdrop {
+  background: rgba(9, 14, 24, 0.6);
+}
+.reader-image-viewer__stage {
+  width: min(1200px, 100%);
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+}
+.reader-image-viewer__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.reader-image-viewer .window-controls__button {
+  color: #f8faff;
+}
+.reader-image-viewer .window-controls__button:not(.window-controls__button--close):hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.reader-image-viewer .icon-button {
+  color: #f8faff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.reader-image-viewer .icon-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.reader-image-viewer .icon-button:disabled {
+  opacity: 0.35;
+}
+.reader-image-viewer__image-wrap {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: var(--space-2);
+}
+.reader-image-viewer__art {
+  --scroll-radius: 14px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.2);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+  cursor: grab;
+  touch-action: none;
+  text-align: center;
+}
+.reader-image-viewer__art:active {
+  cursor: grabbing;
+}
+.reader-image-viewer__art:focus {
+  outline: none;
+}
+.reader-image-viewer__art:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+.reader-image-viewer__canvas {
+  position: relative;
+}
+.reader-image-viewer__canvas img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  max-height: none;
+  user-select: none;
+}
+.reader-image-viewer__nav.icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+}
+.reader-image-viewer__details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-height: 28vh;
+  overflow: auto;
+  padding: var(--space-1);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.reader-image-viewer__meta {
+  color: rgba(248, 250, 255, 0.82);
+  font-size: 13px;
+}
+.reader-image-viewer__location {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  color: #152034;
+  background: #f8faff;
+  cursor: pointer;
+}
+.reader-image-viewer__location:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.reader-image-viewer__details p {
+  margin: 0;
+  font-size: 13px;
+}
+@media (max-width: 640px) {
+  .reader-image-viewer {
+    padding: var(--space-2);
+  }
+  .reader-image-viewer__image-wrap {
+    gap: var(--space-1);
+  }
+  .reader-image-viewer__toolbar {
+    gap: var(--space-1);
+  }
+}
+
+/* Follow the sidebar's own width, including floating and compact windows. */
+@container (max-width: 300px) {
+  .reader-appearance-rows > :is(.stepper-field, .select-field, .choice-field),
+  .reader-appearance-rows > .reader-font-field > .select-field,
+  .reader-custom-theme-grid > .color-field {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+  }
+}
+
+@container (max-width: 350px) {
+  .reader-theme-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1199px) {
+  .reader-shell {
+    --reader-sidebar-width: clamp(380px, 38vw, 440px);
+  }
+}
+
+@media (max-width: 900px) {
+  .reader-footer {
+    max-width: calc(100% - 32px);
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Book and chapter values no longer fit one row; stack them. */
+  .reader-footer {
+    padding: var(--space-1) 13px;
+    flex-direction: column;
+    border-radius: var(--radius-md);
+  }
+  .reader-return-point {
+    bottom: 74px;
+  }
+  .reader-footer__values + .reader-footer__values::before {
+    display: none;
+  }
+}
+
+@media (max-width: 460px) {
+  .reader-viewport__message {
+    width: min(100% - 2rem, 31rem);
+    padding: var(--space-8) var(--space-5);
+  }
+}
+.reader-floating-feedback {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  bottom: calc(var(--reader-pill-space) + 0.7rem);
+  transform: translateX(-50%);
+  max-width: min(34rem, calc(100% - 2rem));
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-float);
+  pointer-events: none;
+}
+.reader-floating-feedback:empty {
+  display: none;
+}
+.reader-note-passage,
+.reader-note-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* A long note shows its first four lines in the list; Edit shows all of it. */
+.reader-bookmarks__copy .reader-note-body {
+  display: -webkit-box;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: clip;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+blockquote.reader-note-passage {
+  max-height: 12rem;
+  overflow: auto;
+  padding: 0.8rem;
+  margin: 1rem 0;
+  border-left: 3px solid var(--accent-base);
+}
+.reader-note-field {
+  display: grid;
+  gap: 0.5rem;
+}
+.reader-notes-controls {
+  display: grid;
+  gap: 0.8rem;
+}
+.reader-notes-controls .reader-search-box {
+  margin: 0;
+}
+.reader-notes-controls .reader-search-box input {
+  min-width: 0;
+}
+.reader-notes-controls .icon-button {
+  flex: none;
+}
+.reader-note-field textarea {
+  width: 100%;
+  resize: vertical;
+  color: var(--text-primary);
+  background: var(--surface-main);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem;
+  font: inherit;
+}
+
+.reader-font-field {
+  min-width: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.reader-font-field small {
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  line-height: 1.4;
+}
+
+.reader-font-field small:empty {
+  display: none;
+}
+
+.font-picker__controls,
+.font-picker__input-control {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.font-picker__controls {
+  gap: var(--space-1);
+}
+.font-picker__input-control {
+  flex: 1;
+  background: var(--surface-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+.font-picker__input-control:focus-within {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+.font-picker__input-control input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.25rem;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-size-2);
+}
+.font-picker__input-control input:focus {
+  outline: none;
+}
+.font-picker__input-control button {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  width: 1.8rem;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+}
+.font-picker__input-control button:hover {
+  background: var(--accent-soft);
+}
+.font-picker__input-control button:focus-visible {
+  outline: var(--focus-ring);
+}
+.font-picker__controls > .icon-button {
+  flex-shrink: 0;
+}
+.font-manager {
+  width: min(48rem, calc(100vw - 2rem));
+  max-width: 48rem;
+}
+.font-manager .confirm-dialog__content {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 4rem);
+}
+.font-manager__header,
+.font-manager__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.font-manager__header h2 {
+  margin: 0;
+}
+.font-manager__toolbar {
+  margin-top: var(--space-4);
+  align-items: end;
+}
+.font-manager__toolbar .text-field {
+  flex: 1;
+  min-width: 0;
+}
+.font-manager__list {
+  overflow: auto;
+  min-height: 0;
+  margin-top: var(--space-4);
+  padding-right: var(--space-1);
+}
+.font-manager__list section + section {
+  margin-top: var(--space-4);
+}
+.font-manager__list h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: 550;
+}
+.font-manager__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+.font-manager__row + .font-manager__row {
+  border-top: 1px solid var(--border-soft);
+}
+.font-manager__row strong {
+  font-size: var(--font-size-2);
+  font-weight: 550;
+}
+.font-manager__row small {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+}
+.font-manager__weights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.font-manager__weights .button {
+  min-height: 2rem;
+  padding: 0 var(--space-2);
+}
+.font-manager__weights svg {
+  width: 1rem;
+  height: 1rem;
+}
+@media (max-width: 520px) {
+  .font-manager__toolbar {
+    flex-wrap: wrap;
+  }
+}
+
+/* Editable font suggestions use the shared grouped menu. */
+.font-picker.app-listbox {
+  padding: 0;
+  overflow: hidden;
+}
+
+.font-picker__list {
+  min-height: 0;
+  padding: 0.3rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.font-picker__option[data-active] {
+  background: var(--accent-soft);
+}
+
+.font-picker__text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.font-picker__note {
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+}
+
+/* An inert backdrop under every view. Only the image is filtered; text and UI keep their theme. */
+.reader-background {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+.reader-background[data-ready="true"] {
+  opacity: 1;
+}
+.reader-background img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.reader-background--blur img {
+  filter: blur(var(--reader-background-blur, 16px));
+  transform: scale(1.05);
+}
+.reader-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--reader-page) 90%, transparent);
+}
+.reader-background-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 11.5rem);
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-2);
+  font-weight: 550;
+}
+.reader-background-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.reader-background-actions .button {
+  min-height: 2.25rem;
+  padding-inline: 0.5rem;
+}
+.reader-appearance-card__hint:empty {
+  display: none;
+}

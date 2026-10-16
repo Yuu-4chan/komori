@@ -1,0 +1,134 @@
+diff --git a/lib/managers/continuous/index.js b/lib/managers/continuous/index.js
+index 491287623a3a45d6f8d63044cb5925eaa5df53f5..75ab0c90846ef559e9f6d5560d0a7ed13b6d0a23 100644
+--- a/lib/managers/continuous/index.js
++++ b/lib/managers/continuous/index.js
+@@ -365,11 +365,12 @@ class ContinuousViewManager extends _default2.default {
+   }
+ 
+   addEventListeners(stage) {
+-    window.addEventListener("unload", function (e) {
++    this._onUnload = function (e) {
+       this.ignore = true; // this.scrollTo(0,0);
+ 
+       this.destroy();
+-    }.bind(this));
++    }.bind(this);
++    window.addEventListener("unload", this._onUnload);
+     this.addScrollListeners();
+ 
+     if (this.isPaginated && this.settings.snap) {
+@@ -412,6 +413,8 @@ class ContinuousViewManager extends _default2.default {
+ 
+     scroller.removeEventListener("scroll", this._onScroll);
+     this._onScroll = undefined;
++    window.removeEventListener("unload", this._onUnload);
++    this._onUnload = undefined;
+   }
+ 
+   onScroll() {
+diff --git a/lib/managers/default/index.js b/lib/managers/default/index.js
+index 4f56aafcb2b987af310b1a52411731a4e3e83650..9a4dd52780f5e97b50ffcd3eeae6ce7139e3e604 100644
+--- a/lib/managers/default/index.js
++++ b/lib/managers/default/index.js
+@@ -113,9 +113,10 @@ class DefaultViewManager {
+ 
+   addEventListeners() {
+     var scroller;
+-    window.addEventListener("unload", function (e) {
++    this._onUnload = function (e) {
+       this.destroy();
+-    }.bind(this));
++    }.bind(this);
++    window.addEventListener("unload", this._onUnload);
+ 
+     if (!this.settings.fullsize) {
+       scroller = this.container;
+@@ -138,6 +139,8 @@ class DefaultViewManager {
+ 
+     scroller.removeEventListener("scroll", this._onScroll);
+     this._onScroll = undefined;
++    window.removeEventListener("unload", this._onUnload);
++    this._onUnload = undefined;
+   }
+ 
+   destroy() {
+diff --git a/lib/managers/helpers/stage.js b/lib/managers/helpers/stage.js
+index fcec0c939f2b6ff3d464fe7e5dcf66f25a467f93..54138dc6b227a8a40901f5add075550236c3f4c6 100644
+--- a/lib/managers/helpers/stage.js
++++ b/lib/managers/helpers/stage.js
+@@ -341,7 +341,7 @@ class Stage {
+       }
+ 
+       window.removeEventListener("resize", this.resizeFunc);
+-      window.removeEventListener("orientationChange", this.orientationChangeFunc);
++      window.removeEventListener("orientationchange", this.orientationChangeFunc);
+     }
+   }
+ 
+diff --git a/src/managers/continuous/index.js b/src/managers/continuous/index.js
+index d61f8f76c215589ddc2c5e1fde4262db76585de8..23568b3831cddc6881aaff51c83015358537bbfe 100644
+--- a/src/managers/continuous/index.js
++++ b/src/managers/continuous/index.js
+@@ -398,11 +398,12 @@ class ContinuousViewManager extends DefaultViewManager {
+ 
+ 	addEventListeners(stage){
+ 
+-		window.addEventListener("unload", function(e){
++		this._onUnload = function(e){
+ 			this.ignore = true;
+ 			// this.scrollTo(0,0);
+ 			this.destroy();
+-		}.bind(this));
++		}.bind(this);
++		window.addEventListener("unload", this._onUnload);
+ 
+ 		this.addScrollListeners();
+ 
+@@ -451,6 +452,8 @@ class ContinuousViewManager extends DefaultViewManager {
+ 
+ 		scroller.removeEventListener("scroll", this._onScroll);
+ 		this._onScroll = undefined;
++		window.removeEventListener("unload", this._onUnload);
++		this._onUnload = undefined;
+ 	}
+ 
+ 	onScroll(){
+diff --git a/src/managers/default/index.js b/src/managers/default/index.js
+index 2812d878ad8eaa773abe5a55dbdfce7eec1f2a04..905f8014b06a90c8b8ec2b86a912b4df33b172f3 100644
+--- a/src/managers/default/index.js
++++ b/src/managers/default/index.js
+@@ -117,9 +117,10 @@ class DefaultViewManager {
+ 	addEventListeners(){
+ 		var scroller;
+ 
+-		window.addEventListener("unload", function(e){
++		this._onUnload = function(e){
+ 			this.destroy();
+-		}.bind(this));
++		}.bind(this);
++		window.addEventListener("unload", this._onUnload);
+ 
+ 		if(!this.settings.fullsize) {
+ 			scroller = this.container;
+@@ -142,6 +143,8 @@ class DefaultViewManager {
+ 
+ 		scroller.removeEventListener("scroll", this._onScroll);
+ 		this._onScroll = undefined;
++		window.removeEventListener("unload", this._onUnload);
++		this._onUnload = undefined;
+ 	}
+ 
+ 	destroy(){
+diff --git a/src/managers/helpers/stage.js b/src/managers/helpers/stage.js
+index d0f67e65ded36ec79e7755a01523829cc7ea6c3c..b7abeebbbbf98961dd1cc7cdda386ad66f7cf6f4 100644
+--- a/src/managers/helpers/stage.js
++++ b/src/managers/helpers/stage.js
+@@ -354,7 +354,7 @@ class Stage {
+ 			}
+ 
+ 			window.removeEventListener("resize", this.resizeFunc);
+-			window.removeEventListener("orientationChange", this.orientationChangeFunc);
++			window.removeEventListener("orientationchange", this.orientationChangeFunc);
+ 
+ 		}
+ 	}

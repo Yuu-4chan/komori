@@ -1,0 +1,12 @@
+@import "@fontsource-variable/inter";
+@import "./tokens.css";
+@import "./theme.css";
+@import "./globals.css";
+@import "./shell.css";
+@import "./components.css";
+@import "./pages.css";
+@import "./library.css";
+@import "./dictionary.css";
+@import "./statistics.css";
+@import "./reader.css";
+@import "./animations.css";

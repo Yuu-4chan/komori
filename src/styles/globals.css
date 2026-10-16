@@ -1,0 +1,464 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+html {
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-width: 20rem;
+  min-height: 100vh;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--surface-app);
+  font-family: var(--font-interface);
+  font-size: var(--font-size-3);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  color: inherit;
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  border: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+svg,
+img {
+  display: block;
+}
+
+/* As in a native app, dragging over labels, headings, rows and cards selects nothing; what is
+   meant to be copied stays selectable: text fields, dictionary entries (the Reader popup's
+   too), notes, book folder paths and error messages. Book text is in its own documents. */
+body {
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+.lookup-entry,
+.dictionary-result-card,
+.reader-note-passage,
+.library-folders strong,
+[role="alert"] {
+  user-select: text;
+}
+
+::selection {
+  color: var(--text-primary);
+  background: var(--accent-soft);
+}
+
+::-webkit-scrollbar {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* A scrolling surface with its own radius keeps the thumb ends clear in either axis. */
+::-webkit-scrollbar-track:vertical {
+  margin-block: var(--scroll-radius, 0px);
+}
+::-webkit-scrollbar-track:horizontal {
+  margin-inline: var(--scroll-radius, 0px);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Inset the scrolling box itself, so both tracks and thumbs clear a rounded parent. */
+.scroll-safe {
+  margin: calc(var(--scroll-radius, 0px) * 0.3 + 1px);
+  min-width: 0;
+  min-height: 0;
+}
+
+.autoscroll-marker {
+  position: fixed;
+  z-index: 10000;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  border: 1px solid var(--border-medium);
+  border-radius: 50%;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  box-shadow: 0 2px 8px #0003;
+  font: 20px/1 sans-serif;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-muted) 38%, transparent);
+  background-clip: padding-box;
+  border: 0.25rem solid transparent;
+  border-radius: var(--radius-pill);
+}
+
+:where(button, a, input):focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 0.1875rem;
+}
+
+/* Containers focused only by code, such as the Reader's reading area after a key, show no
+   browser focus frame. */
+:where(main, section, article, div)[tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* Every control shows the hand, as links do; a component may still choose another cursor. */
+:where(button, select, summary, [role="button"], [role="menuitem"], [role="option"]):where(
+  :not(:disabled)
+) {
+  cursor: pointer;
+}
+
+/* Links and images are not dragged out of the window as browser objects. */
+:where(a, img) {
+  -webkit-user-drag: none;
+}
+
+:where(button, input):disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+/* Kept for assistive technology, not shown. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.anki-controls {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: 1rem;
+}
+.anki-field {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  color: var(--text-primary);
+}
+.anki-field input,
+.anki-field textarea {
+  width: 100%;
+  padding: 0.6rem;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+.anki-field textarea {
+  resize: vertical;
+}
+/* Field contents read as one table: the field's name, its content, and a template action. */
+.anki-mappings {
+  display: grid;
+  gap: 0;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.anki-field [aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.anki-action {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+.anki-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.anki-heading p {
+  margin: 0.15rem 0 0;
+}
+.anki-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: 600;
+}
+.anki-connection::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.anki-connection--connected {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+.anki-connection--disconnected {
+  color: var(--danger);
+}
+.anki-mapping-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 12rem) minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  padding: 6px var(--space-3);
+}
+.anki-mapping-row + .anki-mapping-row {
+  border-top: 1px solid var(--border-soft);
+}
+.anki-mapping-row__field {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+.anki-mapping-row--empty .anki-mapping-row__field {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.anki-mapping-row .select-control select {
+  min-height: 2.25rem;
+  font-size: var(--font-size-2);
+}
+.anki-mapping-row--empty .select-control select {
+  color: var(--text-muted);
+}
+.anki-mapping-row__edit.icon-button {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+.anki-mapping-row__edit[aria-expanded="true"] {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+.anki-template-editor {
+  grid-column: 2 / -1;
+}
+.anki-template-editor label {
+  color: var(--text-secondary);
+  font-size: var(--font-size-1);
+  font-weight: 650;
+}
+.anki-status {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+}
+.anki-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.anki-section-heading h3,
+.anki-duplicate-settings h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+  font-weight: 700;
+}
+.anki-section-heading p {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-1);
+}
+.anki-section-heading .button {
+  font-size: var(--font-size-2);
+}
+/* Save and its feedback stay at the end of the configuration card. */
+.anki-save-bar {
+  width: 100%;
+  max-width: 100%;
+  padding: var(--space-3) 0 0;
+  display: grid;
+  justify-items: end;
+  gap: var(--space-2);
+}
+.anki-save-bar p {
+  order: 1;
+  margin: 0;
+  text-align: end;
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+}
+.anki-save-bar .button {
+  flex-shrink: 0;
+}
+.anki-save-bar[data-state="failed"] p,
+.anki-save-bar[data-state="invalid"] p {
+  color: var(--danger);
+}
+.anki-save-bar[data-state="saved"] p {
+  color: var(--accent-ink);
+}
+.anki-save-bar[aria-busy="true"] svg {
+  animation: anki-check-spin 1s linear infinite;
+}
+.anki-template-editor[hidden] {
+  display: none;
+}
+.anki-mapping-row textarea {
+  min-height: 74px;
+  font-size: var(--font-size-2);
+}
+.anki-mapping-row small {
+  grid-column: 1 / -1;
+  color: var(--danger);
+}
+.anki-tags small {
+  color: var(--text-muted);
+  font-size: var(--font-size-2);
+}
+.anki-dictionary-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.anki-dictionary-tags .button {
+  font-size: var(--font-size-2);
+  max-width: 100%;
+}
+.anki-dictionary-tags li {
+  min-width: 0;
+  max-width: 100%;
+}
+.anki-dictionary-tags .button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.anki-action--checking svg {
+  animation: anki-check-spin 1s linear infinite;
+}
+@keyframes anki-check-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .anki-action--checking svg,
+  .anki-save-bar[aria-busy="true"] svg {
+    animation: none;
+  }
+}
+.anki-duplicate-settings {
+  display: grid;
+  gap: var(--space-3);
+}
+.anki-action-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.anki-action--saved {
+  color: var(--accent-ink);
+}
+.anki-action--saved:disabled {
+  opacity: 1;
+}
+.anki-settings .settings-card {
+  gap: var(--space-4);
+}
+@media (max-width: 560px) {
+  .anki-mapping-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .anki-mapping-row__field {
+    grid-column: 1 / -1;
+  }
+  .anki-template-editor {
+    grid-column: 1 / -1;
+  }
+  .anki-save-bar {
+    flex-wrap: wrap;
+  }
+}
+/* Card tags share the field table's name/content columns. */
+.anki-tags {
+  gap: var(--space-2) var(--space-3);
+}
+.anki-tags > input,
+.anki-tag-options {
+  grid-column: 2 / -1;
+}
+.anki-tag-options {
+  display: grid;
+  gap: var(--space-2);
+}
+.anki-tag-options small {
+  grid-column: auto;
+}
+@media (max-width: 560px) {
+  .anki-tags > input,
+  .anki-tag-options {
+    grid-column: 1 / -1;
+  }
+}
+
+.app-failure {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}

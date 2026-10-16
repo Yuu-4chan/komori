@@ -1,0 +1,134 @@
+:root {
+  --accent-base: #5874df;
+  /* Keep custom accents expressive while anchoring text and actions to accessible tones:
+     accent text leans toward the theme's text color, and actions toward black. */
+  --accent-ink: color-mix(in srgb, var(--accent-base) 58%, var(--text-primary));
+  --accent-action: color-mix(in srgb, var(--accent-base) 62%, #0c1020);
+  --accent-action-hover: color-mix(in srgb, var(--accent-base) 50%, #0c1020);
+  --accent-strong: var(--accent-ink);
+  --accent-hover: var(--accent-action-hover);
+  --accent-soft: color-mix(in srgb, var(--accent-base) 14%, var(--surface-card));
+  --accent-faint: color-mix(in srgb, var(--accent-base) 7%, var(--surface-card));
+
+  /* The application theme sets these from its colors (see appThemes.ts); these are Light's,
+     for rendering before it applies. */
+  --surface-app: #eef2f8;
+  --surface-sidebar: #eef2f8;
+  --surface-main: #fbfcfe;
+  --surface-card: #fdfeff;
+  --surface-subtle: #f4f7fb;
+  --surface-raised: #ffffff;
+  --surface-selected: var(--accent-soft);
+
+  --text-primary: #162340;
+  --text-secondary: #4f5a73;
+  --text-muted: #636d84;
+  --text-on-accent: #ffffff;
+
+  --border-soft: #e4e7ee;
+  --border-medium: #d5dae4;
+  --border-accent: color-mix(in srgb, var(--accent-base) 38%, var(--border-soft));
+  /* Positive progress in the Library: green bars. */
+  --progress-fill: color-mix(in srgb, #2f9b69 82%, var(--accent-base));
+
+  --warning: #d79624;
+  --danger: #d65e6a;
+  /* Statistics series colors (languages, units, metric icons), readable on light and dark. */
+  --stat-blue: var(--accent-base);
+  --stat-green: #54b788;
+  --stat-gold: #e1a83b;
+  --stat-pink: #ef7f9e;
+  --stat-violet: #a77ddd;
+  --stat-teal: #4fb3bf;
+  /* The dictionary format's tag category colors: Yomitan's hue per category. Header tags mix
+     each into a readable ink toward --tag-ink-toward on a tint of the card, at least 4.5:1 in
+     each theme. */
+  --tag-name: #5cb85c;
+  --tag-expression: #f0ad4e;
+  --tag-popular: #0275d8;
+  --tag-frequent: #5bc0de;
+  --tag-archaism: #d9534f;
+  --tag-dictionary: #aa66cc;
+  --tag-frequency: #5cb85c;
+  --tag-part-of-speech: #565656;
+  --tag-search: #8a8a91;
+  --tag-pronunciation-dictionary: #6640be;
+  --tag-ink-toward: #0f1a3d;
+  --tag-ink-share: 50%;
+  --tag-tint-share: 16%;
+  /* The Reader's page takes the Reader theme's colors in both application themes; the
+     Reader sets them from the chosen theme. These are Paper's. */
+  --reader-page: #fbfaf6;
+  --reader-ink: #26292e;
+  --reader-footer-text: #77787a;
+
+  --font-interface:
+    "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", "Yu Gothic UI", "Yu Gothic", Meiryo,
+    sans-serif;
+  --font-size-1: 0.6875rem;
+  --font-size-2: 0.8125rem;
+  --font-size-3: 0.9375rem;
+  --font-size-4: 1.125rem;
+  --font-size-5: clamp(1.75rem, 1.3vw + 1rem, 2.3rem);
+  --line-compact: 1.2;
+  --line-body: 1.6;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+
+  --radius-xs: 0.5rem;
+  --radius-sm: 0.75rem;
+  --radius-md: 0.9375rem;
+  --radius-lg: 1.125rem;
+  --radius-xl: 1.5rem;
+  --radius-pill: 999px;
+
+  --shadow-xs: 0 2px 5px rgba(22, 39, 84, 0.045);
+  --shadow-sm: 0 7px 20px rgba(22, 39, 84, 0.075);
+  --shadow-shell: 0 12px 38px rgba(28, 48, 91, 0.09);
+  --shadow-float: 0 10px 32px rgba(22, 39, 84, 0.13), 0 1px 3px rgba(22, 39, 84, 0.06);
+
+  --duration-fast: 120ms;
+  --duration-normal: 190ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* The shell's floating top bar and bottom dock, which the page scrolls between. */
+  --topbar-height: 4.5rem;
+  --topbar-control-height: 2.75rem;
+  --topbar-search-width: clamp(18rem, 36vw, 38rem);
+  --dock-space: 6.25rem;
+  --page-padding-inline: clamp(1.75rem, 2.5vw, 3.75rem);
+  --page-padding-block: clamp(1.6rem, 2.1vw, 3.25rem);
+  --page-content-max: 112rem;
+  /* The size a lookup entry not yet laid out stands in for, until it has been shown once. */
+  --lookup-entry-placeholder-height: 15rem;
+  --control-height: 2.625rem;
+  --control-height-compact: 2rem;
+  /* Every control's keyboard focus: one solid accent ring; each control keeps its own offset. */
+  --focus-ring: 2px solid var(--accent-ink);
+  --selection-box-size: 1.55rem;
+  --selection-box-radius: 0.45rem;
+}
+
+@media (min-width: 1800px) {
+  :root {
+    --control-height: 2.875rem;
+    --font-size-1: 0.75rem;
+    --font-size-2: 0.875rem;
+    --font-size-3: 1rem;
+    --font-size-4: 1.25rem;
+  }
+}
+
+@media (min-width: 2300px) {
+  :root {
+    --page-padding-inline: 4.5rem;
+    --page-padding-block: 3.75rem;
+  }
+}

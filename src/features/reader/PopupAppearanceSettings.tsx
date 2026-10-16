@@ -1,0 +1,133 @@
+import { PaletteIcon } from "@phosphor-icons/react";
+
+import { Card } from "../../components/ui/Card";
+import { ColorField } from "../../components/ui/ColorField";
+import { Select } from "../../components/ui/Select";
+import { Stepper } from "../../components/ui/Stepper";
+import { useAppearance } from "../appearance/AppearanceProvider";
+import { useI18n } from "../../i18n/i18n";
+import { lookupPopupHeight, lookupPopupRadius, lookupPopupWidth } from "./lookupPopup";
+import { readingPositions } from "./lookupTriggers";
+import { popupPaletteFields, popupThemes } from "./popupThemes";
+
+/**
+ * Everything that shapes how the lookup popup looks, in Settings > Reader popup: its palette and
+ * custom colors, corners, size, and where readings sit.
+ */
+export function PopupAppearanceSettings() {
+  const {
+    readerPopupCustomPalette,
+    setReaderPopupCustomPalette,
+    readerPopupRadius,
+    setReaderPopupRadius,
+    readerPopupTheme,
+    setReaderPopupTheme,
+    readerPopupWidth,
+    readerPopupHeight,
+    setReaderPopupWidth,
+    setReaderPopupHeight,
+    readerPopupReadingPosition,
+    setReaderPopupTriggers,
+  } = useAppearance();
+  const { t } = useI18n();
+  return (
+    <Card className="settings-card settings-card--wide">
+      <div className="settings-card__heading">
+        <span className="settings-card__icon">
+          <PaletteIcon aria-hidden="true" weight="duotone" />
+        </span>
+        <div>
+          <h2>{t("popupSettings.appearanceTitle")}</h2>
+          <p>{t("popupSettings.appearanceDescription")}</p>
+        </div>
+      </div>
+      <div className="lookup-theme-grid" role="group" aria-label={t("popupSettings.theme")}>
+        {popupThemes.map(({ id, label, description }) => (
+          <button
+            key={id}
+            type="button"
+            aria-label={t(label)}
+            aria-description={t(description)}
+            className="lookup-theme-card"
+            aria-pressed={readerPopupTheme === id}
+            onClick={() => setReaderPopupTheme(id)}
+          >
+            <span
+              aria-hidden="true"
+              className={`lookup-theme-card__preview lookup-theme-card__preview--${id}`}
+              style={
+                id === "custom"
+                  ? {
+                      background: readerPopupCustomPalette.background,
+                      borderColor: readerPopupCustomPalette.border,
+                    }
+                  : undefined
+              }
+            />
+            <strong>{t(label)}</strong>
+            <small>{t(description)}</small>
+          </button>
+        ))}
+      </div>
+      {readerPopupTheme === "custom" && (
+        <div
+          className="settings-color-grid"
+          role="group"
+          aria-label={t("popupSettings.customColors")}
+        >
+          {popupPaletteFields.map((field) => (
+            <ColorField
+              key={field}
+              label={t(`popupSettings.color.${field}`)}
+              value={readerPopupCustomPalette[field]}
+              onChange={(color) =>
+                setReaderPopupCustomPalette({ ...readerPopupCustomPalette, [field]: color })
+              }
+            />
+          ))}
+          <p className="settings-field__hint">{t("popupSettings.colorsHint")}</p>
+        </div>
+      )}
+      <div className="settings-list">
+        <div className="settings-field">
+          <Stepper
+            label={t("popupSettings.width")}
+            value={readerPopupWidth}
+            {...lookupPopupWidth}
+            unit={t("unit.px")}
+            onChange={setReaderPopupWidth}
+          />
+          <p className="settings-field__hint">{t("popupSettings.widthHint")}</p>
+        </div>
+        <div className="settings-field">
+          <Stepper
+            label={t("popupSettings.height")}
+            value={readerPopupHeight}
+            {...lookupPopupHeight}
+            unit={t("unit.px")}
+            onChange={setReaderPopupHeight}
+          />
+        </div>
+        <div className="settings-field">
+          <Stepper
+            label={t("popupSettings.radius")}
+            value={readerPopupRadius}
+            {...lookupPopupRadius}
+            unit={t("unit.px")}
+            onChange={setReaderPopupRadius}
+          />
+          <p className="settings-field__hint">{t("popupSettings.radiusHint")}</p>
+        </div>
+        <div className="settings-field">
+          <Select
+            label={t("popupSettings.readingPosition")}
+            value={readerPopupReadingPosition}
+            options={readingPositions.map((option) => ({ ...option, label: t(option.label) }))}
+            onChange={(value) => setReaderPopupTriggers({ readerPopupReadingPosition: value })}
+          />
+          <p className="settings-field__hint">{t("popupSettings.readingPositionHint")}</p>
+        </div>
+      </div>
+    </Card>
+  );
+}

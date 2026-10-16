@@ -1,0 +1,889 @@
+.page--dictionary {
+  gap: var(--space-6);
+}
+
+.dictionary-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  max-width: 60rem;
+}
+
+.dictionary-search {
+  min-height: 3.25rem;
+  padding: 0 var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-muted);
+  background: var(--surface-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.dictionary-search:focus-within {
+  border-color: var(--border-accent);
+}
+
+.dictionary-search input {
+  width: 100%;
+  min-width: 0;
+  color: var(--text-primary);
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.dictionary-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.dictionary-search__clear {
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-xs);
+}
+
+.dictionary-search__clear:hover {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.dictionary-search-button {
+  min-height: 3.25rem;
+  padding: 0 var(--space-6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.dictionary-search-button:hover {
+  background: var(--accent-action-hover);
+}
+
+.dictionary-workspace {
+  display: grid;
+  grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.dictionary-sources {
+  min-width: 0;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+}
+
+.dictionary-sources__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  color: var(--text-primary);
+}
+
+.dictionary-sources__header div,
+.dictionary-source__copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.dictionary-sources__header span,
+.dictionary-source__copy small,
+.dictionary-sources__message {
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+}
+
+.dictionary-sources__list {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.dictionary-source {
+  width: 100%;
+  min-height: 3.5rem;
+  padding: var(--space-2);
+  display: grid;
+  grid-template-columns: 0.4rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.dictionary-source:hover {
+  background: var(--surface-subtle);
+}
+.dictionary-source--active {
+  background: var(--accent-faint);
+  border-color: var(--border-accent);
+}
+.dictionary-source:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+.dictionary-source__marker {
+  width: 0.35rem;
+  height: 1.7rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent-action);
+}
+.dictionary-source__copy strong,
+.dictionary-source__copy small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dictionary-source__copy strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+}
+.dictionary-source--active .dictionary-source__copy strong {
+  color: var(--accent-ink);
+}
+.dictionary-source__count {
+  min-width: 1.8rem;
+  padding: 0.2rem 0.4rem;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-1);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.dictionary-sources__message {
+  padding: 0 var(--space-2);
+}
+
+.dictionary-results {
+  min-width: 0;
+}
+
+.dictionary-results__header {
+  margin-bottom: var(--space-4);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  color: var(--text-muted);
+}
+
+.dictionary-results__header div {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+  overflow-wrap: anywhere;
+}
+.dictionary-results__header > span {
+  flex-shrink: 0;
+}
+.dictionary-results__query {
+  flex-basis: 100%;
+  font-size: var(--font-size-2);
+}
+.dictionary-results__header strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-4);
+}
+.dictionary-results__empty {
+  min-height: 17rem;
+  display: grid;
+  place-items: center;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+}
+.dictionary-results__message {
+  padding: var(--space-6);
+  color: var(--text-secondary);
+}
+/* Results use the lookup popup's entries on a borderless floating sheet, as the popup does. */
+.dictionary-sheet {
+  padding: 6px 26px 22px;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border-radius: 18px;
+  box-shadow:
+    0 18px 48px color-mix(in srgb, #0c1020 10%, transparent),
+    0 4px 14px color-mix(in srgb, #0c1020 6%, transparent);
+}
+:root[data-theme="dark"] .dictionary-sheet {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+}
+/* Entries out of view skip style and layout until scrolled near; each then keeps its last size. */
+.dictionary-sheet > .lookup-entry {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto var(--lookup-entry-placeholder-height);
+}
+.dictionary-sheet > .dictionary-kanji-card {
+  margin: 16px 0 var(--space-3);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dictionary-result-card {
+  container: dictionary-result / inline-size;
+  overflow: hidden;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.dictionary-result-card--expanded {
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-sm);
+}
+.dictionary-result-card__summary {
+  position: relative;
+  width: 100%;
+  min-height: 6.4rem;
+  padding: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  text-align: left;
+  background: transparent;
+}
+.dictionary-result-card__summary:hover {
+  background: var(--surface-subtle);
+}
+.dictionary-result-card__identity {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+}
+.dictionary-result-card__source {
+  color: var(--text-muted);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+/* Kept within the card, so a long inflection label truncates rather than widening the line. */
+.dictionary-result-card__headword-line {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dictionary-result-card__headword-line strong {
+  color: var(--text-primary);
+  font-size: clamp(1.35rem, 1.5vw, 1.8rem);
+}
+.dictionary-result-card__headword-line span {
+  color: var(--text-secondary);
+}
+/* A deinflected group's inflections,
+muted and outlined so they do not read as its reading. A
+   long chain stays on one line within the card {
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 var(--space-2);
+  overflow: hidden;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: var(--font-size-2);
+  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+/* An expanded headword's kanji each search themselves; the identity passes the pointer on. */
+.dictionary-result-card__kanji {
+  position: relative;
+  z-index: 3;
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  pointer-events: auto;
+  cursor: pointer;
+  text-decoration: underline dotted var(--border-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18em;
+}
+.dictionary-result-card__kanji:hover {
+  color: var(--accent-ink);
+  text-decoration-color: currentColor;
+}
+.dictionary-result-card__kanji:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+.dictionary-audio-button {
+  position: relative;
+  z-index: 3;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  cursor: pointer;
+  color: var(--accent-ink);
+  background: var(--accent-faint);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+}
+.dictionary-audio-button:hover:not(:disabled),
+.dictionary-audio-button--playing {
+  color: var(--surface-card);
+  background: var(--accent-ink);
+}
+.dictionary-audio-button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+.dictionary-audio-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.dictionary-result-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+.dictionary-result-card__tags span {
+  padding: 0.12rem 0.5rem;
+  color: var(--accent-ink);
+  background: var(--accent-faint);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-1);
+}
+/* A tag whose definition has a known category takes that category's color. */
+.dictionary-result-card__tags span[data-category] {
+  color: color-mix(in srgb, var(--tag-color) var(--tag-ink-share), var(--tag-ink-toward));
+  background: color-mix(in srgb, var(--tag-color) var(--tag-tint-share), var(--surface-card));
+}
+.dictionary-result-card__tags [data-category="name"] {
+  --tag-color: var(--tag-name);
+}
+.dictionary-result-card__tags [data-category="expression"] {
+  --tag-color: var(--tag-expression);
+}
+.dictionary-result-card__tags [data-category="popular"] {
+  --tag-color: var(--tag-popular);
+}
+.dictionary-result-card__tags [data-category="frequent"] {
+  --tag-color: var(--tag-frequent);
+}
+.dictionary-result-card__tags [data-category="archaism"] {
+  --tag-color: var(--tag-archaism);
+}
+.dictionary-result-card__tags [data-category="dictionary"] {
+  --tag-color: var(--tag-dictionary);
+}
+.dictionary-result-card__tags [data-category="frequency"] {
+  --tag-color: var(--tag-frequency);
+}
+.dictionary-result-card__tags [data-category="partOfSpeech"] {
+  --tag-color: var(--tag-part-of-speech);
+}
+.dictionary-result-card__tags [data-category="search"] {
+  --tag-color: var(--tag-search);
+}
+.dictionary-result-card__tags [data-category="pronunciation-dictionary"] {
+  --tag-color: var(--tag-pronunciation-dictionary);
+}
+/* Receives the pointer so its notes show as a tooltip. */
+.dictionary-result-card__tags .dictionary-result-card__tag--noted {
+  pointer-events: auto;
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+}
+.dictionary-result-card__glance {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  flex: 0 1 15rem;
+  min-width: 9rem;
+  display: grid;
+  gap: var(--space-1);
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+}
+/* About four rows (visibleFrequencyRows) show before the list scrolls. */
+.dictionary-result-card__frequencies {
+  max-height: 6.4rem;
+  margin: 0;
+  display: grid;
+  gap: 0.15rem;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+.dictionary-result-card__frequencies:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+.dictionary-result-card__frequencies div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding-right: var(--space-1);
+}
+.dictionary-result-card__frequencies dt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dictionary-result-card__frequencies dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.dictionary-result-card__details {
+  padding: 0 var(--space-5) var(--space-5);
+  border-top: 1px solid var(--border-soft);
+}
+.dictionary-pitch {
+  padding-top: var(--space-4);
+}
+.dictionary-pitch h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+/* Distinct patterns share one contour column so the agreeing sources line up beside them. */
+.dictionary-pitch ul {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  column-gap: var(--space-4);
+  row-gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dictionary-pitch li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: start;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+}
+.dictionary-pitch__position {
+  display: inline-grid;
+  grid-template-columns: max-content max-content;
+  align-items: center;
+  column-gap: var(--space-2);
+  max-width: 100%;
+  min-height: 2.25rem;
+  overflow-x: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Tags, then mora marks, sit on their own lines under the position and contour, wrapping within
+   their width. */
+.dictionary-pitch__tags,
+.dictionary-pitch__marks {
+  grid-column: 1 / -1;
+  contain: inline-size;
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  white-space: normal;
+}
+.dictionary-pitch__sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  min-width: 0;
+  padding-block: calc((2.25rem - 1lh) / 2);
+}
+.dictionary-pitch__source {
+  max-width: min(12rem, 100%);
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dictionary-pitch__separator {
+  margin-inline-end: var(--space-1);
+  color: var(--text-muted);
+}
+.dictionary-pitch__contour {
+  display: block;
+  flex: none;
+  color: var(--accent-ink);
+}
+.dictionary-definition {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+}
+.dictionary-definition__index {
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-1);
+  font-weight: 700;
+}
+.dictionary-definition__source {
+  color: var(--text-muted);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+/* A kanji card has no toggle: its rows are always shown. */
+.dictionary-kanji-card .dictionary-result-card__summary:hover {
+  background: transparent;
+}
+/* The Kanji label and the character share one centre line, at the card's start. */
+.dictionary-kanji-card .dictionary-result-card__identity {
+  grid-template-columns: max-content;
+  justify-content: start;
+  justify-items: center;
+}
+.dictionary-kanji-card .dictionary-kanji-card__character {
+  font-size: clamp(2.4rem, 3vw, 3rem);
+  font-weight: 500;
+  line-height: 1.1;
+}
+.dictionary-kanji {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+.dictionary-kanji .dictionary-result-card__tags {
+  margin-top: 0;
+}
+/* Meanings are short, so they flow as one comma-separated line that wraps. */
+.dictionary-kanji__meanings {
+  max-width: 75ch;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  line-height: var(--line-body);
+  overflow-wrap: anywhere;
+}
+.dictionary-kanji__meanings li:not(:last-child)::after {
+  content: ",";
+  margin-inline-end: 0.35em;
+}
+.dictionary-kanji__readings,
+.dictionary-kanji__stats dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
+}
+.dictionary-kanji__readings div,
+.dictionary-kanji__stats dl div {
+  display: contents;
+}
+.dictionary-kanji__readings dt,
+.dictionary-kanji__stats dt {
+  color: var(--text-muted);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+.dictionary-kanji__readings dd,
+.dictionary-kanji__stats dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.dictionary-kanji__stats {
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+}
+.dictionary-kanji__stats summary {
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 650;
+  list-style: none;
+}
+/* Komori's chevron, as on every other disclosure, in place of the browser's marker. */
+.dictionary-kanji__stats summary::-webkit-details-marker {
+  display: none;
+}
+.dictionary-kanji__stats summary > svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+  transform: rotate(-90deg);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.dictionary-kanji__stats[open] summary > svg {
+  transform: none;
+}
+.dictionary-kanji__stats summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+.dictionary-kanji__stats[open] summary {
+  margin-bottom: var(--space-2);
+}
+/* Stats grouped by category: statistics, classifications, and so on. */
+.dictionary-kanji__stat-group {
+  display: grid;
+  gap: var(--space-1);
+}
+.dictionary-kanji__stat-group + .dictionary-kanji__stat-group {
+  margin-top: var(--space-3);
+}
+.dictionary-kanji__stat-heading {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+/* Imported styles may name a dictionary's own color variables; they resolve to the current
+   theme, so colored labels stay readable in light and dark popups. Text keeps its line breaks
+   without the spacing between imported elements. */
+.dictionary-glossary {
+  --text-color: var(--text-primary);
+  --fg: var(--text-primary);
+  --background-color: var(--surface-card);
+  --canvas: var(--surface-card);
+  --link-color: var(--accent-ink);
+  max-width: 75ch;
+  margin: var(--space-2) 0 0;
+  line-height: var(--line-body);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.dictionary-glossary__link {
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 0.16em;
+  cursor: pointer;
+}
+.dictionary-glossary__link:hover {
+  text-decoration-style: solid;
+}
+.dictionary-glossary__table {
+  max-width: 100%;
+  margin: var(--space-1) 0;
+  overflow-x: auto;
+}
+.dictionary-glossary table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.dictionary-glossary :is(td, th) {
+  padding: 2px 8px;
+  border: 1px solid var(--border-medium);
+  vertical-align: top;
+  white-space: normal;
+}
+.dictionary-glossary th {
+  background: var(--surface-subtle);
+  font-weight: 650;
+}
+.dictionary-glossary details > summary {
+  width: fit-content;
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+.dictionary-glossary__term {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  color: var(--accent-ink);
+  background: transparent;
+  font: inherit;
+  text-align: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+  cursor: pointer;
+}
+.dictionary-glossary__term:hover {
+  text-decoration-thickness: 2px;
+}
+.dictionary-glossary__term:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+.dictionary-glossary rt,
+.dictionary-glossary__reading {
+  color: var(--text-muted);
+}
+/* Inline readings are smaller than the headword they follow. */
+.dictionary-glossary__reading {
+  padding-inline: 0.12em;
+  font-size: 0.78em;
+}
+.dictionary-glossary__term :is(rt, .dictionary-glossary__reading) {
+  color: inherit;
+}
+.dictionary-glossary__example-group {
+  padding-inline-start: var(--space-3);
+  border-inline-start: 1px solid var(--border-accent);
+}
+.dictionary-glossary__example-translation {
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+}
+.dictionary-glossary__note-group {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+  padding-inline-start: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+}
+.dictionary-glossary__note-label {
+  color: var(--text-muted);
+  font-weight: 650;
+}
+.dictionary-glossary__note-group > .dictionary-glossary__note-content {
+  min-width: 0;
+  margin-top: 0;
+}
+.dictionary-glossary__xref-group {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-xs);
+}
+.dictionary-glossary__xref-label {
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+.dictionary-glossary__xref-glossary {
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+}
+.dictionary-glossary__attribution {
+  color: var(--text-muted);
+  font-size: var(--font-size-2);
+}
+.dictionary-glossary__attribution-footnote {
+  color: var(--text-muted);
+  font-size: 0.8em;
+  vertical-align: super;
+  line-height: 0;
+}
+.dictionary-glossary__part-of-speech {
+  padding: 0.08em 0.4em;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  white-space: nowrap;
+}
+.dictionary-glossary p,
+.dictionary-glossary ul,
+.dictionary-glossary ol,
+.dictionary-glossary div,
+.dictionary-glossary details {
+  margin: 0;
+}
+.dictionary-glossary :is(p, ul, ol, div, details) + :is(p, ul, ol, div, details) {
+  margin-top: var(--space-2);
+}
+.dictionary-glossary ul,
+.dictionary-glossary ol {
+  padding-inline-start: var(--space-5);
+}
+.dictionary-glossary ul {
+  list-style: disc;
+}
+.dictionary-glossary ol {
+  list-style: decimal;
+}
+.dictionary-glossary li + li {
+  margin-top: var(--space-1);
+}
+/* A dictionary's own sense markers (①, ◆) keep a little room before their text. */
+.dictionary-glossary li[style*="list-style-type"],
+.dictionary-glossary :is(ul, ol)[style*="list-style-type"] > li {
+  padding-inline-start: 0.3em;
+}
+/* The numbered parent already marks the first nested sense. */
+.dictionary-glossary ol > li > ul > li:first-child {
+  list-style: none;
+}
+
+@media (max-width: 640px) {
+  .dictionary-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dictionary-sources__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dictionary-search-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container dictionary-result (max-width: 40rem) {
+  .dictionary-result-card__summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+  .dictionary-result-card__glance {
+    flex-basis: 100%;
+    order: 3;
+    padding-left: 0;
+    border-left: 0;
+  }
+  .dictionary-result-card__frequencies {
+    max-width: 22rem;
+  }
+}

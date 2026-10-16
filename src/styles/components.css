@@ -1,0 +1,1206 @@
+.button,
+.icon-button,
+.segmented-control button {
+  cursor: pointer;
+}
+
+.button {
+  min-height: var(--control-height);
+  padding: 0 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2);
+  font-weight: 700;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+.button--primary {
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+  box-shadow: 0 5px 13px color-mix(in srgb, var(--accent-base) 22%, transparent);
+}
+
+.button--primary:not(:disabled):hover {
+  background: var(--accent-action-hover);
+  box-shadow: 0 7px 17px color-mix(in srgb, var(--accent-base) 28%, transparent);
+}
+
+.button--secondary {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-medium);
+}
+
+.button--secondary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--text-primary) 4%, var(--surface-raised));
+  border-color: var(--border-accent);
+}
+
+.button--quiet {
+  color: var(--accent-strong);
+  background: var(--accent-faint);
+}
+
+.button--quiet:not(:disabled):hover {
+  background: var(--accent-soft);
+}
+
+.button--danger {
+  color: #ffffff;
+  background: color-mix(in srgb, var(--danger) 72%, #55151e);
+  box-shadow: 0 5px 13px color-mix(in srgb, var(--danger) 24%, transparent);
+}
+
+.button--danger:not(:disabled):hover {
+  background: color-mix(in srgb, var(--danger) 62%, #55151e);
+  box-shadow: 0 7px 17px color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+.button__icon,
+.button__icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.icon-button {
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.icon-button:not(:disabled):hover {
+  color: var(--accent-strong);
+  background: var(--accent-faint);
+}
+
+.icon-button:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.icon-button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.icon-button--compact {
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
+  border-radius: var(--radius-xs);
+}
+
+.icon-button--compact svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.icon-button--quiet {
+  background: transparent;
+  border-color: transparent;
+}
+
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 1200;
+  min-width: 13rem;
+  padding: 0.35rem;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-shell);
+}
+
+.context-menu button {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--text-primary);
+  background: transparent;
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  text-align: left;
+}
+
+.context-menu button:not(:disabled):hover,
+.context-menu button:not(:disabled):focus-visible {
+  background: var(--surface-subtle);
+}
+
+.context-menu .context-menu__item--danger {
+  color: color-mix(in srgb, var(--danger) 65%, var(--text-primary));
+}
+
+.context-menu .context-menu__item--danger:not(:disabled):hover,
+.context-menu .context-menu__item--danger:not(:disabled):focus-visible {
+  color: color-mix(in srgb, var(--danger) 72%, var(--text-primary));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-raised));
+}
+
+.context-menu__icon,
+.context-menu__icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 auto;
+}
+
+.confirm-dialog {
+  width: min(calc(100vw - 2rem), 28rem);
+  max-width: none;
+  padding: 0;
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  overflow: visible;
+}
+
+.confirm-dialog::backdrop {
+  background: color-mix(in srgb, #0c1328 48%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.confirm-dialog__content {
+  padding: var(--space-6);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-shell);
+}
+
+.confirm-dialog h2 {
+  margin: 0;
+  font-size: var(--font-size-4);
+  line-height: var(--line-compact);
+}
+
+.confirm-dialog p {
+  margin: var(--space-3) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+  line-height: var(--line-body);
+}
+
+/* A field a dialog adds sits as far below its description as its other added content. */
+.confirm-dialog__content > :is(.select-field, .stepper-field, .choice-field, .text-field) {
+  margin-top: var(--space-4);
+}
+
+.confirm-dialog__list {
+  --scroll-radius: var(--radius-sm);
+  max-height: 12rem;
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-6);
+  overflow-y: auto;
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2);
+  line-height: var(--line-body);
+}
+
+.confirm-dialog__list span {
+  color: var(--text-muted);
+}
+
+/* A release's changelog in the update dialog: the same inset, scrolling box as a list. */
+.release-notes {
+  --scroll-radius: var(--radius-sm);
+  max-height: 16rem;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  overflow-y: auto;
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-2);
+  line-height: var(--line-body);
+}
+
+.release-notes > :first-child {
+  margin-top: 0;
+}
+
+.release-notes h3 {
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+
+.confirm-dialog .release-notes p {
+  margin: var(--space-2) 0 0;
+  color: var(--text-primary);
+}
+
+.release-notes ul {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+
+.release-notes li + li {
+  margin-top: var(--space-1);
+}
+
+.confirm-dialog .confirm-dialog__error {
+  color: color-mix(in srgb, var(--danger) 65%, var(--text-primary));
+  font-weight: 650;
+}
+
+.confirm-dialog__actions {
+  margin-top: var(--space-6);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+@media (max-width: 520px) {
+  .confirm-dialog__actions {
+    flex-direction: column-reverse;
+  }
+
+  .confirm-dialog__actions .button {
+    width: 100%;
+  }
+}
+
+.empty-state {
+  max-width: 34rem;
+  padding: var(--space-12) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  text-align: center;
+}
+
+.empty-state__icon,
+.settings-card__icon {
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: var(--radius-md);
+}
+
+.empty-state__icon svg {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.empty-state h2,
+.settings-card h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-4);
+  line-height: var(--line-compact);
+}
+
+.settings-card h2 {
+  font-size: var(--font-size-3);
+  font-weight: 720;
+}
+
+.empty-state p,
+.settings-card p {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  line-height: var(--line-body);
+}
+
+.segmented-control {
+  padding: 0.25rem;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(6.75rem, 1fr);
+  gap: 0.2rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+}
+
+.segmented-control button {
+  min-height: 2.3rem;
+  padding: 0 0.9rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border-radius: calc(var(--radius-sm) - 0.2rem);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.segmented-control button.is-active {
+  color: var(--accent-strong);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-xs);
+}
+
+.stepper-field,
+.select-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* A label that wraps keeps its control in line with the rest of its grid row. */
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.stepper-field__label,
+.select-field__label {
+  min-height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.stepper-field__label > span,
+.select-field__label > :is(label, span) {
+  color: var(--text-secondary);
+  font-size: var(--font-size-1);
+  font-weight: 650;
+}
+
+.choice-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.choice-field__label {
+  color: var(--text-secondary);
+  font-size: var(--font-size-1);
+  font-weight: 650;
+}
+
+/* A choice fills its row with equal options. */
+.choice-field .segmented-control {
+  width: 100%;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+/* An on/off setting: its label beside a switch, the whole row pressable. */
+.toggle-setting {
+  min-width: 0;
+  min-height: 3.0625rem;
+  padding: 0.5625rem 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  text-align: left;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.toggle-setting:hover,
+.toggle-setting--on {
+  color: var(--text-primary);
+  border-color: var(--border-accent);
+}
+
+.toggle-setting:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.toggle-setting__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.toggle-setting__text strong {
+  min-width: 0;
+  font-size: var(--font-size-1);
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.toggle-setting__text small {
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Settings group their switches as one list: each switch a row, its description under its
+   label, rows divided by hairlines, like a system settings pane. */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+}
+
+.settings-list > .toggle-setting {
+  min-height: 3.5rem;
+  padding: 0.75rem 1rem;
+  gap: var(--space-4);
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.settings-list > .toggle-setting + .toggle-setting {
+  border-top: 1px solid var(--border-soft);
+}
+
+.settings-list > .toggle-setting:hover {
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+}
+
+.settings-list > .toggle-setting:focus-visible {
+  outline-offset: -2px;
+}
+
+.settings-list .toggle-setting__text strong {
+  font-size: var(--font-size-2);
+}
+
+.settings-list .toggle-setting__switch {
+  width: 36px;
+  height: 21px;
+}
+
+.settings-list .toggle-setting__switch > span {
+  width: 17px;
+  height: 17px;
+}
+
+.settings-list .toggle-setting--on .toggle-setting__switch > span {
+  transform: translateX(15px);
+}
+
+/* A field (select, stepper, color) with a short hint under it. */
+.settings-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.settings-field__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  line-height: 1.45;
+}
+
+/* In a grouped list every setting is one row, whatever its control: the label and its hint on
+   the left, as a switch's label and description are, and the control on the right. */
+.settings-list > .settings-field,
+.settings-list > .settings-row {
+  min-height: 3.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.settings-list > * + * {
+  border-top: 1px solid var(--border-soft);
+}
+
+/* The control sits centered on the right, out of the text's flow, so a label and its hint stay
+   together whatever the control's height. */
+.settings-list > .settings-field {
+  position: relative;
+  min-height: calc(var(--control-height) + 1.5rem);
+  padding-right: calc(min(17rem, 42%) + 2rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+}
+
+.settings-list > .settings-field > :is(.select-field, .stepper-field, .text-field) {
+  display: contents;
+}
+
+.settings-list > .settings-field :is(.select-field__label, .stepper-field__label) {
+  min-height: 0;
+}
+
+.settings-list
+  > .settings-field
+  :is(.select-field__label > :is(label, span), .stepper-field__label > span),
+.settings-list > .settings-field .text-field__label {
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.settings-list > .settings-field :is(.select-control, .stepper, .text-field__input) {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  width: min(17rem, 42%);
+  transform: translateY(-50%);
+}
+
+/* Above the cards' paragraph spacing: the hint sits right under its label. */
+.settings-list > .settings-field > .settings-field__hint {
+  margin: 0;
+}
+
+.settings-list > .settings-field > .settings-field__hint:empty {
+  display: none;
+}
+
+/* A row with an action: what it does on the left, its button on the right. */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.settings-row > div:first-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.settings-row > div:first-child > strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.settings-row > div:first-child > span {
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  line-height: 1.4;
+}
+
+.settings-row > .button {
+  flex: none;
+}
+
+@media (max-width: 560px) {
+  .settings-list > .settings-field {
+    padding-right: 1rem;
+  }
+  .settings-list > .settings-field :is(.select-control, .stepper, .text-field__input) {
+    position: static;
+    width: 100%;
+    order: 3;
+    margin-top: 0.35rem;
+    transform: none;
+  }
+  .settings-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+/* More detail on demand, in the same box and type as a settings row. */
+.settings-disclosure {
+  min-width: 0;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+}
+
+.settings-disclosure > summary {
+  min-height: 2.75rem;
+  padding: 0.6rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  list-style: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.settings-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-disclosure > summary:hover {
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+}
+
+.settings-disclosure > summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.settings-disclosure > summary > svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex: none;
+  color: var(--text-muted);
+  transform: rotate(-90deg);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.settings-disclosure[open] > summary > svg {
+  transform: none;
+}
+
+.settings-disclosure__body {
+  padding: 0.75rem 1rem 1rem;
+  color: var(--text-secondary);
+  font-size: var(--font-size-1);
+  line-height: 1.5;
+  border-top: 1px solid var(--border-soft);
+}
+
+.settings-disclosure__body > p {
+  margin: 0;
+}
+
+.settings-disclosure__body > pre {
+  max-height: 18rem;
+  margin: 0.75rem 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+
+.toggle-setting__switch {
+  width: 31px;
+  height: 18px;
+  padding: 2px;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  background: var(--border-medium);
+  border-radius: var(--radius-pill);
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.toggle-setting__switch > span {
+  width: 14px;
+  height: 14px;
+  display: block;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(18, 30, 58, 0.14);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.toggle-setting--on .toggle-setting__switch,
+.switch[aria-checked="true"] .toggle-setting__switch {
+  background: var(--accent-base);
+}
+
+.toggle-setting--on .toggle-setting__switch > span,
+.switch[aria-checked="true"] .toggle-setting__switch > span {
+  transform: translateX(13px);
+}
+
+.switch {
+  padding: 0.375rem;
+  display: inline-grid;
+  place-items: center;
+  background: transparent;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+}
+
+.select-control {
+  position: relative;
+  display: block;
+}
+
+/* A pop-up button: a raised field showing the choice, with the up/down chevrons of a menu. */
+.select-control select {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 2.1rem 0 0.75rem;
+  overflow: hidden;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-size-2);
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+  /* A long choice ends in an ellipsis before the chevron. */
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.select-control select:hover {
+  border-color: var(--border-accent);
+}
+
+.select-control select:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.select-control svg {
+  position: absolute;
+  top: 50%;
+  right: 0.7rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.stepper {
+  min-height: var(--control-height);
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr) 2.4rem;
+  align-items: center;
+  overflow: hidden;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+}
+
+.stepper button {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.stepper button:not([aria-disabled="true"]):hover {
+  color: var(--accent-strong);
+  background: var(--accent-faint);
+}
+
+.stepper button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.stepper button[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.4;
+}
+
+/* The typed value and its unit, centred between the buttons. */
+.stepper__value {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  cursor: text;
+}
+
+/* The unit reads as a word after the number: "16 characters", "0 ms". */
+.stepper__value > span {
+  margin-inline-start: 0.3em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.stepper__value input {
+  field-sizing: content;
+  min-width: 1ch;
+  max-width: 100%;
+  padding: 0.15rem 0;
+  text-align: center;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+/* The whole value cell shows focus, like the buttons beside it. */
+.stepper__value:focus-within {
+  background: var(--surface-raised);
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* A color field: a swatch opening the color picker beside a HEX field. */
+.color-field,
+.text-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.color-field__label,
+.text-field__label {
+  color: var(--text-secondary);
+  font-size: var(--font-size-1);
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.color-field__row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.color-field__swatch {
+  position: relative;
+  height: var(--control-height);
+  padding: 0;
+  overflow: hidden;
+  background: var(--surface-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+}
+
+.color-field__swatch:hover,
+.color-field__swatch[aria-expanded="true"] {
+  border-color: var(--border-accent);
+}
+
+.color-field__swatch:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.color-field__swatch span {
+  position: absolute;
+  inset: 5px;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 14%, transparent);
+  border-radius: 7px;
+  pointer-events: none;
+}
+
+.color-field__hex,
+.text-field__input {
+  min-width: 0;
+  width: 100%;
+  height: var(--control-height);
+  padding: 0 0.7rem;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-size-2);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  outline: 0;
+}
+
+.color-field__hex {
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.text-field__input {
+  font-weight: 650;
+}
+
+.color-field__hex:hover,
+.text-field__input:hover {
+  border-color: var(--border-accent);
+}
+
+.color-field__hex:focus-visible,
+.text-field__input:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.color-field__hex--invalid {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border-medium));
+}
+
+/* Komori's own tooltip, in place of the browser's. */
+.app-tooltip {
+  position: fixed;
+  z-index: 1300;
+  max-width: min(22rem, calc(100vw - 1rem));
+  padding: 0.4rem 0.6rem;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-float);
+  font-size: var(--font-size-2);
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+/* A select's options and a field's suggestions, in place of the browser's popups: the same
+   frosted panel as the Library's menus, the chosen option marked by a leading check. */
+.app-listbox {
+  --scroll-radius: 0.85rem;
+  position: fixed;
+  z-index: 1250;
+  max-width: calc(100vw - 1rem);
+  max-height: min(20rem, calc(100vh - 1rem));
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-medium) 80%, transparent);
+  border-radius: 0.85rem;
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(20px) saturate(1.6);
+  overscroll-behavior: contain;
+  animation: floating-menu-in 140ms var(--ease-out);
+}
+
+.app-listbox__option {
+  min-height: 2.1rem;
+  padding: 0.4rem 0.75rem 0.4rem 0.45rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 0.55rem;
+  font-size: var(--font-size-2);
+  font-weight: 550;
+  outline: 0;
+  cursor: pointer;
+}
+
+.app-listbox--suggestions .app-listbox__option {
+  padding-left: 0.75rem;
+}
+
+.app-listbox__option:hover,
+.app-listbox__option:focus-visible,
+.app-listbox--suggestions .app-listbox__option[aria-selected="true"] {
+  background: var(--accent-soft);
+}
+
+.app-listbox__option:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent-base) 40%, transparent);
+}
+
+.app-listbox:not(.app-listbox--suggestions) .app-listbox__option[aria-selected="true"] {
+  font-weight: 650;
+}
+
+.app-listbox__option[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The chosen option's check in a single-choice menu; the others keep its column empty. */
+.choice-check {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  color: var(--accent-ink);
+}
+
+.choice-check svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+/* The color field's picker: saturation and brightness on a square, hue on a bar. */
+.color-picker {
+  position: fixed;
+  z-index: 1250;
+  width: 15rem;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-float);
+}
+
+.color-picker__area,
+.color-picker__hue {
+  position: relative;
+  border-radius: var(--radius-xs);
+  outline: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.color-picker__area {
+  height: 9.5rem;
+  background-image:
+    linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 12%, transparent);
+}
+
+.color-picker__hue {
+  height: 0.9rem;
+  background: linear-gradient(
+    to right,
+    #f00 0%,
+    #ff0 16.66%,
+    #0f0 33.33%,
+    #0ff 50%,
+    #00f 66.66%,
+    #f0f 83.33%,
+    #f00 100%
+  );
+  cursor: ew-resize;
+}
+
+.color-picker__area:focus-visible,
+.color-picker__hue:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.color-picker__thumb {
+  position: absolute;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 1px 4px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.selection-checkbox {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  vertical-align: middle;
+}
+
+.selection-checkbox input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  z-index: 1;
+  cursor: pointer;
+}
+
+.selection-box {
+  width: var(--selection-box-size);
+  height: var(--selection-box-size);
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  color: transparent;
+  background: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+  border: 2px solid var(--border-medium);
+  border-radius: var(--selection-box-radius);
+  box-shadow: var(--shadow-xs);
+  pointer-events: none;
+}
+
+/* A radio shows a round box with a dot: only one of its group can be chosen. */
+.selection-checkbox[data-kind="radio"] .selection-box {
+  border-radius: 50%;
+}
+
+.selection-checkbox[data-kind="radio"] .selection-box svg {
+  display: none;
+}
+
+.selection-checkbox[data-kind="radio"] .selection-box[data-checked="true"]::after {
+  content: "";
+  width: 40%;
+  height: 40%;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.selection-box svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.selection-box[data-checked="true"] {
+  color: #ffffff;
+  background: var(--accent-action);
+  border-color: var(--accent-action);
+}
+
+.selection-checkbox input:focus-visible + .selection-box,
+:is(button, [role="option"]):focus-visible .selection-box {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.selection-checkbox input:disabled {
+  cursor: default;
+}
+
+.selection-checkbox input:disabled + .selection-box,
+:is(button:disabled, [aria-disabled="true"]) .selection-box {
+  opacity: 0.5;
+}

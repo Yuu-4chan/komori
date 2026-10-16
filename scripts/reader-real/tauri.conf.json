@@ -1,0 +1,9 @@
+{
+  "identifier": "app.komori.readerreal.test",
+  "plugins": {
+    "updater": {
+      "endpoints": ["http://127.0.0.1:47653/latest.json"],
+      "dangerousInsecureTransportProtocol": true
+    }
+  }
+}

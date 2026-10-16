@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Komori",
+  "version": "1.0.0",
+  "identifier": "app.komori.reader",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Komori",
+        "create": false,
+        "width": 1440,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "decorations": false,
+        "shadow": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; object-src 'none'; img-src 'self' data: blob: komori-cover: http://komori-cover.localhost komori-background: http://komori-background.localhost; style-src 'self' 'unsafe-inline' blob:; font-src 'self' data: blob: komori-font: http://komori-font.localhost; media-src blob:; connect-src ipc: http://ipc.localhost komori-book: http://komori-book.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "Yuu-4chan",
+    "copyright": "Copyright (C) 2026 Yuu-4chan"
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/Yuu-4chan/komori/releases/latest/download/latest.json"],
+      "requireSignedVersion": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMwRjhDNUJGMkZEMEJCN0YKUldSL3U5QXZ2OFg0d0FBUVo2cElBazhhRkg4QTBlMVdYZDhWYXJWTytLVFpBcUNXQWNoNFBHNHQK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

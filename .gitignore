@@ -1,0 +1,19 @@
+node_modules/
+dist/
+target/
+src-tauri/target/
+src-tauri/gen/
+artifacts/
+.pnpm-store/
+.vite/
+.claude/
+*.tsbuildinfo
+*.log
+docs/local-development.md
+# Updater signing keys stay in the environment and the release workflow's secrets.
+*.key
+
+# The maintainer's local planning files; never published.
+docs/tasks/
+docs/roadmap.md
+docs/validation.md

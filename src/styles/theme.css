@@ -1,0 +1,35 @@
+:root[data-theme="dark"] {
+  --accent-ink: color-mix(in srgb, var(--accent-base) 64%, var(--text-primary));
+  --accent-action: color-mix(in srgb, var(--accent-base) 70%, #05060a);
+  --accent-action-hover: color-mix(in srgb, var(--accent-base) 60%, #05060a);
+  --accent-strong: var(--accent-ink);
+  --accent-soft: color-mix(in srgb, var(--accent-base) 24%, var(--surface-main));
+  --accent-faint: color-mix(in srgb, var(--accent-base) 11%, var(--surface-main));
+
+  /* Dark defaults until the application theme applies its colors. */
+  --surface-app: #15161e;
+  --surface-sidebar: #15161e;
+  --surface-main: #1b1c26;
+  --surface-card: #22232d;
+  --surface-subtle: #1e1f29;
+  --surface-raised: #272833;
+  --surface-selected: var(--accent-soft);
+
+  --text-primary: #e6e8f2;
+  --text-secondary: #b3b6c3;
+  --text-muted: #9c9faf;
+
+  --border-soft: #2c2e38;
+  --border-medium: #373945;
+  --border-accent: color-mix(in srgb, var(--accent-base) 52%, var(--border-soft));
+  --progress-fill: color-mix(in srgb, #3fbf86 80%, var(--accent-base));
+
+  --tag-ink-toward: #ffffff;
+  --tag-ink-share: 45%;
+  --tag-tint-share: 22%;
+
+  --shadow-xs: 0 2px 6px rgba(0, 0, 0, 0.18);
+  --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.24);
+  --shadow-shell: 0 14px 40px rgba(0, 0, 0, 0.28);
+  --shadow-float: 0 12px 36px rgba(0, 0, 0, 0.38), 0 1px 3px rgba(0, 0, 0, 0.22);
+}

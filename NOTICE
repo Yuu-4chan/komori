@@ -1,0 +1,22 @@
+Komori
+Copyright (C) 2026 Yuu-4chan
+
+Komori is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY. See LICENSE.
+
+Komori includes the following GPL-licensed material:
+
+- Lapis Anki note type (src-tauri/vendor/lapis), unmodified, from
+  https://github.com/donkuri/lapis at commit
+  f4eb29bd4129ae1dde068c64cf6557b7603462dc, by Ruri, itokatsu, kuri and
+  contributors. GPL-3.0; license in src-tauri/vendor/lapis/LICENSE.txt.
+
+- Japanese deinflection rules (src-tauri/src/dictionary/deinflect.rs),
+  adapted and modified from Yomitan's ext/js/language/ja/japanese-transforms.js,
+  https://github.com/yomidevs/yomitan at commit 67db60d.
+  Copyright (C) 2024-2026 Yomitan Authors. GPL-3.0-or-later.
+
+Binary distributions also include THIRD-PARTY-NOTICES.txt, generated at build
+time with the license notices of every bundled npm package and Rust crate.

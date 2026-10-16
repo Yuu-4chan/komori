@@ -1,0 +1,7 @@
+dist
+node_modules
+src-tauri/target
+artifacts
+pnpm-lock.yaml
+# Pinned upstream source: preserve templates, styling and license byte-for-byte.
+src-tauri/vendor/lapis

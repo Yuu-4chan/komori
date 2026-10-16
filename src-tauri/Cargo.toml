@@ -1,0 +1,58 @@
+[package]
+name = "komori"
+version = "1.0.0"
+description = "A lightweight desktop reading application"
+authors = ["Yuu-4chan"]
+license = "GPL-3.0-or-later"
+edition = "2021"
+
+[lib]
+name = "komori_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+base64 = "0.22"
+flate2 = "1"
+rfd = "0.17"
+roxmltree = "0.21"
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }
+sha2 = "0.10"
+ttf-parser = "0.25"
+uuid = { version = "1", features = ["v4"] }
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "tiff"] }
+tauri-plugin-single-instance = "~2.3.6"
+tauri-plugin-updater = { version = "~2.12.0", default-features = false, features = ["rustls-tls"] }
+# Word audio uses the HTTP client and TLS the updater already brings.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+percent-encoding = "2"
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38.2"
+windows = { version = "0.61", features = ["Win32_System_Com"] }
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Networking_WinHttp",
+  "Win32_System_DataExchange",
+  "Win32_System_Memory",
+  "Win32_System_Registry",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[target.'cfg(windows)'.dev-dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_System_LibraryLoader",
+  "Win32_System_Threading",
+] }

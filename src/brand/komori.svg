@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1354" height="950" viewBox="0 0 1354 950" role="img" aria-labelledby="title description">
+  <title id="title">Komori pastel book and cat logo</title>
+  <desc id="description">A coral and cream open book with rounded cat ears, a flowing mauve tail, a floating pink petal, and a five-petal sakura blossom. All artwork consists of editable Bézier paths and subtle pastel gradients on a transparent background.</desc>
+  <defs>
+    <clipPath id="left-ear-clip" clipPathUnits="userSpaceOnUse">
+      <path d="
+        M 228,19
+        C 220,16 215,19 210,27
+        C 183,69 168,129 169,181
+        C 169,195 171,199 181,200
+        C 323,210 457,290 540,403
+        C 549,415 554,425 558,430
+        C 560,433 563,431 563,426
+        C 562,330 588,242 637,177
+        C 640,173 638,172 630,170
+        C 581,163 523,168 470,187
+        C 407,112 319,46 228,19 Z"/>
+    </clipPath>
+    <linearGradient id="coral-page" gradientUnits="userSpaceOnUse" x1="40" y1="230" x2="540" y2="880">
+      <stop offset="0" stop-color="#FE7E88"/>
+      <stop offset="0.52" stop-color="#FD7C85"/>
+      <stop offset="1" stop-color="#FB7882"/>
+    </linearGradient>
+    <linearGradient id="coral-cover" gradientUnits="userSpaceOnUse" x1="40" y1="750" x2="555" y2="935">
+      <stop offset="0" stop-color="#FD7A83"/>
+      <stop offset="1" stop-color="#FA737D"/>
+    </linearGradient>
+    <linearGradient id="rose-ear" gradientUnits="userSpaceOnUse" x1="225" y1="30" x2="560" y2="420">
+      <stop offset="0" stop-color="#D86988"/>
+      <stop offset="1" stop-color="#D26380"/>
+    </linearGradient>
+    <linearGradient id="peach-ear" gradientUnits="userSpaceOnUse" x1="590" y1="415" x2="970" y2="35">
+      <stop offset="0" stop-color="#FCA58A"/>
+      <stop offset="1" stop-color="#FFAE92"/>
+    </linearGradient>
+    <linearGradient id="cream-page" gradientUnits="userSpaceOnUse" x1="610" y1="260" x2="1110" y2="795">
+      <stop offset="0" stop-color="#FEE9E4"/>
+      <stop offset="1" stop-color="#FCE4DF"/>
+    </linearGradient>
+    <linearGradient id="cream-fold" gradientUnits="userSpaceOnUse" x1="525" y1="168" x2="578" y2="296">
+      <stop offset="0" stop-color="#FEEAE5"/>
+      <stop offset="1" stop-color="#FBE1DC"/>
+    </linearGradient>
+    <linearGradient id="mauve-tail" gradientUnits="userSpaceOnUse" x1="615" y1="915" x2="1305" y2="505">
+      <stop offset="0" stop-color="#BA789E"/>
+      <stop offset="0.55" stop-color="#B67499"/>
+      <stop offset="1" stop-color="#B26E94"/>
+    </linearGradient>
+    <linearGradient id="pink-petal" gradientUnits="userSpaceOnUse" x1="1170" y1="315" x2="1315" y2="150">
+      <stop offset="0" stop-color="#FA919E"/>
+      <stop offset="1" stop-color="#FF9DA8"/>
+    </linearGradient>
+    <linearGradient id="sakura-pink" gradientUnits="userSpaceOnUse" x1="780" y1="380" x2="960" y2="610">
+      <stop offset="0" stop-color="#EE657E"/>
+      <stop offset="1" stop-color="#E95C75"/>
+    </linearGradient>
+  </defs>
+  <g id="komori-logo" shape-rendering="geometricPrecision">
+    <path id="cat-tail-and-right-cover" fill="url(#mauve-tail)" d="
+      M 588,929
+      C 581,934 571,929 573,917
+      C 576,901 596,880 623,857
+      C 712,784 832,744 955,739
+      C 1020,739 1071,718 1101,673
+      C 1120,646 1130,619 1136,589
+      C 1148,526 1205,478 1258,477
+      C 1304,474 1337,499 1335,532
+      C 1334,555 1323,569 1305,576
+      C 1264,591 1244,611 1230,640
+      C 1211,680 1204,738 1170,767
+      C 1140,801 1098,825 1057,824
+      C 1002,823 954,821 906,824
+      C 785,830 674,871 588,929 Z"/>
+
+    <g id="left-ear-and-fold" clip-path="url(#left-ear-clip)">
+      <path id="left-cat-ear" fill="url(#rose-ear)" d="M 160,10 H 650 V 440 H 160 Z"/>
+      <path id="center-page-fold" fill="url(#cream-fold)" d="
+        M 518,173
+        C 544,203 569,248 579,292
+        C 580,296 581,296 582,292
+        C 593,253 612,213 642,177
+        C 645,173 643,172 638,170
+        C 600,163 555,164 518,171 Z"/>
+    </g>
+
+    <path id="right-cat-ear" fill="url(#peach-ear)" d="
+      M 946,22
+      C 953,20 958,22 962,30
+      C 983,67 996,128 993,183
+      C 993,195 990,200 981,201
+      C 824,221 682,297 584,425
+      C 580,431 577,434 575,428
+      C 571,341 600,247 648,182
+      C 654,174 657,172 665,175
+      C 677,177 689,181 701,185
+      C 767,104 854,48 946,22 Z"/>
+
+    <path id="left-book-page" fill="url(#coral-page)" d="
+      M 94,221
+      C 261,216 420,282 516,404
+      C 544,440 563,469 563,492
+      L 563,877
+      C 563,883 561,885 557,880
+      C 459,780 326,720 190,722
+      C 132,721 78,734 31,751
+      C 23,754 18,752 18,744
+      L 18,274
+      C 17,240 43,224 94,221 Z"/>
+
+    <path id="left-book-cover" fill="url(#coral-cover)" d="
+      M 27,770
+      C 89,746 145,738 194,741
+      C 336,745 468,798 555,893
+      C 563,902 568,912 565,922
+      C 563,931 556,935 548,929
+      C 441,851 315,813 197,812
+      C 153,812 113,817 73,825
+      C 49,830 31,819 23,803
+      C 17,790 14,776 27,770 Z"/>
+
+    <path id="right-book-page" fill="url(#cream-page)" d="
+      M 575,494
+      C 575,466 606,421 650,381
+      C 754,286 911,228 1047,223
+      C 1097,221 1120,233 1120,268
+      L 1120,576
+      C 1120,652 1065,711 990,714
+      C 828,719 682,779 581,880
+      C 577,885 574,884 574,877
+      L 574,511
+      C 574,505 574,499 575,494 Z"/>
+
+    <g id="sakura" fill="url(#sakura-pink)">
+      <path id="sakura-top-petal" d="
+        M 852,370
+        C 853,368 855,369 858,372
+        L 868,381
+        C 870,383 871,383 873,381
+        L 884,371
+        C 887,368 889,369 892,373
+        C 909,393 911,418 902,439
+        C 895,456 881,471 870,477
+        C 868,479 866,477 862,475
+        C 843,462 832,443 831,422
+        C 830,401 837,383 852,370 Z"/>
+      <path id="sakura-upper-left-petal" d="
+        M 747,438
+        C 785,420 826,443 844,483
+        C 846,488 847,491 843,494
+        C 811,515 780,515 758,498
+        C 746,489 738,478 734,466
+        C 733,464 735,462 738,461
+        L 750,458
+        C 752,458 753,457 752,455
+        L 746,443
+        C 744,440 745,439 747,438 Z"/>
+      <path id="sakura-upper-right-petal" d="
+        M 990,438
+        C 952,420 909,442 891,482
+        C 889,487 887,492 892,495
+        C 923,513 952,515 976,500
+        C 990,491 999,477 1003,466
+        C 1004,464 1002,462 999,461
+        L 987,458
+        C 984,458 983,457 985,455
+        L 992,443
+        C 994,440 992,439 990,438 Z"/>
+      <path id="sakura-lower-left-petal" d="
+        M 853,514
+        C 857,514 858,521 859,526
+        C 866,566 845,603 801,611
+        C 796,612 793,612 793,608
+        L 792,592
+        C 792,590 791,588 788,589
+        L 773,593
+        C 770,594 769,592 769,588
+        C 766,550 800,516 844,514
+        C 847,514 850,514 853,514 Z"/>
+      <path id="sakura-lower-right-petal" d="
+        M 882,514
+        C 879,514 877,520 876,525
+        C 866,566 888,603 931,611
+        C 935,612 938,612 938,608
+        L 939,592
+        C 939,589 940,588 943,589
+        L 958,593
+        C 961,594 962,592 962,588
+        C 965,550 932,517 894,514
+        C 890,514 886,514 882,514 Z"/>
+    </g>
+
+    <path id="floating-petal" fill="url(#pink-petal)" d="
+      M 1314,148
+      C 1319,148 1323,149 1324,156
+      C 1334,231 1269,309 1175,317
+      C 1167,318 1163,318 1162,310
+      C 1149,229 1222,157 1314,148 Z"/>
+  </g>
+</svg>

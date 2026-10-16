@@ -1,0 +1,44 @@
+@keyframes page-arrive {
+  from {
+    transform: translateY(0.35rem);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes cover-pending {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cover-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page > * {
+  animation: page-arrive 360ms var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Transitions are instant rather than 1ms: every element transitions all its
+     properties by default, so any positive duration would apply every style change,
+     such as the size EPUB.js gives a view before scrolling it, a frame late. */
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+  }
+}

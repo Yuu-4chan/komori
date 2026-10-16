@@ -1,0 +1,99 @@
+# Builds, checks and signs a Komori release on Windows. Pushing a tag v<version> attaches the
+# signed installer and latest.json to a draft GitHub release for that tag; installed copies see
+# the update once the draft is published. Running it by hand builds and signs without releasing,
+# and keeps the files as a workflow artifact.
+#
+# Repository secrets:
+#   TAURI_SIGNING_PRIVATE_KEY           the contents of the updater signing key file
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Only the public repository holds the signing secrets.
+    if: github.repository == 'Yuu-4chan/komori'
+    runs-on: windows-2025
+    timeout-minutes: 150
+    permissions:
+      contents: write
+    defaults:
+      run:
+        # Stop at the first failing command, native ones included.
+        shell: pwsh -NoProfile -Command "$PSNativeCommandUseErrorActionPreference = $true; $ErrorActionPreference = 'Stop'; . '{0}'"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # pnpm comes from the packageManager field of package.json.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.3.0
+
+      - name: Install Rust 1.98.1
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt,clippy
+          rustup default 1.98.1
+
+      - name: Check the tag names this version
+        if: github.ref_type == 'tag'
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -ne "v$version") {
+            throw "Tag $env:GITHUB_REF_NAME does not match version $version in package.json."
+          }
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm validate:release
+
+      - name: Build and sign the installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw "The TAURI_SIGNING_PRIVATE_KEY secret is not set." }
+          pnpm tauri:release
+
+      - name: Check the release output
+        run: |
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { @('--tag', $env:GITHUB_REF_NAME) } else { @() }
+          node scripts/check-release.mjs @tag
+
+      - name: Collect the release files
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $nsis = "src-tauri/target/release/bundle/nsis"
+          New-Item -ItemType Directory release | Out-Null
+          Copy-Item "$nsis/Komori_${version}_x64-setup.exe", "$nsis/Komori_${version}_x64-setup.exe.sig", "$nsis/latest.json" release/
+          node --input-type=module -e "import { readFileSync, writeFileSync } from 'node:fs'; import { releaseNotes } from './scripts/release-manifest.mjs'; writeFileSync('release-notes.md', releaseNotes(readFileSync('CHANGELOG.md', 'utf8'), '$version'));"
+          Get-FileHash release/* -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Tee-Object release/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: komori-release
+          path: release/
+          if-no-files-found: error
+
+      - name: Attach to a draft release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          gh release create $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --verify-tag --draft `
+            --title "Komori $version" --notes-file release-notes.md (Get-ChildItem release/*).FullName

@@ -1,0 +1,7 @@
+{
+  "_comment": "A synthetic update signed for version 9.9.9 with a throwaway key whose private half was discarded. Tests use it to show the updater accepts a correct signature and refuses this one under Komori's release key.",
+  "payload": "Komori updater test payload\n",
+  "version": "9.9.9",
+  "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDEyRkNFNTc3MEY1MkE3QzYKUldUR3AxSVBkK1g4RWkyQnF4RG9VcXJsYnJpK1FmWGY1QTF1aGhnUTNnWmhBV3BTQmErTG1sOEQK",
+  "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUR3AxSVBkK1g4RWlmU2Irb3E2UzBibnI2NTBHZ3VwZjU2ZGpjYzBUanBSaG5SOU0xdFJSTGEwQVNHeGJ1VHR0cnhIVFZodmt6bkoveW1ZaVd5VnpscEJwbkZIbVVUdWdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyMTU5MTE3CWZpbGU6cGF5bG9hZC5iaW4JdmVyc2lvbjo5LjkuOQoxc0dBamRseWUrNlRvVDBhMURGNnJLMzV4S1AyVERheUc1VHprWUdZWlJXY2h0NnZkT2w3TWFuYTN5WmkyV0Y3bGJYZVpHVTdIa05scndFNFU3dzdEQT09Cg=="
+}

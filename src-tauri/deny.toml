@@ -1,0 +1,21 @@
+# cargo deny check advisories
+#
+# Every remaining RustSec notice is informational (unmaintained or unsound); none
+# is a vulnerability. Each ignore states why it does not reach Komori on Windows.
+# Re-check this list whenever the Tauri graph or ttf-parser changes.
+#
+# Not listed because cargo deny reports unsound notices only for direct
+# dependencies: RUSTSEC-2024-0429 (glib, unsound VariantStrIter) sits in the Linux
+# GTK graph under tray-icon/muda and is not built for Windows.
+
+[advisories]
+yanked = "deny"
+ignore = [
+  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error (unmaintained): build-time macro crate under glib-macros in the Linux GTK graph; not built for Windows." },
+  { id = "RUSTSEC-2025-0081", reason = "unic-char-property (unmaintained): static Unicode tables for Tauri's urlpattern 0.3 (tauri-utils); no advisory. Leaves with Tauri 2.12, which needs the webview2-com 0.39 migration." },
+  { id = "RUSTSEC-2025-0075", reason = "unic-char-range (unmaintained): static Unicode tables for Tauri's urlpattern 0.3 (tauri-utils); no advisory. Leaves with Tauri 2.12." },
+  { id = "RUSTSEC-2025-0080", reason = "unic-common (unmaintained): static Unicode tables for Tauri's urlpattern 0.3 (tauri-utils); no advisory. Leaves with Tauri 2.12." },
+  { id = "RUSTSEC-2025-0100", reason = "unic-ucd-ident (unmaintained): static Unicode tables for Tauri's urlpattern 0.3 (tauri-utils); no advisory. Leaves with Tauri 2.12." },
+  { id = "RUSTSEC-2025-0098", reason = "unic-ucd-version (unmaintained): static Unicode tables for Tauri's urlpattern 0.3 (tauri-utils); no advisory. Leaves with Tauri 2.12." },
+  { id = "RUSTSEC-2026-0192", reason = "ttf-parser (unmaintained, no advisory): reads face, name and weight of imported Reader fonts; replacing it changes how those are read and is deferred." },
+]

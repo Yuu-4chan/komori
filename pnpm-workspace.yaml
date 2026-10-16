@@ -1,0 +1,9 @@
+allowBuilds:
+  core-js: false
+  es5-ext: false
+# Patched releases for known advisories; EPUB.js only imports the API-stable DOMParser.
+overrides:
+  "@xmldom/xmldom": ^0.8.15
+  source-map-js: ^1.2.2
+patchedDependencies:
+  epubjs@0.3.93: patches/epubjs@0.3.93.patch

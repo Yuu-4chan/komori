@@ -1,0 +1,374 @@
+/* The application frame: the page scrolls under a top bar and above a dock, both floating. */
+.app-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--surface-main);
+}
+
+.app-shell__content {
+  height: 100%;
+  padding: var(--topbar-height) 0 var(--dock-space);
+  overflow: auto;
+  overscroll-behavior: contain;
+  /* Every page keeps the scrollbar's width, so content does not shift between pages. */
+  scrollbar-gutter: stable;
+  scroll-padding-top: calc(var(--topbar-height) + var(--space-2));
+  background: var(--surface-main);
+}
+
+/* The scrollbar runs below the top bar, not under it. */
+.app-shell__content::-webkit-scrollbar-track:vertical {
+  margin-top: var(--topbar-height);
+}
+
+/* The top bar already holds the page's top space. */
+.app-shell__content .page {
+  padding-top: var(--space-4);
+}
+
+/* Top bar, which is also the window's title bar: brand, the page's search with Settings and
+   Add books beside it, and the window controls. Its empty parts drag the window. */
+.app-topbar {
+  position: absolute;
+  z-index: 30;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--topbar-height);
+  padding: 0 var(--space-5);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  border-bottom: 1px solid transparent;
+  user-select: none;
+  transition:
+    background-color var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out);
+}
+
+/* Once the page scrolls, the bar is a frosted strip of its own, so content passes under a
+   surface rather than under loose controls. */
+.app-topbar--floating {
+  background: color-mix(in srgb, var(--surface-main) 82%, transparent);
+  border-bottom-color: var(--border-soft);
+  backdrop-filter: blur(20px) saturate(1.6);
+}
+
+/* The brand sits in a control-sized circle that turns to glass with the other controls. */
+.app-topbar__brand {
+  justify-self: start;
+  width: var(--topbar-control-height);
+  height: var(--topbar-control-height);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+}
+
+/* The logo takes the application accent: Sakura's accent gives its own pastel colors, and every
+   other theme the same shapes in its color. */
+.brand-mark {
+  --logo-cover: color-mix(in oklab, var(--accent-base) 86%, #ffffff);
+  --logo-ear: color-mix(in oklab, var(--accent-base) 90%, #000000);
+  --logo-ear-light: color-mix(in oklab, var(--accent-base) 58%, #ffffff);
+  --logo-page: color-mix(in oklab, var(--accent-base) 13%, #ffffff);
+  --logo-tail: color-mix(in oklab, var(--accent-base) 55%, #8a5c8f);
+  --logo-petal: color-mix(in oklab, var(--accent-base) 70%, #ffffff);
+  width: 2.5rem;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.brand-mark svg {
+  width: 100%;
+  height: 100%;
+}
+
+.brand-mark :is(#coral-page, #coral-cover) stop {
+  stop-color: var(--logo-cover);
+}
+
+.brand-mark #rose-ear stop {
+  stop-color: var(--logo-ear);
+}
+
+.brand-mark #peach-ear stop {
+  stop-color: var(--logo-ear-light);
+}
+
+.brand-mark :is(#cream-page, #cream-fold) stop {
+  stop-color: var(--logo-page);
+}
+
+.brand-mark #mauve-tail stop {
+  stop-color: var(--logo-tail);
+}
+
+.brand-mark #pink-petal stop {
+  stop-color: var(--logo-petal);
+}
+
+.brand-mark #sakura-pink stop {
+  stop-color: var(--accent-base);
+}
+
+.app-topbar__center {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Reserved on every page, so Settings never moves; a page that searches fills it. */
+.app-topbar__search {
+  width: var(--topbar-search-width);
+  display: flex;
+}
+
+.app-topbar__search > * {
+  flex: 1;
+}
+
+/* An empty Library has no search: Settings and Add books center on their own. */
+.app-topbar__search:empty {
+  display: none;
+}
+
+.app-topbar .book-search,
+.app-topbar__button {
+  height: var(--topbar-control-height);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-xs);
+  transition:
+    background-color var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.app-topbar .book-search {
+  padding: 0 0.95rem;
+  border-radius: var(--radius-pill);
+}
+
+.app-topbar__button.icon-button,
+.app-topbar__button {
+  width: var(--topbar-control-height);
+  min-height: 0;
+  padding: 0;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  border-radius: 50%;
+}
+
+.app-topbar__button svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.app-topbar__button:hover {
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+}
+
+.app-topbar__button:focus-visible,
+.app-topbar__brand:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Once the page scrolls under it, the bar's controls float as frosted glass, the brand and
+   window controls with them, so page content never runs into them. */
+.app-topbar--floating .book-search,
+.app-topbar--floating .app-topbar__button:not(.app-topbar__button--active) {
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  border-color: color-mix(in srgb, var(--border-medium) 70%, transparent);
+  backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: var(--shadow-float);
+}
+
+/* The window controls sit flush in the window's top right corner, as the system's would. */
+.app-topbar__window {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  justify-self: end;
+  margin-right: calc(var(--space-5) * -1);
+}
+
+.window-controls {
+  display: flex;
+  border: 1px solid transparent;
+  border-width: 0 0 1px 1px;
+  border-bottom-left-radius: var(--radius-sm);
+  overflow: hidden;
+  transition:
+    background-color var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out);
+}
+
+.app-topbar--floating .window-controls {
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  border-color: color-mix(in srgb, var(--border-medium) 70%, transparent);
+  backdrop-filter: blur(20px) saturate(1.6);
+}
+
+.window-controls__button {
+  width: 2.875rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  background: transparent;
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif;
+  font-size: 0.625rem;
+  cursor: default;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.window-controls__button:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
+}
+
+.window-controls__button:active {
+  background: color-mix(in srgb, var(--text-primary) 14%, transparent);
+}
+
+.window-controls__button--close:hover,
+.window-controls__button--close:active {
+  color: #ffffff;
+  background: #c42b1c;
+}
+
+.window-controls__button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* A modal dialog makes the page's title bar inert, so the dialog brings its own: a strip along
+   the top that drags the window, with the window controls flush in the top right. */
+.dialog-caption {
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dialog-caption .window-controls__button {
+  color: var(--text-primary);
+}
+
+/* Dock: the shell's destinations, the current one tinted with a larger icon. */
+.app-dock {
+  position: absolute;
+  z-index: 30;
+  bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  left: 50%;
+  padding: 0.35rem;
+  display: flex;
+  gap: 0.2rem;
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-medium) 70%, transparent);
+  border-radius: 1.35rem;
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(20px) saturate(1.7);
+  transform: translateX(-50%);
+}
+
+.app-dock__item {
+  width: 5.6rem;
+  height: 3.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  color: var(--text-secondary);
+  border-radius: 1.05rem;
+  font-size: var(--font-size-1);
+  font-weight: 580;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.app-dock__item svg {
+  width: 1.45rem;
+  height: 1.45rem;
+  flex: none;
+  transition:
+    width var(--duration-normal) var(--ease-out),
+    height var(--duration-normal) var(--ease-out);
+}
+
+.app-dock__item:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+
+.app-dock__item:active svg {
+  transform: scale(0.94);
+}
+
+.app-dock__item--active {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  font-weight: 680;
+}
+
+.app-dock__item--active:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.app-dock__item--active svg {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
+.app-dock__item:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+@media (max-width: 820px) {
+  .app-topbar {
+    padding: 0 var(--space-3);
+    grid-template-columns: 0 minmax(0, 1fr) auto;
+  }
+
+  .app-topbar__window {
+    margin-right: calc(var(--space-3) * -1);
+  }
+
+  .app-topbar__brand {
+    display: none;
+  }
+
+  .app-topbar__center {
+    min-width: 0;
+  }
+
+  .app-topbar__search {
+    width: auto;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .app-dock__item {
+    width: 4.6rem;
+    height: 3.4rem;
+  }
+}
