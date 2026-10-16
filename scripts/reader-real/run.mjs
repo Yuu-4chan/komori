@@ -20,7 +20,6 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { createServer as createHttpServer } from "node:http";
-import { createServer } from "node:net";
 import { DatabaseSync } from "node:sqlite";
 import { connect, delay } from "./cdp.mjs";
 import { writeBooks, writeDropFiles } from "./books.mjs";
@@ -29,6 +28,16 @@ const IDENTIFIER = "app.komori.readerreal.test";
 const LIVE_IDENTIFIER = "app.komori.reader";
 const WIDTH = 1456;
 const HEIGHT = 909;
+// WebView2's debugging port and arguments, given both through Tauri's own option (built into
+// this build's window config) and WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, so neither is relied on.
+const port = 47652;
+const browserArgs = [
+  `--remote-debugging-port=${port}`,
+  // Tauri's defaults (replaced by any arguments given), plus occlusion that would pause the page.
+  "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,CalculateNativeWinOcclusion",
+  "--disable-backgrounding-occluded-windows",
+  "--disable-renderer-backgrounding",
+].join(" ");
 const root = process.cwd();
 const here = join(root, "scripts", "reader-real");
 const targetDir = join(root, "src-tauri", "target", "reader-real");
@@ -58,9 +67,18 @@ const liveBefore = [stamp(liveStore), stamp(`${liveStore}-wal`)];
 // ---------- build ----------
 if (!args.includes("--no-build") || !existsSync(exe)) {
   console.log(`Building Komori as ${IDENTIFIER} into ${targetDir} ...`);
+  // The main window as configured, with the debugging port; arrays are replaced, not merged.
+  const config = JSON.parse(readFileSync(join(here, "tauri.conf.json"), "utf8"));
+  const { windows } = JSON.parse(
+    readFileSync(join(root, "src-tauri", "tauri.conf.json"), "utf8"),
+  ).app;
+  config.app = { windows: windows.map((w) => ({ ...w, additionalBrowserArgs: browserArgs })) };
+  mkdirSync(targetDir, { recursive: true });
+  const configFile = join(targetDir, "reader-real.conf.json");
+  writeFileSync(configFile, JSON.stringify(config, null, 2));
   execFileSync(
     process.execPath,
-    ["scripts/tauri.mjs", "build", "--no-bundle", "--config", join(here, "tauri.conf.json")],
+    ["scripts/tauri.mjs", "build", "--no-bundle", "--config", configFile],
     { stdio: "inherit", env: { ...process.env, CARGO_TARGET_DIR: targetDir } },
   );
 }
@@ -76,12 +94,6 @@ for (const old of existsSync(webviewRoot) ? readdirSync(webviewRoot) : [])
   } catch {
     // Still held by an exiting WebView2 process; a later run removes it.
   }
-const port = await new Promise((done) => {
-  const server = createServer().listen(0, "127.0.0.1", () => {
-    const { port } = server.address();
-    server.close(() => done(port));
-  });
-});
 rmSync(booksDir, { recursive: true, force: true });
 const books = writeBooks(booksDir);
 rmSync(dropDir, { recursive: true, force: true });
@@ -130,18 +142,19 @@ const alive = (pid) => {
 const appEnv = () => ({
   ...process.env,
   WEBVIEW2_USER_DATA_FOLDER: webviewDir,
-  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows --disable-renderer-backgrounding`,
+  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: browserArgs,
 });
 
 /** The installed WebView2 Runtime and its running processes, for a page that never appeared. */
-function webviewDiagnostics() {
+function webviewDiagnostics(pid) {
   const script = [
     "$key = 'SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'",
     "$versions = @(foreach ($hive in 'HKLM:', 'HKCU:') { (Get-ItemProperty \"$hive\\$key\" -ErrorAction SilentlyContinue).pv }) | Where-Object { $_ }",
     "'WebView2 Runtime: ' + $(if ($versions) { $versions -join ', ' } else { 'not found' })",
     "$processes = @(Get-CimInstance Win32_Process -Filter \"Name = 'msedgewebview2.exe'\")",
     "'WebView2 processes: ' + $processes.Count",
-    "$processes | Where-Object { $_.CommandLine -notmatch '--type=' } | ForEach-Object { '  browser ' + $_.ProcessId + ', parent ' + $_.ParentProcessId + ', debugging port flag: ' + ($_.CommandLine -match '--remote-debugging-port') }",
+    `'Komori process: ${pid}'`,
+    "$processes | Where-Object { $_.CommandLine -notmatch '--type=' } | ForEach-Object { '  browser ' + $_.ProcessId + ', parent ' + $_.ParentProcessId + ', debugging port flag: ' + ($_.CommandLine -match '--remote-debugging-port') + ', data: ' + $(if ($_.CommandLine -match '--user-data-dir=(\"[^\"]+\"|\\S+)') { $Matches[1] } else { '?' }) }",
   ].join("\n");
   try {
     return execFileSync("powershell", ["-NoProfile", "-Command", script], {
@@ -181,7 +194,7 @@ async function launch() {
     throw new Error(
       `${error.message} Window: ${placed}. Process: ${exited ? `exited, ${exited}` : "running"}. ` +
         `CDP targets: ${targets}.${tail ? `\nApp output:\n${tail}` : " No app output."}\n` +
-        webviewDiagnostics(),
+        webviewDiagnostics(app.pid),
     );
   }
   for (let i = 0; i < 150; i++) {
