@@ -28,6 +28,7 @@ export function imageArchivePath(href: string, base: string): string | undefined
     if (
       decoded.includes("\\") ||
       /^[a-z][\w+.-]*:|^\/\//i.test(decoded) ||
+      // eslint-disable-next-line no-control-regex -- Control characters are refused on purpose.
       /[\u0000-\u001f\u007f]/.test(decoded)
     )
       return undefined;

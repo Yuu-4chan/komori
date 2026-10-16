@@ -6,8 +6,10 @@
 // `pnpm test:reader-real [--no-build] [--only <name>]`.
 import { execFileSync, spawn } from "node:child_process";
 import {
+  closeSync,
   existsSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -39,6 +41,8 @@ const liveStore = join(process.env.APPDATA, LIVE_IDENTIFIER, "library.sqlite3");
 const booksDir = join(tmpdir(), "komori-reader-real-books");
 const dropDir = join(tmpdir(), "komori-reader-real-drop");
 const reportDir = join(root, "artifacts", "validation", "reader-real");
+// Komori's own stdout and stderr (a panic, a WebView2 error) across this run's launches.
+const appLog = join(reportDir, "app.log");
 const probe = readFileSync(join(here, "probe.js"), "utf8");
 const args = process.argv.slice(2);
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : undefined;
@@ -65,6 +69,7 @@ if (!args.includes("--no-build") || !existsSync(exe)) {
 if (!resolve(dataDir).endsWith(IDENTIFIER) || IDENTIFIER === LIVE_IDENTIFIER)
   throw new Error(`Refusing to clear ${dataDir}.`);
 rmSync(dataDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+rmSync(appLog, { force: true });
 for (const old of existsSync(webviewRoot) ? readdirSync(webviewRoot) : [])
   try {
     rmSync(join(webviewRoot, old), { recursive: true, force: true });
@@ -131,10 +136,30 @@ const appEnv = () => ({
 let launchedAt = 0;
 async function launch() {
   launchedAt = Date.now();
-  app = spawn(exe, [], { detached: true, stdio: "ignore", env: appEnv() });
+  mkdirSync(reportDir, { recursive: true });
+  const log = openSync(appLog, "a");
+  app = spawn(exe, [], { detached: true, stdio: ["ignore", log, log], env: appEnv() });
+  closeSync(log);
+  let exited = null;
+  app.on("exit", (code, signal) => (exited = signal ?? `code ${code}`));
   app.unref();
-  await windows().command(`place ${app.pid} ${WIDTH} ${HEIGHT}`);
-  cdp = await connect(port);
+  const placed = await windows().command(`place ${app.pid} ${WIDTH} ${HEIGHT}`);
+  try {
+    cdp = await connect(port);
+  } catch (error) {
+    // Say why: no window, an exit (a panic is in the log), or a webview without its page.
+    const targets = await fetch(`http://127.0.0.1:${port}/json`)
+      .then((r) => r.json())
+      .then((pages) => pages.map((p) => `${p.type} "${p.title}"`).join(", ") || "none")
+      .catch(() => "port closed");
+    const tail = existsSync(appLog)
+      ? readFileSync(appLog, "utf8").trimEnd().split("\n").slice(-20).join("\n")
+      : "";
+    throw new Error(
+      `${error.message} Window: ${placed}. Process: ${exited ? `exited, ${exited}` : "running"}. ` +
+        `CDP targets: ${targets}.${tail ? `\nApp output:\n${tail}` : " No app output."}`,
+    );
+  }
   for (let i = 0; i < 150; i++) {
     const loaded = await cdp
       .evaluate(`document.readyState === "complete" && !!window.__TAURI_INTERNALS__`)
