@@ -133,6 +133,26 @@ const appEnv = () => ({
   WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows --disable-renderer-backgrounding`,
 });
 
+/** The installed WebView2 Runtime and its running processes, for a page that never appeared. */
+function webviewDiagnostics() {
+  const script = [
+    "$key = 'SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'",
+    "$versions = @(foreach ($hive in 'HKLM:', 'HKCU:') { (Get-ItemProperty \"$hive\\$key\" -ErrorAction SilentlyContinue).pv }) | Where-Object { $_ }",
+    "'WebView2 Runtime: ' + $(if ($versions) { $versions -join ', ' } else { 'not found' })",
+    "$processes = @(Get-CimInstance Win32_Process -Filter \"Name = 'msedgewebview2.exe'\")",
+    "'WebView2 processes: ' + $processes.Count",
+    "$processes | Where-Object { $_.CommandLine -notmatch '--type=' } | ForEach-Object { '  browser ' + $_.ProcessId + ', parent ' + $_.ParentProcessId + ', debugging port flag: ' + ($_.CommandLine -match '--remote-debugging-port') }",
+  ].join("\n");
+  try {
+    return execFileSync("powershell", ["-NoProfile", "-Command", script], {
+      encoding: "utf8",
+      timeout: 30000,
+    }).trimEnd();
+  } catch (error) {
+    return `WebView2 diagnostics failed: ${error.message}`;
+  }
+}
+
 let launchedAt = 0;
 async function launch() {
   launchedAt = Date.now();
@@ -145,7 +165,10 @@ async function launch() {
   app.unref();
   const placed = await windows().command(`place ${app.pid} ${WIDTH} ${HEIGHT}`);
   try {
-    cdp = await connect(port);
+    // A cold machine can take long to start WebView2 the first time; say when it does.
+    cdp = await connect(port, { timeoutMs: 180000 });
+    const seconds = Math.round((Date.now() - launchedAt) / 1000);
+    if (seconds > 30) console.log(`  Komori's page took ${seconds} s to appear over CDP.`);
   } catch (error) {
     // Say why: no window, an exit (a panic is in the log), or a webview without its page.
     const targets = await fetch(`http://127.0.0.1:${port}/json`)
@@ -157,7 +180,8 @@ async function launch() {
       : "";
     throw new Error(
       `${error.message} Window: ${placed}. Process: ${exited ? `exited, ${exited}` : "running"}. ` +
-        `CDP targets: ${targets}.${tail ? `\nApp output:\n${tail}` : " No app output."}`,
+        `CDP targets: ${targets}.${tail ? `\nApp output:\n${tail}` : " No app output."}\n` +
+        webviewDiagnostics(),
     );
   }
   for (let i = 0; i < 150; i++) {
