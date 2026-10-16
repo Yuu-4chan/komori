@@ -34,7 +34,8 @@ describe("third-party notices", () => {
     expect(notices).toMatch(/^Yomitan Japanese transforms 67db60d \(adapted\)/mu);
     expect(notices).toContain("Copyright (C) Microsoft Corporation. All rights reserved.");
     expect(notices).toContain("GNU GENERAL PUBLIC LICENSE");
-  });
+    // cargo metadata downloads every crate's source when none is cached, which takes minutes.
+  }, 300_000);
 
   it("is written by the production build and shipped with the installer", () => {
     const scripts = JSON.parse(readFileSync("package.json", "utf8")).scripts;

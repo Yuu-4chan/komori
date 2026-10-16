@@ -59,6 +59,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # The notices test reads each crate's license from its source, so fetch them before the tests.
+      - run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml
+
       - run: pnpm validate:release
 
       - name: Build and sign the installer
