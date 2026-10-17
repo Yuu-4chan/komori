@@ -552,9 +552,14 @@ describe("EPUB.js renderer adapter", () => {
       expect(hooked.createView(spine(1)).settings.forceEvenPages).toBe(true);
       Object.assign(manager.layout, { divisor: 2 });
       views.splice(0, views.length, createView(spine(1)), createView(spine(2)));
+      const shownBefore = display.mock.calls.length;
+      // A change made while the paired page is still being shown applies when it ends.
       await renderer.setPresentation!({ fontSize: 16, pageLayout: "single" });
+      await vi.waitFor(() =>
+        expect(hooked.createView(spine(1)).settings.forceEvenPages).toBe(true),
+      );
+      await vi.waitFor(() => expect(display.mock.calls.length).toBeGreaterThan(shownBefore));
       expect(display).toHaveBeenLastCalledWith("Text/one.xhtml");
-      expect(hooked.createView(spine(1)).settings.forceEvenPages).toBe(true);
       await hooked.handleNextPrePaginated(false, spine(1), action);
       expect(action).toHaveBeenCalledOnce();
     } finally {

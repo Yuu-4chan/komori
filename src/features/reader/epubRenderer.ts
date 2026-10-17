@@ -3920,6 +3920,7 @@ class EpubRenderer implements ReaderRenderer {
       this.turnPending = false;
       if (!this.disposed) await this.refreshPageTurns();
     }
+    await this.applySkippedPresentation();
   }
 
   private async countProgress(book: Book): Promise<void> {
