@@ -2,6 +2,15 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.0.2
+
+- Komori now includes Noto Sans JP, Noto Sans SC, Noto Sans KR, Zen Old Mincho and Klee One, ready without a download.
+- New installs read Asian text in Noto Sans JP and Western text in Georgia. A saved Yu Mincho shows in the included Zen Old Mincho when Windows has no Yu Mincho.
+- The Western and Asian font menus offer only fonts that can be used on this computer.
+- The Fonts window shows Asian and Western fonts on separate tabs, with about twice as many Google Fonts to download.
+- New installs look words up with a mouse click instead of mouse selection. A click in a visual-novel book reads on unless it looks a word up.
+- Double pages no longer show a blank page beside a text page, or an image page beside a blank page instead of the text that follows it.
+
 ## 1.0.1
 
 - Double pages show consecutive image pages two to a spread, one image a page, instead of each beside a blank page. The cover stays alone.
