@@ -9,7 +9,9 @@ All notable changes to Komori are listed here. Versions follow [Semantic Version
 - The Western and Asian font menus offer only fonts that can be used on this computer.
 - The Fonts window shows Asian and Western fonts on separate tabs, with about twice as many Google Fonts to download.
 - New installs look words up with a mouse click instead of mouse selection. A click in a visual-novel book reads on unless it looks a word up.
-- Double pages no longer show a blank page beside a text page, or an image page beside a blank page instead of the text that follows it.
+- Double pages no longer show a blank page beside a text page, or an image page beside a blank page instead of the text that follows it, a new chapter's included.
+- Double pages show the cover and other single image pages in the middle of the spread, and image pages that a book places in a full-page frame are centered on their page.
+- Turning between two pages from different parts of a book no longer briefly shows one page over the other.
 
 ## 1.0.1
 
