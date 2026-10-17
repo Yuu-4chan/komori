@@ -1146,16 +1146,26 @@ scenario("close-deadline", async () => {
     `${acknowledged} ms`,
   );
   await launch();
-  // A page that cannot answer: its script stops at the close event's first statement.
-  await cdp.send("Debugger.enable");
-  await cdp.send("Debugger.pause");
-  const unanswered = await timedClose(20000);
+  // A page that cannot answer: its script stops in the debugger before the close. A pause
+  // requested while the page is idle can be dropped (as by a navigation) and the page then
+  // answers at once, so the page is paused by a debugger statement and seen to be paused.
+  let paused = false;
+  const stop = cdp.on((method) => {
+    if (method === "Debugger.paused") paused = true;
+  });
+  const enabled = await cdp.send("Debugger.enable");
+  await cdp.send("Runtime.evaluate", { expression: "setTimeout(() => { debugger; }, 0)" });
+  const stopped = !enabled.error && (await until(() => paused, 10000));
+  stop();
+  check(label, "the page is paused before its window closes", stopped);
+  const unanswered = stopped ? await timedClose(20000) : null;
   check(
     label,
     "a close the page never acknowledges exits at the native deadline",
     unanswered !== null && unanswered >= 4500 && unanswered < 12000,
     `${unanswered} ms`,
   );
+  if (!stopped) await closeApp();
   await launch();
 });
 
