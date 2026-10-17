@@ -43,7 +43,10 @@ import {
 } from "../../i18n/languages";
 import {
   isLookupDimension,
+  isLookupFontSize,
   isLookupRadius,
+  lookupPopupFontSize,
+  lookupPopupLineHeight,
   lookupPopupRadius,
   lookupPopupWidth,
   lookupPopupHeight,
@@ -64,6 +67,8 @@ import {
   isMaxWidth,
   isPageLayout,
   legacyTextWidth,
+  normalizeMaxHeight,
+  normalizeMaxWidth,
   type ReaderPageLayout,
   isTextOrientation,
   isViewMode,
@@ -152,6 +157,10 @@ export interface AppearancePreferences
   readerPopupShowFrequency: boolean;
   readerPopupCustomPalette: ReaderPopupPalette;
   readerPopupRadius: number;
+  /** The popup's definition text size in pixels; the rest of its content scales with it. */
+  readerPopupFontSize: number;
+  /** The line height of the popup's definitions. */
+  readerPopupLineHeight: number;
   readerPopupTheme: ReaderPopupTheme;
   readerPopupWidth: number;
   readerPopupHeight: number;
@@ -256,6 +265,8 @@ export const defaultAppearance: AppearancePreferences = {
   readerPopupShowFrequency: true,
   readerPopupCustomPalette: defaultPopupPalette,
   readerPopupRadius: lookupPopupRadius.default,
+  readerPopupFontSize: lookupPopupFontSize.default,
+  readerPopupLineHeight: lookupPopupLineHeight.default,
   readerPopupTheme: "application",
   readerPopupWidth: lookupPopupSize.width,
   readerPopupHeight: lookupPopupSize.height,
@@ -317,6 +328,8 @@ export interface AppearancePreferencesStore {
   /** The saved preferences, each missing or invalid one left out. */
   load(): Promise<Partial<AppearancePreferences>>;
   save(preferences: AppearancePreferences): Promise<void>;
+  /** Defaults that depend on this computer, used where nothing valid was saved. */
+  installDefaults?(): Promise<Partial<AppearancePreferences>>;
 }
 
 export const isAppTheme = (value: unknown): value is AppTheme => isAppThemeId(value);
@@ -342,6 +355,8 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     readerPopupShowFrequency,
     readerPopupCustomPalette: savedPopupPalette,
     readerPopupRadius,
+    readerPopupFontSize,
+    readerPopupLineHeight,
     readerPopupTheme,
     readerPopupWidth,
     readerPopupHeight,
@@ -444,6 +459,8 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(typeof readerPopupShowFrequency === "boolean" && { readerPopupShowFrequency }),
     ...(readerPopupCustomPalette && { readerPopupCustomPalette }),
     ...(isLookupRadius(readerPopupRadius) && { readerPopupRadius }),
+    ...(isLookupFontSize(readerPopupFontSize) && { readerPopupFontSize }),
+    ...(isLineHeight(readerPopupLineHeight) && { readerPopupLineHeight }),
     ...(isReaderPopupTheme(readerPopupTheme) && { readerPopupTheme }),
     ...(isLookupDimension(readerPopupWidth, lookupPopupWidth) && { readerPopupWidth }),
     ...(isLookupDimension(readerPopupHeight, lookupPopupHeight) && { readerPopupHeight }),
@@ -529,7 +546,28 @@ export function defaultAppearanceStore(): AppearancePreferencesStore | null {
     async save(preferences) {
       await invoke("save_appearance_preferences", { preferences });
     },
+    installDefaults: monitorReaderSize,
   };
+}
+
+/**
+ * The Reader's maximum text width and height default to the monitor Komori opens on, so a new
+ * reader sees the size the reading area can actually reach rather than an unreachable number.
+ */
+export async function monitorReaderSize(): Promise<Partial<AppearancePreferences>> {
+  try {
+    const monitor = await invoke<{ width: number; height: number } | null>(
+      "get_reader_monitor_size",
+    );
+    if (!monitor || !(monitor.width > 0) || !(monitor.height > 0)) return {};
+    const step = readerMaxWidth.step;
+    return {
+      readerMaxWidth: normalizeMaxWidth(Math.ceil(monitor.width / step) * step),
+      readerMaxHeight: normalizeMaxHeight(Math.ceil(monitor.height / step) * step),
+    };
+  } catch {
+    return {};
+  }
 }
 
 /**

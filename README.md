@@ -96,7 +96,8 @@ order. You can also use Komori freely without any dictionary.
 Komori has no account, telemetry or analytics. Your library, reading history, notes and
 dictionaries stay in `%APPDATA%\app.komori.reader` on your computer. It uses the network
 only to check for updates (which you can turn off), to fetch word audio when you ask for it,
-and to download starter dictionaries or Reader fonts, and talks to Anki only on your own
+and to download starter dictionaries or Reader fonts (Noto Serif JP once, on its own, when
+Windows has no Yu Mincho), and talks to Anki only on your own
 computer. See [docs/privacy.md](docs/privacy.md) for details.
 
 ## Build from source
@@ -160,6 +161,8 @@ I learned a lot from and was inspired by these projects, they're all worth check
   and Korean support.
 - [Jiten](https://jiten.moe/) — vocabulary, difficulty and frequency data for Japanese media.
 - [Hoshi Reader](https://github.com/Manhhao/Hoshi-Reader) — a Japanese EPUB reader for iOS and other platforms with dictionary lookup.
+- [Lapis](https://github.com/donkuri/lapis) — the Anki note type for Japanese sentence mining
+  that Komori's cards use.
 
 Komori also builds on many open-source libraries, fonts and dictionaries; see
 [ACKNOWLEDGEMENTS.md](ACKNOWLEDGEMENTS.md).

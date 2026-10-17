@@ -190,6 +190,50 @@ describe("Reader sessions", () => {
     expect(second).toMatchObject({ unitsRead: 300, startUnits: 8_000, endUnits: 8_300 });
   });
 
+  it("counts a vertical book scrolled by a sideways or Shift wheel as reading", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(2026, 9, 2, 20, 0, 0));
+    let publish: (value: ReaderBookProgress) => void = () => {};
+    const factory: ReaderRendererFactory = () => ({
+      mount: async (...args) => {
+        publish = (value) => args[6]?.(value);
+        publish(progress(1_000));
+        args[2]({ canAdvance: true, canRetreat: true, scrollAxis: "horizontal" });
+        return "ready" as const;
+      },
+      advancePage: vi.fn(async () => {}),
+      retreatPage: vi.fn(async () => {}),
+      scrollBy: vi.fn(),
+      dispose: vi.fn(),
+    });
+    const sessions: ReadingSession[] = [];
+    const store: ReaderPositionStore = {
+      load: vi.fn(async () => null),
+      save: vi.fn(async () => {}),
+      saveProgress: vi.fn(async () => {}),
+      saveSession: vi.fn(async (session: ReadingSession) => {
+        sessions.push(session);
+      }),
+    };
+    const view = render(
+      <MemoryRouter>
+        <AppearanceProvider store={{ load: async () => ({}), save: async () => {} }}>
+          <ReaderShell rendererFactory={factory} positionStore={store} />
+        </AppearanceProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByText("Reader ready");
+    const viewport = screen.getByRole("main");
+    // The browser scrolls these itself; the book then publishes where its scrolling stopped.
+    fireEvent.wheel(viewport, { deltaX: -100 });
+    await act(async () => publish(progress(1_120)));
+    fireEvent.wheel(viewport, { deltaY: 100, shiftKey: true });
+    await act(async () => publish(progress(1_250)));
+    view.unmount();
+    await act(async () => {});
+    expect(sessions.at(-1)).toMatchObject({ unitsRead: 250, startUnits: 1_000, endUnits: 1_250 });
+  });
+
   it("records nothing and says so while statistics are off", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { view, sessions, move } = openBook({

@@ -637,6 +637,8 @@ export const ko: MessageCatalog = {
   "popupSettings.width": "팝업 너비",
   "popupSettings.widthHint": "공간이 부족하면 팝업이 읽기 영역에 맞춰집니다.",
   "popupSettings.height": "팝업 높이",
+  "popupSettings.fontSize": "글자 크기",
+  "popupSettings.lineHeight": "줄 높이",
   "popupSettings.radius": "둥근 모서리",
   "popupSettings.radiusHint": "0px이면 팝업 모서리가 각지게 됩니다.",
   "popupSettings.readingPosition": "읽기 위치",
@@ -1574,7 +1576,7 @@ export const ko: MessageCatalog = {
   "images.retryThumbnail": "썸네일 {index} 다시 시도",
   "viewer.label": "책 이미지 뷰어",
   "viewer.keys":
-    "왼쪽/오른쪽 키로 이미지를 넘기고, 더하기와 빼기로 확대/축소, R로 회전, 0으로 초기화, Esc로 닫습니다. 드래그하거나 스크롤하여 이동합니다.",
+    "왼쪽/오른쪽 키나 마우스 휠로 이미지를 넘기고, 더하기와 빼기로 확대/축소, R로 회전, 0으로 초기화, Esc로 닫습니다. 확대한 이미지는 드래그하거나 스크롤하여 이동합니다.",
   "viewer.controls": "이미지 컨트롤",
   "viewer.zoomOut": "축소",
   "viewer.zoomIn": "확대",

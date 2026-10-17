@@ -31,6 +31,7 @@ import {
 } from "react";
 import {
   isLookupDimension,
+  isLookupFontSize,
   isLookupRadius,
   lookupPopupWidth,
   lookupPopupHeight,
@@ -159,6 +160,10 @@ interface AppearanceContextValue
   setReaderPopupCustomPalette: (palette: ReaderPopupPalette) => void;
   readerPopupRadius: number;
   setReaderPopupRadius: (radius: number) => void;
+  readerPopupFontSize: number;
+  setReaderPopupFontSize: (size: number) => void;
+  readerPopupLineHeight: number;
+  setReaderPopupLineHeight: (lineHeight: number) => void;
   readerPopupTheme: ReaderPopupTheme;
   setReaderPopupTheme: (theme: ReaderPopupTheme) => void;
   readerPopupWidth: number;
@@ -300,6 +305,13 @@ function applyPatch(
   return next ? { ...current, ...next } : current;
 }
 
+/** This computer's own defaults; one that cannot be read leaves the built-in defaults. */
+function installDefaults(
+  store: AppearancePreferencesStore,
+): Promise<Partial<AppearancePreferences>> {
+  return store.installDefaults?.().catch(() => ({})) ?? Promise.resolve({});
+}
+
 // Saved preferences normally load in milliseconds. A stalled load shows the defaults.
 const LOAD_TIMEOUT_MS = 2000;
 
@@ -332,14 +344,17 @@ export function AppearanceProvider({
   const mounted = useRef(true);
   useEffect(() => (saver ? registerWindowFlush(() => saver.flush()) : undefined), [saver]);
 
-  const adoptSaved = useCallback((saved: Partial<AppearancePreferences>) => {
-    savedSeen.current = true;
-    const replayed = edits.current;
-    edits.current = [];
-    // Edits made over the shown defaults apply on top of the saved record, so a late
-    // load never undoes them, and their write keeps every field they did not touch.
-    setPreferences(replayed.reduce(applyPatch, { ...defaultAppearance, ...saved }));
-  }, []);
+  const adoptSaved = useCallback(
+    (saved: Partial<AppearancePreferences>, installed: Partial<AppearancePreferences>) => {
+      savedSeen.current = true;
+      const replayed = edits.current;
+      edits.current = [];
+      // Edits made over the shown defaults apply on top of the saved record, so a late
+      // load never undoes them, and their write keeps every field they did not touch.
+      setPreferences(replayed.reduce(applyPatch, { ...defaultAppearance, ...installed, ...saved }));
+    },
+    [],
+  );
 
   const loadSaved = useCallback(() => {
     if (!preferencesStore || loading.current) return;
@@ -348,10 +363,13 @@ export function AppearanceProvider({
       loading.current = false;
       setLoaded(true);
     };
-    preferencesStore.load().then((saved) => {
-      done();
-      if (mounted.current && !savedSeen.current) adoptSaved(saved);
-    }, done);
+    Promise.all([preferencesStore.load(), installDefaults(preferencesStore)]).then(
+      ([saved, installed]) => {
+        done();
+        if (mounted.current && !savedSeen.current) adoptSaved(saved, installed);
+      },
+      done,
+    );
   }, [preferencesStore, adoptSaved]);
 
   useEffect(() => {
@@ -373,12 +391,15 @@ export function AppearanceProvider({
 
   const reloadAppearance = useCallback(async () => {
     if (!preferencesStore) return;
-    const saved = await preferencesStore.load();
+    const [saved, installed] = await Promise.all([
+      preferencesStore.load(),
+      installDefaults(preferencesStore),
+    ]);
     // What was saved replaces everything, without saving it again.
     changed.current = false;
     savedSeen.current = true;
     edits.current = [];
-    setPreferences({ ...defaultAppearance, ...saved });
+    setPreferences({ ...defaultAppearance, ...installed, ...saved });
   }, [preferencesStore]);
 
   useEffect(() => {
@@ -398,6 +419,8 @@ export function AppearanceProvider({
     readerPopupMouseSelection,
     readerPopupCustomPalette,
     readerPopupRadius,
+    readerPopupFontSize,
+    readerPopupLineHeight,
     readerPopupTheme,
     readerPopupWidth,
     readerPopupHeight,
@@ -541,6 +564,15 @@ export function AppearanceProvider({
       readerPopupRadius,
       setReaderPopupRadius: (radius: number) => {
         if (isLookupRadius(radius)) update({ readerPopupRadius: radius });
+      },
+      readerPopupFontSize,
+      setReaderPopupFontSize: (size: number) => {
+        if (isLookupFontSize(size)) update({ readerPopupFontSize: size });
+      },
+      readerPopupLineHeight,
+      setReaderPopupLineHeight: (lineHeight: number) => {
+        if (Number.isFinite(lineHeight))
+          update({ readerPopupLineHeight: normalizeLineHeight(lineHeight) });
       },
       readerPopupTheme,
       setReaderPopupTheme: (theme: ReaderPopupTheme) => {
@@ -784,6 +816,8 @@ export function AppearanceProvider({
       readerPopupMouseSelection,
       readerPopupCustomPalette,
       readerPopupRadius,
+      readerPopupFontSize,
+      readerPopupLineHeight,
       readerPopupTheme,
       readerPopupWidth,
       readerPopupHeight,

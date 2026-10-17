@@ -46,14 +46,14 @@ export interface LookupTriggerPreferences {
 export type LookupTrigger = "pointer" | "keyboard" | "shift" | "shortcut" | "click" | "hover";
 export const defaultLookupTriggers: LookupTriggerPreferences = {
   readerPopupEnabled: true,
-  readerPopupMouseSelection: false,
+  readerPopupMouseSelection: true,
   readerPopupShiftLookup: true,
   readerPopupKeyboardShortcut: true,
   readerPopupClickLookup: false,
   readerPopupHoverLookup: false,
   readerPopupCjkOnly: false,
   readerPopupShortcutPreset: "shift-enter",
-  readerPopupMouseTrigger: "left",
+  readerPopupMouseTrigger: "middle",
   readerPopupCloseBehavior: "escape-outside",
   readerPopupHoverDelay: 0,
   readerPopupScanLength: 16,

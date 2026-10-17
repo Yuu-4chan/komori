@@ -21,6 +21,9 @@ function Probe() {
         {appearance.readerFontSize}
       </p>
       <p>line {appearance.readerLineHeight}</p>
+      <p>
+        reader size {appearance.readerMaxWidth} x {appearance.readerMaxHeight}
+      </p>
       <p>weight {appearance.readerFontWeight}</p>
       <p>popup {appearance.readerPopupTheme}</p>
       <p>popup voice {String(appearance.readerPopupVoiceAction)}</p>
@@ -225,6 +228,37 @@ const defaultLibraryDisplay = {
 };
 
 describe("Appearance preferences", () => {
+  it("defaults the Reader size to this computer's monitor where nothing was saved", async () => {
+    const fake = fakeStore(async () => ({ readerMaxHeight: 1200 }));
+    const store = {
+      ...fake.store,
+      installDefaults: vi.fn(async () => ({ readerMaxWidth: 2560, readerMaxHeight: 1440 })),
+    };
+    render(
+      <AppearanceProvider store={store}>
+        <Probe />
+      </AppearanceProvider>,
+    );
+    expect(await screen.findByText("reader size 2560 x 1200")).toBeInTheDocument();
+    expect(fake.store.save).not.toHaveBeenCalled();
+  });
+  it("keeps the built-in Reader size when the monitor cannot be read", async () => {
+    const fake = fakeStore(async () => ({}));
+    const store = {
+      ...fake.store,
+      installDefaults: vi.fn(async () => Promise.reject(new Error())),
+    };
+    render(
+      <AppearanceProvider store={store}>
+        <Probe />
+      </AppearanceProvider>,
+    );
+    expect(
+      await screen.findByText(
+        `reader size ${defaultAppearance.readerMaxWidth} x ${defaultAppearance.readerMaxHeight}`,
+      ),
+    ).toBeInTheDocument();
+  });
   it("refuses a non-boolean popup enabled change", async () => {
     const fake = fakeStore(async () => ({ readerPopupEnabled: false }));
     render(
@@ -430,7 +464,7 @@ describe("Appearance preferences", () => {
     expect(fake.saved[0]).toEqual({
       ...defaultAppearance,
       readerPopupEnabled: true,
-      readerPopupMouseSelection: false,
+      readerPopupMouseSelection: true,
       readerPopupVoiceAction: true,
       readerPopupShowDictionaryNames: true,
       readerPopupShowPitch: true,
@@ -472,7 +506,7 @@ describe("Appearance preferences", () => {
     expect(fake.saved[1]).toEqual({
       ...defaultAppearance,
       readerPopupEnabled: true,
-      readerPopupMouseSelection: false,
+      readerPopupMouseSelection: true,
       readerPopupVoiceAction: true,
       readerPopupShowDictionaryNames: true,
       readerPopupShowPitch: true,

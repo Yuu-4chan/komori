@@ -6,13 +6,19 @@ import { Select } from "../../components/ui/Select";
 import { Stepper } from "../../components/ui/Stepper";
 import { useAppearance } from "../appearance/AppearanceProvider";
 import { useI18n } from "../../i18n/i18n";
-import { lookupPopupHeight, lookupPopupRadius, lookupPopupWidth } from "./lookupPopup";
+import {
+  lookupPopupFontSize,
+  lookupPopupHeight,
+  lookupPopupLineHeight,
+  lookupPopupRadius,
+  lookupPopupWidth,
+} from "./lookupPopup";
 import { readingPositions } from "./lookupTriggers";
 import { popupPaletteFields, popupThemes } from "./popupThemes";
 
 /**
  * Everything that shapes how the lookup popup looks, in Settings > Reader popup: its palette and
- * custom colors, corners, size, and where readings sit.
+ * custom colors, corners, size, text size and spacing, and where readings sit.
  */
 export function PopupAppearanceSettings() {
   const {
@@ -20,6 +26,10 @@ export function PopupAppearanceSettings() {
     setReaderPopupCustomPalette,
     readerPopupRadius,
     setReaderPopupRadius,
+    readerPopupFontSize,
+    setReaderPopupFontSize,
+    readerPopupLineHeight,
+    setReaderPopupLineHeight,
     readerPopupTheme,
     setReaderPopupTheme,
     readerPopupWidth,
@@ -106,6 +116,24 @@ export function PopupAppearanceSettings() {
             {...lookupPopupHeight}
             unit={t("unit.px")}
             onChange={setReaderPopupHeight}
+          />
+        </div>
+        <div className="settings-field">
+          <Stepper
+            label={t("popupSettings.fontSize")}
+            value={readerPopupFontSize}
+            {...lookupPopupFontSize}
+            unit={t("unit.px")}
+            onChange={setReaderPopupFontSize}
+          />
+        </div>
+        <div className="settings-field">
+          <Stepper
+            label={t("popupSettings.lineHeight")}
+            value={readerPopupLineHeight}
+            {...lookupPopupLineHeight}
+            format={(value) => value.toFixed(2)}
+            onChange={setReaderPopupLineHeight}
           />
         </div>
         <div className="settings-field">

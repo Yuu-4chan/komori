@@ -17,7 +17,7 @@ import { useAppearance } from "../appearance/AppearanceProvider";
 import { popupThemeStyle } from "./popupThemes";
 import { LookupEntry } from "../dictionary/LookupEntry";
 import { type ReaderCardContext } from "../anki/AnkiAction";
-import { lookupQuery } from "./lookupPopup";
+import { lookupPopupFontSize, lookupQuery } from "./lookupPopup";
 import { triggerEnabled, lookupTextAllowed, type LookupTriggerPreferences } from "./lookupTriggers";
 import { characterAtPoint, textFromCharacter } from "./textSelection";
 import type { ReaderRect } from "./renderer";
@@ -92,6 +92,8 @@ export function ReaderLookupPopup({
     readerPopupVoiceAction,
     readerPopupTheme,
     readerPopupRadius,
+    readerPopupFontSize,
+    readerPopupLineHeight,
     readerPopupCustomPalette,
     readerPopupMaxResults,
     readerPopupReadingPosition,
@@ -184,6 +186,8 @@ export function ReaderLookupPopup({
           ...placement,
           borderRadius: `${readerPopupRadius}px`,
           "--scroll-radius": `${readerPopupRadius}px`,
+          "--popup-zoom": readerPopupFontSize / lookupPopupFontSize.default,
+          "--popup-line-height": readerPopupLineHeight,
         } as CSSProperties
       }
     >

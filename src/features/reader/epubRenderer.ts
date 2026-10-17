@@ -189,6 +189,10 @@ interface EpubManager {
     height: number;
     delta?: number;
     columnWidth?: number;
+    /** Pages in a spread: 2 when a double layout has room for two, else 1. */
+    divisor?: number;
+    /** One page's width, a column and its gap. */
+    pageWidth?: number;
     _spread?: boolean;
     _minSpreadWidth?: number;
     /** The page progression each section is formatted in. */
@@ -233,6 +237,14 @@ interface EpubManager {
     show?(): void;
   };
   createView?(...args: unknown[]): EpubView;
+  /** Show the section after a displayed one, as a fixed-layout spread's second page does. */
+  handleNextPrePaginated?(
+    forceRight: boolean,
+    section: EpubSection,
+    action: (section: EpubSection) => Promise<unknown>,
+  ): unknown;
+  /** Show a section before the displayed ones. */
+  prepend?(section: EpubSection, forceRight?: boolean): Promise<unknown>;
   stage?: {
     overflow(overflow: string): void;
     /** Scroll from the right for a right-to-left progression. */
@@ -254,12 +266,21 @@ interface EpubManager {
   update?(offset?: number): Promise<unknown>;
 }
 
+/** A spine section as EPUB.js's view manager shows it. */
+interface EpubSection {
+  index: number;
+  href?: string;
+  prev(): unknown;
+  next(): unknown;
+}
+
 /** One section shown by EPUB.js's view manager. */
 interface EpubView {
-  section: { index: number; prev(): unknown; next(): unknown };
+  section: EpubSection;
   element: HTMLElement;
   contents?: EpubPageContents;
-  settings?: { axis?: string };
+  /** Whether a spread view rounds its section up to whole spreads, as EPUB.js does. */
+  settings?: { axis?: string; forceEvenPages?: boolean };
   display(request?: unknown): Promise<unknown>;
   /** Make the view visible; EPUB.js forces a layout of the whole book each time. */
   show?(): void;
@@ -378,6 +399,8 @@ class EpubRenderer implements ReaderRenderer {
   private progressCounts?: BookProgressCounts;
   private progressRevision = 0;
   private destinations = new Map<string, string>();
+  /** Each image-only section that shares a spread, and the section beside it. */
+  private imageSpreads = new Map<number, number>();
   /** The anchors of contents entries in each spine section, "" for its start. */
   private headingTargets = new Map<unknown, Set<string>>();
   /** Each heading image's content shift, measured once from the archive by path. */
@@ -833,6 +856,7 @@ class EpubRenderer implements ReaderRenderer {
     if (!this.continuous) {
       this.followTurnHandover();
       this.followLocationReuse();
+      this.followImageSpreads();
     }
     this.followWritingMode();
     if (this.continuous) this.followScrolling(rendition);
@@ -1704,6 +1728,8 @@ class EpubRenderer implements ReaderRenderer {
           this.applyPageLayout();
           this.applyHostInset();
           this.layOutAgain();
+          await this.matchImageSpread(rendition);
+          if (this.disposed) return;
         }
         // EPUB.js would otherwise expand the view to the reflowed text a frame later.
         for (const contents of displayed) contents.resizeCheck?.();
@@ -1839,7 +1865,7 @@ class EpubRenderer implements ReaderRenderer {
         horizontal
           ? this.continuous
             ? area?.clientWidth
-            : (manager?.layout.columnWidth ?? area?.clientWidth)
+            : (manager?.layout.pageWidth ?? area?.clientWidth)
           : !this.continuous
             ? area?.clientWidth
             : undefined,
@@ -2099,6 +2125,8 @@ class EpubRenderer implements ReaderRenderer {
       // EPUB.js measures its container, which fills the host, and formats the views again.
       this.restyleSections(book, rendition);
       this.layOutAgain();
+      await this.matchImageSpread(rendition);
+      if (this.disposed) return;
       if (anchor) await this.displayAnchor(rendition, book, anchor);
       if (this.disposed) return;
       await this.refreshPageTurns();
@@ -2432,6 +2460,106 @@ class EpubRenderer implements ReaderRenderer {
       }
       requestAnimationFrame(() => setTimeout(() => replaced.forEach(remove)));
     };
+  }
+
+  /**
+   * EPUB.js shows one reflowable section at a time and rounds it up to whole spreads, so
+   * an image-only page would fill one side of a spread and leave the other blank. Image
+   * pages in a run share a spread instead, one image a page, as EPUB.js shows the two
+   * pages of a fixed-layout spread: the first of a pair brings its partner after it, and
+   * the second (reached going back, or opened directly) brings it before. Each is one
+   * page wide.
+   */
+  private followImageSpreads(): void {
+    const manager = this.manager();
+    const createView = manager?.createView?.bind(manager);
+    const handle = manager?.handleNextPrePaginated?.bind(manager);
+    const prepend = manager?.prepend?.bind(manager);
+    if (!manager || !createView || !handle || !prepend) return;
+    const shown = (index: number) =>
+      manager.views?.all().some((view) => view.section.index === index) ?? false;
+    const section = (index: number) =>
+      this.book?.spine.get(index) as unknown as EpubSection | undefined;
+    manager.createView = (...args) => {
+      const view = createView(...args);
+      const index = (args[0] as EpubSection | undefined)?.index;
+      if (index === undefined) return view;
+      if (this.imagePartner(index) !== undefined && view.settings)
+        view.settings.forceEvenPages = false;
+      // EPUB.js rounds the measured text width, which can pass a fractional page width by
+      // a pixel and take another page. A fitted image page fills one spread, or one page
+      // beside its partner.
+      const reframe = view.reframe?.bind(view);
+      if (reframe)
+        view.reframe = (width, height) => {
+          const page = manager.layout?.pageWidth;
+          const paired = this.imagePartner(index) !== undefined;
+          const imagePage =
+            paired || !!view.contents?.document?.querySelector("[data-komori-page-image]");
+          const pages = paired ? 1 : (manager.layout?.divisor ?? 1);
+          const limited =
+            imagePage && page && !this.continuous && manager.settings?.axis !== "vertical";
+          reframe(limited ? Math.min(width, page * pages) : width, height);
+        };
+      return view;
+    };
+    manager.handleNextPrePaginated = (forceRight, shownSection, action) => {
+      const partner = this.imagePartner(shownSection.index);
+      const other = partner === undefined || shown(partner) ? undefined : section(partner);
+      if (!other) return handle(forceRight, shownSection, action);
+      return partner! > shownSection.index ? action.call(manager, other) : prepend(other);
+    };
+    manager.prepend = async (added, forceRight) => {
+      await prepend(added, forceRight);
+      const partner = this.imagePartner(added.index);
+      const other =
+        partner === undefined || partner > added.index || shown(partner)
+          ? undefined
+          : section(partner);
+      if (other) await prepend(other);
+    };
+  }
+
+  /** The section that shares a spread with an image-only section, in the current layout. */
+  private imagePartner(index: number): number | undefined {
+    const manager = this.manager();
+    if (this.continuous || this.fixedLayout || this.presentation.pageLayout !== "double")
+      return undefined;
+    if (manager?.settings?.axis === "vertical" || (manager?.layout?.divisor ?? 1) < 2)
+      return undefined;
+    return this.imageSpreads.get(index);
+  }
+
+  /** Whether the displayed views are the two image pages of one spread. */
+  private showsImageSpread(): boolean {
+    const views = this.manager()?.views?.all() ?? [];
+    return (
+      views.length === 2 && this.imagePartner(views[0].section.index) === views[1].section.index
+    );
+  }
+
+  /**
+   * Show image pages paired or alone as the layout now has them, after the spread
+   * changes or the pairs are found. Only a page that has to change is shown again.
+   */
+  private async matchImageSpread(rendition: Rendition): Promise<void> {
+    if (!this.imageSpreads.size) return;
+    const views = this.manager()?.views?.all() ?? [];
+    const first = views[0]?.section.index;
+    if (first === undefined || this.continuous || this.fixedLayout || this.disposed) return;
+    const partner = this.imagePartner(first);
+    const expected = partner === undefined ? [first] : [first, partner].sort((a, b) => a - b);
+    const shown = views.map((view) => view.section.index).sort((a, b) => a - b);
+    // A section of text shown on its own is as it should be.
+    if (partner === undefined && views.length === 1) return;
+    if (expected.length === shown.length && expected.every((index, i) => index === shown[i]))
+      return;
+    const href = (this.book?.spine.get(expected[0]) as { href?: string } | null)?.href;
+    if (!href) return;
+    const relocation = this.waitForRelocation(rendition);
+    this.manager()?.clear?.();
+    await rendition.display(href);
+    await this.navigatedLocation(rendition, relocation);
   }
 
   /**
@@ -3443,9 +3571,7 @@ class EpubRenderer implements ReaderRenderer {
     navigation?: { landmark?(type: string): unknown },
   ): Promise<ReaderContentsEntry[]> {
     if (!Array.isArray(items)) return [];
-    const navPath = (book as unknown as { package?: { navPath?: string; ncxPath?: string } })
-      .package;
-    const base = navPath?.navPath || navPath?.ncxPath || "";
+    const base = navigationBase(book);
     // Entries whose document is not in the spine, resolved once the tree is built.
     const offSpine: Array<{ entry: ReaderContentsEntry; path: string }> = [];
     const normalize = (nodes: unknown[], trail: string): ReaderContentsEntry[] =>
@@ -3527,7 +3653,8 @@ class EpubRenderer implements ReaderRenderer {
       const relocated = await this.navigatedLocation(rendition, moved);
       if (this.disposed) return;
       const after = relocated ?? (await this.currentBookLocation(rendition));
-      if (direction === "retreat") {
+      // Both pages of an image spread are in view already.
+      if (direction === "retreat" && !this.showsImageSpread()) {
         if (
           !this.disposed &&
           before?.start?.index !== undefined &&
@@ -3748,6 +3875,53 @@ class EpubRenderer implements ReaderRenderer {
    * start in that unit. Each section is parsed from the in-memory archive, independent
    * of the rendition, and the count yields between sections so turns stay responsive.
    */
+  /**
+   * Consecutive image-only sections share spreads two by two, in reading order. A cover
+   * stays alone: the first page of the reading order, which a book whose declared cover
+   * lies outside it opens on in its place, and the cover page the book declares.
+   */
+  private pairImagePages(
+    sections: Array<{ linear?: boolean }>,
+    imagePages: Set<number>,
+    coverIndex: number,
+  ): void {
+    const linear = [...sections.keys()].filter((index) => sections[index].linear);
+    this.imageSpreads = new Map();
+    let waiting: number | undefined;
+    for (const index of linear) {
+      if (!imagePages.has(index) || index === linear[0] || index === coverIndex)
+        waiting = undefined;
+      else if (waiting === undefined) waiting = index;
+      else {
+        this.imageSpreads.set(waiting, index).set(index, waiting);
+        waiting = undefined;
+      }
+    }
+    void this.matchShownImageSpread();
+  }
+
+  /** Pair or separate the shown image pages once the pairs are known, between navigations. */
+  private async matchShownImageSpread(): Promise<void> {
+    const rendition = this.rendition;
+    if (!rendition || !this.ready || this.disposed || this.turnPending || this.layoutPending)
+      return;
+    this.turnPending = true;
+    try {
+      const before = this.manager()
+        ?.views?.all()
+        .map((view) => view.section.index);
+      await this.matchImageSpread(rendition);
+      if (this.disposed) return;
+      const after = this.manager()
+        ?.views?.all()
+        .map((view) => view.section.index);
+      if (before?.join() !== after?.join()) await this.publishLocation();
+    } finally {
+      this.turnPending = false;
+      if (!this.disposed) await this.refreshPageTurns();
+    }
+  }
+
   private async countProgress(book: Book): Promise<void> {
     const signal = this.navigationAbort.signal;
     const sections: Array<{ linear?: boolean; url?: string }> = [];
@@ -3765,6 +3939,7 @@ class EpubRenderer implements ReaderRenderer {
       anchors.get(index)?.add(fragment);
     }
     const measured: Array<{ length: UnitCounts; anchors: Map<string, AnchorPosition> }> = [];
+    const imagePages = new Set<number>();
     const resolved = new Set<string>();
     const script = { cjk: 0, letters: 0 };
     for (const [index, section] of sections.entries()) {
@@ -3776,6 +3951,7 @@ class EpubRenderer implements ReaderRenderer {
           const document = (await book.load(section.url)) as Document | undefined;
           if (document?.body) {
             const text = readableText(document);
+            if (showsOneImage(document)) imagePages.add(index);
             counts.length = unitCounts(text);
             const letters = scriptCounts(text);
             script.cjk += letters.cjk;
@@ -3797,6 +3973,11 @@ class EpubRenderer implements ReaderRenderer {
       measured.push(counts);
     }
     if (signal.aborted || this.disposed) return;
+    const navigation = await book.loaded.navigation.catch(() => undefined);
+    const cover = await spineCoverPage(book, navigation, navigationBase(book)).catch(() => null);
+    if (signal.aborted || this.disposed) return;
+    const coverIndex = cover ? sections.indexOf(book.spine.get(cover) as never) : -1;
+    this.pairImagePages(sections, imagePages, coverIndex);
     const unit = progressUnit(script);
     const lengths = measured.map((section) => section.length[unit]);
     const before: number[] = [];
@@ -6306,6 +6487,12 @@ async function spineTocBoundary(
 }
 
 /** The spine href of the declared cover page: the EPUB 3 cover landmark or EPUB 2 guide cover. */
+/** The navigation document's path, which its links are relative to. */
+function navigationBase(book: Book): string {
+  const navPath = (book as unknown as { package?: { navPath?: string; ncxPath?: string } }).package;
+  return navPath?.navPath || navPath?.ncxPath || "";
+}
+
 async function spineCoverPage(
   book: Book,
   navigation: { landmark?(type: string): unknown } | undefined,
@@ -6329,11 +6516,16 @@ async function spineCoverPage(
 async function imageOnlyPage(book: Book, path: string): Promise<boolean> {
   try {
     const document = (await book.load(path)) as Document | undefined;
-    if (!document?.body || readableText(document).trim()) return false;
-    return document.body.querySelectorAll("img, image").length === 1;
+    return !!document && showsOneImage(document);
   } catch {
     return false;
   }
+}
+
+/** A section document with one image and no readable text, such as a cover or an insert. */
+function showsOneImage(document: Document): boolean {
+  if (!document.body || readableText(document).trim()) return false;
+  return document.body.querySelectorAll("img, image").length === 1;
 }
 
 function releaseBook(book: Book): void {

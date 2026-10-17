@@ -457,6 +457,184 @@ describe("EPUB.js renderer adapter", () => {
     expect(host.style.getPropertyValue("--reader-max-width")).toBe("");
   });
 
+  it("shows a run of image pages two to a spread, one image a page, leaving the cover alone", async () => {
+    const image = (href: string) =>
+      section(href, "", true, '<p><img src="../Images/a.png" alt="Art"></p>');
+    const { rendition, display } = mockBook([
+      image("Text/cover.xhtml"),
+      image("Text/one.xhtml"),
+      image("Text/two.xhtml"),
+      image("Text/three.xhtml"),
+      section("Text/story.xhtml", "Readable story text ".repeat(20)),
+      image("Text/four.xhtml"),
+      image("Text/five.xhtml"),
+    ]);
+    const { manager } = rendition;
+    // EPUB.js's view manager: each view rounds its section up to whole spreads, and a
+    // fixed-layout spread shows its second page through handleNextPrePaginated.
+    type View = { section: { index: number }; settings: { forceEvenPages: boolean } };
+    const views: View[] = [];
+    const createView = vi.fn((shown: { index: number }) => ({
+      section: shown,
+      settings: { forceEvenPages: true },
+    }));
+    const handleNextPrePaginated = vi.fn();
+    const prepend = vi.fn(async (shown: { index: number }) => {
+      views.unshift(createView(shown));
+    });
+    const spine = (index: number) => ({ index });
+    Object.assign(manager.layout, { divisor: 2 });
+    Object.assign(manager, {
+      views: { all: () => views, displayed: () => views, remove: vi.fn() },
+      createView,
+      handleNextPrePaginated,
+      prepend,
+    });
+    const hooked = manager as unknown as {
+      createView(section: { index: number }): View;
+      handleNextPrePaginated(forceRight: boolean, section: unknown, action: unknown): unknown;
+      prepend(section: { index: number }): Promise<unknown>;
+    };
+    const renderer = epubRendererFactory(id)();
+    const contents = vi.fn();
+    // The book opens on its first image page, before the pages are counted.
+    views.push(createView(spine(1)));
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      contents,
+      undefined,
+      undefined,
+      { fontSize: 16, pageLayout: "double" },
+    );
+    try {
+      // Once counted, the page shown alone is shown again beside its partner.
+      await vi.waitFor(() => expect(display).toHaveBeenLastCalledWith("Text/one.xhtml"));
+      expect(display).toHaveBeenCalledTimes(2);
+      expect(
+        [0, 1, 2, 3, 4, 5, 6].map((index) => hooked.createView(spine(index)).settings),
+      ).toEqual(
+        [true, false, false, true, true, false, false].map((forceEvenPages) => ({
+          forceEvenPages,
+        })),
+      );
+      const action = vi.fn(async () => undefined);
+      views.splice(0, views.length, createView(spine(1)));
+      await hooked.handleNextPrePaginated(false, spine(1), action);
+      expect(action).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ href: "Text/two.xhtml" }),
+      );
+      expect(handleNextPrePaginated).not.toHaveBeenCalled();
+      // Opening the second page brings the first before it.
+      views.splice(0, views.length, createView(spine(2)));
+      await hooked.handleNextPrePaginated(false, spine(2), action);
+      expect(prepend).toHaveBeenLastCalledWith(expect.objectContaining({ href: "Text/one.xhtml" }));
+      // The odd page of a run, the cover and text keep EPUB.js's own page handling.
+      for (const index of [0, 3, 4])
+        await hooked.handleNextPrePaginated(false, spine(index), action);
+      expect(handleNextPrePaginated).toHaveBeenCalledTimes(3);
+      expect(action).toHaveBeenCalledOnce();
+      // Going back to a spread's second page shows its first one before it.
+      views.splice(0, views.length);
+      prepend.mockClear();
+      await hooked.prepend(spine(6));
+      expect(prepend.mock.calls.map(([shown]) => shown)).toEqual([
+        spine(6),
+        expect.objectContaining({ href: "Text/four.xhtml" }),
+      ]);
+      prepend.mockClear();
+      await hooked.prepend(spine(4));
+      expect(prepend).toHaveBeenCalledOnce();
+      // In single pages, or in a window too narrow for a spread, every image page is alone.
+      Object.assign(manager.layout, { divisor: 1 });
+      expect(hooked.createView(spine(1)).settings.forceEvenPages).toBe(true);
+      Object.assign(manager.layout, { divisor: 2 });
+      views.splice(0, views.length, createView(spine(1)), createView(spine(2)));
+      await renderer.setPresentation!({ fontSize: 16, pageLayout: "single" });
+      expect(display).toHaveBeenLastCalledWith("Text/one.xhtml");
+      expect(hooked.createView(spine(1)).settings.forceEvenPages).toBe(true);
+      await hooked.handleNextPrePaginated(false, spine(1), action);
+      expect(action).toHaveBeenCalledOnce();
+    } finally {
+      renderer.dispose();
+    }
+  });
+
+  it("keeps the first page alone when the declared cover lies outside the reading order", async () => {
+    const image = (href: string, linear = true) =>
+      section(href, "", linear, '<p><img src="../Images/a.png" alt=""></p>');
+    const { rendition } = mockBook([
+      image("Text/cover.xhtml", false),
+      image("Text/one.xhtml"),
+      image("Text/two.xhtml"),
+      image("Text/three.xhtml"),
+      section("Text/story.xhtml", "Readable story text ".repeat(20)),
+    ]);
+    const { manager } = rendition;
+    // EPUB.js measures a fitted page a rounded pixel wider than a fractional page width.
+    const reframe = vi.fn();
+    const createView = vi.fn((shown: { index: number }) => ({
+      reframe,
+      section: shown,
+      settings: { forceEvenPages: true },
+    }));
+    Object.assign(manager.layout, { divisor: 2 });
+    Object.assign(manager, {
+      views: { all: () => [], displayed: () => [], remove: vi.fn() },
+      createView,
+      handleNextPrePaginated: vi.fn(),
+      prepend: vi.fn(async () => undefined),
+    });
+    const contents = vi.fn();
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      contents,
+      undefined,
+      undefined,
+      { fontSize: 16, pageLayout: "double" },
+    );
+    const hooked = manager as unknown as {
+      createView(section: { index: number }): { settings: { forceEvenPages: boolean } };
+    };
+    try {
+      await vi.waitFor(() => expect(contents).toHaveBeenCalled());
+      await vi.waitFor(() =>
+        expect(hooked.createView({ index: 2 }).settings.forceEvenPages).toBe(false),
+      );
+      expect(
+        [1, 2, 3].map((index) => hooked.createView({ index }).settings.forceEvenPages),
+      ).toEqual([true, false, false]);
+      Object.assign(manager.layout, { pageWidth: 720.5 });
+      (
+        hooked.createView({ index: 3 }) as unknown as { reframe(w: number, h: number): void }
+      ).reframe(721, 780);
+      (
+        hooked.createView({ index: 1 }) as unknown as { reframe(w: number, h: number): void }
+      ).reframe(1441, 780);
+      expect(reframe.mock.calls).toEqual([
+        [720.5, 780],
+        [1441, 780],
+      ]);
+      // An image page alone fills one spread, never a rounded pixel more.
+      const cover = hooked.createView({ index: 1 }) as unknown as {
+        contents: { document: Document };
+        reframe(w: number, h: number): void;
+      };
+      cover.contents = { document: document.implementation.createHTMLDocument() };
+      cover.contents.document.body.innerHTML = '<img data-komori-page-image="">';
+      cover.reframe(2162, 780);
+      expect(reframe).toHaveBeenLastCalledWith(1441, 780);
+    } finally {
+      renderer.dispose();
+    }
+  });
+
   it("restores double-page width when a fitted single-page container grows", async () => {
     let resize!: () => void;
     const observe = vi.fn();

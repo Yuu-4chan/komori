@@ -105,7 +105,11 @@ export function applyBookImageLayout(document: Document): void {
   (document.head ?? document.documentElement).prepend(style);
 }
 
-/** Fit image-only pages, including SVG covers, without a squeezed SVG box. */
+/**
+ * Fit image-only pages, including SVG covers, without a squeezed SVG box. A paginated or
+ * vertical page's width is the whole page, its side padding included; a continuous
+ * horizontal one's is the width inside the padding.
+ */
 export function fitBookImagePage(
   document: Document,
   width?: number,
@@ -123,8 +127,9 @@ export function fitBookImagePage(
   const horizontalPadding =
     (parseFloat(bodyStyle?.paddingLeft ?? "") || 0) +
     (parseFloat(bodyStyle?.paddingRight ?? "") || 0);
-  const pageWidth = vertical ? width : width + horizontalPadding;
-  if (vertical) width = Math.max(1, width - horizontalPadding);
+  const wholePage = vertical || paginated;
+  const pageWidth = wholePage ? width : width + horizontalPadding;
+  if (wholePage) width = Math.max(1, width - horizontalPadding);
   // EPUB.js adds physical top/bottom padding inside the reading area. Leave room for
   // that and the common image gap so a fitted cover cannot spill onto a second page.
   const fontSize = parseFloat(document.documentElement.style.fontSize) || 16;

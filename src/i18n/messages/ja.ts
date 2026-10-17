@@ -648,6 +648,8 @@ export const ja: MessageCatalog = {
   "popupSettings.width": "ポップアップの幅",
   "popupSettings.widthHint": "スペースが足りないときは読書エリアに収まるように表示します。",
   "popupSettings.height": "ポップアップの高さ",
+  "popupSettings.fontSize": "文字の大きさ",
+  "popupSettings.lineHeight": "行の高さ",
   "popupSettings.radius": "角の丸み",
   "popupSettings.radiusHint": "0 pxにするとポップアップの角が四角になります。",
   "popupSettings.readingPosition": "読みの位置",
@@ -1585,7 +1587,7 @@ export const ja: MessageCatalog = {
   "images.retryThumbnail": "サムネイル{index}を再試行",
   "viewer.label": "本の画像ビューア",
   "viewer.keys":
-    "左右キーで画像を切り替え、プラスとマイナスで拡大縮小、Rで回転、0でリセット、Escapeで閉じます。ドラッグまたはスクロールで移動します。",
+    "左右キーまたはマウスホイールで画像を切り替え、プラスとマイナスで拡大縮小、Rで回転、0でリセット、Escapeで閉じます。拡大した画像はドラッグまたはスクロールで移動します。",
   "viewer.controls": "画像の操作",
   "viewer.zoomOut": "縮小",
   "viewer.zoomIn": "拡大",

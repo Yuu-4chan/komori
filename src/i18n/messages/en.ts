@@ -697,6 +697,8 @@ export const en = {
   "popupSettings.width": "Popup width",
   "popupSettings.widthHint": "The popup fits within the reading area when space is limited.",
   "popupSettings.height": "Popup height",
+  "popupSettings.fontSize": "Font size",
+  "popupSettings.lineHeight": "Line height",
   "popupSettings.radius": "Rounded corners",
   "popupSettings.radiusHint": "0 px gives the popup square corners.",
   "popupSettings.readingPosition": "Reading position",
@@ -1728,7 +1730,7 @@ export const en = {
   // Image viewer
   "viewer.label": "Book image viewer",
   "viewer.keys":
-    "Left and Right browse images. Plus and minus zoom, R rotates, 0 resets, and Escape closes. Drag or scroll to pan.",
+    "Left and Right or the mouse wheel browse images. Plus and minus zoom, R rotates, 0 resets, and Escape closes. Drag or scroll to pan a zoomed image.",
   "viewer.controls": "Image controls",
   "viewer.zoomOut": "Zoom out",
   "viewer.zoomIn": "Zoom in",

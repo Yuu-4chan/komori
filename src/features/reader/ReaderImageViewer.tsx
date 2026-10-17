@@ -18,6 +18,7 @@ import { IconButton } from "../../components/ui/IconButton";
 import { imageCaption, useImageResource, type ImageResourceProps } from "./ReaderImagesPanel";
 import type { ReaderImage } from "./renderer";
 import { copyBookImage, imageBlob, saveBookImage } from "./bookImageActions";
+import { WheelStepCounter, wheelSteps } from "./navigationInput";
 
 export interface ImageViewerSession {
   items: ReaderImage[];
@@ -54,6 +55,8 @@ export function ReaderImageViewer({
   const returnFocus = useRef<HTMLElement | null>(null);
   const jumped = useRef(false);
   const controller = useRef(new AbortController());
+  /** The latest `step`, for the native wheel listener. */
+  const browse = useRef<(direction: number) => void>(() => {});
   const item = session.items[index];
   const { resource, error } = useImageResource(
     item.id,
@@ -80,10 +83,21 @@ export function ReaderImageViewer({
     observer?.observe(stage);
     // React's wheel listener is passive. A native listener can consume Ctrl+wheel
     // without zooming/reflowing the application behind the modal.
+    const steps = new WheelStepCounter();
     const wheel = (event: WheelEvent) => {
-      if (!event.ctrlKey) return;
+      if (event.ctrlKey) {
+        event.preventDefault();
+        setZoom((value) => Math.max(0.5, Math.min(4, value + (event.deltaY < 0 ? 0.25 : -0.25))));
+        return;
+      }
+      // An image larger than the stage scrolls; otherwise the wheel browses images.
+      if (event.altKey || event.metaKey || event.shiftKey) return;
+      if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+      if (stage.scrollHeight > stage.clientHeight + 1 || stage.scrollWidth > stage.clientWidth + 1)
+        return;
       event.preventDefault();
-      setZoom((value) => Math.max(0.5, Math.min(4, value + (event.deltaY < 0 ? 0.25 : -0.25))));
+      const pages = steps.consume(wheelSteps(event.deltaY, event.deltaMode));
+      if (pages) browse.current(Math.sign(pages));
     };
     stage.addEventListener("wheel", wheel, { passive: false });
     return () => {
@@ -122,6 +136,7 @@ export function ReaderImageViewer({
       stageRef.current.scrollTop = 0;
     }
   };
+  browse.current = step;
   const copyImage = () => {
     if (!resource) return;
     void imageBlob(resource)

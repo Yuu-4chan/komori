@@ -1,5 +1,5 @@
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
-import { useReaderFonts, useSystemFontFaces } from "./readerFonts";
+import { useAsianFontFallback, useReaderFonts, useSystemFontFaces } from "./readerFonts";
 import { availableFontWeights, resolveFontWeight } from "./fontWeights";
 import {
   type CSSProperties,
@@ -179,23 +179,22 @@ export function ReaderShell({
   const navigate = useNavigate();
   const appearance = useAppearance();
   const managedFonts = useReaderFonts().fonts;
-  const systemFaces = useSystemFontFaces([
-    appearance.readerWesternFont,
-    appearance.readerAsianFont,
-  ]);
+  // The default Yu Mincho, or the Noto Serif JP that stands in for it on a computer without it.
+  const asianFont = useAsianFontFallback(appearance.readerAsianFont);
+  const systemFaces = useSystemFontFaces([appearance.readerWesternFont, asianFont]);
   const westernWeight = resolveFontWeight(
     appearance.readerWesternFontWeight,
     availableFontWeights(appearance.readerWesternFont, managedFonts),
   );
   const asianWeight = resolveFontWeight(
     appearance.readerAsianFontWeight,
-    availableFontWeights(appearance.readerAsianFont, managedFonts),
+    availableFontWeights(asianFont, managedFonts),
   );
   const downloadedFonts = managedFonts
     .filter(
       (f) =>
         f.available &&
-        [appearance.readerAsianFont, appearance.readerWesternFont].some(
+        [asianFont, appearance.readerWesternFont].some(
           (choice) => choice.source === "google" && choice.id === (f.familyId ?? f.id),
         ),
     )
@@ -204,7 +203,7 @@ export function ReaderShell({
     .filter(
       (f) =>
         f.source === "uploaded" &&
-        [appearance.readerAsianFont, appearance.readerWesternFont].some(
+        [asianFont, appearance.readerWesternFont].some(
           (c) => c.source === "uploaded" && c.id === f.id,
         ),
     )
@@ -345,7 +344,6 @@ export function ReaderShell({
     setReaderLetterSpacing,
     readerWordSpacing,
     setReaderWordSpacing,
-    readerAsianFont,
     readerWesternFont,
     readerFontFamilyGroup1,
     readerFontFamilyGroup2,
@@ -521,6 +519,7 @@ export function ReaderShell({
     turnPage,
     scrollBy,
     scrollWithin,
+    scrolledNatively,
     scrollTrack,
     contents,
     currentEntryId,
@@ -574,7 +573,7 @@ export function ReaderShell({
     readerMaxWidth,
     readerPageLayout,
     {
-      asian: readerAsianFont,
+      asian: asianFont,
       western: readerWesternFont,
       weights: { western: westernWeight, asian: asianWeight },
       ...(systemFaces.length ? { systemFaces } : {}),
@@ -1128,14 +1127,19 @@ export function ReaderShell({
       clearEscape();
       if (imageOpen.current || document.querySelector("dialog[open]")) return;
       if (popupShortcut(event)) return;
-      if (event.altKey || event.metaKey || event.shiftKey) return;
-      if (
-        event.defaultPrevented ||
-        event.ctrlKey ||
-        Math.abs(event.deltaX) > Math.abs(event.deltaY)
-      )
-        return;
+      if (event.defaultPrevented || event.ctrlKey) return;
       if (!acceptsReaderInput(event.target, content)) return;
+      // The browser scrolls a sideways or Shift wheel itself, which reads on across the
+      // lines of a vertical book.
+      if (
+        event.altKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        Math.abs(event.deltaX) > Math.abs(event.deltaY)
+      ) {
+        if (pageTurns.scrollAxis) scrolledNatively();
+        return;
+      }
       const steps = wheelSteps(event.deltaY, event.deltaMode);
       // A continuous book scrolls the chosen distance for each wheel step, and finer
       // movement in proportion, down reading on in either axis.

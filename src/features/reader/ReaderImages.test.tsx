@@ -175,6 +175,25 @@ describe("Reader images", () => {
     fireEvent(screen.getByLabelText("Image pan area"), wheel);
     expect(wheel.defaultPrevented).toBe(true);
     expect(screen.getByText("125%")).toBeInTheDocument();
+    // The wheel browses images, one per step, without wrapping.
+    const pan = screen.getByLabelText("Image pan area");
+    fireEvent.wheel(pan, { deltaY: 100 });
+    expect(screen.getByText(/Image 2 of 2/)).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    fireEvent.wheel(pan, { deltaY: 100 });
+    expect(screen.getByText(/Image 2 of 2/)).toBeInTheDocument();
+    // A touchpad's finer movement browses once a whole step has built up.
+    fireEvent.wheel(pan, { deltaY: -40 });
+    fireEvent.wheel(pan, { deltaY: -40 });
+    expect(screen.getByText(/Image 2 of 2/)).toBeInTheDocument();
+    fireEvent.wheel(pan, { deltaY: -30 });
+    expect(screen.getByText(/Image 1 of 2/)).toBeInTheDocument();
+    // An image larger than the stage scrolls instead.
+    Object.defineProperty(pan, "scrollHeight", { configurable: true, value: 2000 });
+    const scroll = new WheelEvent("wheel", { deltaY: 100, bubbles: true, cancelable: true });
+    fireEvent(pan, scroll);
+    expect(scroll.defaultPrevented).toBe(false);
+    expect(screen.getByText(/Image 1 of 2/)).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(first).toHaveFocus();

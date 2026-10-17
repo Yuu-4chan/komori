@@ -126,9 +126,10 @@ describe("publisher book images", () => {
       fitBookImagePage(doc, 1440, 788, true);
       const css = doc.querySelector("style[data-komori-page-image-fit]")!.textContent!;
       expect(css).toContain("align-items: center !important; justify-content: center !important");
-      expect(css).toContain(
-        `width: ${writingMode === "vertical-rl" ? 1440 : 1520}px !important; height: 788px !important`,
-      );
+      // The page width is EPUB.js's whole page, padding included, in both modes, so an
+      // image page never spills onto a second page.
+      expect(css).toContain("width: 1440px !important; height: 788px !important");
+      if (writingMode === "horizontal-tb") expect(css).toContain("max-width: 1360px !important");
       expect(css).toContain("max-height: 668px !important");
       expect(css).toContain("padding: 0 !important; line-height: 0 !important");
       expect(css).toContain("[data-komori-image-spacing] { padding-block: 0 !important; }");

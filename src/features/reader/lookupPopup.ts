@@ -10,6 +10,19 @@ export const isLookupRadius = (value: unknown): value is number =>
   (value as number) >= lookupPopupRadius.min &&
   (value as number) <= lookupPopupRadius.max;
 
+/**
+ * The popup's definition text size in pixels; the rest of its text, icons and spacing scale
+ * with it, as the popup is zoomed by the size over the default.
+ */
+export const lookupPopupFontSize = { min: 8, max: 48, step: 1, default: 15 } as const;
+export const isLookupFontSize = (value: unknown): value is number =>
+  Number.isInteger(value) &&
+  (value as number) >= lookupPopupFontSize.min &&
+  (value as number) <= lookupPopupFontSize.max;
+
+/** The line height of the popup's definitions, as a multiple of their text size. */
+export const lookupPopupLineHeight = { min: 1, max: 3, step: 0.05, default: 1.6 } as const;
+
 /** User-selected dimensions, in CSS pixels; placement still fits the reading area. */
 export const lookupPopupWidth = { min: 320, max: 1200, step: 20 } as const;
 export const lookupPopupHeight = { min: 200, max: 1200, step: 20 } as const;

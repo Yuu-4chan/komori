@@ -1200,6 +1200,13 @@
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
+/* The chosen text size zooms the popup's content from its default 15 px definitions. */
+.reader-lookup__body > * {
+  zoom: var(--popup-zoom, 1);
+}
+.reader-lookup .dictionary-glossary {
+  line-height: var(--popup-line-height, var(--line-body));
+}
 .reader-lookup__body .dictionary-results__message {
   padding: var(--space-4) 0;
 }

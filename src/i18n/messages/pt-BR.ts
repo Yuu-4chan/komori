@@ -681,6 +681,8 @@ export const ptBR: MessageCatalog = {
   "popupSettings.width": "Largura do pop-up",
   "popupSettings.widthHint": "O pop-up se ajusta à área de leitura quando o espaço é limitado.",
   "popupSettings.height": "Altura do pop-up",
+  "popupSettings.fontSize": "Tamanho da fonte",
+  "popupSettings.lineHeight": "Altura da linha",
   "popupSettings.radius": "Cantos arredondados",
   "popupSettings.radiusHint": "0 px deixa os cantos do pop-up retos.",
   "popupSettings.readingPosition": "Posição da leitura",
@@ -1679,7 +1681,7 @@ export const ptBR: MessageCatalog = {
   "images.retryThumbnail": "Tentar miniatura {index} novamente",
   "viewer.label": "Visualizador de imagens do livro",
   "viewer.keys":
-    "Esquerda e Direita navegam pelas imagens. Mais e menos ampliam, R gira, 0 redefine e Esc fecha. Arraste ou role para mover.",
+    "Esquerda e Direita ou a roda do mouse navegam pelas imagens. Mais e menos ampliam, R gira, 0 redefine e Esc fecha. Arraste ou role para mover uma imagem ampliada.",
   "viewer.controls": "Controles da imagem",
   "viewer.zoomOut": "Diminuir zoom",
   "viewer.zoomIn": "Aumentar zoom",

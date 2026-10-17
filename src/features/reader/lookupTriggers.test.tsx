@@ -116,7 +116,7 @@ describe("Lookup trigger preferences", () => {
     });
     expect(saved).toMatchObject({
       readerPopupKeyboardShortcut: false,
-      readerPopupMouseSelection: true,
+      readerPopupMouseSelection: false,
       readerPopupClickLookup: true,
       readerPopupHoverLookup: true,
       readerPopupShiftLookup: false,

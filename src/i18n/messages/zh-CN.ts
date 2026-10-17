@@ -601,6 +601,8 @@ export const zhCN: MessageCatalog = {
   "popupSettings.width": "弹窗宽度",
   "popupSettings.widthHint": "空间不足时，弹窗会缩放以适应阅读区域。",
   "popupSettings.height": "弹窗高度",
+  "popupSettings.fontSize": "字号",
+  "popupSettings.lineHeight": "行高",
   "popupSettings.radius": "圆角",
   "popupSettings.radiusHint": "设为0 px时弹窗为直角。",
   "popupSettings.readingPosition": "读音位置",
@@ -1503,7 +1505,8 @@ export const zhCN: MessageCatalog = {
   "images.loading": "正在加载图片…",
   "images.retryThumbnail": "重试缩略图{index}",
   "viewer.label": "书中图片查看器",
-  "viewer.keys": "左右键浏览图片，加号和减号缩放，R旋转，0重置，Esc关闭。拖动或滚动以平移。",
+  "viewer.keys":
+    "左右键或鼠标滚轮浏览图片，加号和减号缩放，R旋转，0重置，Esc关闭。拖动或滚动以平移放大的图片。",
   "viewer.controls": "图片控件",
   "viewer.zoomOut": "缩小",
   "viewer.zoomIn": "放大",

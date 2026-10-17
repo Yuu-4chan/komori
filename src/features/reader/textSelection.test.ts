@@ -3,10 +3,11 @@ import { watchTextSelection } from "./textSelection";
 import { defaultLookupTriggers, type LookupTriggerPreferences } from "./lookupTriggers";
 import { FuriganaSession } from "./furigana";
 
-// These gesture regressions deliberately enable selection and delayed hover.
+// These gesture regressions deliberately enable selection, left clicks and delayed hover.
 const selectionTriggers = {
   ...defaultLookupTriggers,
   readerPopupMouseSelection: true,
+  readerPopupMouseTrigger: "left" as const,
   readerPopupHoverDelay: 420,
 };
 

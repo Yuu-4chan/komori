@@ -333,24 +333,24 @@ describe("Komori foundation", () => {
     const view = mount();
     await user.click(await screen.findByRole("button", { name: "Reader popup" }));
     const toggle = screen.getByRole("button", { name: "Mouse selection" });
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
     toggle.focus();
     await user.keyboard(" ");
-    await waitFor(() => expect(saved.readerPopupMouseSelection).toBe(true));
-    expect(saved).toEqual({ ...defaultAppearance, readerPopupMouseSelection: true });
+    await waitFor(() => expect(saved.readerPopupMouseSelection).toBe(false));
+    expect(saved).toEqual({ ...defaultAppearance, readerPopupMouseSelection: false });
     view.unmount();
     mount();
     await user.click(await screen.findByRole("button", { name: "Reader popup" }));
     const restored = screen.getByRole("button", { name: "Mouse selection" });
-    expect(restored).toHaveAttribute("aria-pressed", "true");
+    expect(restored).toHaveAttribute("aria-pressed", "false");
     restored.focus();
     await user.keyboard(" ");
-    await waitFor(() => expect(saved.readerPopupMouseSelection).toBe(false));
-    expect(restored).toHaveAttribute("aria-pressed", "false");
+    await waitFor(() => expect(saved.readerPopupMouseSelection).toBe(true));
+    expect(restored).toHaveAttribute("aria-pressed", "true");
   });
 
   it("drops missing and invalid popup mouse-selection values independently", () => {
-    expect(defaultAppearance.readerPopupMouseSelection).toBe(false);
+    expect(defaultAppearance.readerPopupMouseSelection).toBe(true);
     for (const readerPopupMouseSelection of [undefined, null, "false", 0, 1, {}, []]) {
       expect(
         normalizeAppearancePreferences({ readerPopupMouseSelection, readerPopupTheme: "night" }),
@@ -584,6 +584,66 @@ describe("Komori foundation", () => {
       }),
     );
     expect(screen.getByRole("textbox", { name: "Rounded corners" })).toHaveValue("0");
+  });
+
+  it("loads, edits, saves and previews the popup's text size and line height", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn(async () => {});
+    render(
+      <MemoryRouter initialEntries={["/settings?section=popup"]}>
+        <AppearanceProvider
+          store={{
+            load: async () => ({ readerPopupFontSize: 18, readerPopupRadius: 7 }),
+            save,
+          }}
+        >
+          <App />
+        </AppearanceProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByRole("group", { name: "Popup theme" });
+    const size = screen.getByRole("textbox", { name: "Font size" });
+    const lineHeight = screen.getByRole("textbox", { name: "Line height" });
+    const preview = screen.getByRole("region", { name: "Lookup: 読む" });
+    expect(size).toHaveValue("18");
+    expect(lineHeight).toHaveValue("1.60");
+    // The content zooms by the size over the default 15 px definitions.
+    expect(preview.style.getPropertyValue("--popup-zoom")).toBe("1.2");
+    expect(preview.style.getPropertyValue("--popup-line-height")).toBe("1.6");
+    await user.click(screen.getByRole("button", { name: "Increase Font size" }));
+    expect(size).toHaveValue("19");
+    await user.click(screen.getByRole("button", { name: "Increase Line height" }));
+    expect(lineHeight).toHaveValue("1.65");
+    expect(preview.style.getPropertyValue("--popup-line-height")).toBe("1.65");
+    await waitFor(() =>
+      expect(save).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          readerPopupFontSize: 19,
+          readerPopupLineHeight: 1.65,
+          readerPopupRadius: 7,
+        }),
+      ),
+    );
+    for (const [typed, shown] of [
+      ["99", "48"],
+      ["3", "8"],
+    ] as const) {
+      await user.click(size);
+      await user.clear(size);
+      await user.type(size, `${typed}{Enter}`);
+      expect(size).toHaveValue(shown);
+    }
+    expect(
+      normalizeAppearancePreferences({
+        readerPopupFontSize: 15.5,
+        readerPopupLineHeight: 3.05,
+        readerPopupRadius: 7,
+      }),
+    ).toEqual({ readerPopupRadius: 7 });
+    expect(defaultAppearance).toMatchObject({
+      readerPopupFontSize: 15,
+      readerPopupLineHeight: 1.6,
+    });
   });
 
   it("defaults legacy popup corners and filters invalid values independently", () => {

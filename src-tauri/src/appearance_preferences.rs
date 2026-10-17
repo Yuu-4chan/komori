@@ -60,6 +60,8 @@ const READER_WHEEL_STEPS: std::ops::RangeInclusive<i64> = 10..=2000;
 const READER_WHEEL_STEP_STEP: i64 = 10;
 /// Reader font size in CSS pixels. Keep in step with `src/features/reader/presentation.ts`.
 const READER_FONT_SIZES: std::ops::RangeInclusive<i64> = 8..=72;
+/// The lookup popup's definition text size in pixels; the rest of its text scales with it.
+const READER_POPUP_FONT_SIZES: std::ops::RangeInclusive<i64> = 8..=48;
 /// Reader line height as a multiple of the font size, in steps of 0.05. Absent, each
 /// book keeps its own. Keep in step with `src/features/reader/presentation.ts`.
 const READER_LINE_HEIGHTS: std::ops::RangeInclusive<f64> = 1.0..=3.0;
@@ -280,6 +282,10 @@ pub struct AppearancePreferences {
     reader_popup_custom_palette: Option<ReaderPopupPalette>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_radius: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_popup_font_size: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_popup_line_height: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_width: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -595,6 +601,10 @@ impl AppearancePreferences {
                 .reader_popup_radius
                 .is_none_or(|radius| (0..=28).contains(&radius))
             && self
+                .reader_popup_font_size
+                .is_none_or(|size| READER_POPUP_FONT_SIZES.contains(&size))
+            && self.reader_popup_line_height.is_none_or(valid_line_height)
+            && self
                 .reader_popup_width
                 .is_none_or(|size| valid_popup_dimension(size, 320))
             && self
@@ -870,6 +880,12 @@ impl AppearancePreferences {
                 .map(str::to_owned),
             reader_popup_radius: number("readerPopupRadius")
                 .filter(|radius| (0..=28).contains(radius)),
+            reader_popup_font_size: number("readerPopupFontSize")
+                .filter(|size| READER_POPUP_FONT_SIZES.contains(size)),
+            reader_popup_line_height: value
+                .get("readerPopupLineHeight")
+                .and_then(Value::as_f64)
+                .filter(|line_height| valid_line_height(*line_height)),
             reader_popup_width: number("readerPopupWidth")
                 .filter(|size| valid_popup_dimension(*size, 320)),
             reader_popup_height: number("readerPopupHeight")
@@ -1488,6 +1504,8 @@ mod tests {
             reader_max_height: None,
             reader_popup_theme: None,
             reader_popup_radius: None,
+            reader_popup_font_size: None,
+            reader_popup_line_height: None,
             reader_popup_width: None,
             reader_popup_height: None,
             reader_writing_mode: None,
@@ -2319,6 +2337,69 @@ mod tests {
             AppearancePreferences::from_stored(&serde_json::json!({})).reader_popup_custom_palette,
             None
         );
+    }
+
+    #[test]
+    fn popup_text_size_and_line_height_persist_independently_and_reject_invalid_values() {
+        let directory = tempdir().unwrap();
+        let database = directory.path().join("library.sqlite3");
+        let mut saved = AppearancePreferences {
+            reader_popup_radius: Some(7),
+            ..Default::default()
+        };
+        for (size, line_height) in [(8, 1.0), (15, 1.6), (48, 3.0), (22, 2.05)] {
+            saved.reader_popup_font_size = Some(size);
+            saved.reader_popup_line_height = Some(line_height);
+            assert!(save(&database, &saved).unwrap());
+            assert_eq!(load(&database).unwrap(), saved);
+            let stored = serde_json::to_value(&saved).unwrap();
+            assert_eq!(stored["readerPopupFontSize"], size);
+            assert_eq!(stored["readerPopupLineHeight"], line_height);
+        }
+        for invalid in [
+            AppearancePreferences {
+                reader_popup_font_size: Some(7),
+                ..saved.clone()
+            },
+            AppearancePreferences {
+                reader_popup_font_size: Some(49),
+                ..saved.clone()
+            },
+            AppearancePreferences {
+                reader_popup_line_height: Some(0.95),
+                ..saved.clone()
+            },
+            AppearancePreferences {
+                reader_popup_line_height: Some(1.62),
+                ..saved.clone()
+            },
+        ] {
+            assert!(!save(&database, &invalid).unwrap());
+            assert_eq!(load(&database).unwrap(), saved);
+        }
+        for (key, value) in [
+            ("readerPopupFontSize", serde_json::json!("15")),
+            ("readerPopupFontSize", serde_json::json!(15.5)),
+            ("readerPopupFontSize", serde_json::json!(60)),
+            ("readerPopupLineHeight", serde_json::json!(null)),
+            ("readerPopupLineHeight", serde_json::json!(3.05)),
+            ("readerPopupLineHeight", serde_json::json!("1.6")),
+        ] {
+            let mut stored = serde_json::to_value(&saved).unwrap();
+            stored[key] = value;
+            let kept = AppearancePreferences::from_stored(&stored);
+            assert_eq!(kept.reader_popup_radius, Some(7));
+            if key == "readerPopupFontSize" {
+                assert_eq!(kept.reader_popup_font_size, None);
+                assert_eq!(
+                    kept.reader_popup_line_height,
+                    saved.reader_popup_line_height
+                );
+            } else {
+                assert_eq!(kept.reader_popup_line_height, None);
+                assert_eq!(kept.reader_popup_font_size, saved.reader_popup_font_size);
+            }
+        }
     }
 
     #[test]

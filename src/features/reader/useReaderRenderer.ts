@@ -723,6 +723,17 @@ export function useReaderRenderer(
     return active.renderer.scrollBy(distance) !== false ? "scrolled" : "edge";
   }
 
+  /**
+   * The browser scrolls a continuously displayed book itself, as a sideways or Shift wheel
+   * does across a vertical book's lines: that is reading on, like `scrollWithin`.
+   */
+  function scrolledNatively(): void {
+    const active = activeRef.current;
+    if (!active?.ready || active.factory !== factory || active.navigationPending) return;
+    if (visible.status !== "ready" || !visible.availability.scrollAxis) return;
+    active.jumped = false;
+  }
+
   /** The Reader's own scrollbar follows and moves the ready, continuously displayed book. */
   const scrollTrack = {
     metrics: () => {
@@ -759,6 +770,7 @@ export function useReaderRenderer(
     turnPage,
     scrollBy,
     scrollWithin,
+    scrolledNatively,
     scrollTrack,
     contents: visible.contents,
     currentEntryId: visible.currentEntryId,
