@@ -2231,11 +2231,11 @@ blockquote.reader-note-passage {
   font-size: var(--font-size-2);
   font-weight: 550;
 }
+/* The name on the left and every weight on the right, wrapping there when a family has many. */
 .font-manager__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
   gap: var(--space-2);
   padding: var(--space-3);
 }
@@ -2254,6 +2254,7 @@ blockquote.reader-note-passage {
 .font-manager__weights {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-1);
 }
 .font-manager__weights .button {

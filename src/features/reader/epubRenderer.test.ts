@@ -469,7 +469,8 @@ describe("EPUB.js renderer adapter", () => {
         section("Text/story.xhtml", "Readable story text ".repeat(20)),
         image("Text/four.xhtml"),
         image("Text/five.xhtml"),
-        // A new chapter starts with the story, so the odd image page before it stays alone.
+        // A new chapter starts with the story; the odd image page before it still shares
+        // its spread with the story's first page rather than a blank one.
       ],
       [{ label: "Story", href: "Text/story.xhtml" }],
     );
@@ -520,7 +521,7 @@ describe("EPUB.js renderer adapter", () => {
       expect(
         [0, 1, 2, 3, 4, 5, 6].map((index) => hooked.createView(spine(index)).settings),
       ).toEqual(
-        [true, false, false, true, true, false, false].map((forceEvenPages) => ({
+        [true, false, false, false, false, false, false].map((forceEvenPages) => ({
           forceEvenPages,
         })),
       );
@@ -535,11 +536,15 @@ describe("EPUB.js renderer adapter", () => {
       views.splice(0, views.length, createView(spine(2)));
       await hooked.handleNextPrePaginated(false, spine(2), action);
       expect(prepend).toHaveBeenLastCalledWith(expect.objectContaining({ href: "Text/one.xhtml" }));
-      // The odd page of a run, the cover and text keep EPUB.js's own page handling.
-      for (const index of [0, 3, 4])
-        await hooked.handleNextPrePaginated(false, spine(index), action);
-      expect(handleNextPrePaginated).toHaveBeenCalledTimes(3);
-      expect(action).toHaveBeenCalledOnce();
+      // The cover keeps EPUB.js's own page handling; the odd page of a run brings the
+      // chapter after it.
+      await hooked.handleNextPrePaginated(false, spine(0), action);
+      expect(handleNextPrePaginated).toHaveBeenCalledOnce();
+      await hooked.handleNextPrePaginated(false, spine(3), action);
+      expect(action).toHaveBeenLastCalledWith(
+        expect.objectContaining({ href: "Text/story.xhtml" }),
+      );
+      action.mockClear();
       // Going back to a spread's second page shows its first one before it.
       views.splice(0, views.length);
       prepend.mockClear();
@@ -548,8 +553,16 @@ describe("EPUB.js renderer adapter", () => {
         spine(6),
         expect.objectContaining({ href: "Text/four.xhtml" }),
       ]);
+      // The text after an odd image page brings that page before it as well.
       prepend.mockClear();
       await hooked.prepend(spine(4));
+      expect(prepend.mock.calls.map(([shown]) => shown)).toEqual([
+        spine(4),
+        expect.objectContaining({ href: "Text/three.xhtml" }),
+      ]);
+      // A pair's first page has nothing before it.
+      prepend.mockClear();
+      await hooked.prepend(spine(5));
       expect(prepend).toHaveBeenCalledOnce();
       // In single pages, or in a window too narrow for a spread, every image page is alone.
       Object.assign(manager.layout, { divisor: 1 });
@@ -565,7 +578,7 @@ describe("EPUB.js renderer adapter", () => {
       await vi.waitFor(() => expect(display.mock.calls.length).toBeGreaterThan(shownBefore));
       expect(display).toHaveBeenLastCalledWith("Text/one.xhtml");
       await hooked.handleNextPrePaginated(false, spine(1), action);
-      expect(action).toHaveBeenCalledOnce();
+      expect(action).not.toHaveBeenCalled();
     } finally {
       renderer.dispose();
     }
@@ -662,7 +675,7 @@ describe("EPUB.js renderer adapter", () => {
   it("keeps the first page alone when the declared cover lies outside the reading order", async () => {
     const image = (href: string, linear = true) =>
       section(href, "", linear, '<p><img src="../Images/a.png" alt=""></p>');
-    const { rendition } = mockBook([
+    const { book, rendition } = mockBook([
       image("Text/cover.xhtml", false),
       image("Text/one.xhtml"),
       image("Text/two.xhtml"),
@@ -670,6 +683,7 @@ describe("EPUB.js renderer adapter", () => {
       section("Text/story.xhtml", "Readable story text ".repeat(20)),
     ]);
     const { manager } = rendition;
+    const styleSection = vi.mocked(book.spine.hooks.content.register);
     // EPUB.js measures a fitted page a rounded pixel wider than a fractional page width.
     const reframe = vi.fn();
     const createView = vi.fn((shown: { index: number }) => ({
@@ -727,6 +741,16 @@ describe("EPUB.js renderer adapter", () => {
       cover.contents.document.body.innerHTML = '<img data-komori-page-image="">';
       cover.reframe(2162, 780);
       expect(reframe).toHaveBeenLastCalledWith(1441, 780);
+      // The page alone centers its image on the whole spread; a paired one on its page.
+      const fitted = (index: number) => {
+        const page = document.implementation.createHTMLDocument();
+        page.body.innerHTML = '<div><img src="a.png"></div>';
+        styleSection.mock.calls[0][0](page, { index });
+        return page.querySelector("style[data-komori-page-image-fit]")?.textContent;
+      };
+      Object.assign(manager.layout, { delta: 1441 });
+      expect(fitted(1)).toContain("width: 1441px !important; height: 780px !important");
+      expect(fitted(2)).toContain("width: 720.5px !important; height: 780px !important");
     } finally {
       renderer.dispose();
     }
@@ -3803,6 +3827,67 @@ describe("EPUB.js renderer adapter", () => {
       manager.clear();
       expect(second.element.isConnected).toBe(false);
       expect(second.destroy).toHaveBeenCalledOnce();
+    } finally {
+      renderer.dispose();
+      container.remove();
+    }
+  });
+
+  it("keeps both pages of a two-section spread where they were while a turn loads the next", async () => {
+    const { rendition } = mockBook([
+      section("Text/art.xhtml", "", true, '<p><img src="a.png" alt=""></p>'),
+      section("Text/story.xhtml", "Story text ".repeat(70)),
+      section("Text/next.xhtml", "Next chapter ".repeat(70)),
+    ]);
+    const { manager } = rendition;
+    const container = document.createElement("div");
+    document.body.append(container);
+    container.getBoundingClientRect = () => new DOMRect(0, 0, 1440, 780);
+    // A row of views: the second sits beside the first until the first leaves the flow,
+    // and a fixed one sits where its style places it.
+    const element = (inFlow: () => number) => {
+      const view = document.createElement("div");
+      view.getBoundingClientRect = () =>
+        new DOMRect(
+          view.style.position === "fixed" ? parseFloat(view.style.left) : inFlow(),
+          0,
+          720,
+          780,
+        );
+      container.append(view);
+      return view;
+    };
+    const left = element(() => 0);
+    const right = element(() => (left.style.position === "fixed" ? 0 : 720));
+    const views = [left, right].map((view, index) => ({
+      section: { index },
+      element: view,
+      displayed: true,
+      destroy: vi.fn(),
+    }));
+    Object.assign(manager, {
+      container,
+      views: {
+        all: () => views,
+        displayed: () => views,
+        destroy: vi.fn(),
+        show: vi.fn(),
+        hide: vi.fn(),
+      },
+      clear: vi.fn(),
+    });
+    let held: string[] = [];
+    rendition.next.mockImplementation(async () => {
+      manager.clear();
+      held = [left.style.left, right.style.left];
+      rendition.emit("relocated");
+    });
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(document.createElement("div"), new AbortController().signal, vi.fn());
+    try {
+      await renderer.advancePage();
+      // The text page stays on the right rather than over the image on the left.
+      expect(held).toEqual(["0px", "720px"]);
     } finally {
       renderer.dispose();
       container.remove();

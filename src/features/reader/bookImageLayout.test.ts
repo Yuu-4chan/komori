@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyBookImageLayout, fitBookImagePage } from "./bookImageLayout";
+import { applyBookImageLayout, fitBookImagePage, shownText } from "./bookImageLayout";
 
 function page(html: string) {
   const document = window.document.implementation.createHTMLDocument();
@@ -132,6 +132,10 @@ describe("publisher book images", () => {
       if (writingMode === "horizontal-tb") expect(css).toContain("max-width: 1360px !important");
       expect(css).toContain("max-height: 668px !important");
       expect(css).toContain("padding: 0 !important; line-height: 0 !important");
+      // A wrapper the publisher sizes to the whole page centers the image inside it too.
+      expect(css).toContain(
+        ":has([data-komori-page-image]) { display: flex !important; align-items: center !important; justify-content: center !important;",
+      );
       expect(css).toContain("[data-komori-image-spacing] { padding-block: 0 !important; }");
       expect(css).toContain("[data-komori-page-image] { margin: 0 !important; }");
       expect(doc.body.innerHTML).toBe(markup);
@@ -142,6 +146,18 @@ describe("publisher book images", () => {
       frame.remove();
     },
   );
+
+  it("finds a page image behind a label its markup hides, but not beside shown text", () => {
+    for (const label of ['<span style="display: none">cover</span>', "<span hidden>cover</span>"]) {
+      const doc = page(`<section><div>${label}<img src="cover.jpg" alt="Cover"></div></section>`);
+      applyBookImageLayout(doc);
+      expect(doc.querySelector("img")!.hasAttribute("data-komori-page-image")).toBe(true);
+      expect(shownText(doc.body).trim()).toBe("");
+    }
+    const captioned = page('<div><span style="color: red">Cover</span><img src="cover.jpg"></div>');
+    applyBookImageLayout(captioned);
+    expect(captioned.querySelector("img")!.hasAttribute("data-komori-page-image")).toBe(false);
+  });
 
   it("separates an unwrapped image from its caption while keeping running illustrations inline", () => {
     const doc = page('<div><img id="lone"><p>Caption</p></div><p>Text <img id="inline"> text</p>');

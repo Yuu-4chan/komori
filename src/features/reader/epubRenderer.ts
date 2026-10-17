@@ -18,7 +18,7 @@ import {
   EpubResourceLimit,
   validateEpubSpine,
 } from "./epubTolerance";
-import { applyBookImageLayout, fitBookImagePage, isTextImage } from "./bookImageLayout";
+import { applyBookImageLayout, fitBookImagePage, isTextImage, shownText } from "./bookImageLayout";
 import {
   isReaderSerifFont,
   isReaderSansFont,
@@ -754,7 +754,7 @@ class EpubRenderer implements ReaderRenderer {
           }
           this.blurDocument(document, index);
           this.furiganaDocument(document, index);
-          this.styleSectionDocument(document);
+          this.styleSectionDocument(document, index);
           return Promise.all([
             this.collectStyleRules(opened, document, section?.url).then((rules) => {
               if (this.disposed) return;
@@ -1689,7 +1689,8 @@ class EpubRenderer implements ReaderRenderer {
       const host = this.host;
       this.applyHostHeight();
       // Images fit the reading area the host now has, not the one they were styled for.
-      for (const contents of displayed) this.styleSectionDocument(contents.document);
+      for (const contents of displayed)
+        this.styleSectionDocument(contents.document, contents.sectionIndex);
       if (managerChanged && host) {
         // EPUB.js's view manager is chosen with its rendition, so render the book again.
         const href =
@@ -1780,7 +1781,7 @@ class EpubRenderer implements ReaderRenderer {
       this.blurDocument(section.document, index);
       applyPresentation(section.document, shown);
       this.furiganaDocument(section.document, index);
-      this.styleSectionDocument(section.document);
+      this.styleSectionDocument(section.document, index);
       applyBookStyles(section.document, this.styleRules.get(section.document), shown);
     });
     const displayed = rendition.getContents() as unknown as EpubPageContents[];
@@ -1796,7 +1797,7 @@ class EpubRenderer implements ReaderRenderer {
     applyPresentation(contents.document, shown);
     this.furiganaDocument(contents.document, contents.sectionIndex ?? -1);
     this.blurDocument(contents.document, contents.sectionIndex ?? -1);
-    this.styleSectionDocument(contents.document);
+    this.styleSectionDocument(contents.document, contents.sectionIndex);
     // A displayed document is serialized from its section's, which holds the rules.
     const section =
       contents.sectionIndex === undefined
@@ -1827,7 +1828,7 @@ class EpubRenderer implements ReaderRenderer {
     const previousFitRule = contents.document.querySelector(
       "style[data-komori-page-image-fit]",
     )?.textContent;
-    this.styleSectionDocument(contents.document);
+    this.styleSectionDocument(contents.document, contents.sectionIndex);
     if (
       root.getAttribute(PRESENTATION_ATTRIBUTE) === presentationKey(shown) &&
       previousImageRule ===
@@ -1843,13 +1844,13 @@ class EpubRenderer implements ReaderRenderer {
   }
 
   /** Size a section's images and show VN's pointer for the current presentation. */
-  private styleSectionDocument(document: Document): void {
-    this.sizeContinuousImages(document);
+  private styleSectionDocument(document: Document, index?: number): void {
+    this.sizeContinuousImages(document, index);
     applyVnCursor(document, this.vnView && !this.fixedLayout);
   }
 
   /** A continuous section may be many screens tall, but its images fit one reading area. */
-  private sizeContinuousImages(document: Document): void {
+  private sizeContinuousImages(document: Document, index?: number): void {
     const area = this.scrollContainer ?? this.manager()?.container ?? this.host;
     applyContinuousImageSizing(
       document,
@@ -1869,12 +1870,22 @@ class EpubRenderer implements ReaderRenderer {
         : undefined;
     if (!this.fixedLayout) {
       const horizontal = !document.documentElement.style.writingMode.startsWith("vertical");
+      // An image page with no partner, such as the cover, is alone on its spread, so it
+      // centers on the whole spread rather than on its first page beside a blank one.
+      const alone =
+        index !== undefined &&
+        index >= 0 &&
+        !this.continuous &&
+        this.presentation.pageLayout === "double" &&
+        manager?.settings?.axis === "horizontal" &&
+        (manager.layout.divisor ?? 1) >= 2 &&
+        this.imagePartner(index) === undefined;
       fitBookImagePage(
         document,
         horizontal
           ? this.continuous
             ? area?.clientWidth
-            : (manager?.layout.pageWidth ?? area?.clientWidth)
+            : ((alone ? manager?.layout.delta : manager?.layout.pageWidth) ?? area?.clientWidth)
           : !this.continuous
             ? area?.clientWidth
             : undefined,
@@ -2441,10 +2452,14 @@ class EpubRenderer implements ReaderRenderer {
     };
     manager.clear = () => {
       if (this.turningPage && !this.disposed) {
-        for (const view of views.all()) {
-          if (view.displayed && view.element.style.visibility !== "hidden")
-            if (holdInPlace(view.element, container)) held.add(view);
-        }
+        // Each page is measured before any leaves the flow: the one after a held page
+        // would otherwise move into its place first, over it.
+        const shown = views
+          .all()
+          .filter((view) => view.displayed && view.element.style.visibility !== "hidden")
+          .map((view) => [view, view.element.getBoundingClientRect()] as const);
+        for (const [view, box] of shown)
+          if (holdInPlace(view.element, container, box)) held.add(view);
       }
       clear();
       // EPUB.js hid them as it cleared the page.
@@ -3917,15 +3932,14 @@ class EpubRenderer implements ReaderRenderer {
    * Consecutive image-only sections share spreads two by two, in reading order. A cover
    * stays alone: the first page of the reading order, which a book whose declared cover
    * lies outside it opens on in its place, and the cover page the book declares. An image
-   * page left over shares its spread with the section of text right after it, unless a
-   * contents entry starts that section, as a new chapter does.
+   * page left over shares its spread with the section of text right after it, a new
+   * chapter's included, rather than a blank page.
    */
   private pairImagePages(
     sections: Array<{ linear?: boolean }>,
     imagePages: Set<number>,
     coverIndex: number,
     textPages: Set<number>,
-    chapterStarts: Set<number>,
   ): void {
     const linear = [...sections.keys()].filter((index) => sections[index].linear);
     this.imageSpreads = new Map();
@@ -3940,7 +3954,7 @@ class EpubRenderer implements ReaderRenderer {
         }
         continue;
       }
-      if (waiting !== undefined && textPages.has(index) && !chapterStarts.has(index)) {
+      if (waiting !== undefined && textPages.has(index)) {
         this.imageSpreads.set(waiting, index).set(index, waiting);
         this.textPartners.add(index);
       }
@@ -4035,16 +4049,7 @@ class EpubRenderer implements ReaderRenderer {
     const cover = await spineCoverPage(book, navigation, navigationBase(book)).catch(() => null);
     if (signal.aborted || this.disposed) return;
     const coverIndex = cover ? sections.indexOf(book.spine.get(cover) as never) : -1;
-    // A section a contents entry opens at, or at its first readable character, starts a chapter.
-    const openingSections = new Set(
-      targets
-        .filter(
-          ({ index, fragment }) =>
-            !fragment || (measured[index]?.anchors.get(fragment)?.raw ?? 1) === 0,
-        )
-        .map(({ index }) => index),
-    );
-    this.pairImagePages(sections, imagePages, coverIndex, textPages, openingSections);
+    this.pairImagePages(sections, imagePages, coverIndex, textPages);
     const unit = progressUnit(script);
     const lengths = measured.map((section) => section.length[unit]);
     const before: number[] = [];
@@ -5500,12 +5505,11 @@ function rightToLeftRoot(document: Document): boolean {
 const HELD_VIEW = "data-komori-held-view";
 
 /**
- * Keep a view where it is on screen, out of its container's flow and clipped to the
- * reading area, while the container scrolls and lays out the next section's view.
+ * Keep a view where it was on screen, at `box`, out of its container's flow and clipped to
+ * the reading area, while the container scrolls and lays out the next section's view.
  */
-function holdInPlace(element: HTMLElement, container: HTMLElement): boolean {
+function holdInPlace(element: HTMLElement, container: HTMLElement, box: DOMRect): boolean {
   const area = container.getBoundingClientRect();
-  const box = element.getBoundingClientRect();
   if (
     box.right <= area.left ||
     box.left >= area.right ||
@@ -6593,7 +6597,7 @@ async function imageOnlyPage(book: Book, path: string): Promise<boolean> {
 
 /** A section document with one image and no readable text, such as a cover or an insert. */
 function showsOneImage(document: Document): boolean {
-  if (!document.body || readableText(document).trim()) return false;
+  if (!document.body || shownText(document.body).trim()) return false;
   return document.body.querySelectorAll("img, image").length === 1;
 }
 

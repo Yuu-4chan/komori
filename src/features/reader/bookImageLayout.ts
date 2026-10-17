@@ -9,6 +9,35 @@ const IMAGE_GAP = "data-komori-image-gap";
 const blocks = "p, div, section, figure, h1, h2, h3, h4, h5, h6";
 const lineBreaks = `${blocks}, address, article, aside, blockquote, body, center, dd, dl, dt, figcaption, footer, header, li, main, nav, pre, td, th, hr, ol, table, ul`;
 
+/** Whether an element is hidden by its own markup: `hidden` or an inline `display: none`. */
+function hiddenByMarkup(element: Element): boolean {
+  return (
+    element.hasAttribute("hidden") ||
+    /(?:^|;)\s*display\s*:\s*none\b/i.test(element.getAttribute("style") ?? "")
+  );
+}
+
+/**
+ * The text a reader sees under `root`, leaving out what its markup hides, such as a
+ * cover page's hidden "Cover" label.
+ */
+export function shownText(root: Element): string {
+  let text = "";
+  const walker = root.ownerDocument.createTreeWalker(
+    root,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+    {
+      acceptNode: (node) =>
+        node.nodeType === Node.ELEMENT_NODE && hiddenByMarkup(node as Element)
+          ? NodeFilter.FILTER_REJECT
+          : NodeFilter.FILTER_ACCEPT,
+    },
+  );
+  for (let node = walker.nextNode(); node; node = walker.nextNode())
+    if (node.nodeType === Node.TEXT_NODE) text += (node as Text).data;
+  return text;
+}
+
 /** An unwrapped illustration between blocks, with no running text beside it. */
 function betweenBlocks(image: Element): boolean {
   return (["previousSibling", "nextSibling"] as const).every((direction) => {
@@ -69,7 +98,7 @@ export function applyBookImageLayout(document: Document): void {
       continue;
     }
     let block = image.closest(blocks);
-    if (!block || block.textContent?.trim()) {
+    if (!block || shownText(block).trim()) {
       if (betweenBlocks(image)) {
         image.setAttribute(IMAGE_LINE, "");
         image.setAttribute(IMAGE_GAP, "");
@@ -80,7 +109,7 @@ export function applyBookImageLayout(document: Document): void {
     const count = block.querySelectorAll("img, svg").length;
     while (
       block.parentElement?.matches(blocks) &&
-      !block.parentElement.textContent?.trim() &&
+      !shownText(block.parentElement).trim() &&
       block.parentElement.querySelectorAll("img, svg").length === count
     )
       block = block.parentElement;
@@ -91,7 +120,7 @@ export function applyBookImageLayout(document: Document): void {
     const lines = [...block.querySelectorAll(`[${IMAGE_LINE}]`)];
     lines.forEach((line, index) => line.toggleAttribute(IMAGE_GAP, index < lines.length - 1));
   }
-  if (images.length === 1 && !body.textContent?.trim() && !isTextImage(images[0]))
+  if (images.length === 1 && !shownText(body).trim() && !isTextImage(images[0]))
     images[0].setAttribute(PAGE_IMAGE, "");
   if (!images.length || document.querySelector(`style[${STYLE}]`)) return;
   const style = document.createElementNS(namespace, "style");
@@ -152,10 +181,12 @@ export function fitBookImagePage(
   }
   if (paginated) {
     // A text-free section occupies one page (one column in a horizontal spread).
-    // Flex centers its original wrapper without inserting nodes or changing CFIs.
+    // Flex centers its original wrappers, and the image inside one a publisher sizes to the
+    // whole page, without inserting nodes or changing CFIs.
     rule += ` @layer komori-book-images {
 :root body { display: flex !important; align-items: center !important; justify-content: center !important; width: ${pageWidth}px !important; height: ${pageHeight}px !important; }
 :root body :is(${blocks}) { margin: 0 !important; padding: 0 !important; line-height: 0 !important; }
+:root body :is(${blocks}):has([${PAGE_IMAGE}]) { display: flex !important; align-items: center !important; justify-content: center !important; max-width: 100% !important; max-height: 100% !important; }
 :root body [${SPACING}] { padding-block: 0 !important; }
 :root body [${PAGE_IMAGE}] { margin: 0 !important; }
 }`;
