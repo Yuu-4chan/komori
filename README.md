@@ -32,15 +32,15 @@
 
 ## Screenshots
 
-<!-- Screenshot placeholders: replace each "Screenshot to come" cell with an image of a public-domain book, e.g. <img src="docs/images/library.png" alt="Library" width="400">. -->
+<!-- Screenshot placeholders: replace each "Screenshot to come" cell with an image of a public-domain book and the starter dictionaries, e.g. <img src="docs/images/library.webp" alt="Library" width="400">. -->
 
-| Library                | Reader                 | Lookup popup           |
-| ---------------------- | ---------------------- | ---------------------- |
-| _(Screenshot to come)_ | _(Screenshot to come)_ | _(Screenshot to come)_ |
+| Library                | Reader                 | Lookup popup           | Dictionary             |
+| ---------------------- | ---------------------- | ---------------------- | ---------------------- |
+| _(Screenshot to come)_ | _(Screenshot to come)_ | _(Screenshot to come)_ | _(Screenshot to come)_ |
 
-| Dictionary             | Statistics             | Settings               |
-| ---------------------- | ---------------------- | ---------------------- |
-| _(Screenshot to come)_ | _(Screenshot to come)_ | _(Screenshot to come)_ |
+| Statistics                                                           | Kanji grid                                                           | Settings                                                         |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| <img src="docs/images/statistics.webp" alt="Statistics" width="400"> | <img src="docs/images/kanji-grid.webp" alt="Kanji grid" width="400"> | <img src="docs/images/settings.webp" alt="Settings" width="400"> |
 
 ## Features
 
