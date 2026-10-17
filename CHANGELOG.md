@@ -2,6 +2,16 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.0.1
+
+- Double pages show consecutive image pages two to a spread, one image a page, instead of each beside a blank page. The cover stays alone.
+- An image page no longer turns onto a blank page in single-page layout.
+- The lookup popup's font size and line height can be set in Settings > Reader popup.
+- New installs turn mouse-selection lookup on, with the middle button as the click trigger, and start the Reader's maximum width and height at the monitor's size.
+- When Windows has no Yu Mincho, Komori downloads Noto Serif JP once and uses it for Japanese text.
+- Reading speed is recorded for vertical books scrolled with a sideways or Shift wheel.
+- The image viewer moves to the next or previous image with the mouse wheel.
+
 ## 1.0.0
 
 First public release.
