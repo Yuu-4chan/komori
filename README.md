@@ -32,11 +32,11 @@
 
 ## Screenshots
 
-<!-- Screenshot placeholders: replace each "Screenshot to come" cell with an image of a public-domain book and the starter dictionaries, e.g. <img src="docs/images/library.webp" alt="Library" width="400">. -->
+<!-- To be replaced with screenshots of a public-domain book and the starter dictionaries. -->
 
-| Library                | Reader                 | Lookup popup           | Dictionary             |
-| ---------------------- | ---------------------- | ---------------------- | ---------------------- |
-| _(Screenshot to come)_ | _(Screenshot to come)_ | _(Screenshot to come)_ | _(Screenshot to come)_ |
+| Library                                                        | Reader                                                       | Lookup popup                                                             | Dictionary                                                           |
+| -------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| <img src="docs/images/library.webp" alt="Library" width="400"> | <img src="docs/images/reader.webp" alt="Reader" width="400"> | <img src="docs/images/lookup-popup.webp" alt="Lookup popup" width="400"> | <img src="docs/images/dictionary.webp" alt="Dictionary" width="400"> |
 
 | Statistics                                                           | Kanji grid                                                           | Settings                                                         |
 | -------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------- |
