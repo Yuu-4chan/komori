@@ -1373,6 +1373,8 @@ export const zhCN: MessageCatalog = {
   "fonts.sectionUploaded": "已添加的字体",
   "fonts.asianCollection": "亚洲文字字体",
   "fonts.westernCollection": "西文字体",
+  "fonts.collections": "字体类别",
+  "fonts.included": "{name}已随Komori附带",
   "fonts.typeName": "输入字体名称并按Enter。",
   "fonts.italic": "斜体",
   "fonts.westernWeight": "西文字重",

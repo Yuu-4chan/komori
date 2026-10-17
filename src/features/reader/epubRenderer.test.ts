@@ -460,15 +460,19 @@ describe("EPUB.js renderer adapter", () => {
   it("shows a run of image pages two to a spread, one image a page, leaving the cover alone", async () => {
     const image = (href: string) =>
       section(href, "", true, '<p><img src="../Images/a.png" alt="Art"></p>');
-    const { rendition, display } = mockBook([
-      image("Text/cover.xhtml"),
-      image("Text/one.xhtml"),
-      image("Text/two.xhtml"),
-      image("Text/three.xhtml"),
-      section("Text/story.xhtml", "Readable story text ".repeat(20)),
-      image("Text/four.xhtml"),
-      image("Text/five.xhtml"),
-    ]);
+    const { rendition, display } = mockBook(
+      [
+        image("Text/cover.xhtml"),
+        image("Text/one.xhtml"),
+        image("Text/two.xhtml"),
+        image("Text/three.xhtml"),
+        section("Text/story.xhtml", "Readable story text ".repeat(20)),
+        image("Text/four.xhtml"),
+        image("Text/five.xhtml"),
+        // A new chapter starts with the story, so the odd image page before it stays alone.
+      ],
+      [{ label: "Story", href: "Text/story.xhtml" }],
+    );
     const { manager } = rendition;
     // EPUB.js's view manager: each view rounds its section up to whole spreads, and a
     // fixed-layout spread shows its second page through handleNextPrePaginated.
@@ -562,6 +566,94 @@ describe("EPUB.js renderer adapter", () => {
       expect(display).toHaveBeenLastCalledWith("Text/one.xhtml");
       await hooked.handleNextPrePaginated(false, spine(1), action);
       expect(action).toHaveBeenCalledOnce();
+    } finally {
+      renderer.dispose();
+    }
+  });
+
+  it("shows an image page left alone beside the first page of the text that follows it", async () => {
+    const image = (href: string) =>
+      section(href, "", true, '<p><img src="../Images/a.png" alt="Art"></p>');
+    const { rendition } = mockBook([
+      image("Text/cover.xhtml"),
+      image("Text/art.xhtml"),
+      section("Text/story.xhtml", "Readable story text ".repeat(20)),
+    ]);
+    const { manager } = rendition;
+    const reframe = vi.fn();
+    const createView = vi.fn((shown: { index: number }) => ({
+      reframe,
+      section: shown,
+      settings: { forceEvenPages: true },
+    }));
+    // The image page fills the spread's first page and the text starts on its second.
+    const views = [
+      { section: { index: 1 }, offset: () => ({ left: 0, top: 0 }) },
+      {
+        section: { index: 2 },
+        offset: () => ({ left: 720, top: 0 }),
+        locationOf: () => ({ left: 1500, top: 0 }),
+      },
+    ];
+    const scrollTo = vi.fn();
+    const display = vi.fn(async () => undefined);
+    const handleNextPrePaginated = vi.fn();
+    Object.assign(manager.layout, { divisor: 2, pageWidth: 720, delta: 1440 });
+    Object.assign(manager, {
+      views: { all: () => views, displayed: () => views, remove: vi.fn() },
+      createView,
+      handleNextPrePaginated,
+      prepend: vi.fn(async () => undefined),
+      display,
+      scrollTo,
+    });
+    const hooked = manager as unknown as {
+      createView(section: { index: number }): {
+        settings: { forceEvenPages: boolean };
+        reframe(width: number, height: number): void;
+      };
+      handleNextPrePaginated(forceRight: boolean, section: unknown, action: unknown): unknown;
+      display(section: { index: number }, target?: string): Promise<unknown>;
+    };
+    const contents = vi.fn();
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      contents,
+      undefined,
+      undefined,
+      { fontSize: 16, pageLayout: "double" },
+    );
+    try {
+      await vi.waitFor(() =>
+        expect(hooked.createView({ index: 2 }).settings.forceEvenPages).toBe(false),
+      );
+      expect(hooked.createView({ index: 1 }).settings.forceEvenPages).toBe(false);
+      // The text takes an odd number of pages, so the two sections end on a whole spread.
+      hooked.createView({ index: 2 }).reframe(1440, 780);
+      expect(reframe).toHaveBeenLastCalledWith(2160, 780);
+      hooked.createView({ index: 2 }).reframe(2160, 780);
+      expect(reframe).toHaveBeenLastCalledWith(2160, 780);
+      hooked.createView({ index: 1 }).reframe(1441, 780);
+      expect(reframe).toHaveBeenLastCalledWith(720, 780);
+      const action = vi.fn(async () => undefined);
+      const [imageView, textView] = views;
+      views.splice(0, views.length, imageView);
+      await hooked.handleNextPrePaginated(false, { index: 1 }, action);
+      expect(action).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ href: "Text/story.xhtml" }),
+      );
+      expect(handleNextPrePaginated).not.toHaveBeenCalled();
+      views.push(textView);
+      // A point in the text shows the spread holding it, a page after the text's own.
+      await hooked.display({ index: 2 }, "epubcfi(/6/6!/4/2/1:0)");
+      expect(display).toHaveBeenCalledWith({ index: 2 }, "epubcfi(/6/6!/4/2/1:0)");
+      expect(scrollTo).toHaveBeenLastCalledWith(1440, 0, true);
+      await hooked.display({ index: 2 });
+      expect(scrollTo).toHaveBeenLastCalledWith(0, 0, true);
     } finally {
       renderer.dispose();
     }
@@ -1526,6 +1618,10 @@ describe("EPUB.js renderer adapter", () => {
     expect(contents.textWidth()).toBe(57600);
     range.right = 57700;
     expect(contents.textWidth()).toBe(57720);
+    // A glyph overhanging the body's left edge adds nothing to the pages after the text.
+    range.left = -2;
+    range.right = 57580;
+    expect(contents.textWidth()).toBe(57600);
     Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
     document.body.style.paddingLeft = "";
     renderer.dispose();

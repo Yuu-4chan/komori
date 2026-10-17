@@ -464,7 +464,7 @@ describe("Appearance preferences", () => {
     expect(fake.saved[0]).toEqual({
       ...defaultAppearance,
       readerPopupEnabled: true,
-      readerPopupMouseSelection: true,
+      readerPopupMouseSelection: false,
       readerPopupVoiceAction: true,
       readerPopupShowDictionaryNames: true,
       readerPopupShowPitch: true,
@@ -506,7 +506,7 @@ describe("Appearance preferences", () => {
     expect(fake.saved[1]).toEqual({
       ...defaultAppearance,
       readerPopupEnabled: true,
-      readerPopupMouseSelection: true,
+      readerPopupMouseSelection: false,
       readerPopupVoiceAction: true,
       readerPopupShowDictionaryNames: true,
       readerPopupShowPitch: true,

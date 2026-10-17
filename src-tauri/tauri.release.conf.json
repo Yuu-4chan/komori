@@ -5,7 +5,8 @@
     "resources": {
       "../LICENSE": "LICENSE",
       "../NOTICE": "NOTICE",
-      "../dist/THIRD-PARTY-NOTICES.txt": "THIRD-PARTY-NOTICES.txt"
+      "../dist/THIRD-PARTY-NOTICES.txt": "THIRD-PARTY-NOTICES.txt",
+      "fonts": "reader-fonts"
     }
   }
 }

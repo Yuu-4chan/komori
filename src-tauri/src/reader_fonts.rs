@@ -1,5 +1,6 @@
-//! Reader-only font choices and a fixed, integrity-pinned Google Fonts collection.
-//! No caller supplies a URL or path. Fonts are never installed into Windows.
+//! Reader-only font choices and a fixed, integrity-pinned Google Fonts collection, a few of
+//! whose files come with the installer. No caller supplies a URL or path. Fonts are never
+//! installed into Windows.
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -101,6 +102,9 @@ struct Font {
     hash: String,
     license_hash: String,
     size: usize,
+    /// The installer includes this file, so it is available without a download.
+    #[serde(default)]
+    bundled: bool,
 }
 #[derive(Deserialize)]
 struct Catalog {
@@ -122,7 +126,29 @@ fn font(id: &str) -> Option<&'static Font> {
 
 pub(crate) struct FontState {
     root: PathBuf,
+    /// Where the installer's fonts are, laid out as downloads are, read-only.
+    bundled: Vec<PathBuf>,
     write: Mutex<()>,
+}
+impl FontState {
+    fn list(&self) -> Vec<DownloadedFont> {
+        list(&self.root, &self.bundled)
+    }
+}
+/// The folders that may hold the installer's fonts: beside the executable, and in a development
+/// build the folder the build fetches them into.
+fn bundled_roots(app: &tauri::AppHandle) -> Vec<PathBuf> {
+    let mut roots: Vec<PathBuf> = app
+        .path()
+        .resource_dir()
+        .ok()
+        .map(|dir| dir.join("reader-fonts"))
+        .into_iter()
+        .collect();
+    if cfg!(debug_assertions) {
+        roots.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("fonts"));
+    }
+    roots
 }
 pub(crate) fn initialize(app: &tauri::AppHandle) -> Result<FontState, String> {
     let root = app
@@ -139,6 +165,7 @@ pub(crate) fn initialize(app: &tauri::AppHandle) -> Result<FontState, String> {
     imports::clean_partial(&root)?;
     Ok(FontState {
         root,
+        bundled: bundled_roots(app),
         write: Mutex::new(()),
     })
 }
@@ -194,6 +221,13 @@ fn installed_bytes(root: &Path, f: &Font) -> Result<Vec<u8>, String> {
     }
     Ok(bytes)
 }
+/// An included font from the installer, verified like a download.
+fn bundled_bytes(roots: &[PathBuf], f: &Font) -> Option<Vec<u8>> {
+    if !f.bundled {
+        return None;
+    }
+    roots.iter().find_map(|root| installed_bytes(root, f).ok())
+}
 fn clean_stage(dir: &Path) -> Result<(), String> {
     if !dir.exists() {
         return Ok(());
@@ -218,13 +252,16 @@ pub(crate) struct DownloadedFont {
     source: &'static str,
     style: String,
     available: bool,
+    /// Included with Komori: available without a download, and never removed.
+    bundled: bool,
     url: Option<String>,
 }
-fn list(root: &Path) -> Vec<DownloadedFont> {
+fn list(root: &Path, bundled: &[PathBuf]) -> Vec<DownloadedFont> {
     FONTS
         .iter()
         .map(|f| {
-            let available = installed_bytes(root, f).is_ok();
+            let included = bundled_bytes(bundled, f).is_some();
+            let available = included || installed_bytes(root, f).is_ok();
             let scheme = if cfg!(windows) {
                 "http://komori-font.localhost"
             } else {
@@ -244,6 +281,7 @@ fn list(root: &Path) -> Vec<DownloadedFont> {
                 source: "google",
                 style: "normal".into(),
                 available,
+                bundled: included,
                 url: available.then(|| format!("{scheme}/{}/{}.ttf", f.id, f.hash)),
             }
         })
@@ -254,8 +292,8 @@ fn list(root: &Path) -> Vec<DownloadedFont> {
 pub(crate) async fn list_reader_fonts(
     state: State<'_, FontState>,
 ) -> Result<Vec<DownloadedFont>, String> {
-    let root = state.root.clone();
-    tauri::async_runtime::spawn_blocking(move || list(&root))
+    let (root, bundled) = (state.root.clone(), state.bundled.clone());
+    tauri::async_runtime::spawn_blocking(move || list(&root, &bundled))
         .await
         .map_err(|_| "Could not list fonts.".into())
 }
@@ -463,6 +501,9 @@ pub(crate) async fn download_reader_font(
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<FontState>();
         let _lock = state.write.lock().map_err(|_| "Font storage is busy.")?;
+        if bundled_bytes(&state.bundled, f).is_some() {
+            return Ok(state.list());
+        }
         download(
             &state.root,
             f,
@@ -480,7 +521,7 @@ pub(crate) async fn download_reader_font(
             },
             fetch,
         )?;
-        Ok(list(&state.root))
+        Ok(state.list())
     })
     .await
     .map_err(|_| "Font download failed.".to_string())?
@@ -544,6 +585,9 @@ pub(crate) async fn remove_reader_font(
     if font(&id).is_none() && !imports::valid_id(&id) {
         return Err("Unknown font.".into());
     }
+    if font(&id).is_some_and(|f| f.bundled) {
+        return Err("Fonts included with Komori cannot be removed.".into());
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<FontState>();
         let _lock = state.write.lock().map_err(|_| "Font storage is busy.")?;
@@ -554,7 +598,7 @@ pub(crate) async fn remove_reader_font(
             id
         };
         clean_stage(&state.root.join(directory))?;
-        Ok(list(&state.root))
+        Ok(state.list())
     })
     .await
     .map_err(|_| "Could not remove font.".to_string())?
@@ -684,12 +728,17 @@ pub(crate) fn serve_font(
         responder.respond(response(StatusCode::FORBIDDEN, Vec::new()));
         return;
     }
-    let root = context.app_handle().state::<FontState>().root.clone();
+    let state = context.app_handle().state::<FontState>();
+    let (root, bundled) = (state.root.clone(), state.bundled.clone());
     tauri::async_runtime::spawn_blocking(move || {
-        responder.respond(handle_request(&root, &request))
+        responder.respond(handle_request(&root, &bundled, &request))
     });
 }
-fn handle_request(root: &Path, request: &Request<Vec<u8>>) -> Response<Vec<u8>> {
+fn handle_request(
+    root: &Path,
+    bundled: &[PathBuf],
+    request: &Request<Vec<u8>>,
+) -> Response<Vec<u8>> {
     if request.method() != Method::GET {
         return response(StatusCode::METHOD_NOT_ALLOWED, Vec::new());
     }
@@ -705,7 +754,7 @@ fn handle_request(root: &Path, request: &Request<Vec<u8>>) -> Response<Vec<u8>> 
         .and_then(|id| imports::bytes(root, id).ok());
     let bytes = found
         .filter(|_| request.uri().query().is_none())
-        .and_then(|f| installed_bytes(root, f).ok())
+        .and_then(|f| bundled_bytes(bundled, f).or_else(|| installed_bytes(root, f).ok()))
         .or_else(|| {
             request
                 .uri()
@@ -755,12 +804,12 @@ mod tests {
             } else {
                 assert_eq!(face.weight().to_number().to_string(), f.weight);
             }
-            assert!(list(root.path())
+            assert!(list(root.path(), &[])
                 .iter()
                 .any(|font| font.id == id && font.available));
             clean_stage(&root.path().join(id)).unwrap();
             assert!(
-                !list(root.path())
+                !list(root.path(), &[])
                     .iter()
                     .find(|font| font.id == id)
                     .unwrap()
@@ -781,6 +830,65 @@ mod tests {
             assert!(imports::valid_id(&f.hash) && imports::valid_id(&f.license_hash));
             assert!(FONTS.iter().any(|regular| regular.id == f.family_id));
         }
+    }
+    #[test]
+    fn the_installer_includes_one_regular_file_of_each_starter_family() {
+        let bundled: Vec<&str> = FONTS
+            .iter()
+            .filter(|f| f.bundled)
+            .map(|f| f.id.as_str())
+            .collect();
+        assert_eq!(
+            bundled,
+            [
+                "zen-old-mincho",
+                "klee-one",
+                "noto-sans-jp",
+                "noto-sans-sc",
+                "noto-sans-kr"
+            ]
+        );
+        assert!(FONTS
+            .iter()
+            .filter(|f| f.bundled)
+            .all(|f| f.id == f.family_id));
+    }
+    #[test]
+    fn included_fonts_are_verified_served_and_listed_without_a_download() {
+        let downloads = tempfile::tempdir().unwrap();
+        let included = tempfile::tempdir().unwrap();
+        let data = b"included font fixture";
+        let license = b"included license fixture";
+        let mut fixture = Font {
+            id: "fixture".into(),
+            family_id: "fixture".into(),
+            family: "Fixture".into(),
+            weight: "400".into(),
+            path: "ofl/fixture/font.ttf".into(),
+            hash: format!("{:x}", Sha256::digest(data)),
+            license_hash: format!("{:x}", Sha256::digest(license)),
+            size: data.len(),
+            bundled: true,
+        };
+        let roots = [
+            downloads.path().join("missing"),
+            included.path().to_path_buf(),
+        ];
+        assert!(bundled_bytes(&roots, &fixture).is_none());
+        fs::create_dir(included.path().join("fixture")).unwrap();
+        fs::write(included.path().join("fixture").join("font.ttf"), data).unwrap();
+        fs::write(included.path().join("fixture").join("OFL.txt"), license).unwrap();
+        assert_eq!(bundled_bytes(&roots, &fixture).unwrap(), data);
+        // Only a file the catalog marks as included is read from the installer's folder.
+        fixture.bundled = false;
+        assert!(bundled_bytes(&roots, &fixture).is_none());
+        fixture.bundled = true;
+        fs::write(included.path().join("fixture").join("font.ttf"), b"corrupt").unwrap();
+        assert!(bundled_bytes(&roots, &fixture).is_none());
+        // The real catalog's included fonts are unavailable when their folder is missing.
+        let fonts = list(downloads.path(), &roots);
+        let klee = fonts.iter().find(|f| f.id == "klee-one").unwrap();
+        assert!(!klee.available && !klee.bundled && klee.url.is_none());
     }
     #[test]
     fn choices_and_migration_are_typed_and_independent() {
@@ -826,7 +934,7 @@ mod tests {
         assert!(!dir.path().join("zen-old-mincho.partial").exists());
         assert!(!dir.path().join("zen-old-mincho").exists());
         assert_eq!(fs::read(dir.path().join("unrelated")).unwrap(), b"keep");
-        assert!(list(dir.path())
+        assert!(list(dir.path(), &[])
             .iter()
             .all(|f| !f.available && f.url.is_none()));
     }
@@ -844,6 +952,7 @@ mod tests {
             hash: format!("{:x}", Sha256::digest(data)),
             license_hash: format!("{:x}", Sha256::digest(license)),
             size: data.len(),
+            bundled: false,
         };
         let get = |path: &str, _: usize, progress: &dyn Fn(usize)| {
             if path.ends_with("OFL.txt") {
@@ -891,6 +1000,7 @@ mod tests {
             assert_eq!(
                 handle_request(
                     dir.path(),
+                    &[],
                     &Request::builder().uri(path).body(Vec::new()).unwrap()
                 )
                 .status(),
@@ -901,6 +1011,7 @@ mod tests {
         assert_eq!(
             handle_request(
                 dir.path(),
+                &[],
                 &Request::builder()
                     .method("POST")
                     .uri(&path)
@@ -913,6 +1024,7 @@ mod tests {
         assert_eq!(
             handle_request(
                 dir.path(),
+                &[],
                 &Request::builder()
                     .uri(format!("{path}?file=a"))
                     .body(Vec::new())

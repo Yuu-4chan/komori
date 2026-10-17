@@ -15,7 +15,7 @@ it("subscribes before native download, keeps one action pending, cleans failed l
         fail = reject;
       }),
   );
-  const pending = changeDownloadedFont("zen-old-mincho", "download");
+  const pending = changeDownloadedFont("zen-old-mincho-700", "download");
   await vi.waitFor(() => expect(invoke).toHaveBeenCalledOnce());
   expect(vi.mocked(listen).mock.invocationCallOrder[0]).toBeLessThan(
     vi.mocked(invoke).mock.invocationCallOrder[0],
@@ -26,10 +26,10 @@ it("subscribes before native download, keeps one action pending, cleans failed l
   await pending;
   expect(unlisten).toHaveBeenCalledOnce();
   vi.mocked(invoke).mockResolvedValue([]);
-  await changeDownloadedFont("zen-old-mincho", "download");
+  await changeDownloadedFont("zen-old-mincho-700", "download");
   expect(unlisten).toHaveBeenCalledTimes(2);
-  await changeDownloadedFont("zen-old-mincho", "remove");
-  expect(invoke).toHaveBeenLastCalledWith("remove_reader_font", { id: "zen-old-mincho" });
+  await changeDownloadedFont("zen-old-mincho-700", "remove");
+  expect(invoke).toHaveBeenLastCalledWith("remove_reader_font", { id: "zen-old-mincho-700" });
   await changeDownloadedFont("https://example.test/font", "download");
   expect(invoke).toHaveBeenCalledTimes(3);
 });

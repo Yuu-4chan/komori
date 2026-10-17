@@ -96,8 +96,7 @@ order. You can also use Komori freely without any dictionary.
 Komori has no account, telemetry or analytics. Your library, reading history, notes and
 dictionaries stay in `%APPDATA%\app.komori.reader` on your computer. It uses the network
 only to check for updates (which you can turn off), to fetch word audio when you ask for it,
-and to download starter dictionaries or Reader fonts (Noto Serif JP once, on its own, when
-Windows has no Yu Mincho), and talks to Anki only on your own
+and to download starter dictionaries or the Reader fonts you choose, and talks to Anki only on your own
 computer. See [docs/privacy.md](docs/privacy.md) for details.
 
 ## Build from source

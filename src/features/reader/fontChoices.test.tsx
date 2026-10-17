@@ -15,6 +15,7 @@ import {
   type ReaderFontPair,
 } from "./fontChoices";
 import { ReaderFontControls } from "./ReaderFontControls";
+import { ReaderFontManager } from "./ReaderFontManager";
 import {
   changeDownloadedFont,
   checkSystemFont,
@@ -280,7 +281,7 @@ it("offers this computer's fonts by name, saves the chosen family and restores i
   );
   expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   expect(screen.getByRole("combobox", { name: "Western font" })).toHaveFocus();
-  expect(listSystemFonts).toHaveBeenCalledOnce();
+  expect(listSystemFonts).toHaveBeenCalled();
   first.unmount();
   render(
     <AppearanceProvider store={store}>
@@ -317,17 +318,116 @@ it("keeps downloads outside the pickers and offers separate static weights and v
   expect(changeDownloadedFont).toHaveBeenLastCalledWith("klee-one-600", "download");
   await user.click(screen.getByRole("button", { name: "Download Zen Old Mincho 700" }));
   expect(changeDownloadedFont).toHaveBeenLastCalledWith("zen-old-mincho-700", "download");
+  // The dialog opens on the menu's own collection; the other is a tab away.
+  expect(screen.getByRole("button", { name: "Asian fonts", pressed: true })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Download Lora 400–700" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Western fonts" }));
+  expect(screen.queryByRole("button", { name: "Download Klee One 600" })).toBeNull();
   await user.click(screen.getByRole("button", { name: "Download Lora 400–700" }));
   expect(changeDownloadedFont).toHaveBeenLastCalledWith("lora", "download");
   await user.click(screen.getByRole("button", { name: "Remove Literata 200–900" }));
   expect(changeDownloadedFont).toHaveBeenLastCalledWith("literata", "remove");
   await user.click(screen.getByRole("button", { name: "Import fonts" }));
   expect(importReaderFonts).toHaveBeenCalledOnce();
-  await user.type(screen.getByRole("textbox", { name: "Search fonts" }), "Klee");
+  await user.type(screen.getByRole("textbox", { name: "Search fonts" }), "Merri");
   expect(screen.queryByRole("button", { name: "Download Lora 400–700" })).toBeNull();
+  expect(screen.getByRole("button", { name: /Download Merriweather/ })).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Close" }));
   expect(add).toHaveFocus();
   expect(store.saved.readerAsianFont).toEqual(defaultAppearance.readerAsianFont);
+});
+it("offers each menu only its own collection's usable fonts and keeps the chosen one", async () => {
+  const user = userEvent.setup();
+  const fonts = [
+    { id: "literata", familyId: "literata", family: "Literata", available: true, url: null },
+    {
+      id: "noto-sans-jp",
+      familyId: "noto-sans-jp",
+      family: "Noto Sans JP",
+      available: true,
+      bundled: true,
+      url: null,
+    },
+  ];
+  vi.mocked(useReaderFonts).mockReturnValue({
+    fonts,
+    pending: null,
+    completed: 0,
+    total: 0,
+    error: null,
+    loaded: true,
+  });
+  vi.mocked(listSystemFonts).mockResolvedValue(["Georgia", "Yu Gothic", "Noto Sans KR"]);
+  const store = memoryStore();
+  render(
+    <AppearanceProvider store={store}>
+      <ReaderFontControls />
+    </AppearanceProvider>,
+  );
+  try {
+    await user.click(await screen.findByRole("button", { name: "Choose Western font" }));
+    const western = within(screen.getByRole("listbox", { name: "Western font" }));
+    await waitFor(() => expect(western.queryByRole("option", { name: "Segoe UI" })).toBeNull());
+    // Each font is listed once; this computer's fonts stay listed by name in both menus.
+    for (const name of [
+      "Georgia",
+      "Inter (included, Latin)",
+      "System serif",
+      "Literata",
+      "Yu Gothic",
+    ])
+      expect(western.getAllByRole("option", { name })).toHaveLength(1);
+    for (const name of ["Yu Mincho", "Noto Sans JP", "Noto Serif JP"])
+      expect(western.queryByRole("option", { name })).toBeNull();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Choose Asian font" }));
+    const asian = within(screen.getByRole("listbox", { name: "Asian font" }));
+    // The included Noto Sans JP is offered as itself, and is the default.
+    expect(asian.getByRole("option", { name: "Noto Sans JP", selected: true })).toBeInTheDocument();
+    for (const name of ["Noto Sans JP", "Yu Gothic", "Noto Sans KR", "Georgia"])
+      expect(asian.getAllByRole("option", { name })).toHaveLength(1);
+    for (const name of ["Yu Mincho", "Noto Serif JP", "Literata", "Segoe UI"])
+      expect(asian.queryByRole("option", { name })).toBeNull();
+    await user.keyboard("{Escape}");
+  } finally {
+    vi.mocked(listSystemFonts).mockResolvedValue(["Arial", "Meiryo"]);
+    vi.mocked(useReaderFonts).mockReturnValue({
+      fonts: [{ id: "literata", family: "Literata", available: true, url: null }],
+      pending: null,
+      completed: 0,
+      total: 0,
+      error: null,
+      loaded: true,
+    });
+  }
+});
+it("shows the included weights without an action to download or remove them", async () => {
+  const user = userEvent.setup();
+  vi.mocked(useReaderFonts).mockReturnValueOnce({
+    fonts: [
+      {
+        id: "zen-old-mincho",
+        familyId: "zen-old-mincho",
+        family: "Zen Old Mincho",
+        available: true,
+        bundled: true,
+        url: null,
+      },
+    ],
+    pending: null,
+    completed: 0,
+    total: 0,
+    error: null,
+    loaded: true,
+  });
+  render(<ReaderFontManager category="asian" onClose={() => {}} />);
+  const dialog = within(screen.getByRole("dialog", { name: "Fonts" }));
+  expect(dialog.getByText("Zen Old Mincho 400 is included with Komori")).toBeInTheDocument();
+  expect(
+    dialog.queryByRole("button", { name: /(Download|Remove) Zen Old Mincho 400$/ }),
+  ).toBeNull();
+  await user.click(dialog.getByRole("button", { name: "Download Zen Old Mincho 700" }));
+  expect(changeDownloadedFont).toHaveBeenLastCalledWith("zen-old-mincho-700", "download");
 });
 it("accepts a typed missing family on Enter or blur, cancels with Escape and refuses CSS names", async () => {
   const user = userEvent.setup();

@@ -1,8 +1,9 @@
 // Checks a built release (`pnpm tauri:build` or `pnpm tauri:release`) before it is published: one
-// version everywhere, GUI-subsystem executables, the license and notices bundled, no source or
+// version everywhere, GUI-subsystem executables, the license, notices and included fonts bundled, no source or
 // build-machine paths in what the user sees, no signing key anywhere in the output and, when the
 // updater artifacts exist, a signature that verifies against the key installed copies trust.
 // Usage: node scripts/check-release.mjs [--tag v<version>]
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative } from "node:path";
@@ -128,6 +129,25 @@ function main(root = process.cwd(), args = process.argv.slice(2)) {
     ),
     "THIRD-PARTY-NOTICES.txt covers EPUB.js, Phosphor, Inter and the Rust crates",
   );
+
+  // ---------- included Reader fonts ----------
+  const catalog = JSON.parse(read("src/features/reader/googleFontCatalog.json"));
+  const sha256 = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
+  for (const font of catalog.fonts.filter((font) => font.bundled)) {
+    const folder = join(release, "reader-fonts", font.id);
+    check(
+      existsSync(join(folder, "font.ttf")) &&
+        existsSync(join(folder, "OFL.txt")) &&
+        sha256(join(folder, "font.ttf")) === font.hash &&
+        sha256(join(folder, "OFL.txt")) === font.licenseHash,
+      `${font.family} is bundled beside komori.exe, verified, with its license`,
+    );
+    check(
+      ["font.ttf", "OFL.txt"].every((name) => nsi.includes(`reader-fonts\\${font.id}\\${name}"`)),
+      `the installer installs ${font.family}`,
+    );
+    check(thirdParty.includes(`${font.family} google/fonts`), `the notices cover ${font.family}`);
+  }
 
   // ---------- paths in what the user sees ----------
   // The interface, its strings and the notices; the notices name the one modified source file

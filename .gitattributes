@@ -1,2 +1,4 @@
 # Keep formatter input identical on Windows and Linux, even with core.autocrlf=true.
 * text=auto eol=lf
+# The included fonts' licenses must keep their exact bytes, which the font catalog pins.
+src-tauri/fonts/** -text

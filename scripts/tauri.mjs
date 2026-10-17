@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 
@@ -24,6 +24,10 @@ if (process.argv[2] === "build") {
   ].join("\x1f");
   delete environment.RUSTFLAGS;
 }
+
+// A development build shows the installer's fonts from where the build fetches them.
+if (process.argv[2] === "dev")
+  spawnSync(process.execPath, ["scripts/reader-fonts.mjs", "--optional"], { stdio: "inherit" });
 
 const child = spawn(process.execPath, [cliPath, ...process.argv.slice(2)], {
   env: environment,

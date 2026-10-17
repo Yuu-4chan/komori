@@ -11,7 +11,7 @@
     "tauri:build": "node scripts/tauri.mjs build --config src-tauri/tauri.release.conf.json",
     "tauri:dev": "node scripts/tauri.mjs dev",
     "tauri:release": "node scripts/tauri.mjs build --config src-tauri/tauri.release.conf.json --config src-tauri/tauri.updater.conf.json && node scripts/release-manifest.mjs",
-    "build": "tsc -b && vite build && node scripts/third-party-notices.mjs",
+    "build": "node scripts/reader-fonts.mjs && tsc -b && vite build && node scripts/third-party-notices.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "oxlint .",

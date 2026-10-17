@@ -3,10 +3,38 @@ import { readerSerifFonts, readerSansFonts, readerInterFace } from "./fontFamili
 import catalog from "./googleFontCatalog.json";
 
 export const presetFonts = [...readerSerifFonts, ...readerSansFonts];
-export const googleFontFiles = catalog.fonts;
+export type FontCategory = "asian" | "western";
+/** The presets each font menu offers, in its order; the generic families are in both. */
+export const presetCategories: Record<FontCategory, readonly string[]> = {
+  asian: [
+    "yu-mincho",
+    "yu-gothic",
+    "noto-serif-jp",
+    "noto-sans-jp",
+    "noto-serif-sc",
+    "noto-sans-sc",
+    "noto-serif-kr",
+    "noto-sans-kr",
+    "serif",
+    "sans-serif",
+  ],
+  western: ["georgia", "segoe-ui", "inter", "serif", "sans-serif"],
+};
+export const googleFontFiles: {
+  id: string;
+  familyId: string;
+  family: string;
+  category: string;
+  weight: string;
+  path: string;
+  hash: string;
+  licenseHash: string;
+  size: number;
+  bundled?: boolean;
+}[] = catalog.fonts;
 export const googleFonts = [...new Set(googleFontFiles.map((f) => f.familyId))].map((id) => {
   const files = googleFontFiles.filter((f) => f.familyId === id);
-  return { id, family: files[0].family, category: files[0].category, files };
+  return { id, family: files[0].family, category: files[0].category as FontCategory, files };
 });
 export const validUploadedId = (id: unknown): id is string =>
   typeof id === "string" && /^[a-f0-9]{64}$/.test(id);
@@ -49,8 +77,9 @@ export interface SystemFontFace {
   weight: number;
   style: "normal" | "italic";
 }
-export const defaultAsianFont: ReaderFontChoice = { source: "preset", id: "yu-mincho" };
-export const defaultWesternFont: ReaderFontChoice = { source: "preset", id: "segoe-ui" };
+/** Noto Sans JP comes with Komori, and Georgia with Windows. */
+export const defaultAsianFont: ReaderFontChoice = { source: "google", id: "noto-sans-jp" };
+export const defaultWesternFont: ReaderFontChoice = { source: "preset", id: "georgia" };
 
 export function validFontFamily(value: unknown): value is string {
   return (

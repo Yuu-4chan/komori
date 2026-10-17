@@ -1,12 +1,19 @@
-import { CloudArrowDownIcon, TrashIcon, UploadSimpleIcon, XIcon } from "@phosphor-icons/react";
+import {
+  CheckIcon,
+  CloudArrowDownIcon,
+  TrashIcon,
+  UploadSimpleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DialogCaption } from "../../components/layout/WindowControls";
 import { Button } from "../../components/ui/Button";
 import { IconButton } from "../../components/ui/IconButton";
+import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { TextField } from "../../components/ui/TextField";
 import { useI18n } from "../../i18n/i18n";
-import { googleFonts } from "./fontChoices";
+import { googleFonts, type FontCategory } from "./fontChoices";
 import {
   changeDownloadedFont,
   importReaderFonts,
@@ -14,10 +21,20 @@ import {
   useReaderFonts,
 } from "./readerFonts";
 
-export function ReaderFontManager({ onClose }: { onClose: () => void }) {
+type Tab = FontCategory | "uploaded";
+
+/** The Reader's fonts, one collection at a time, opening on the menu's own. */
+export function ReaderFontManager({
+  category,
+  onClose,
+}: {
+  category: FontCategory;
+  onClose: () => void;
+}) {
   const { t } = useI18n();
   const { fonts, pending, completed, total, error } = useReaderFonts();
   const [query, setQuery] = useState("");
+  const [chosenTab, setTab] = useState<Tab>(category);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   useEffect(() => {
@@ -32,7 +49,22 @@ export function ReaderFontManager({ onClose }: { onClose: () => void }) {
     };
   }, []);
   const matches = (family: string) => family.toLowerCase().includes(query.trim().toLowerCase());
-  const uploads = fonts.filter((f) => f.source === "uploaded" && matches(f.family));
+  const added = fonts.filter((f) => f.source === "uploaded");
+  // The added fonts' tab shows while there are some, and opens when an import adds more.
+  const addedCount = useRef(added.length);
+  useEffect(() => {
+    if (added.length > addedCount.current) setTab("uploaded");
+    addedCount.current = added.length;
+  }, [added.length]);
+  const tab = chosenTab === "uploaded" && !added.length ? category : chosenTab;
+  const uploads = tab === "uploaded" ? added.filter((f) => matches(f.family)) : [];
+  const families =
+    tab === "uploaded" ? [] : googleFonts.filter((f) => f.category === tab && matches(f.family));
+  const tabs: { value: Tab; label: string }[] = [
+    { value: "asian", label: t("fonts.asianCollection") },
+    { value: "western", label: t("fonts.westernCollection") },
+    ...(added.length ? [{ value: "uploaded" as const, label: t("fonts.sectionUploaded") }] : []),
+  ];
   return createPortal(
     <dialog
       ref={dialogRef}
@@ -81,90 +113,90 @@ export function ReaderFontManager({ onClose }: { onClose: () => void }) {
             </Button>
           </p>
         )}
+        <SegmentedControl
+          label={t("fonts.collections")}
+          value={tab}
+          options={tabs}
+          onChange={setTab}
+        />
         <div className="font-manager__list">
           {uploads.length > 0 && (
-            <section>
-              <h3>{t("fonts.sectionUploaded")}</h3>
-              <div className="settings-list">
-                {uploads.map((f) => (
-                  <div className="font-manager__row" key={f.id}>
-                    <div>
-                      <strong>{f.family}</strong>
-                      <small>
-                        {f.weight}
-                        {f.style === "italic" ? ` · ${t("fonts.italic")}` : ""}
-                      </small>
-                    </div>
-                    <IconButton
-                      label={t("fonts.remove", { name: `${f.family} ${f.weight}` })}
-                      disabled={!!pending}
-                      onClick={() => void changeDownloadedFont(f.id, "remove")}
-                    >
-                      <TrashIcon aria-hidden="true" />
-                    </IconButton>
+            <div className="settings-list">
+              {uploads.map((f) => (
+                <div className="font-manager__row" key={f.id}>
+                  <div>
+                    <strong>{f.family}</strong>
+                    <small>
+                      {f.weight}
+                      {f.style === "italic" ? ` · ${t("fonts.italic")}` : ""}
+                    </small>
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
-          {["asian", "western"]
-            .filter((category) =>
-              googleFonts.some((f) => f.category === category && matches(f.family)),
-            )
-            .map((category) => (
-              <section key={category}>
-                <h3>
-                  {t(category === "asian" ? "fonts.asianCollection" : "fonts.westernCollection")}
-                </h3>
-                <div className="settings-list">
-                  {googleFonts
-                    .filter((f) => f.category === category && matches(f.family))
-                    .map((family) => (
-                      <div className="font-manager__row" key={family.id}>
-                        <div>
-                          <strong>{family.family}</strong>
-                          <small>SIL Open Font License 1.1</small>
-                        </div>
-                        <div className="font-manager__weights">
-                          {family.files.map((file) => {
-                            const available = fonts.some((f) => f.id === file.id && f.available);
-                            const weight = file.weight.split(" ").map(Number).join("–");
-                            return (
-                              <Button
-                                key={file.id}
-                                tone="secondary"
-                                icon={
-                                  available ? (
-                                    <TrashIcon aria-hidden="true" />
-                                  ) : (
-                                    <CloudArrowDownIcon aria-hidden="true" />
-                                  )
-                                }
-                                disabled={!!pending}
-                                aria-label={t(available ? "fonts.remove" : "fonts.download", {
-                                  name: `${family.family} ${weight}`,
-                                })}
-                                title={t(available ? "fonts.remove" : "fonts.download", {
-                                  name: `${family.family} ${weight}`,
-                                })}
-                                onClick={() =>
-                                  void changeDownloadedFont(
-                                    file.id,
-                                    available ? "remove" : "download",
-                                  )
-                                }
-                              >
-                                {weight}
-                              </Button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
+                  <IconButton
+                    label={t("fonts.remove", { name: `${f.family} ${f.weight}` })}
+                    disabled={!!pending}
+                    onClick={() => void changeDownloadedFont(f.id, "remove")}
+                  >
+                    <TrashIcon aria-hidden="true" />
+                  </IconButton>
                 </div>
-              </section>
-            ))}
-          {!uploads.length && !googleFonts.some((f) => matches(f.family)) && (
+              ))}
+            </div>
+          )}
+          {families.length > 0 && (
+            <div className="settings-list">
+              {families.map((family) => (
+                <div className="font-manager__row" key={family.id}>
+                  <div>
+                    <strong>{family.family}</strong>
+                    <small>SIL Open Font License 1.1</small>
+                  </div>
+                  <div className="font-manager__weights">
+                    {family.files.map((file) => {
+                      const font = fonts.find((f) => f.id === file.id);
+                      const weight = file.weight.split(" ").map(Number).join("–");
+                      const name = `${family.family} ${weight}`;
+                      // An included file is always there: it shows its weight, with no action.
+                      if (font?.bundled)
+                        return (
+                          <span
+                            key={file.id}
+                            className="font-manager__included"
+                            title={t("fonts.included", { name })}
+                          >
+                            <CheckIcon aria-hidden="true" />
+                            {weight}
+                            <span className="visually-hidden">{t("fonts.included", { name })}</span>
+                          </span>
+                        );
+                      const available = !!font?.available;
+                      return (
+                        <Button
+                          key={file.id}
+                          tone="secondary"
+                          icon={
+                            available ? (
+                              <TrashIcon aria-hidden="true" />
+                            ) : (
+                              <CloudArrowDownIcon aria-hidden="true" />
+                            )
+                          }
+                          disabled={!!pending}
+                          aria-label={t(available ? "fonts.remove" : "fonts.download", { name })}
+                          title={t(available ? "fonts.remove" : "fonts.download", { name })}
+                          onClick={() =>
+                            void changeDownloadedFont(file.id, available ? "remove" : "download")
+                          }
+                        >
+                          {weight}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {!uploads.length && !families.length && (
             <p>{t("fonts.noMatch", { query: query.trim() })}</p>
           )}
         </div>

@@ -1452,6 +1452,8 @@ export const ja: MessageCatalog = {
   "fonts.sectionUploaded": "追加したフォント",
   "fonts.asianCollection": "アジア文字のフォント",
   "fonts.westernCollection": "欧文フォント",
+  "fonts.collections": "フォントの種類",
+  "fonts.included": "{name}はKomoriに同梱されています",
   "fonts.typeName": "フォント名を入力してEnterを押してください。",
   "fonts.italic": "斜体",
   "fonts.westernWeight": "欧文の太さ",

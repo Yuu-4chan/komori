@@ -42,9 +42,12 @@ back. The search stays in the top bar even in an empty Library.
   offers to return to the previous place or be dismissed.
 - **Appearance.** Rows without explanatory text: Theme (15 presets and up to 32 named
   custom themes), Background image (Choose/Replace, Remove, saved blur 0–40 px),
-  Typography (editable Western and Asian font dropdowns holding Komori's presets,
-  installed families and added fonts; the adjacent + opens a floating manager for
-  TTF/OTF imports up to 100 MB and 24 Google families with separate weights or variable ranges;
+  Typography (editable Western and Asian font dropdowns holding only usable fonts of
+  their own collection: installed presets, included and downloaded Google families,
+  added fonts and installed families; defaults Georgia and the included Noto Sans JP;
+  Zen Old Mincho, Klee One and Noto Sans JP, SC and KR come with the installer; the
+  adjacent + opens a floating manager on Asian, Western or Added fonts tabs for
+  TTF/OTF imports up to 100 MB and 93 Google families with separate weights or variable ranges;
   each font has its own Weight dropdown, limited to its available managed weights;
   size,
   line height, indentation, letter and word spacing), Page flow (Continuous,
@@ -77,8 +80,8 @@ back. The search stays in the top bar even in an empty Library.
 
 ## Lookup popup
 
-A lookup trigger (by default Shift scan and the Shift+Enter shortcut; mouse selection,
-click and hover can be turned on in Settings > Reader popup) opens a borderless floating sheet beside the text with the
+A lookup trigger (by default Shift scan, the Shift+Enter shortcut and a middle click on a
+word; mouse selection and hover can be turned on in Settings > Reader popup) opens a borderless floating sheet beside the text with the
 Dictionary's result entries: headword, reading (beside, or above as furigana spread over
 each kanji run), tags,
 frequency chips, pitch, and numbered, source-labelled collapsible definitions.

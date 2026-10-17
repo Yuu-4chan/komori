@@ -208,6 +208,20 @@ function extraEntries(root, crates) {
       texts: [`Copyright (c) The Rust Project Contributors\n\n${mit}`],
     },
   ];
+  // The Reader fonts the installer includes, with the licenses committed beside them.
+  const catalog = JSON.parse(
+    readFileSync(join(root, "src", "features", "reader", "googleFontCatalog.json"), "utf8"),
+  );
+  for (const font of catalog.fonts.filter((font) => font.bundled)) {
+    entries.push({
+      kind: "font",
+      name: font.family,
+      version: `google/fonts ${catalog.commit.slice(0, 7)}`,
+      license: "OFL-1.1",
+      source: `https://github.com/google/fonts/tree/${catalog.commit}/${font.path.slice(0, font.path.lastIndexOf("/"))}`,
+      texts: [read(join(root, "src-tauri", "fonts", font.id, "OFL.txt"))],
+    });
+  }
   const webview = crates.find((crate) => crate.name === "webview2-com-sys");
   if (webview) {
     entries.push({

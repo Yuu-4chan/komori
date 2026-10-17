@@ -3,7 +3,6 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
-  defaultAsianFont,
   fontChoiceKey,
   googleFontFiles,
   googleFontUrl,
@@ -19,6 +18,8 @@ export interface DownloadedFont {
   family: string;
   available: boolean;
   url: string | null;
+  /** Included with Komori: available without a download, and never removed. */
+  bundled?: boolean;
   source?: "google" | "uploaded";
   familyId?: string;
   weight?: string;
@@ -39,13 +40,18 @@ interface Snapshot {
   error: MessageKey | null;
   loaded: boolean;
 }
+// The installer's fonts are taken as available before the native listing confirms them, so a
+// book opening at once shows them without laying out again.
+const included = (f: (typeof googleFontFiles)[number]) => !!f.bundled && isTauri();
 let snapshot: Snapshot = {
   fonts: googleFontFiles.map((f) => ({
     ...f,
     source: "google",
+    weight: f.weight.split(" ").map(Number).join(" "),
     style: "normal",
-    available: false,
-    url: null,
+    bundled: included(f),
+    available: included(f),
+    url: included(f) ? googleFontUrl(f.id)! : null,
   })),
   pending: null,
   completed: 0,
@@ -70,6 +76,7 @@ function validList(value: DownloadedFont[]): DownloadedFont[] {
       source: "google",
       weight: f.weight.split(" ").map(Number).join(" "),
       style: "normal",
+      bundled: available && row!.bundled === true && !!f.bundled,
       available,
       url: available ? row!.url : null,
     };
@@ -164,26 +171,24 @@ export function useSystemFontFaces(choices: readonly ReaderFontChoice[]): System
   }, [families]);
   return state.key === families ? state.faces : [];
 }
-/** Whether Yu Mincho, the default Japanese font, is installed: asked once per run. */
+/** Whether Yu Mincho, once the default Japanese font, is installed: asked once per run. */
 let minchoInstalled: Promise<boolean> | null = null;
-/** Noto Serif JP was asked to download for a missing Yu Mincho during this run. */
-let minchoFallbackRequested = false;
 
 /**
- * The Asian font a book shows. The default Yu Mincho comes with Windows' Japanese language
- * support; on a computer without it, Komori downloads Noto Serif JP once and shows that
- * instead, keeping the saved choice. Any other choice is shown as chosen.
+ * The Asian font a book shows. Yu Mincho comes with Windows' Japanese language support; on a
+ * computer without it, a saved Yu Mincho shows as the included Zen Old Mincho instead, keeping
+ * the saved choice. Any other choice is shown as chosen.
  */
 export function useAsianFontFallback(choice: ReaderFontChoice): ReaderFontChoice {
-  const { fonts, loaded, pending } = useReaderFonts();
-  const isDefault = fontChoiceKey(choice) === fontChoiceKey(defaultAsianFont);
+  const { fonts } = useReaderFonts();
+  const isMincho = fontChoiceKey(choice) === fontChoiceKey(minchoFallback.choice);
   const [missing, setMissing] = useState(false);
   useEffect(() => {
-    if (!isDefault || !isTauri()) return;
+    if (!isMincho || !isTauri()) return;
     let current = true;
     minchoInstalled ??= checkSystemFont(minchoFallback.family).then(
       (font) => font.available,
-      // Unknown is not missing: nothing is downloaded on a failed check.
+      // Unknown is not missing: the saved font is kept on a failed check.
       () => true,
     );
     void minchoInstalled.then((installed) => {
@@ -192,17 +197,15 @@ export function useAsianFontFallback(choice: ReaderFontChoice): ReaderFontChoice
     return () => {
       current = false;
     };
-  }, [isDefault]);
-  const downloaded = fonts.some((font) => font.id === minchoFallback.id && font.available);
-  useEffect(() => {
-    if (!isDefault || !missing || !loaded || downloaded || pending || minchoFallbackRequested)
-      return;
-    minchoFallbackRequested = true;
-    void changeDownloadedFont(minchoFallback.id, "download");
-  }, [isDefault, missing, loaded, downloaded, pending]);
-  return isDefault && missing && downloaded ? { source: "google", id: minchoFallback.id } : choice;
+  }, [isMincho]);
+  const included = fonts.some((font) => font.id === minchoFallback.id && font.available);
+  return isMincho && missing && included ? { source: "google", id: minchoFallback.id } : choice;
 }
-const minchoFallback = { family: "Yu Mincho", id: "noto-serif-jp" } as const;
+const minchoFallback = {
+  choice: { source: "preset", id: "yu-mincho" },
+  family: "Yu Mincho",
+  id: "zen-old-mincho",
+} as const;
 
 let systemFonts: Promise<string[]> | null = null;
 /** The font families installed on this computer, read once per run. */
@@ -220,6 +223,7 @@ export function listSystemFonts(): Promise<string[]> {
 export async function changeDownloadedFont(id: string, action: "download" | "remove") {
   if (
     snapshot.pending ||
+    snapshot.fonts.some((f) => f.id === id && f.bundled) ||
     !(googleFontFiles.some((f) => f.id === id) || (action === "remove" && validUploadedId(id)))
   )
     return;

@@ -245,6 +245,9 @@ interface EpubManager {
   ): unknown;
   /** Show a section before the displayed ones. */
   prepend?(section: EpubSection, forceRight?: boolean): Promise<unknown>;
+  /** Show a section, at a CFI or fragment in it when given. */
+  display?(section: EpubSection, target?: string): Promise<unknown>;
+  scrollTo?(x: number, y: number, silent?: boolean): void;
   stage?: {
     overflow(overflow: string): void;
     /** Scroll from the right for a right-to-left progression. */
@@ -292,6 +295,10 @@ interface EpubView {
   expand?(force?: boolean): void;
   reframe?(width: number, height: number): void;
   lockedHeight?: number;
+  /** Where the view lies in the view manager's container. */
+  offset?(): { left: number; top: number };
+  /** Where a CFI or fragment lies in the view's section. */
+  locationOf?(target: string): { left: number; top: number };
 }
 
 /** EPUB.js's layout, which formats each section for the view manager. */
@@ -401,6 +408,8 @@ class EpubRenderer implements ReaderRenderer {
   private destinations = new Map<string, string>();
   /** Each image-only section that shares a spread, and the section beside it. */
   private imageSpreads = new Map<number, number>();
+  /** Sections of text that follow a lone image page on its spread. */
+  private textPartners = new Set<number>();
   /** The anchors of contents entries in each spine section, "" for its start. */
   private headingTargets = new Map<unknown, Set<string>>();
   /** Each heading image's content shift, measured once from the archive by path. */
@@ -2468,13 +2477,16 @@ class EpubRenderer implements ReaderRenderer {
    * pages in a run share a spread instead, one image a page, as EPUB.js shows the two
    * pages of a fixed-layout spread: the first of a pair brings its partner after it, and
    * the second (reached going back, or opened directly) brings it before. Each is one
-   * page wide.
+   * page wide. An image page left alone shares its spread with the first page of the
+   * text after it in the same chapter: the text then takes an odd number of pages, so
+   * the two sections end on a whole spread.
    */
   private followImageSpreads(): void {
     const manager = this.manager();
     const createView = manager?.createView?.bind(manager);
     const handle = manager?.handleNextPrePaginated?.bind(manager);
     const prepend = manager?.prepend?.bind(manager);
+    const display = manager?.display?.bind(manager);
     if (!manager || !createView || !handle || !prepend) return;
     const shown = (index: number) =>
       manager.views?.all().some((view) => view.section.index === index) ?? false;
@@ -2494,6 +2506,11 @@ class EpubRenderer implements ReaderRenderer {
         view.reframe = (width, height) => {
           const page = manager.layout?.pageWidth;
           const paired = this.imagePartner(index) !== undefined;
+          if (paired && page && this.textPartners.has(index)) {
+            const pages = Math.max(1, Math.round(width / page));
+            reframe(pages % 2 ? width : width + page, height);
+            return;
+          }
           const imagePage =
             paired || !!view.contents?.document?.querySelector("[data-komori-page-image]");
           const pages = paired ? 1 : (manager.layout?.divisor ?? 1);
@@ -2503,6 +2520,27 @@ class EpubRenderer implements ReaderRenderer {
         };
       return view;
     };
+    // EPUB.js places a target by whole spreads of the section it lies in; beside an image
+    // page, the text's spreads start a page later. Show the spread holding the target.
+    if (display)
+      manager.display = async (shownSection, target) => {
+        await display(shownSection, target);
+        if (!this.showsImageSpread()) return;
+        const view = manager.views
+          ?.all()
+          .find((shown) => shown.section.index === shownSection.index);
+        const spread = manager.layout?.delta;
+        if (!view?.offset || !spread || !manager.scrollTo) return;
+        let left = view.offset().left;
+        if (target && view.locationOf) {
+          try {
+            left += view.locationOf(target).left;
+          } catch {
+            /* An unplaceable target shows the section's start. */
+          }
+        }
+        manager.scrollTo(Math.floor(left / spread) * spread, 0, true);
+      };
     manager.handleNextPrePaginated = (forceRight, shownSection, action) => {
       const partner = this.imagePartner(shownSection.index);
       const other = partner === undefined || shown(partner) ? undefined : section(partner);
@@ -3878,24 +3916,35 @@ class EpubRenderer implements ReaderRenderer {
   /**
    * Consecutive image-only sections share spreads two by two, in reading order. A cover
    * stays alone: the first page of the reading order, which a book whose declared cover
-   * lies outside it opens on in its place, and the cover page the book declares.
+   * lies outside it opens on in its place, and the cover page the book declares. An image
+   * page left over shares its spread with the section of text right after it, unless a
+   * contents entry starts that section, as a new chapter does.
    */
   private pairImagePages(
     sections: Array<{ linear?: boolean }>,
     imagePages: Set<number>,
     coverIndex: number,
+    textPages: Set<number>,
+    chapterStarts: Set<number>,
   ): void {
     const linear = [...sections.keys()].filter((index) => sections[index].linear);
     this.imageSpreads = new Map();
+    this.textPartners = new Set();
     let waiting: number | undefined;
     for (const index of linear) {
-      if (!imagePages.has(index) || index === linear[0] || index === coverIndex)
-        waiting = undefined;
-      else if (waiting === undefined) waiting = index;
-      else {
-        this.imageSpreads.set(waiting, index).set(index, waiting);
-        waiting = undefined;
+      if (imagePages.has(index) && index !== linear[0] && index !== coverIndex) {
+        if (waiting === undefined) waiting = index;
+        else {
+          this.imageSpreads.set(waiting, index).set(index, waiting);
+          waiting = undefined;
+        }
+        continue;
       }
+      if (waiting !== undefined && textPages.has(index) && !chapterStarts.has(index)) {
+        this.imageSpreads.set(waiting, index).set(index, waiting);
+        this.textPartners.add(index);
+      }
+      waiting = undefined;
     }
     void this.matchShownImageSpread();
   }
@@ -3907,6 +3956,8 @@ class EpubRenderer implements ReaderRenderer {
       return;
     this.turnPending = true;
     try {
+      const anchor = await this.displayedAnchor();
+      if (this.disposed) return;
       const before = this.manager()
         ?.views?.all()
         .map((view) => view.section.index);
@@ -3915,7 +3966,11 @@ class EpubRenderer implements ReaderRenderer {
       const after = this.manager()
         ?.views?.all()
         .map((view) => view.section.index);
-      if (before?.join() !== after?.join()) await this.publishLocation();
+      if (before?.join() === after?.join()) return;
+      // A text section shown again beside its image page keeps the page being read.
+      if (anchor && this.book) await this.displayAnchor(rendition, this.book, anchor);
+      if (this.disposed) return;
+      await this.publishLocation();
     } finally {
       this.turnPending = false;
       if (!this.disposed) await this.refreshPageTurns();
@@ -3941,6 +3996,7 @@ class EpubRenderer implements ReaderRenderer {
     }
     const measured: Array<{ length: UnitCounts; anchors: Map<string, AnchorPosition> }> = [];
     const imagePages = new Set<number>();
+    const textPages = new Set<number>();
     const resolved = new Set<string>();
     const script = { cjk: 0, letters: 0 };
     for (const [index, section] of sections.entries()) {
@@ -3953,6 +4009,7 @@ class EpubRenderer implements ReaderRenderer {
           if (document?.body) {
             const text = readableText(document);
             if (showsOneImage(document)) imagePages.add(index);
+            else if (text.trim()) textPages.add(index);
             counts.length = unitCounts(text);
             const letters = scriptCounts(text);
             script.cjk += letters.cjk;
@@ -3978,7 +4035,16 @@ class EpubRenderer implements ReaderRenderer {
     const cover = await spineCoverPage(book, navigation, navigationBase(book)).catch(() => null);
     if (signal.aborted || this.disposed) return;
     const coverIndex = cover ? sections.indexOf(book.spine.get(cover) as never) : -1;
-    this.pairImagePages(sections, imagePages, coverIndex);
+    // A section a contents entry opens at, or at its first readable character, starts a chapter.
+    const openingSections = new Set(
+      targets
+        .filter(
+          ({ index, fragment }) =>
+            !fragment || (measured[index]?.anchors.get(fragment)?.raw ?? 1) === 0,
+        )
+        .map(({ index }) => index),
+    );
+    this.pairImagePages(sections, imagePages, coverIndex, textPages, openingSections);
     const unit = progressUnit(script);
     const lengths = measured.map((section) => section.length[unit]);
     const before: number[] = [];
@@ -4702,6 +4768,8 @@ const pageMeasured = new WeakSet<EpubPageContents>();
  * EPUB.js sizes a paginated section to its text's width plus the body's side padding. Text
  * that begins at the body's very edge, before the padding, already spans the left padding,
  * which then counts twice: a section whose last page is full gained an empty page after it.
+ * A glyph that overhangs the body's left edge widens the text by as much again, so the
+ * width runs from the body's edge, whatever lies before it.
  */
 function pageTextWidth(contents: EpubPageContents): void {
   const measure = contents.textWidth?.bind(contents);
@@ -4717,7 +4785,7 @@ function pageTextWidth(contents: EpubPageContents): void {
     range.selectNodeContents(body);
     const start = range.getBoundingClientRect().left - body.getBoundingClientRect().left;
     const padding = parseFloat(view.getComputedStyle(body).paddingLeft) || 0;
-    return start < padding ? width - Math.round(padding - Math.max(0, start)) : width;
+    return start < padding ? width - Math.round(padding - start) : width;
   };
 }
 

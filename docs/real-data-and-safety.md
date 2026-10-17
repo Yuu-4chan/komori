@@ -132,7 +132,10 @@ failed maintenance never restores a deleted entry or damages a surviving record.
   repository: [Zen Old Mincho](https://github.com/google/fonts/tree/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/zenoldmincho),
   [Zen Kaku Gothic New](https://github.com/google/fonts/tree/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/zenkakugothicnew),
   and [Literata](https://github.com/google/fonts/tree/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/literata).
-  Each download keeps its corresponding `OFL.txt` beside the unmodified font. The shared [font catalog](../src/features/reader/googleFontCatalog.json) records every curated family/weight, pinned path and integrity hash; its generator reads the official [Google Fonts OFL repository](https://github.com/google/fonts/tree/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl). Local TTF/OTF imports read user-picked files without changing them, validate bounded sfnt metadata, and publish immutable content-addressed copies under Komori's font cache. No picker path reaches the frontend; only exact verified hash URLs can serve imported bytes. Managed fonts are not installed in Windows or embedded in portable backups.
+  Each download keeps its corresponding `OFL.txt` beside the unmodified font, as do the five
+  files the installer includes (`src-tauri/fonts`, fetched and verified by
+  `scripts/reader-fonts.mjs` at build time and only read at run time); the third-party
+  notices carry their licenses. The shared [font catalog](../src/features/reader/googleFontCatalog.json) records every curated family/weight, pinned path and integrity hash; its generator reads the official [Google Fonts OFL repository](https://github.com/google/fonts/tree/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl). Local TTF/OTF imports read user-picked files without changing them, validate bounded sfnt metadata, and publish immutable content-addressed copies under Komori's font cache. No picker path reaches the frontend; only exact verified hash URLs can serve imported bytes. Managed fonts are not installed in Windows or embedded in portable backups.
 - SQLite contains only Komori-owned durable state.
 
 ## Anki integration

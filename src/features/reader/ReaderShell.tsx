@@ -465,8 +465,8 @@ export function ReaderShell({
         bookImageClick.current(image);
       };
       // A plain click in a VN book shows all of the group's text, or reads on once all of
-      // it shows, as Space does. A click that closes a lookup, looks a word up or follows a
-      // link only finishes the reveal.
+      // it shows, as Space does. A click that closes a lookup, looks a word up (Mouse click
+      // with a left or double click) or follows a link only finishes the reveal.
       const vnClick = (event: MouseEvent) => {
         const step = vnStep.current;
         if (!step || event.defaultPrevented || event.button !== 0) return;
@@ -477,7 +477,10 @@ export function ReaderShell({
           !closingLookup &&
             !lookupOpen.current &&
             !link &&
-            !triggersRef.current.readerPopupClickLookup,
+            !(
+              triggersRef.current.readerPopupClickLookup &&
+              ["left", "double"].includes(triggersRef.current.readerPopupMouseTrigger)
+            ),
         );
       };
       document.addEventListener("keydown", key);

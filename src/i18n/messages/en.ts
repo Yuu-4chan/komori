@@ -1579,6 +1579,8 @@ export const en = {
   "fonts.sectionUploaded": "Added fonts",
   "fonts.asianCollection": "Asian fonts",
   "fonts.westernCollection": "Western fonts",
+  "fonts.collections": "Font collections",
+  "fonts.included": "{name} is included with Komori",
   "fonts.typeName": "Type a font family name and press Enter.",
   "fonts.italic": "Italic",
   "fonts.westernWeight": "Western font weight",

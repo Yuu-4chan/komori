@@ -17,3 +17,8 @@ docs/local-development.md
 docs/tasks/
 docs/roadmap.md
 docs/validation.md
+
+# The Reader fonts the installer includes are fetched by scripts/reader-fonts.mjs; their
+# licenses are committed beside them.
+src-tauri/fonts/*/font.ttf
+src-tauri/fonts/*/*.partial

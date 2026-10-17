@@ -313,7 +313,7 @@ describe("Komori foundation", () => {
       });
     }
   });
-  it("defaults mouse-selection lookup on and saves keyboard off/on through Settings and reload", async () => {
+  it("defaults mouse-selection lookup off and saves keyboard on/off through Settings and reload", async () => {
     const saved = { ...defaultAppearance };
     const store = {
       load: async () => saved,
@@ -333,24 +333,24 @@ describe("Komori foundation", () => {
     const view = mount();
     await user.click(await screen.findByRole("button", { name: "Reader popup" }));
     const toggle = screen.getByRole("button", { name: "Mouse selection" });
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
     toggle.focus();
     await user.keyboard(" ");
-    await waitFor(() => expect(saved.readerPopupMouseSelection).toBe(false));
-    expect(saved).toEqual({ ...defaultAppearance, readerPopupMouseSelection: false });
+    await waitFor(() => expect(saved.readerPopupMouseSelection).toBe(true));
+    expect(saved).toEqual({ ...defaultAppearance, readerPopupMouseSelection: true });
     view.unmount();
     mount();
     await user.click(await screen.findByRole("button", { name: "Reader popup" }));
     const restored = screen.getByRole("button", { name: "Mouse selection" });
-    expect(restored).toHaveAttribute("aria-pressed", "false");
+    expect(restored).toHaveAttribute("aria-pressed", "true");
     restored.focus();
     await user.keyboard(" ");
-    await waitFor(() => expect(saved.readerPopupMouseSelection).toBe(true));
-    expect(restored).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(saved.readerPopupMouseSelection).toBe(false));
+    expect(restored).toHaveAttribute("aria-pressed", "false");
   });
 
   it("drops missing and invalid popup mouse-selection values independently", () => {
-    expect(defaultAppearance.readerPopupMouseSelection).toBe(true);
+    expect(defaultAppearance.readerPopupMouseSelection).toBe(false);
     for (const readerPopupMouseSelection of [undefined, null, "false", 0, 1, {}, []]) {
       expect(
         normalizeAppearancePreferences({ readerPopupMouseSelection, readerPopupTheme: "night" }),

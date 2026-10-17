@@ -19,9 +19,11 @@ import {
   fontChoiceKey,
   fontChoiceLabel,
   googleFonts,
+  presetCategories,
   presetFontLabel,
   presetFonts,
   validFontFamily,
+  type FontCategory,
   type ReaderFontChoice,
   type UploadedFont,
 } from "./fontChoices";
@@ -36,12 +38,18 @@ interface FontOption {
   choice: ReaderFontChoice;
 }
 
+/** Generic families and the included Inter need nothing installed. */
+const alwaysUsable = ["serif", "sans-serif", "inter"];
+
 function FontPicker({
   label,
+  category,
   value,
   onChange,
 }: {
   label: string;
+  /** Which presets and Google Fonts this menu offers, and which the "+" dialog opens on. */
+  category: FontCategory;
   value: ReaderFontChoice;
   onChange: (font: ReaderFontChoice) => void;
 }) {
@@ -89,8 +97,9 @@ function FontPicker({
       current = false;
     };
   }, [value]);
+  // Read as the menu mounts, so the menu opens on the installed fonts alone.
   useEffect(() => {
-    if (!open || installed) return;
+    if (installed) return;
     let current = true;
     void listSystemFonts().then(
       (families) => {
@@ -103,18 +112,35 @@ function FontPicker({
     return () => {
       current = false;
     };
-  }, [installed, open]);
+  }, [installed]);
   const options = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const matches = (f: FontOption) => !needle || f.label.toLowerCase().includes(needle);
-    const presets: FontOption[] = presetFonts.map((f) => ({
-      key: `preset:${f.value}`,
-      label: presetFontLabel(f.value),
-      section: "fonts.sectionKomori",
-      choice: { source: "preset", id: f.value },
-    }));
+    const chosen = (choice: ReaderFontChoice) => fontChoiceKey(choice) === chosenKey;
+    const usable = (id: string) => fonts.some((f) => (f.familyId ?? f.id) === id && f.available);
+    const installedNames = new Set((installed ?? []).map((family) => family.toLowerCase()));
+    // Only fonts that show as themselves: installed presets, unless the same Google font is
+    // available, and the Google Fonts that are included or downloaded. The chosen font stays.
+    const presetIds = [...presetCategories[category]];
+    if (value.source === "preset" && !presetIds.includes(value.id)) presetIds.unshift(value.id);
+    const presets: FontOption[] = presetIds
+      .map((id) => presetFonts.find((f) => f.value === id)!)
+      .filter(
+        (f) =>
+          chosen({ source: "preset", id: f.value }) ||
+          alwaysUsable.includes(f.value) ||
+          (!usable(f.value) && (!installed || installedNames.has(f.label.toLowerCase()))),
+      )
+      .map((f) => ({
+        key: `preset:${f.value}`,
+        label: presetFontLabel(f.value),
+        section: "fonts.sectionKomori",
+        choice: { source: "preset", id: f.value },
+      }));
     const google: FontOption[] = googleFonts
-      .filter((f) => fonts.some((file) => (file.familyId ?? file.id) === f.id && file.available))
+      .filter(
+        (f) => (f.category === category && usable(f.id)) || chosen({ source: "google", id: f.id }),
+      )
       .map((f) => ({
         key: `google:${f.id}`,
         label: f.family,
@@ -129,7 +155,9 @@ function FontPicker({
         section: "fonts.sectionUploaded",
         choice: { source: "uploaded", id: f.id },
       }));
-    const families = [...(installed ?? [])];
+    // A family the sections above already offer is not listed again.
+    const offered = new Set([...presets, ...google].map((o) => o.label.toLowerCase()));
+    const families = (installed ?? []).filter((family) => !offered.has(family.toLowerCase()));
     if (value.source === "system" && !families.includes(value.family))
       families.unshift(value.family);
     const system: FontOption[] = families.map((family) => ({
@@ -141,7 +169,7 @@ function FontPicker({
     return [...presets, ...google, ...uploaded, ...system.filter(matches).slice(0, 150)].filter(
       matches,
     );
-  }, [fonts, installed, query, value, t]);
+  }, [category, chosenKey, fonts, installed, query, value, t]);
   function close(refocus = false) {
     setOpen(false);
     if (refocus) inputRef.current?.focus();
@@ -377,7 +405,7 @@ function FontPicker({
             document.body,
           )
         : null}
-      {manager && <ReaderFontManager onClose={() => setManager(false)} />}
+      {manager && <ReaderFontManager category={category} onClose={() => setManager(false)} />}
     </div>
   );
 }
@@ -411,6 +439,7 @@ export function ReaderFontControls() {
     <>
       <FontPicker
         label={t("fonts.western")}
+        category="western"
         value={prefs.readerWesternFont}
         onChange={prefs.setReaderWesternFont}
       />
@@ -422,6 +451,7 @@ export function ReaderFontControls() {
       )}
       <FontPicker
         label={t("fonts.asian")}
+        category="asian"
         value={prefs.readerAsianFont}
         onChange={prefs.setReaderAsianFont}
       />

@@ -34,6 +34,15 @@ describe("third-party notices", () => {
     expect(notices).toMatch(/^Yomitan Japanese transforms 67db60d \(adapted\)/mu);
     expect(notices).toContain("Copyright (C) Microsoft Corporation. All rights reserved.");
     expect(notices).toContain("GNU GENERAL PUBLIC LICENSE");
+    // The installer includes these Reader fonts.
+    for (const family of [
+      "Zen Old Mincho",
+      "Klee One",
+      "Noto Sans JP",
+      "Noto Sans SC",
+      "Noto Sans KR",
+    ])
+      expect(notices).toContain(`${family} google/fonts 9710da1 (font) — OFL-1.1\n`);
     // cargo metadata downloads every crate's source when none is cached, which takes minutes.
   }, 300_000);
 
@@ -47,6 +56,10 @@ describe("third-party notices", () => {
       "LICENSE",
       "NOTICE",
       "THIRD-PARTY-NOTICES.txt",
+      "reader-fonts",
     ]);
+    // The build fetches the included Reader fonts before the installer takes them.
+    expect(scripts.build).toMatch(/^node scripts\/reader-fonts\.mjs && /u);
+    expect(release.bundle.resources.fonts).toBe("reader-fonts");
   });
 });

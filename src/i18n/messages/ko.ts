@@ -1441,6 +1441,8 @@ export const ko: MessageCatalog = {
   "fonts.sectionUploaded": "추가한 글꼴",
   "fonts.asianCollection": "아시아 글꼴",
   "fonts.westernCollection": "서양 글꼴",
+  "fonts.collections": "글꼴 모음",
+  "fonts.included": "{name}은(는) Komori에 포함되어 있습니다",
   "fonts.typeName": "글꼴 이름을 입력하고 Enter를 누르세요.",
   "fonts.italic": "기울임꼴",
   "fonts.westernWeight": "서양 글꼴 굵기",

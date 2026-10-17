@@ -76,6 +76,7 @@ fn metadata(id: String, data: &[u8]) -> Result<DownloadedFont, String> {
         source: "uploaded",
         style: if face.is_italic() { "italic" } else { "normal" }.into(),
         available: true,
+        bundled: false,
     })
 }
 pub(super) fn list(root: &Path) -> Vec<DownloadedFont> {
@@ -165,7 +166,7 @@ pub(crate) async fn import_reader_fonts(app: tauri::AppHandle) -> Result<ImportR
             }
         }
         Ok(ImportResult {
-            fonts: super::list(&state.root),
+            fonts: state.list(),
             failed,
         })
     })
@@ -230,7 +231,7 @@ mod tests {
             .body(vec![])
             .unwrap();
         assert_eq!(
-            super::super::handle_request(root.path(), &request).body(),
+            super::super::handle_request(root.path(), &[], &request).body(),
             &original
         );
         assert_eq!(fs::read(source).unwrap(), original);

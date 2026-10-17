@@ -861,6 +861,47 @@ describe("Reader shell", () => {
     frame.remove();
   });
 
+  it("keeps a VN book's left click for lookup when Mouse click looks words up with it", async () => {
+    const advancePage = vi.fn(async () => undefined);
+    let publish!: (document: Document) => void;
+    render(
+      <MemoryRouter>
+        <AppearanceProvider
+          store={{
+            load: async () => ({ readerViewMode: "vn", readerPopupMouseTrigger: "left" }),
+            save: async () => undefined,
+          }}
+        >
+          <ReaderShell
+            rendererFactory={() => ({
+              ...pageActions,
+              advancePage,
+              revealVnText: vi.fn(),
+              scrollBy: vi.fn(),
+              mount: async (_host, _signal, onChanged, onContentDocument) => {
+                publish = onContentDocument!;
+                onChanged({ canAdvance: true, canRetreat: false, scrollAxis: "vertical" });
+                return "ready";
+              },
+              dispose: vi.fn(),
+            })}
+          />
+        </AppearanceProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByText("Reader ready");
+    const frame = document.body.appendChild(document.createElement("iframe"));
+    const book = frame.contentDocument!;
+    book.body.innerHTML = "<p>text</p>";
+    act(() => publish(book));
+    fireEvent.click(book.querySelector("p")!);
+    await new Promise((settle) => setTimeout(settle, 50));
+    expect(advancePage).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByRole("main"), { key: " " });
+    await waitFor(() => expect(advancePage).toHaveBeenCalledTimes(1));
+    frame.remove();
+  });
+
   it("releases input listeners from section documents that were discarded", async () => {
     // jsdom keeps a removed iframe's window; browsers clear defaultView as modeled here.
     const sectionDocument = () =>
@@ -1619,8 +1660,8 @@ describe("Reader shell", () => {
       vnParagraphs: 1,
       vnTextSpeed: 40,
       fontPair: {
-        asian: { source: "preset", id: "yu-mincho" },
-        western: { source: "preset", id: "segoe-ui" },
+        asian: { source: "google", id: "noto-sans-jp" },
+        western: { source: "preset", id: "georgia" },
         downloaded: [],
         weights: { western: 400, asian: 400 },
       },
@@ -1756,17 +1797,17 @@ describe("Reader shell", () => {
       ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
       // Each font menu opens with its search focused and returns focus once a font is chosen.
       await user.click(screen.getByRole("button", { name: "Choose Western font" }));
-      await user.click(screen.getByRole("option", { name: "Georgia" }));
+      await user.click(screen.getByRole("option", { name: "Segoe UI" }));
       await user.clear(second);
-      await user.type(second, "Inter (included, Latin)");
+      await user.type(second, "System serif");
       await user.keyboard("{Enter}");
       expect(second).toHaveFocus();
       await waitFor(() =>
         expect(setPresentation).toHaveBeenLastCalledWith({
           ...shown,
           fontPair: {
-            asian: { source: "preset", id: "inter" },
-            western: { source: "preset", id: "georgia" },
+            asian: { source: "preset", id: "serif" },
+            western: { source: "preset", id: "segoe-ui" },
             downloaded: [],
             weights: { western: 400, asian: 400 },
           },
@@ -1775,8 +1816,8 @@ describe("Reader shell", () => {
       await waitFor(() =>
         expect(save).toHaveBeenLastCalledWith(
           expect.objectContaining({
-            readerWesternFont: { source: "preset", id: "georgia" },
-            readerAsianFont: { source: "preset", id: "inter" },
+            readerWesternFont: { source: "preset", id: "segoe-ui" },
+            readerAsianFont: { source: "preset", id: "serif" },
           }),
         ),
       );

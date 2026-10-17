@@ -1536,6 +1536,8 @@ export const ptBR: MessageCatalog = {
   "fonts.sectionUploaded": "Fontes adicionadas",
   "fonts.asianCollection": "Fontes asiáticas",
   "fonts.westernCollection": "Fontes ocidentais",
+  "fonts.collections": "Coleções de fontes",
+  "fonts.included": "{name} vem incluída no Komori",
   "fonts.typeName": "Digite o nome de uma família de fonte e pressione Enter.",
   "fonts.italic": "Itálico",
   "fonts.westernWeight": "Peso da fonte ocidental",
