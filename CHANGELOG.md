@@ -2,7 +2,7 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 1.1.0
 
 - Discord status: Settings > Discord can show the book you are reading in Discord, with its title, book progress, chapter progress and reading speed, each of which can be hidden. After 5 minutes without reading it shows Idle. The Komori icon in the status opens Komori's GitHub page. It is off by default.
 - Reading speeds read as `Ch./h` and `Wo./h` (`Ca./h` and `Pa./h` in Portuguese).
