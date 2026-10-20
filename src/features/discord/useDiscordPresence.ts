@@ -31,12 +31,6 @@ export function useDiscordPresence(
       book: book.id,
       title: book.title,
       bookProgress: progress?.total ? `${percent(progress.current, progress.total)}%` : null,
-      bookPosition: progress?.total
-        ? t(progress.unit === "words" ? "discord.positionWords" : "discord.positionCharacters", {
-            current: Math.min(progress.current, progress.total),
-            total: progress.total,
-          })
-        : null,
       chapterProgress: chapter?.total
         ? `${t("readerFooter.chapterPrefix")} ${percent(chapter.current, chapter.total)}%`
         : null,

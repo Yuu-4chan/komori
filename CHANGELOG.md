@@ -4,7 +4,9 @@ All notable changes to Komori are listed here. Versions follow [Semantic Version
 
 ## Unreleased
 
-- Discord status: Settings > Discord can show the book you are reading in Discord, with its title, book progress (as a percentage, the characters or words read, or both), chapter progress and reading speed, each of which can be hidden. After 5 minutes without reading it shows Idle. It is off by default.
+- Discord status: Settings > Discord can show the book you are reading in Discord, with its title, book progress, chapter progress and reading speed, each of which can be hidden. After 5 minutes without reading it shows Idle. The Komori icon in the status opens Komori's GitHub page. It is off by default.
+- Reading speeds read as `Ch./h` and `Wo./h` (`Ca./h` and `Pa./h` in Portuguese).
+- Statistics no longer shows the reading volume cards, which repeated the reading activity.
 
 ## 1.0.2
 

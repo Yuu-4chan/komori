@@ -65,7 +65,6 @@ import {
   MonthSwitcher,
   numbers,
   OverviewCard,
-  ReadingVolumeCard,
   SectionHeading,
 } from "../features/statistics/StatisticsCards";
 
@@ -217,9 +216,6 @@ export function StatisticsPage() {
               date: i18n().date(new Date(sessions[0].startedAt), { dateStyle: "short" }),
             })
           : t("statistics.allTracked");
-  const inRange = range === "today" ? "Today" : range === "month" ? "Month" : "Total";
-  const characterBooks = summary.books.filter((book) => book.unit === "characters");
-  const wordBooks = summary.books.filter((book) => book.unit === "words");
 
   return (
     <div className="page page--statistics">
@@ -413,33 +409,6 @@ export function StatisticsPage() {
       >
         <LanguageBreakdown cjk={breakdown.cjk} other={breakdown.other} />
         <CompletionOverview books={completionOrder(books)} />
-      </section>
-
-      <section className="reading-volume-row" aria-label={t("statistics.volume")}>
-        <ReadingVolumeCard
-          description={t("statistics.cjkBooks")}
-          empty={t(`statistics.noCharacters${inRange}`)}
-          icon={<TextAaIcon aria-hidden="true" size={19} />}
-          library={library}
-          note={tp("statistics.characterBooksRead", characterBooks.length)}
-          rows={characterBooks.slice().sort((a, b) => b.unitsRead - a.unitsRead)}
-          title={t("statistics.asianVolume")}
-          type="cjk"
-          unit={t(`statistics.characters${inRange}`)}
-          value={summary.characters}
-        />
-        <ReadingVolumeCard
-          description={t("statistics.wordCountedBooks")}
-          empty={t(`statistics.noWords${inRange}`)}
-          icon={<FileTextIcon aria-hidden="true" size={19} />}
-          library={library}
-          note={tp("statistics.wordBooksRead", wordBooks.length)}
-          rows={wordBooks.slice().sort((a, b) => b.unitsRead - a.unitsRead)}
-          title={t("statistics.westernVolume")}
-          type="western"
-          unit={t(`statistics.words${inRange}`)}
-          value={summary.words}
-        />
       </section>
 
       <CharacterExplorer

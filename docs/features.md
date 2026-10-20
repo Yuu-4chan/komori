@@ -107,8 +107,8 @@ Dictionary page says it has no dictionaries only in that offer.
 
 Range menu; reading activity metrics (characters or words read, time, speed per hour,
 books finished); the daily activity calendar with day details and editable daily
-books (right-click or pencil); Library overview, language breakdown, completion,
-reading volume and the character explorer whose tiles open their Dictionary search.
+books (right-click or pencil); Library overview, language breakdown, completion
+and the character explorer whose tiles open their Dictionary search.
 Completion shows 300 books until Show all.
 Reader statistics pause while Komori's window is unfocused, hidden or minimized
 and resume on returning; P pauses and resumes a session in every start mode, and a
@@ -146,9 +146,8 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   configuration (deck, note type, field contents table, tags, duplicates) and
   interrupted requests. Duplicate scope initially covers the entire collection.
 - **Discord.** Discord status (off by default): shows the open book in Discord with its
-  title, book progress (as a percentage, characters or words read, or both), chapter
-  progress and reading speed, each of which can be hidden,
-  and Idle after 5 minutes without reading or with no book open.
+  title, book progress as a percentage, chapter progress and reading speed, each of
+  which can be hidden, and Idle after 5 minutes without reading or with no book open.
 
 The application and Reader themes default to Hojicha. The Library initially sorts
 by Title and shows Series, Language, Last read and Unique kanji. Reader popup mouse

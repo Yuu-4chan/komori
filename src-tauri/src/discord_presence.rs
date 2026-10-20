@@ -22,6 +22,10 @@ static CHANGING: Mutex<()> = Mutex::new(());
 pub(crate) const RECORD: &str = "discord";
 /// Komori's application in the Discord Developer Portal; Discord shows its name and icon.
 const CLIENT_ID: &str = "1562070752675766322";
+/// Where the status image leads. Discord loads the image itself; Komori sends only the links.
+const WEBSITE: &str = "https://github.com/Yuu-4chan/komori";
+const ICON: &str =
+    "https://raw.githubusercontent.com/Yuu-4chan/komori/main/src-tauri/icons/128x128@2x.png";
 /// No reading for this long shows Idle.
 const IDLE_AFTER: Duration = Duration::from_secs(5 * 60);
 /// Discord accepts five activity updates in 20 s; a change sooner waits for the next slot.
@@ -37,24 +41,12 @@ const PART_CHARS: usize = 64;
 /// The largest reading position the Reader saves (see book progress).
 const MAX_POSITION: u64 = 1_000_000_000;
 
-/// How book progress reads: `45%`, `9,099 / 20,000 characters` (or words), or both.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) enum ProgressFormat {
-    #[default]
-    Percentage,
-    Position,
-    Both,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct Preferences {
     pub enabled: bool,
     pub show_book_title: bool,
     pub show_book_progress: bool,
-    #[serde(default)]
-    pub book_progress_format: ProgressFormat,
     pub show_chapter_progress: bool,
     pub show_reading_speed: bool,
 }
@@ -65,7 +57,6 @@ impl Default for Preferences {
             enabled: false,
             show_book_title: true,
             show_book_progress: true,
-            book_progress_format: ProgressFormat::Percentage,
             show_chapter_progress: true,
             show_reading_speed: true,
         }
@@ -81,10 +72,6 @@ impl Preferences {
             enabled: field("enabled", defaults.enabled),
             show_book_title: field("showBookTitle", defaults.show_book_title),
             show_book_progress: field("showBookProgress", defaults.show_book_progress),
-            book_progress_format: value
-                .get("bookProgressFormat")
-                .and_then(|format| serde_json::from_value(format.clone()).ok())
-                .unwrap_or(defaults.book_progress_format),
             show_chapter_progress: field("showChapterProgress", defaults.show_chapter_progress),
             show_reading_speed: field("showReadingSpeed", defaults.show_reading_speed),
         }
@@ -97,16 +84,12 @@ pub struct Changes {
     enabled: Option<bool>,
     show_book_title: Option<bool>,
     show_book_progress: Option<bool>,
-    book_progress_format: Option<ProgressFormat>,
     show_chapter_progress: Option<bool>,
     show_reading_speed: Option<bool>,
 }
 
 impl Changes {
     fn apply(self, preferences: &mut Preferences) {
-        if let Some(format) = self.book_progress_format {
-            preferences.book_progress_format = format;
-        }
         let pairs = [
             (self.enabled, &mut preferences.enabled),
             (self.show_book_title, &mut preferences.show_book_title),
@@ -167,7 +150,6 @@ pub struct Reading {
     book: String,
     title: String,
     book_progress: Option<String>,
-    book_position: Option<String>,
     chapter_progress: Option<String>,
     reading_speed: Option<String>,
     position: u64,
@@ -182,7 +164,6 @@ impl Reading {
         Ok(Self {
             title: clean(&self.title, LINE_CHARS).unwrap_or_default(),
             book_progress: part(self.book_progress),
-            book_position: part(self.book_position),
             chapter_progress: part(self.chapter_progress),
             reading_speed: part(self.reading_speed),
             ..self
@@ -210,7 +191,8 @@ fn clean(text: &str, limit: usize) -> Option<String> {
     Some(short)
 }
 
-/// The status Discord shows: two lines and, while reading, when this stretch of reading began.
+/// The status Discord shows: Komori's icon, which opens its GitHub page, two lines and, while
+/// reading, when this stretch of reading began.
 #[derive(Debug, Clone, PartialEq)]
 struct Activity {
     details: String,
@@ -221,7 +203,11 @@ struct Activity {
 
 impl Activity {
     fn to_json(&self) -> Value {
-        let mut activity = json!({ "details": self.details, "instance": false });
+        let mut activity = json!({
+            "details": self.details,
+            "instance": false,
+            "assets": { "large_image": ICON, "large_text": "Komori", "large_url": WEBSITE },
+        });
         if let Some(state) = &self.state {
             activity["state"] = json!(state);
         }
@@ -283,16 +269,8 @@ impl Presence {
         }
         .filter(|_| preferences.show_book_title)
         .unwrap_or_else(|| interface_text::text(language, Text::DiscordReading).into());
-        let format = preferences.book_progress_format;
         let parts: Vec<&str> = [
-            (
-                preferences.show_book_progress && format != ProgressFormat::Percentage,
-                &reading.book_position,
-            ),
-            (
-                preferences.show_book_progress && format != ProgressFormat::Position,
-                &reading.book_progress,
-            ),
+            (preferences.show_book_progress, &reading.book_progress),
             (preferences.show_chapter_progress, &reading.chapter_progress),
             (preferences.show_reading_speed, &reading.reading_speed),
         ]
@@ -596,9 +574,8 @@ mod tests {
             book: BOOK.into(),
             title: "吾輩は猫である".into(),
             book_progress: Some("45%".into()),
-            book_position: Some("9,099 / 20,000 characters".into()),
             chapter_progress: Some("Chapter 30%".into()),
-            reading_speed: Some("31,200 chars/h".into()),
+            reading_speed: Some("31,200 Ch./h".into()),
             position,
         }
     }
@@ -623,18 +600,8 @@ mod tests {
                 ..Preferences::default()
             }
         );
-        assert_eq!(
-            Preferences::from_stored(&json!({"bookProgressFormat": "both"})).book_progress_format,
-            ProgressFormat::Both
-        );
-        assert_eq!(
-            Preferences::from_stored(&json!({"bookProgressFormat": "fraction"})),
-            Preferences::default()
-        );
         assert!(serde_json::from_value::<Preferences>(json!({"enabled": true})).is_err());
-        assert!(
-            serde_json::from_value::<Changes>(json!({"bookProgressFormat": "fraction"})).is_err()
-        );
+        assert!(serde_json::from_value::<Changes>(json!({"bookProgressFormat": "both"})).is_err());
         assert!(serde_json::from_value::<Changes>(json!({"clientId": "1"})).is_err());
         let mut changed = preferences;
         serde_json::from_value::<Changes>(json!({"showBookTitle": false}))
@@ -659,7 +626,7 @@ mod tests {
         .is_err());
         assert!(reading(MAX_POSITION + 1).validated().is_err());
         assert!(serde_json::from_value::<Reading>(json!({
-            "book": BOOK, "title": "", "bookProgress": null, "bookPosition": null,
+            "book": BOOK, "title": "", "bookProgress": null,
             "chapterProgress": null,
             "readingSpeed": null, "position": 0, "path": "C:\\book.epub"
         }))
@@ -699,7 +666,7 @@ mod tests {
             presence.activity(&everything, "en", start),
             Activity {
                 details: "吾輩は猫である".into(),
-                state: Some("45% · Chapter 30% · 31,200 chars/h".into()),
+                state: Some("45% · Chapter 30% · 31,200 Ch./h".into()),
                 start: Some(1_000)
             }
         );
@@ -716,22 +683,6 @@ mod tests {
                 state: Some("45%".into()),
                 start: Some(1_000)
             }
-        );
-        let position = Preferences {
-            book_progress_format: ProgressFormat::Position,
-            ..hidden
-        };
-        assert_eq!(
-            presence.activity(&position, "en", start).state.as_deref(),
-            Some("9,099 / 20,000 characters")
-        );
-        let both = Preferences {
-            book_progress_format: ProgressFormat::Both,
-            ..everything
-        };
-        assert_eq!(
-            presence.activity(&both, "en", start).state.as_deref(),
-            Some("9,099 / 20,000 characters · 45% · Chapter 30% · 31,200 chars/h")
         );
         let nothing = Preferences {
             show_book_progress: false,
@@ -865,7 +816,17 @@ mod tests {
         assert_eq!(frames[1].0, FRAME);
         assert_eq!(
             frames[1].1["args"]["activity"],
-            json!({"details": "Book", "state": "45%", "timestamps": {"start": 7}, "instance": false})
+            json!({
+                "details": "Book",
+                "state": "45%",
+                "timestamps": {"start": 7},
+                "instance": false,
+                "assets": {
+                    "large_image": ICON,
+                    "large_text": "Komori",
+                    "large_url": "https://github.com/Yuu-4chan/komori"
+                }
+            })
         );
         assert_eq!(frames[1].1["cmd"], "SET_ACTIVITY");
         assert_eq!(frames[2], (PONG, json!({"n": 1})));

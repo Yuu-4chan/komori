@@ -152,7 +152,6 @@ fn discord_choices_round_trip_and_older_backups_preserve_them() {
         enabled: true,
         show_book_title: false,
         show_book_progress: true,
-        book_progress_format: crate::discord_presence::ProgressFormat::Both,
         show_chapter_progress: false,
         show_reading_speed: true,
     };

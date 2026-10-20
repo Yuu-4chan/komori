@@ -1,5 +1,5 @@
 /* Statistics: reading activity, the daily calendar, the Library overview,
-   languages, completion, reading volume and the character explorer. Colors come from the
+   languages, completion and the character explorer. Colors come from the
    theme and the --stat-* series tokens. */
 
 .page--statistics {
@@ -748,107 +748,6 @@ div.statistics-card__empty p {
   height: 0.5rem;
 }
 
-/* Reading volume */
-
-.reading-volume-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(1rem, 1.2vw, 1.4rem);
-}
-
-.reading-volume-card {
-  --stat-tone: var(--stat-blue);
-}
-
-.reading-volume-card--western {
-  --stat-tone: var(--stat-gold);
-}
-
-.reading-volume-card__hero {
-  padding: 1.1rem 1.25rem 0.9rem;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1.1rem;
-}
-
-.reading-volume-card__hero > div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.reading-volume-card__hero strong {
-  font-size: clamp(1.55rem, 1.7vw, 2.1rem);
-  font-variant-numeric: tabular-nums;
-}
-
-.reading-volume-card__hero span,
-.reading-volume-card__hero small {
-  color: var(--text-secondary);
-  font-size: var(--font-size-2);
-}
-
-.reading-volume-card__list {
-  margin: 0;
-  padding: 0 1.25rem 1.1rem;
-  display: grid;
-  gap: 0.5rem;
-  list-style: none;
-}
-
-.reading-volume-row__item {
-  min-height: 3.25rem;
-  padding: 0.5rem 0.65rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(9rem, 0.8fr);
-  align-items: center;
-  gap: 1rem;
-  background: var(--stat-soft);
-  border-radius: 0.7rem;
-}
-
-.reading-volume-row__item > div:first-child {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.reading-volume-row__item strong {
-  font-size: var(--font-size-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.reading-volume-row__item span {
-  color: var(--text-muted);
-  font-size: var(--font-size-1);
-}
-
-.reading-volume-row__progress {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.6rem;
-  gap: 0.5rem;
-  align-items: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.reading-volume-row__progress > i {
-  height: 0.375rem;
-  overflow: hidden;
-  background: var(--border-soft);
-  border-radius: var(--radius-pill);
-}
-
-.reading-volume-row__progress > i span {
-  display: block;
-  height: 100%;
-  background: var(--stat-tone);
-  border-radius: inherit;
-}
-
 /* Character explorer */
 
 .character-search {
@@ -1037,8 +936,7 @@ div.statistics-card__empty p {
 
 @media (max-width: 1040px) {
   .statistics-activity-layout,
-  .statistics-split-grid,
-  .reading-volume-row {
+  .statistics-split-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1074,11 +972,6 @@ div.statistics-card__empty p {
   .language-breakdown__legend,
   .character-search {
     width: 100%;
-  }
-
-  .reading-volume-row__item {
-    grid-template-columns: 1fr;
-    gap: 0.5rem;
   }
 }
 

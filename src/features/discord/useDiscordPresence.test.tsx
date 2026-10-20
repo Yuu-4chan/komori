@@ -38,7 +38,6 @@ describe("Discord status from the Reader", () => {
       book: book.id,
       title: book.title,
       bookProgress: null,
-      bookPosition: null,
       chapterProgress: null,
       readingSpeed: null,
       position: 0,
@@ -48,7 +47,6 @@ describe("Discord status from the Reader", () => {
       book: book.id,
       title: book.title,
       bookProgress: "45%",
-      bookPosition: "9,099 / 20,000 characters",
       chapterProgress: "Chapter 30%",
       readingSpeed: null,
       position: 9_099,
@@ -58,7 +56,7 @@ describe("Discord status from the Reader", () => {
     vi.advanceTimersByTime(discordRefreshMs);
     expect(reportDiscordReading).toHaveBeenCalledTimes(reports + 1);
     expect(reportDiscordReading).toHaveBeenLastCalledWith(
-      expect.objectContaining({ readingSpeed: "31,200 chars/h", position: 9_099 }),
+      expect.objectContaining({ readingSpeed: "31,200 Ch./h", position: 9_099 }),
     );
 
     view.rerender({ open: null, at: null });
@@ -77,7 +75,7 @@ describe("Discord status from the Reader", () => {
     });
     expect(reportDiscordReading).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        bookPosition: "20,000 / 20,000 words",
+        bookProgress: "100%",
         chapterProgress: null,
       }),
     );

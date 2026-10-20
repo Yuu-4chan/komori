@@ -1,12 +1,10 @@
 import { DiscordLogoIcon } from "@phosphor-icons/react";
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
-import { Select } from "../../components/ui/Select";
 import { ToggleSetting } from "../../components/ui/ToggleSetting";
 import { useI18n } from "../../i18n/i18n";
 import {
-  bookProgressFormats,
   defaultDiscordPreferences,
   getDiscordPreferences,
   saveDiscordPreferences,
@@ -51,7 +49,7 @@ export function DiscordSettings() {
     };
   }, [attempt]);
 
-  async function change<K extends keyof DiscordPreferences>(key: K, value: DiscordPreferences[K]) {
+  async function change(key: keyof DiscordPreferences, value: boolean) {
     setBusy(true);
     setError(null);
     try {
@@ -87,35 +85,15 @@ export function DiscordSettings() {
           onChange={(value) => void change("enabled", value)}
         />
         {parts.map((key) => (
-          <Fragment key={key}>
-            <ToggleSetting
-              label={t(`discord.${key}`)}
-              // The speed comes from reading statistics, so it needs a word on when it shows.
-              description={
-                key === "showReadingSpeed" ? t("discord.showReadingSpeedHint") : undefined
-              }
-              checked={preferences[key]}
-              disabled={!loaded || busy || !preferences.enabled}
-              onChange={(value) => void change(key, value)}
-            />
-            {key === "showBookProgress" && (
-              <div className="settings-field">
-                <Select
-                  label={t("discord.bookProgressFormat")}
-                  value={preferences.bookProgressFormat}
-                  options={bookProgressFormats.map((format) => ({
-                    ...format,
-                    label: t(format.label),
-                  }))}
-                  disabled={
-                    !loaded || busy || !preferences.enabled || !preferences.showBookProgress
-                  }
-                  onChange={(format) => void change("bookProgressFormat", format)}
-                />
-                <p className="settings-field__hint">{t("discord.bookProgressFormatHint")}</p>
-              </div>
-            )}
-          </Fragment>
+          <ToggleSetting
+            key={key}
+            label={t(`discord.${key}`)}
+            // The speed comes from reading statistics, so it needs a word on when it shows.
+            description={key === "showReadingSpeed" ? t("discord.showReadingSpeedHint") : undefined}
+            checked={preferences[key]}
+            disabled={!loaded || busy || !preferences.enabled}
+            onChange={(value) => void change(key, value)}
+          />
         ))}
       </div>
       {!loaded && error && (

@@ -277,11 +277,6 @@ describe("Statistics", () => {
     expect(
       within(metrics).getByText("Books finished", { selector: "span" }).closest("article"),
     ).toHaveTextContent("1");
-    expect(
-      within(screen.getByRole("region", { name: "Reading volume" }))
-        .getByText("Harbor Notes")
-        .closest("li"),
-    ).toHaveTextContent("3,000 words read");
     view.unmount();
     vi.mocked(listReadingSessions).mockResolvedValue(saved);
     renderPage();
@@ -357,14 +352,14 @@ describe("Statistics", () => {
     expect(metric("Sessions")).toHaveTextContent("2");
     expect(metric("Characters read")).toHaveTextContent("18,000");
     expect(metric("Words read")).toHaveTextContent("6,000");
-    expect(metric("Avg. chars/h")).toHaveTextContent("18,000");
+    expect(metric("Avg. Ch./h")).toHaveTextContent("18,000");
     expect(metric("Books finished")).toHaveTextContent("1");
 
     await user.click(screen.getByRole("button", { name: "Statistics range: This month" }));
     await user.click(screen.getByRole("menuitemradio", { name: /Today/ }));
     expect(metric("Reading time")).toHaveTextContent("20m");
     expect(metric("Characters read")).toHaveTextContent("0");
-    expect(metric("Avg. words/h")).toHaveTextContent("18,000");
+    expect(metric("Avg. Wo./h")).toHaveTextContent("18,000");
     await user.click(screen.getByRole("button", { name: "Statistics range: Today" }));
     await user.click(screen.getByRole("menuitemradio", { name: /All time/ }));
     expect(metric("Reading time")).toHaveTextContent("1h 50m");
@@ -383,10 +378,8 @@ describe("Statistics", () => {
     expect(
       screen.getByRole("img", { name: "1 completed, 1 in progress, 0 not started" }),
     ).toBeInTheDocument();
-    const volume = screen.getByRole("region", { name: "Reading volume" });
-    expect(within(volume).getByText("秋の手紙").closest("li")).toHaveTextContent("24,000 Ch. read");
-    expect(within(volume).getByText("秋の手紙").closest("li")).toHaveTextContent("25%");
-    expect(within(volume).getByText("Harbor Notes").closest("li")).toHaveTextContent("100%");
+    // The reading volume cards are gone.
+    expect(screen.queryByRole("region", { name: /volume/i })).not.toBeInTheDocument();
   });
 
   it("shows a calendar day's reading and books, and other months", async () => {
@@ -475,9 +468,9 @@ describe("Statistics", () => {
     expect(
       within(metrics).getByText("Books finished", { selector: "span" }).closest("article"),
     ).toHaveTextContent("0");
-    const volume = screen.getByRole("region", { name: "Reading volume" });
-    expect(within(volume).getByText("A removed book").closest("li")).toHaveTextContent(
-      "3,000 Ch. read",
+    const calendar = screen.getByRole("region", { name: "Daily activity" });
+    expect(within(calendar).getByRole("complementary", { name: "Books read" })).toHaveTextContent(
+      "A removed book",
     );
   });
 
@@ -490,8 +483,7 @@ describe("Statistics", () => {
     expect(
       within(metrics).getByText("Reading time", { selector: "span" }).closest("article"),
     ).toHaveTextContent("0m");
-    expect(within(metrics).getByText("Avg. chars/h").closest("article")).toHaveTextContent("—");
-    expect(screen.getByText(/No characters read this month/)).toBeInTheDocument();
+    expect(within(metrics).getByText("Avg. Ch./h").closest("article")).toHaveTextContent("—");
     view.unmount();
 
     vi.mocked(listReadingSessions).mockRejectedValueOnce(new Error("C:/private/library.sqlite3"));

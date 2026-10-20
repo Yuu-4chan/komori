@@ -53,18 +53,11 @@ describe("Discord settings", () => {
     );
     // The parts wait for the status to be on.
     for (const label of parts) expect(screen.getByRole("button", { name: label })).toBeDisabled();
-    const format = screen.getByLabelText("Book progress as");
-    expect(format).toBeDisabled();
 
     enabled.focus();
     await user.keyboard(" ");
     await waitFor(() => expect(enabled).toHaveAttribute("aria-pressed", "true"));
     expect(saveDiscordPreferences).toHaveBeenLastCalledWith({ enabled: true });
-    await waitFor(() => expect(format).toBeEnabled());
-    expect(format).toHaveValue("percentage");
-    await user.selectOptions(format, "position");
-    await waitFor(() => expect(format).toHaveValue("position"));
-    expect(saveDiscordPreferences).toHaveBeenLastCalledWith({ bookProgressFormat: "position" });
     for (const [key, label] of [
       ["showBookTitle", "Book title"],
       ["showBookProgress", "Book progress"],
@@ -78,8 +71,6 @@ describe("Discord settings", () => {
       await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "false"));
       expect(saveDiscordPreferences).toHaveBeenLastCalledWith({ [key]: false });
     }
-    // Hiding book progress leaves nothing for its format to choose.
-    expect(format).toBeDisabled();
     expect(screen.getByRole("button", { name: "Reading speed" })).toHaveAccessibleDescription(
       "Shown while reading statistics are on, after a minute of reading.",
     );

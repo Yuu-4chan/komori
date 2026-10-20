@@ -181,8 +181,8 @@ describe("session reading speed", () => {
   });
 
   it("formats speeds as the reader shows them", () => {
-    expect(formatReadingSpeed({ perHour: 31_200, unit: "characters" })).toBe("31,200 chars/h");
-    expect(formatReadingSpeed({ perHour: 14_400, unit: "words" })).toBe("14,400 words/h");
+    expect(formatReadingSpeed({ perHour: 31_200, unit: "characters" })).toBe("31,200 Ch./h");
+    expect(formatReadingSpeed({ perHour: 14_400, unit: "words" })).toBe("14,400 Wo./h");
   });
 });
 

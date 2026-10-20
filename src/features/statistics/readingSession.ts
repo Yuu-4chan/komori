@@ -24,7 +24,7 @@ export interface ReadingSpeed {
   unit: ReaderProgressUnit;
 }
 
-/** Formats a speed as the Reader shows it: `31,200 chars/h`, `14,400 words/h`. */
+/** Formats a speed as the Reader shows it: `31,200 Ch./h`, `14,400 Wo./h`. */
 export function formatReadingSpeed({ perHour, unit }: ReadingSpeed): string {
   return i18n().t(unit === "characters" ? "speed.chars" : "speed.words", { count: perHour });
 }

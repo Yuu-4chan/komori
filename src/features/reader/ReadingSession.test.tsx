@@ -118,7 +118,7 @@ describe("Reader sessions", () => {
     expect(screen.getByLabelText(/Reading time this session: 1m \d\ds/)).toBeInTheDocument();
     // 400 characters over just over a minute of active reading, per hour.
     expect(
-      screen.getByLabelText(/Reading speed this session: 2\d,\d\d\d chars\/h/),
+      screen.getByLabelText(/Reading speed this session: 2\d,\d\d\d Ch\.\/h/),
     ).toBeInTheDocument();
     // The speed is the lower footer pill's last group, not part of the upper pill.
     expect(screen.getByRole("group", { name: "Reading speed" }).closest("footer")).not.toBeNull();

@@ -1,19 +1,10 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { registerWindowFlush } from "../../app/windowLifecycle";
 
-/** Book progress as `45%`, as `9,099 / 20,000 characters` (or words), or both. */
-export type BookProgressFormat = "percentage" | "position" | "both";
-export const bookProgressFormats = [
-  { value: "percentage", label: "discord.formatPercentage" },
-  { value: "position", label: "discord.formatPosition" },
-  { value: "both", label: "discord.formatBoth" },
-] as const;
-
 export interface DiscordPreferences {
   enabled: boolean;
   showBookTitle: boolean;
   showBookProgress: boolean;
-  bookProgressFormat: BookProgressFormat;
   showChapterProgress: boolean;
   showReadingSpeed: boolean;
 }
@@ -21,7 +12,6 @@ export const defaultDiscordPreferences: DiscordPreferences = {
   enabled: false,
   showBookTitle: true,
   showBookProgress: true,
-  bookProgressFormat: "percentage",
   showChapterProgress: true,
   showReadingSpeed: true,
 };
@@ -34,7 +24,6 @@ export interface DiscordReading {
   book: string;
   title: string;
   bookProgress: string | null;
-  bookPosition: string | null;
   chapterProgress: string | null;
   readingSpeed: string | null;
   position: number;
