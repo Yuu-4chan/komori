@@ -2,6 +2,10 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+- Discord status: Settings > Discord can show the book you are reading in Discord, with its title, book progress (as a percentage, the characters or words read, or both), chapter progress and reading speed, each of which can be hidden. After 5 minutes without reading it shows Idle. It is off by default.
+
 ## 1.0.2
 
 - Komori now includes Noto Sans JP, Noto Sans SC, Noto Sans KR, Zen Old Mincho and Klee One, ready without a download.

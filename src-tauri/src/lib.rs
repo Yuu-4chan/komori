@@ -11,6 +11,7 @@ mod bulk_progress;
 mod clipboard;
 mod covers;
 mod dictionary;
+mod discord_presence;
 mod epub;
 #[cfg(windows)]
 mod event_target;
@@ -89,6 +90,7 @@ pub fn run() {
             });
             // Automatic snapshots, when they are on, from shortly after startup.
             backup::start_automatic(catalog.database.clone());
+            app.manage(discord_presence::start(catalog.database.clone()));
             app.manage(catalog);
             app.manage(backup::BackupState::default());
             app.manage(reader_fonts::initialize(app.handle())?);
@@ -161,6 +163,9 @@ pub fn run() {
             startup::save_startup_preferences,
             startup::get_startup_book,
             startup::remember_last_book,
+            discord_presence::get_discord_preferences,
+            discord_presence::save_discord_preferences,
+            discord_presence::set_discord_activity,
             window_lifecycle::finish_window_close,
             backup::get_backup_settings,
             backup::save_backup_settings,

@@ -6,6 +6,7 @@ import {
   CardsIcon,
   ChartBarIcon,
   ChatTextIcon,
+  DiscordLogoIcon,
   GearSixIcon,
   HardDrivesIcon,
   TranslateIcon,
@@ -15,6 +16,7 @@ import {
 import { PageHeader } from "../components/layout/PageHeader";
 import { AppThemeSettings } from "../features/appearance/AppThemeSettings";
 import { DictionarySources } from "../features/dictionary/DictionarySources";
+import { DiscordSettings } from "../features/discord/DiscordSettings";
 import { WordAudioSettings } from "../features/dictionary/WordAudioSettings";
 import { LibrarySettings } from "../features/library/LibrarySettings";
 import { ReaderPopupSettings } from "../features/reader/ReaderPopupSettings";
@@ -67,6 +69,12 @@ const sections = [
     description: "settings.ankiDescription",
     icon: CardsIcon,
   },
+  {
+    id: "discord",
+    label: "settings.discord",
+    description: "settings.discordDescription",
+    icon: DiscordLogoIcon,
+  },
 ] as const;
 
 type SectionId = (typeof sections)[number]["id"];
@@ -74,7 +82,7 @@ type SectionId = (typeof sections)[number]["id"];
 const groups = [
   { label: "settings.groupApplication", ids: ["general", "storage", "shortcuts"] },
   { label: "settings.groupReading", ids: ["popup", "dictionary", "statistics"] },
-  { label: "settings.groupIntegrations", ids: ["anki"] },
+  { label: "settings.groupIntegrations", ids: ["anki", "discord"] },
 ] as const;
 
 /** Categories that were folded into others still open where their settings now live. */
@@ -187,6 +195,7 @@ export function SettingsPage() {
             <ReaderPopupSettings onDictionarySettings={() => setSection("dictionary")} />
           )}
           {section === "anki" && <AnkiSettings />}
+          {section === "discord" && <DiscordSettings />}
           {section === "dictionary" && (
             <>
               <p className="settings-note">

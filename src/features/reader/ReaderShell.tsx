@@ -61,6 +61,7 @@ import { useReaderRenderer } from "./useReaderRenderer";
 import { isFarJump, ReaderReturnPoint, type ReturnPoint } from "./returnPoint";
 import { rememberLastBook } from "../startup/startupApi";
 import { useReadingSession } from "./useReadingSession";
+import { useDiscordPresence } from "../discord/useDiscordPresence";
 import type { ReadingSession } from "../statistics/readingSession";
 import { useBookmarks } from "./useBookmarks";
 import type { BookmarkStore } from "./bookmarks";
@@ -876,6 +877,11 @@ export function ReaderShell({
       !reflowing &&
       appearance.readerShowReadingSpeed &&
       appearance.statisticsEnabled,
+    session.readingSpeed,
+  );
+  useDiscordPresence(
+    openedId ? { id: openedId, title: bookTitle } : null,
+    status === "ready" ? progress : null,
     session.readingSpeed,
   );
   useEffect(() => {

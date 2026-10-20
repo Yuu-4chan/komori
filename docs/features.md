@@ -118,7 +118,7 @@ away never lowers the speed.
 
 ## Settings
 
-Seven categories, each a stack of cards whose settings are rows of one grouped list:
+Eight categories, each a stack of cards whose settings are rows of one grouped list:
 
 - **General.** Appearance (Application language, App icon (sixteen tinted icons for
   the taskbar, Alt+Tab and tray; beige by default), then application themes and the
@@ -145,6 +145,10 @@ Seven categories, each a stack of cards whose settings are rows of one grouped l
 - **Anki.** Connection (port, key, Test connection, the bundled Lapis license), card
   configuration (deck, note type, field contents table, tags, duplicates) and
   interrupted requests. Duplicate scope initially covers the entire collection.
+- **Discord.** Discord status (off by default): shows the open book in Discord with its
+  title, book progress (as a percentage, characters or words read, or both), chapter
+  progress and reading speed, each of which can be hidden,
+  and Idle after 5 minutes without reading or with no book open.
 
 The application and Reader themes default to Hojicha. The Library initially sorts
 by Title and shows Series, Language, Last read and Unique kanji. Reader popup mouse

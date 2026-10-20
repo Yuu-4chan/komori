@@ -49,6 +49,8 @@ export const ptBR: MessageCatalog = {
   "settings.statisticsDescription": "Sessões de leitura e registros",
   "settings.anki": "Anki",
   "settings.ankiDescription": "Conexão e conteúdo dos cartões",
+  "settings.discord": "Discord",
+  "settings.discordDescription": "Status de leitura no seu perfil",
   "settings.version": "Komori {version}",
   "settings.sectionTitle": "Configurações de {section}",
   "settings.dictionarySourcesNote":
@@ -108,6 +110,28 @@ export const ptBR: MessageCatalog = {
   "startup.minimizeToTray": "Minimizar para a bandeja",
   "startup.minimizeToTrayHint": "Mantém o Komori disponível depois de fechar a janela.",
   "startup.checkForUpdates": "Procurar atualizações automaticamente",
+  "discord.title": "Status no Discord",
+  "discord.description":
+    "Mostre o que você está lendo no seu perfil do Discord. O Komori se comunica apenas com o app do Discord neste computador.",
+  "discord.readError":
+    "O Komori não conseguiu ler suas opções do Discord. Tente novamente no app para desktop.",
+  "discord.saveError": "O Komori não conseguiu salvar esta opção. Tente novamente.",
+  "discord.enabled": "Mostrar status de leitura no Discord",
+  "discord.enabledHint":
+    "Enquanto o Discord estiver aberto. Após 5 minutos sem leitura, mostra Ausente.",
+  "discord.showBookTitle": "Título do livro",
+  "discord.showBookProgress": "Progresso do livro",
+  "discord.bookProgressFormat": "Progresso do livro como",
+  "discord.bookProgressFormatHint": "Porcentagem, os caracteres ou palavras lidos, ou ambos.",
+  "discord.formatPercentage": "Porcentagem",
+  "discord.formatPosition": "Caracteres ou palavras",
+  "discord.formatBoth": "Ambos",
+  "discord.positionCharacters": "{current} / {total} caracteres",
+  "discord.positionWords": "{current} / {total} palavras",
+  "discord.showChapterProgress": "Progresso do capítulo",
+  "discord.showReadingSpeed": "Velocidade de leitura",
+  "discord.showReadingSpeedHint":
+    "Mostrada com as estatísticas de leitura ativadas, após um minuto de leitura.",
   "updates.title": "Atualizações",
   "updates.check": "Procurar atualizações",
   "updates.checking": "Procurando…",

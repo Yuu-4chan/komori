@@ -122,7 +122,7 @@ it("keeps category navigation, handoffs and history in sync without losing prefe
     within(nav)
       .getAllByRole("button")
       .map((button) => button.textContent),
-  ).toHaveLength(7);
+  ).toHaveLength(8);
   expect(screen.getByRole("heading", { name: "General settings" })).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Increase Card size" }));
   await waitFor(() =>

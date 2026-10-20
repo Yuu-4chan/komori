@@ -29,6 +29,7 @@ Komori contacts the network only for these features:
 - **Updates.** When **Check for updates automatically** is on (Settings > General), Komori asks the project's GitHub releases for the latest version a few seconds after it starts; the button beside it checks on demand. An update is downloaded only when you choose **Install and restart**, and its signature is verified before the installer runs.
 - **Word audio.** When you press Voice, or add a card whose fields use Word audio, Komori asks the word audio sources in Settings > Dictionary for a recording of the word, in order: JapanesePod101 by default, and any URL you add. The request carries the word and its reading. Recordings are kept in memory only while Komori runs.
 - **Anki.** When you use Anki features, Komori talks to AnkiConnect on your own computer (`127.0.0.1`) only.
+- **Discord status.** Off by default. When you turn it on in Settings > Discord, Komori tells the Discord app on your computer, through its local pipe, the open book's title, book and chapter progress and reading speed (each can be hidden), or Idle. Discord then shows this on your profile to the people who can see your activity. Komori itself sends nothing over the network for it.
 - **Links.** Dictionary links and source or license links open in your default web browser; Komori does not fetch them itself.
 
 Those requests carry no identifier and no information about your library or reading. EPUB content is rendered offline, with scripts disabled and no access to remote resources.

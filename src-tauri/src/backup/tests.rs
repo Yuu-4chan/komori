@@ -140,6 +140,41 @@ fn startup_choices_round_trip_without_window_or_last_book_and_older_backups_pres
     assert!(serde_json::from_value::<Backup>(value).is_err());
 }
 
+#[test]
+fn discord_choices_round_trip_and_older_backups_preserve_them() {
+    let fixture = fixture();
+    let mut connection = open_catalog(&fixture.database).unwrap();
+    let empty = collect(&mut connection, START).unwrap();
+    assert_eq!(empty.preferences.discord, None);
+    // A Library that never saved them writes no field, so older Komori reads the backup.
+    assert!(!serde_json::to_string(&empty).unwrap().contains("discord"));
+    let choices = crate::discord_presence::Preferences {
+        enabled: true,
+        show_book_title: false,
+        show_book_progress: true,
+        book_progress_format: crate::discord_presence::ProgressFormat::Both,
+        show_chapter_progress: false,
+        show_reading_speed: true,
+    };
+    crate::discord_presence::save_to(&connection, choices).unwrap();
+    let backup = collect(&mut connection, START).unwrap();
+    assert_eq!(backup.preferences.discord, Some(choices));
+    crate::discord_presence::save_to(&connection, Default::default()).unwrap();
+    restore(&fixture.database, &empty, START + 1).unwrap();
+    assert_eq!(
+        crate::discord_presence::load(&fixture.database).unwrap(),
+        Default::default()
+    );
+    restore(&fixture.database, &backup, START + 2).unwrap();
+    assert_eq!(
+        crate::discord_presence::load(&fixture.database).unwrap(),
+        choices
+    );
+    let mut value = serde_json::to_value(&backup).unwrap();
+    value["preferences"]["discord"]["enabled"] = serde_json::json!("yes");
+    assert!(serde_json::from_value::<Backup>(value).is_err());
+}
+
 fn record_text(connection: &Connection, name: &str) -> Option<String> {
     connection
         .query_row(

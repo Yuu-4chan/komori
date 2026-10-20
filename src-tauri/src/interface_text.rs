@@ -1,5 +1,5 @@
-//! The words Komori's native surfaces show (the tray menu, file dialog titles and filters, and
-//! a backup's suggested file name) in the saved interface language. The frontend's message
+//! The words Komori's native surfaces show (the tray menu, file dialog titles and filters, a
+//! backup's suggested file name and the Discord status) in the saved interface language. The frontend's message
 //! catalog holds everything else; English is the fallback here as there.
 use std::path::Path;
 
@@ -26,6 +26,10 @@ pub(crate) enum Text {
     BackupFileName,
     SaveImage,
     Images,
+    /// Discord's status line while a book is open with its title hidden.
+    DiscordReading,
+    /// Discord's status line after 5 minutes without reading, or with no book open.
+    DiscordIdle,
 }
 
 /// The saved interface language, or English when none is saved or it cannot be read.
@@ -144,6 +148,8 @@ pub(crate) fn text(language: &str, text: Text) -> &'static str {
             "Salvar imagem",
         ],
         Images => ["Images", "画像", "图片", "이미지", "Imagens"],
+        DiscordReading => ["Reading", "読書中", "阅读中", "독서 중", "Lendo"],
+        DiscordIdle => ["Idle", "退席中", "闲置", "자리 비움", "Ausente"],
     };
     match language {
         "ja" => ja,
@@ -158,7 +164,7 @@ pub(crate) fn text(language: &str, text: Text) -> &'static str {
 mod tests {
     use super::*;
 
-    const ALL: [Text; 17] = [
+    const ALL: [Text; 19] = [
         Text::ShowKomori,
         Text::Quit,
         Text::ImportEpubs,
@@ -176,6 +182,8 @@ mod tests {
         Text::BackupFileName,
         Text::SaveImage,
         Text::Images,
+        Text::DiscordReading,
+        Text::DiscordIdle,
     ];
 
     #[test]

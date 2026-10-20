@@ -153,6 +153,9 @@ struct BackupPreferences {
     anki: Option<Value>,
     backup: Option<BackupSettings>,
     startup: Option<crate::startup::Preferences>,
+    /// Backups made before the Discord status leave its choices unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    discord: Option<crate::discord_presence::Preferences>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -657,6 +660,7 @@ pub async fn restore_backup(
         // A restored interface language names the tray menu at once.
         crate::window_lifecycle::relabel_tray(&app, crate::interface_text::language(&database));
         crate::app_icon::apply(&app, crate::app_icon::saved(&database).as_deref());
+        crate::discord_presence::reload(&app, &database);
         if !actual {
             crate::window_lifecycle::show(&app);
         }
@@ -906,6 +910,8 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
     let backup = record(SETTINGS_RECORD)?.map(|value| BackupSettings::from_stored(&value));
     let startup = record(crate::startup::RECORD)?
         .map(|value| crate::startup::Preferences::from_stored(&value));
+    let discord = record(crate::discord_presence::RECORD)?
+        .map(|value| crate::discord_presence::Preferences::from_stored(&value));
 
     let mut books = Vec::new();
     {
@@ -1140,6 +1146,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
             anki,
             backup,
             startup,
+            discord,
         },
         dictionaries: None,
         books,
@@ -1532,6 +1539,9 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
     // A backup from before Startup choices preserves today's choices.
     if let Some(preferences) = backup.preferences.startup {
         crate::startup::save_to(&transaction, preferences)?;
+    }
+    if let Some(preferences) = backup.preferences.discord {
+        crate::discord_presence::save_to(&transaction, preferences)?;
     }
 
     let mut moved: HashMap<&str, &str> = HashMap::new();
