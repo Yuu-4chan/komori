@@ -671,6 +671,16 @@ export const ja: MessageCatalog = {
   "popupSettings.readingPosition": "読みの位置",
   "popupSettings.readingPositionHint":
     "各見出し語の読みを横に、または漢字の上にふりがなとして表示します。",
+  "popupSettings.style": "ポップアップの形式",
+  "popupSettings.style.standard": "標準",
+  "popupSettings.style.dictionary": "辞書（試験的）",
+  "popupSettings.styleHint":
+    "辞書は見出し語とそのふりがな、意味だけを表示し、音声・アクセント・頻度・Ankiなしで素早く引けます。",
+  "popupSettings.font": "フォント",
+  "popupSettings.fontHint":
+    "ポップアップの見出し語、読み、意味のフォントです。Zen Old MinchoはKomoriに含まれています。",
+  "popupSettings.readingPositionDictionary":
+    "辞書の形式では、読みは常に漢字の上にふりがなとして表示されます。",
   "popupSettings.title": "読書画面の辞書ポップアップ",
   "popupSettings.description": "本を離れずに辞書の結果を表示します。",
   "popupSettings.enable": "読書画面のポップアップを使う",

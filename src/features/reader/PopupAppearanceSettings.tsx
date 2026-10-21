@@ -14,11 +14,12 @@ import {
   lookupPopupWidth,
 } from "./lookupPopup";
 import { readingPositions } from "./lookupTriggers";
+import { FontPicker } from "./ReaderFontControls";
 import { popupPaletteFields, popupThemes } from "./popupThemes";
 
 /**
  * Everything that shapes how the lookup popup looks, in Settings > Reader popup: its palette and
- * custom colors, corners, size, text size and spacing, and where readings sit.
+ * custom colors, corners, size, text size, font and spacing, and where readings sit.
  */
 export function PopupAppearanceSettings() {
   const {
@@ -38,7 +39,11 @@ export function PopupAppearanceSettings() {
     setReaderPopupHeight,
     readerPopupReadingPosition,
     setReaderPopupTriggers,
+    readerPopupFont,
+    setReaderPopupFont,
+    readerPopupStyle,
   } = useAppearance();
+  const dictionaryStyle = readerPopupStyle === "dictionary";
   const { t } = useI18n();
   return (
     <Card className="settings-card settings-card--wide">
@@ -128,6 +133,15 @@ export function PopupAppearanceSettings() {
           />
         </div>
         <div className="settings-field">
+          <FontPicker
+            label={t("popupSettings.font")}
+            category="asian"
+            value={readerPopupFont}
+            onChange={setReaderPopupFont}
+          />
+          <p className="settings-field__hint">{t("popupSettings.fontHint")}</p>
+        </div>
+        <div className="settings-field">
           <Stepper
             label={t("popupSettings.lineHeight")}
             value={readerPopupLineHeight}
@@ -152,8 +166,15 @@ export function PopupAppearanceSettings() {
             value={readerPopupReadingPosition}
             options={readingPositions.map((option) => ({ ...option, label: t(option.label) }))}
             onChange={(value) => setReaderPopupTriggers({ readerPopupReadingPosition: value })}
+            disabled={dictionaryStyle}
           />
-          <p className="settings-field__hint">{t("popupSettings.readingPositionHint")}</p>
+          <p className="settings-field__hint">
+            {t(
+              dictionaryStyle
+                ? "popupSettings.readingPositionDictionary"
+                : "popupSettings.readingPositionHint",
+            )}
+          </p>
         </div>
       </div>
     </Card>

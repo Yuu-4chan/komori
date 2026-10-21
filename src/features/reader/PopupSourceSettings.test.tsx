@@ -385,6 +385,60 @@ describe("real lookup preview", () => {
     expect(lookupTerms).toHaveBeenCalledOnce();
   });
 
+  it("previews the Dictionary style, disables what it leaves out, and saves the popup font", async () => {
+    const { store } = open();
+    await screen.findByText("to read");
+    const preview = screen.getByRole("region", { name: "Lookup: 読む" });
+    const style = screen.getByRole("combobox", { name: "Popup style" });
+    expect(style).toHaveValue("standard");
+    expect(
+      within(style)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Standard", "Dictionary (experimental)"]);
+    const hidden = ["Add to Anki action", "Voice action", "Show pitch", "Show frequency"];
+    for (const name of hidden) expect(screen.getByRole("button", { name })).toBeEnabled();
+    expect(screen.getByLabelText("Reading position")).toBeEnabled();
+    expect(preview.querySelector(".lookup-entry")).not.toBeNull();
+
+    fireEvent.change(style, { target: { value: "dictionary" } });
+    expect(preview).toHaveClass("reader-lookup--dictionary");
+    expect(preview.querySelector(".dictionary-entry")).not.toBeNull();
+    expect(preview.querySelector(".lookup-entry")).toBeNull();
+    for (const name of hidden) expect(screen.getByRole("button", { name })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Show dictionary names" })).toBeEnabled();
+    expect(screen.getByLabelText("Reading position")).toBeDisabled();
+    expect(
+      screen.getByText("The Dictionary style always shows readings above their kanji as furigana."),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(store.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({ readerPopupStyle: "dictionary" }),
+      ),
+    );
+
+    // The font is Zen Old Mincho until another is chosen, in either style.
+    const font = screen.getByRole("combobox", { name: "Font" });
+    expect(font).toHaveValue("Zen Old Mincho");
+    expect(preview.style.getPropertyValue("--popup-font")).toBe(
+      '"Komori Google zen-old-mincho", serif',
+    );
+    fireEvent.change(font, { target: { value: "Yu Mincho" } });
+    fireEvent.keyDown(font, { key: "Enter" });
+    expect(preview.style.getPropertyValue("--popup-font")).toBe(
+      '"Yu Mincho", "Komori Google zen-old-mincho", serif',
+    );
+    await waitFor(() =>
+      expect(store.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          readerPopupStyle: "dictionary",
+          readerPopupFont: { source: "preset", id: "yu-mincho" },
+        }),
+      ),
+    );
+    expect(lookupTerms).toHaveBeenCalledOnce();
+  });
+
   it("refreshes on source changes, rejects old source/disposal responses, and keeps failures safe", async () => {
     const answers: ((value: TermLookup) => void)[] = [];
     vi.mocked(lookupTerms).mockImplementation(

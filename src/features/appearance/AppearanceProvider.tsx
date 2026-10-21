@@ -32,9 +32,11 @@ import {
 import {
   isLookupDimension,
   isLookupFontSize,
+  isLookupPopupStyle,
   isLookupRadius,
   lookupPopupWidth,
   lookupPopupHeight,
+  type LookupPopupStyle,
 } from "../reader/lookupPopup";
 import { normalizeLookupTriggers, type LookupTriggerPreferences } from "../reader/lookupTriggers";
 
@@ -170,6 +172,12 @@ interface AppearanceContextValue
   readerPopupHeight: number;
   setReaderPopupWidth: (width: number) => void;
   setReaderPopupHeight: (height: number) => void;
+  /** The popup's layout; the experimental dictionary shows headwords and definitions only. */
+  readerPopupStyle: LookupPopupStyle;
+  setReaderPopupStyle: (style: LookupPopupStyle) => void;
+  /** The font of the popup's headwords, readings and definitions. */
+  readerPopupFont: ReaderFontChoice;
+  setReaderPopupFont: (font: ReaderFontChoice) => void;
   /** The language of Komori's interface, applied at once without reloading anything. */
   interfaceLanguage: InterfaceLanguage;
   /** Chooses an interface language; anything else is ignored. */
@@ -424,6 +432,8 @@ export function AppearanceProvider({
     readerPopupTheme,
     readerPopupWidth,
     readerPopupHeight,
+    readerPopupStyle,
+    readerPopupFont,
     interfaceLanguage,
     appIcon,
     theme,
@@ -585,6 +595,14 @@ export function AppearanceProvider({
       },
       setReaderPopupHeight: (height: number) => {
         if (isLookupDimension(height, lookupPopupHeight)) update({ readerPopupHeight: height });
+      },
+      readerPopupStyle,
+      setReaderPopupStyle: (style: LookupPopupStyle) => {
+        if (isLookupPopupStyle(style)) update({ readerPopupStyle: style });
+      },
+      readerPopupFont,
+      setReaderPopupFont: (font: ReaderFontChoice) => {
+        if (isReaderFontChoice(font)) update({ readerPopupFont: font });
       },
       interfaceLanguage,
       setInterfaceLanguage: (language: InterfaceLanguage) => {
@@ -821,6 +839,8 @@ export function AppearanceProvider({
       readerPopupTheme,
       readerPopupWidth,
       readerPopupHeight,
+      readerPopupStyle,
+      readerPopupFont,
       interfaceLanguage,
       appIcon,
       accentColor,

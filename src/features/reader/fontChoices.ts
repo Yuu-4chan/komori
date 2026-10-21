@@ -80,6 +80,8 @@ export interface SystemFontFace {
 /** Noto Sans JP comes with Komori, and Georgia with Windows. */
 export const defaultAsianFont: ReaderFontChoice = { source: "google", id: "noto-sans-jp" };
 export const defaultWesternFont: ReaderFontChoice = { source: "preset", id: "georgia" };
+/** The lookup popup's text is in Zen Old Mincho, which comes with Komori, until another is chosen. */
+export const defaultPopupFont: ReaderFontChoice = { source: "google", id: "zen-old-mincho" };
 
 export function validFontFamily(value: unknown): value is string {
   return (
@@ -169,6 +171,24 @@ export function fontPairStack(pair: ReaderFontPair): string {
   ]
     .filter(Boolean)
     .join(", ");
+}
+/**
+ * The lookup popup's font stack: the chosen font, then the included Zen Old Mincho for any text
+ * the chosen font lacks.
+ */
+export function popupFontStack(choice: ReaderFontChoice): string {
+  return [...new Set([family(choice), family(defaultPopupFont), "serif"])].join(", ");
+}
+/** The faces Komori's own document declares for the popup's font and its Zen Old Mincho. */
+export function popupFontFaces(
+  choice: ReaderFontChoice,
+  downloaded: string[],
+  uploaded: UploadedFont[] = [],
+): string {
+  return baseFontPairFaces(
+    { western: choice, asian: defaultPopupFont, downloaded, uploaded },
+    false,
+  );
 }
 export function googleFontUrl(id: string): string | undefined {
   const hash = googleFontFiles.find((f) => f.id === id)?.hash;

@@ -659,6 +659,16 @@ export const ko: MessageCatalog = {
   "popupSettings.readingPosition": "읽기 위치",
   "popupSettings.readingPositionHint":
     "각 표제어의 읽기를 옆에, 또는 한자 위에 후리가나로 표시합니다.",
+  "popupSettings.style": "팝업 스타일",
+  "popupSettings.style.standard": "기본",
+  "popupSettings.style.dictionary": "사전(실험적)",
+  "popupSettings.styleHint":
+    "사전은 각 표제어와 후리가나, 뜻만 표시하여 음성, 악센트, 빈도, Anki 없이 빠르게 찾을 수 있습니다.",
+  "popupSettings.font": "글꼴",
+  "popupSettings.fontHint":
+    "팝업의 표제어, 읽기, 뜻에 쓰는 글꼴입니다. Zen Old Mincho는 Komori에 포함되어 있습니다.",
+  "popupSettings.readingPositionDictionary":
+    "사전 스타일은 읽기를 항상 한자 위에 후리가나로 표시합니다.",
   "popupSettings.title": "뷰어 사전 팝업",
   "popupSettings.description": "책을 떠나지 않고 사전 결과를 보여 줍니다.",
   "popupSettings.enable": "뷰어 팝업 사용",

@@ -7,7 +7,9 @@ import {
 import { backgroundBlurLevel, isBackgroundBlurLevel } from "../reader/backgroundAppearance";
 import {
   defaultAsianFont,
+  defaultPopupFont,
   defaultWesternFont,
+  isReaderFontChoice,
   normalizeFontChoice,
   type ReaderFontChoice,
 } from "../reader/fontChoices";
@@ -44,6 +46,7 @@ import {
 import {
   isLookupDimension,
   isLookupFontSize,
+  isLookupPopupStyle,
   isLookupRadius,
   lookupPopupFontSize,
   lookupPopupLineHeight,
@@ -51,6 +54,7 @@ import {
   lookupPopupWidth,
   lookupPopupHeight,
   lookupPopupSize,
+  type LookupPopupStyle,
 } from "../reader/lookupPopup";
 
 import {
@@ -164,6 +168,10 @@ export interface AppearancePreferences
   readerPopupTheme: ReaderPopupTheme;
   readerPopupWidth: number;
   readerPopupHeight: number;
+  /** The popup's layout: the full entry, or the experimental dictionary. */
+  readerPopupStyle: LookupPopupStyle;
+  /** The font of the popup's headwords, readings and definitions. */
+  readerPopupFont: ReaderFontChoice;
   /** The language of Komori's own interface; books and dictionaries keep theirs. */
   interfaceLanguage: InterfaceLanguage;
   /** The window and tray icon; the executable keeps the default. */
@@ -270,6 +278,8 @@ export const defaultAppearance: AppearancePreferences = {
   readerPopupTheme: "application",
   readerPopupWidth: lookupPopupSize.width,
   readerPopupHeight: lookupPopupSize.height,
+  readerPopupStyle: "standard",
+  readerPopupFont: defaultPopupFont,
   interfaceLanguage: defaultInterfaceLanguage,
   appIcon: defaultAppIcon,
   theme: defaultAppTheme,
@@ -360,6 +370,8 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     readerPopupTheme,
     readerPopupWidth,
     readerPopupHeight,
+    readerPopupStyle,
+    readerPopupFont,
     interfaceLanguage,
     appIcon,
     theme,
@@ -464,6 +476,8 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(isReaderPopupTheme(readerPopupTheme) && { readerPopupTheme }),
     ...(isLookupDimension(readerPopupWidth, lookupPopupWidth) && { readerPopupWidth }),
     ...(isLookupDimension(readerPopupHeight, lookupPopupHeight) && { readerPopupHeight }),
+    ...(isLookupPopupStyle(readerPopupStyle) && { readerPopupStyle }),
+    ...(isReaderFontChoice(readerPopupFont) && { readerPopupFont }),
     ...(isInterfaceLanguage(interfaceLanguage) && { interfaceLanguage }),
     ...(isAppIcon(appIcon) && { appIcon }),
     ...(isAppTheme(theme) && { theme }),

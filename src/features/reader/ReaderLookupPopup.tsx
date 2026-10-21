@@ -15,13 +15,14 @@ import {
 } from "../dictionary/DictionaryResults";
 import { useAppearance } from "../appearance/AppearanceProvider";
 import { popupThemeStyle } from "./popupThemes";
-import { LookupEntry } from "../dictionary/LookupEntry";
+import { DictionaryLookupEntry, LookupEntry } from "../dictionary/LookupEntry";
 import { type ReaderCardContext } from "../anki/AnkiAction";
 import { lookupPopupFontSize, lookupQuery } from "./lookupPopup";
 import { triggerEnabled, lookupTextAllowed, type LookupTriggerPreferences } from "./lookupTriggers";
 import { characterAtPoint, textFromCharacter } from "./textSelection";
 import type { ReaderRect } from "./renderer";
 import { activateExpression } from "./popupShortcuts";
+import { usePopupFont } from "./popupFont";
 
 type LookupState =
   | { status: "initial" }
@@ -64,7 +65,8 @@ interface ReaderLookupPopupProps {
 
 /**
  * The lookup of a Reader selection: each matched headword as an entry with its actions on the
- * headword's row. It looks its query up once; a response arriving after it closed is discarded.
+ * headword's row, or in the experimental dictionary style, as just its headword, furigana and
+ * definitions. It looks its query up once; a response arriving after it closed is discarded.
  */
 export function ReaderLookupPopup({
   query,
@@ -97,7 +99,11 @@ export function ReaderLookupPopup({
     readerPopupCustomPalette,
     readerPopupMaxResults,
     readerPopupReadingPosition,
+    readerPopupStyle,
+    readerPopupFont,
   } = appearance;
+  const dictionaryStyle = readerPopupStyle === "dictionary";
+  const font = usePopupFont(readerPopupFont);
   const [state, setState] = useState<LookupState>({ status: "loading" });
   const canPlayAudio = useWordAudioAvailable();
   const revision = useDictionaryRevision();
@@ -163,7 +169,13 @@ export function ReaderLookupPopup({
   return (
     <section
       aria-label={t("popup.label", { query })}
-      className={preview ? "reader-lookup reader-lookup--preview" : "reader-lookup"}
+      className={[
+        "reader-lookup",
+        preview && "reader-lookup--preview",
+        dictionaryStyle && "reader-lookup--dictionary",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       ref={(element) => {
         root.current = element;
         if (typeof ref === "function") ref(element);
@@ -188,6 +200,7 @@ export function ReaderLookupPopup({
           "--scroll-radius": `${readerPopupRadius}px`,
           "--popup-zoom": readerPopupFontSize / lookupPopupFontSize.default,
           "--popup-line-height": readerPopupLineHeight,
+          "--popup-font": font,
         } as CSSProperties
       }
     >
@@ -223,7 +236,7 @@ export function ReaderLookupPopup({
               title={t("dictionaryPage.noMatches")}
               description={t("popup.noMatches")}
             />
-            <OpenInDictionary term={query} onOpen={onSearchTerm} />
+            {!dictionaryStyle && <OpenInDictionary term={query} onOpen={onSearchTerm} />}
           </div>
         )}
         {lookup && entryCount > 0 && (
@@ -234,12 +247,14 @@ export function ReaderLookupPopup({
                   character={lookup.query}
                   entries={lookup.kanji.entries}
                   frequencies={lookup.kanji.frequencies}
-                  showFrequencies={readerPopupShowFrequency}
+                  showFrequencies={!dictionaryStyle && readerPopupShowFrequency}
                   showDictionaryNames={readerPopupShowDictionaryNames}
                   actions={
-                    <span className="lookup-entry__actions">
-                      <OpenInDictionary term={lookup.query} onOpen={onSearchTerm} />
-                    </span>
+                    dictionaryStyle ? undefined : (
+                      <span className="lookup-entry__actions">
+                        <OpenInDictionary term={lookup.query} onOpen={onSearchTerm} />
+                      </span>
+                    )
                   }
                 />
               </div>
@@ -250,21 +265,29 @@ export function ReaderLookupPopup({
                 data-popup-expression
                 data-active={!showKanji && index === 0 ? "true" : "false"}
               >
-                <LookupEntry
-                  readerContext={readerContext}
-                  showAnkiAction={readerPopupAnkiAction}
-                  showPitch={readerPopupShowPitch}
-                  showFrequency={readerPopupShowFrequency}
-                  showVoiceAction={readerPopupVoiceAction}
-                  showDictionaryNames={readerPopupShowDictionaryNames}
-                  readingPosition={readerPopupReadingPosition}
-                  canPlayAudio={canPlayAudio}
-                  group={group}
-                  key={groupKey(group)}
-                  onSearchTerm={searchTerm}
-                  onOpenDictionary={onSearchTerm}
-                  start={group.text === lookup.matched ? null : group.text}
-                />
+                {dictionaryStyle ? (
+                  <DictionaryLookupEntry
+                    group={group}
+                    onSearchTerm={searchTerm}
+                    showDictionaryNames={readerPopupShowDictionaryNames}
+                  />
+                ) : (
+                  <LookupEntry
+                    readerContext={readerContext}
+                    showAnkiAction={readerPopupAnkiAction}
+                    showPitch={readerPopupShowPitch}
+                    showFrequency={readerPopupShowFrequency}
+                    showVoiceAction={readerPopupVoiceAction}
+                    showDictionaryNames={readerPopupShowDictionaryNames}
+                    readingPosition={readerPopupReadingPosition}
+                    canPlayAudio={canPlayAudio}
+                    group={group}
+                    key={groupKey(group)}
+                    onSearchTerm={searchTerm}
+                    onOpenDictionary={onSearchTerm}
+                    start={group.text === lookup.matched ? null : group.text}
+                  />
+                )}
               </div>
             ))}
           </div>

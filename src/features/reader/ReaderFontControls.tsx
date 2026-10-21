@@ -41,7 +41,11 @@ interface FontOption {
 /** Generic families and the included Inter need nothing installed. */
 const alwaysUsable = ["serif", "sans-serif", "inter"];
 
-function FontPicker({
+/**
+ * An editable font menu: Komori's presets, included and downloaded Google Fonts, uploaded fonts
+ * and installed families, with "+" opening the font manager.
+ */
+export function FontPicker({
   label,
   category,
   value,

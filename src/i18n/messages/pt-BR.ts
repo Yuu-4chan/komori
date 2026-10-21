@@ -705,6 +705,16 @@ export const ptBR: MessageCatalog = {
   "popupSettings.readingPosition": "Posição da leitura",
   "popupSettings.readingPositionHint":
     "Mostra a leitura de cada entrada ao lado dela ou acima dos kanji como furigana.",
+  "popupSettings.style": "Estilo do pop-up",
+  "popupSettings.style.standard": "Padrão",
+  "popupSettings.style.dictionary": "Dicionário (experimental)",
+  "popupSettings.styleHint":
+    "Dicionário mostra só cada entrada com seu furigana e suas definições, para consultas rápidas sem voz, acento, frequência ou Anki.",
+  "popupSettings.font": "Fonte",
+  "popupSettings.fontHint":
+    "A fonte das entradas, leituras e definições do pop-up. A Zen Old Mincho vem com o Komori.",
+  "popupSettings.readingPositionDictionary":
+    "O estilo Dicionário sempre mostra as leituras acima dos kanji como furigana.",
   "popupSettings.title": "Pop-up de consulta do leitor",
   "popupSettings.description": "Mostra os resultados do dicionário sem sair do livro.",
   "popupSettings.enable": "Ativar o pop-up do leitor",

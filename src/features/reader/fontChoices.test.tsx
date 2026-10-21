@@ -7,14 +7,18 @@ import {
   normalizeAppearancePreferences,
 } from "../appearance/appearancePreferences";
 import {
+  defaultPopupFont,
   fontPairFaces,
   fontPairStack,
+  popupFontFaces,
+  popupFontStack,
   sameFontPair,
   isReaderFontChoice,
   googleFontFiles,
   type ReaderFontPair,
 } from "./fontChoices";
 import { ReaderFontControls } from "./ReaderFontControls";
+import { usePopupFont } from "./popupFont";
 import { ReaderFontManager } from "./ReaderFontManager";
 import {
   changeDownloadedFont,
@@ -475,4 +479,98 @@ it("declares every downloaded weight and bounded imported face with safe owned U
   expect(isReaderFontChoice({ source: "uploaded", id })).toBe(true);
   expect(isReaderFontChoice({ source: "uploaded", id: "../Arial" })).toBe(false);
   expect(sameFontPair(pair, { ...pair, uploaded: [] })).toBe(false);
+});
+
+it("sets the popup in its chosen font over the included Zen Old Mincho, declaring only owned faces", () => {
+  expect(defaultAppearance).toMatchObject({
+    readerPopupStyle: "standard",
+    readerPopupFont: { source: "google", id: "zen-old-mincho" },
+  });
+  expect(popupFontStack(defaultPopupFont)).toBe('"Komori Google zen-old-mincho", serif');
+  expect(popupFontStack({ source: "system", family: "Yu Mincho" })).toBe(
+    '"Yu Mincho", "Komori Google zen-old-mincho", serif',
+  );
+  expect(popupFontStack({ source: "preset", id: "sans-serif" })).toBe(
+    'sans-serif, "Komori Google zen-old-mincho", serif',
+  );
+  const zen = googleFontFiles.find((f) => f.id === "zen-old-mincho")!;
+  // The popup is in Komori's own window: no script aliases, only the fonts it names.
+  expect(popupFontFaces(defaultPopupFont, [zen.id])).toBe(
+    `@font-face { font-family: "Komori Google zen-old-mincho"; src: url("http://komori-font.localhost/zen-old-mincho/${zen.hash}.ttf"); font-weight: 400; font-style: normal; font-display: block; }`,
+  );
+  const shippori = googleFontFiles.find((f) => f.id === "shippori-mincho-600")!;
+  const chosen = popupFontFaces({ source: "google", id: "shippori-mincho" }, [zen.id, shippori.id]);
+  expect(chosen.match(/@font-face/g)).toHaveLength(2);
+  expect(chosen).toContain(
+    `font-family: "Komori Google shippori-mincho"; src: url("http://komori-font.localhost/shippori-mincho-600/${shippori.hash}.ttf"); font-weight: 600;`,
+  );
+  expect(chosen).not.toContain("Komori Asian");
+  expect(popupFontFaces({ source: "system", family: "Yu Mincho" }, [])).toBe("");
+  const uploaded = {
+    id: "a".repeat(64),
+    family: "My Mincho",
+    weight: "400",
+    style: "normal" as const,
+  };
+  expect(popupFontFaces({ source: "uploaded", id: uploaded.id }, [], [uploaded])).toContain(
+    `font-family: "Komori Uploaded ${uploaded.id}"; src: url("http://komori-font.localhost/uploaded/${uploaded.id}.ttf");`,
+  );
+  // Each saved choice is kept or dropped on its own.
+  const saved = {
+    readerPopupStyle: "dictionary",
+    readerPopupFont: { source: "system", family: "Yu Mincho" },
+  };
+  expect(normalizeAppearancePreferences(saved)).toEqual(saved);
+  for (const [style, font] of [
+    ["Dictionary", { source: "google", id: "missing" }],
+    [null, "zen-old-mincho"],
+    [1, { source: "system", family: "a; color:red" }],
+    ["compact", { source: "google", id: "zen-old-mincho", weight: 600 }],
+  ])
+    expect(
+      normalizeAppearancePreferences({
+        readerPopupStyle: style,
+        readerPopupFont: font,
+        readerPopupRadius: 7,
+      }),
+    ).toEqual({ readerPopupRadius: 7 });
+  expect(
+    normalizeAppearancePreferences({
+      readerPopupStyle: "compact",
+      readerPopupFont: defaultPopupFont,
+    }),
+  ).toEqual({ readerPopupFont: defaultPopupFont });
+});
+
+it("declares the popup's faces once in Komori's document and keeps them after popups close", () => {
+  const previous = vi.mocked(useReaderFonts).getMockImplementation()!;
+  const zen = googleFontFiles.find((f) => f.id === "zen-old-mincho")!;
+  vi.mocked(useReaderFonts).mockImplementation(
+    () =>
+      ({
+        ...previous(),
+        fonts: [
+          {
+            id: zen.id,
+            familyId: zen.familyId,
+            family: zen.family,
+            source: "google",
+            available: true,
+            url: `http://komori-font.localhost/zen-old-mincho/${zen.hash}.ttf`,
+          },
+        ],
+      }) as ReturnType<typeof useReaderFonts>,
+  );
+  function Popup() {
+    return <p style={{ fontFamily: usePopupFont(defaultPopupFont) }}>読む</p>;
+  }
+  const first = render(<Popup />);
+  const second = render(<Popup />);
+  expect(document.head.querySelectorAll("style#komori-popup-fonts")).toHaveLength(1);
+  first.unmount();
+  second.unmount();
+  expect(document.getElementById("komori-popup-fonts")?.textContent).toBe(
+    popupFontFaces(defaultPopupFont, [zen.id]),
+  );
+  vi.mocked(useReaderFonts).mockImplementation(previous);
 });

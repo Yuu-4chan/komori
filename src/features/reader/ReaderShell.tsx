@@ -1,5 +1,6 @@
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
 import { useAsianFontFallback, useReaderFonts, useSystemFontFaces } from "./readerFonts";
+import { usePopupFont } from "./popupFont";
 import { availableFontWeights, resolveFontWeight } from "./fontWeights";
 import {
   type CSSProperties,
@@ -180,6 +181,8 @@ export function ReaderShell({
   const navigate = useNavigate();
   const appearance = useAppearance();
   const managedFonts = useReaderFonts().fonts;
+  // The popup font loads with the book, so the first lookup shows in it at once.
+  usePopupFont(appearance.readerPopupFont);
   // The default Yu Mincho, or the Noto Serif JP that stands in for it on a computer without it.
   const asianFont = useAsianFontFallback(appearance.readerAsianFont);
   const systemFaces = useSystemFontFaces([appearance.readerWesternFont, asianFont]);

@@ -23,6 +23,15 @@ export const isLookupFontSize = (value: unknown): value is number =>
 /** The line height of the popup's definitions, as a multiple of their text size. */
 export const lookupPopupLineHeight = { min: 1, max: 3, step: 0.05, default: 1.6 } as const;
 
+/**
+ * The popup's layout: the full entry with its voice, pitch, frequency and actions, or the
+ * experimental dictionary of headwords, their furigana and definitions only.
+ */
+export const lookupPopupStyles = ["standard", "dictionary"] as const;
+export type LookupPopupStyle = (typeof lookupPopupStyles)[number];
+export const isLookupPopupStyle = (value: unknown): value is LookupPopupStyle =>
+  lookupPopupStyles.includes(value as LookupPopupStyle);
+
 /** User-selected dimensions, in CSS pixels; placement still fits the reading area. */
 export const lookupPopupWidth = { min: 320, max: 1200, step: 20 } as const;
 export const lookupPopupHeight = { min: 200, max: 1200, step: 20 } as const;

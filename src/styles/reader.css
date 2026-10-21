@@ -1205,6 +1205,7 @@
   zoom: var(--popup-zoom, 1);
 }
 .reader-lookup .dictionary-glossary {
+  font-family: var(--popup-font);
   line-height: var(--popup-line-height, var(--line-body));
 }
 .reader-lookup__body .dictionary-results__message {
@@ -1272,9 +1273,17 @@
   height: var(--lookup-headword-line);
   margin-top: var(--lookup-reading-line);
 }
+/* The popup sets its chosen font; the Dictionary page keeps the serif headword. */
 .lookup-entry__expression {
   color: var(--text-primary);
-  font-family: "Noto Serif JP", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", serif;
+  font-family: var(
+    --popup-font,
+    "Noto Serif JP",
+    "Yu Mincho",
+    "YuMincho",
+    "Hiragino Mincho ProN",
+    serif
+  );
   font-size: 38px;
   font-weight: 600;
   line-height: 1.1;
@@ -1317,7 +1326,14 @@
 }
 .lookup-entry__reading {
   color: var(--text-muted);
-  font-family: "Noto Serif JP", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", serif;
+  font-family: var(
+    --popup-font,
+    "Noto Serif JP",
+    "Yu Mincho",
+    "YuMincho",
+    "Hiragino Mincho ProN",
+    serif
+  );
   font-size: 20px;
 }
 .lookup-entry .dictionary-audio-button {
@@ -1523,6 +1539,96 @@
   font-size: 11.5px;
   font-weight: 650;
   line-height: 1;
+}
+
+/* The experimental dictionary style: each headword with its furigana over a rule, then each
+   dictionary's definitions under its name with circled numbers, all in the popup font. */
+@counter-style komori-circled {
+  system: fixed;
+  symbols: "①" "②" "③" "④" "⑤" "⑥" "⑦" "⑧" "⑨" "⑩" "⑪" "⑫" "⑬" "⑭" "⑮" "⑯" "⑰" "⑱" "⑲" "⑳";
+  suffix: " ";
+  fallback: decimal;
+}
+.reader-lookup--dictionary .reader-lookup__body {
+  padding: 14px 20px 20px 22px;
+}
+.reader-lookup--dictionary .reader-lookup__entries {
+  gap: 14px;
+  font-family: var(--popup-font);
+}
+.reader-lookup--dictionary
+  .reader-lookup__entries
+  > [data-popup-expression]
+  + [data-popup-expression] {
+  margin-top: 0;
+  padding-top: 14px;
+}
+.reader-lookup--dictionary
+  .reader-lookup__entries
+  > [data-popup-expression]
+  > .dictionary-kanji-card {
+  margin-bottom: 0;
+}
+.dictionary-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dictionary-entry__headword {
+  padding-bottom: 4px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+.dictionary-entry__headword rt {
+  color: var(--text-muted);
+  font-size: 0.42em;
+  font-weight: 400;
+}
+.dictionary-entry__headword .dictionary-result-card__kanji {
+  font: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.14em;
+  text-decoration-color: transparent;
+}
+.dictionary-entry__headword .dictionary-result-card__kanji:hover {
+  text-decoration-color: currentColor;
+}
+.dictionary-entry__source {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dictionary-entry__name {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+}
+.dictionary-entry__senses {
+  margin: 0;
+  padding-inline-start: 1.35em;
+  font-size: 15px;
+  list-style: komori-circled;
+}
+.dictionary-entry__senses--single {
+  padding-inline-start: 0;
+  list-style: none;
+}
+.dictionary-entry__senses > li + li {
+  margin-top: 2px;
+}
+.dictionary-entry :is(.dictionary-entry__senses, .dictionary-glossary ol) > li::marker {
+  color: var(--accent-ink);
+}
+.dictionary-entry .dictionary-glossary {
+  max-width: none;
+}
+/* A dictionary's own sense lists number as the entry does, unless they set their own markers. */
+.dictionary-entry .dictionary-glossary ol {
+  padding-inline-start: 1.35em;
+  list-style: komori-circled;
 }
 
 /* The bottom-center pill: book position and percentage, then the chapter's. */

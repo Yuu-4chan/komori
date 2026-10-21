@@ -1527,4 +1527,138 @@ describe("Reader lookup popup", () => {
     fireEvent.click(within(popup).getByRole("button", { name: "Open 読書 in dictionary" }));
     expect(await screen.findByRole("heading", { name: "Dictionary ?q=読書" })).toBeInTheDocument();
   });
+
+  it("shows only headwords, furigana and each dictionary's numbered definitions in the Dictionary style", async () => {
+    const base = group("読書", "どくしょ", "読書", "reading books");
+    const term = base.terms[0];
+    lookupMock.mockResolvedValue({
+      text: "読書",
+      groups: [
+        {
+          ...base,
+          deinflection: {
+            inflections: ["past"],
+            rules: [],
+          } as unknown as TermGroup["deinflection"],
+          terms: [
+            {
+              ...term,
+              glossary: ["reading books", "", "reading"],
+              tags: [
+                { name: "n", category: "partOfSpeech", notes: "noun", order: 0, score: 0 },
+              ] as unknown as typeof term.tags,
+            },
+            {
+              ...term,
+              dictionaryId: 2,
+              dictionaryTitle: "国語",
+              sequence: 2,
+              glossary: ["本を読むこと。"],
+            },
+            { ...term, sequence: 3, glossary: ["perusal"] },
+          ],
+          frequencies: [{ dictionaryId: 3, dictionaryTitle: "Frequency source", data: 12 }],
+          pitches: [
+            {
+              dictionaryId: 4,
+              dictionaryTitle: "Pitch source",
+              data: { reading: "どくしょ", pitches: [{ position: 1 }] },
+            },
+          ],
+        },
+        group("読", "とく", "読", "reading"),
+      ],
+    });
+    const reader = await openReader(true, undefined, {
+      readerPopupStyle: "dictionary",
+      readerPopupFont: { source: "system", family: "Yu Mincho" },
+      readerPopupReadingPosition: "beside",
+    });
+    reader.select(horizontal("読書"));
+    const popup = screen.getByRole("dialog", { name: "Lookup: 読書" });
+    await within(popup).findByText("reading books; reading");
+    expect(popup).toHaveClass("reader-lookup--dictionary");
+    expect(popup.style.getPropertyValue("--popup-font")).toBe(
+      '"Yu Mincho", "Komori Google zen-old-mincho", serif',
+    );
+    const [entry, shorter] = within(popup).getAllByRole("article");
+    expect(entry).toHaveAccessibleName("読書 (どくしょ)");
+    // Readings are furigana above their kanji, whatever the reading position.
+    expect([...entry.querySelectorAll("rt")].map((rt) => rt.textContent)).toEqual(["どくしょ"]);
+    expect(entry.querySelector(".dictionary-entry__headword")).toHaveAttribute("lang", "ja");
+    // Each dictionary's definitions together under its name, numbered when it has more than one.
+    const jitendex = within(entry).getByRole("region", { name: "Jitendex" });
+    expect(within(jitendex).getByText("Jitendex")).toHaveClass("dictionary-entry__name");
+    expect(
+      within(jitendex)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["reading books; reading", "perusal"]);
+    expect(within(jitendex).getByRole("list")).not.toHaveClass("dictionary-entry__senses--single");
+    const kokugo = within(entry).getByRole("region", { name: "国語" });
+    expect(within(kokugo).getByRole("list")).toHaveClass("dictionary-entry__senses--single");
+    expect(
+      within(popup)
+        .getAllByRole("region")
+        .map((region) => region.getAttribute("aria-label")),
+    ).toEqual(["Jitendex", "国語", "Jitendex"]);
+    // Nothing but the headword kanji's own lookups: no voice, tags, notes, pitch, frequency,
+    // Anki or Dictionary actions.
+    for (const button of within(popup).getAllByRole("button"))
+      expect(button).toHaveAccessibleName(/^Search kanji /);
+    expect(within(popup).queryByText("n")).not.toBeInTheDocument();
+    expect(within(popup).queryByText("12")).not.toBeInTheDocument();
+    expect(
+      within(popup).queryByRole("region", { name: "Pitch positions" }),
+    ).not.toBeInTheDocument();
+    expect(within(shorter).queryByTitle("Matched: 読")).not.toBeInTheDocument();
+    expect(readerCss).toMatch(/@counter-style komori-circled\s*\{[^}]*symbols: "①" "②"/);
+    expect(readerCss).toMatch(
+      /\.reader-lookup--dictionary \.reader-lookup__entries\s*\{[^}]*font-family: var\(--popup-font\)/,
+    );
+    // Names follow their setting, and headword kanji still open child popups in the same style.
+    fireEvent.click(screen.getByRole("button", { name: "Toggle names" }));
+    expect(within(jitendex).queryByText("Jitendex")).not.toBeInTheDocument();
+    expect(jitendex).toHaveAccessibleName("Jitendex");
+    fireEvent.click(within(entry).getByRole("button", { name: "Search kanji 書" }));
+    const child = await screen.findByRole("dialog", { name: "Lookup: 書" });
+    expect(child).toHaveClass("reader-lookup--dictionary");
+    expect(lookupMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves the Kanji card and No matches without frequencies or actions in the Dictionary style", async () => {
+    kanjiMock.mockResolvedValue({
+      entries: [
+        {
+          dictionaryId: 1,
+          dictionaryTitle: "Kanji source",
+          character: "本",
+          onyomi: "ホン",
+          kunyomi: "もと",
+          tags: "",
+          resolvedTags: [],
+          statTags: [],
+          meanings: ["book"],
+          stats: {},
+        },
+      ],
+      frequencies: [{ dictionaryId: 2, dictionaryTitle: "Kanji frequency", data: 12 }],
+    });
+    const reader = await openReader(true, undefined, { readerPopupStyle: "dictionary" });
+    reader.select(horizontal("本"));
+    const popup = screen.getByRole("dialog", { name: "Lookup: 本" });
+    const card = await within(popup).findByRole("article", { name: "Kanji 本" });
+    expect(within(card).getByText("book")).toBeInTheDocument();
+    expect(within(card).queryByText("Kanji frequency")).not.toBeInTheDocument();
+    expect(within(popup).queryByRole("button", { name: "Open 本 in dictionary" })).toBeNull();
+    // The default popup font is the included Zen Old Mincho.
+    expect(popup.style.getPropertyValue("--popup-font")).toBe(
+      '"Komori Google zen-old-mincho", serif',
+    );
+
+    kanjiMock.mockResolvedValue({ entries: [], frequencies: [] });
+    reader.select(horizontal("木"));
+    expect(await screen.findByText("No matches")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open 木 in dictionary" })).toBeNull();
+  });
 });

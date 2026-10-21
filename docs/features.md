@@ -93,6 +93,14 @@ With click lookup on, the mouse trigger can also be a middle click, which scans 
 leaves blank space to autoscroll.
 Alt+wheel reveals the beginning of a tall selected entry.
 
+The experimental Dictionary style (Settings > Reader popup > Popup style) turns the popup
+into a compact dictionary for reading with fast lookups: each headword with its furigana
+over a thin rule, then each dictionary's definitions under its name, numbered ①, ② when
+it has more than one. It leaves out voice, tags, notes, pitch, frequency, Anki and Open in
+Dictionary; triggers, child popups, size, colors, corners, text size and line height
+are the popup's own settings. The popup's headwords, readings and definitions, in either
+style, use the chosen popup font, by default the included Zen Old Mincho.
+
 ## Dictionary
 
 A search bar and a source rail listing only dictionaries with matches, in the Settings
@@ -131,9 +139,10 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   removal), Backup (automatic snapshots, frequency, keep, export, import, create) and
   Snapshots (restore with a preview, delete).
 - **Shortcuts.** Every binding by context, on one set of aligned columns.
-- **Reader popup.** In order: Reader lookup popup (enable, dictionary names, Anki and
-  voice actions, pitch and frequency), Lookup appearance (Application, Classic, Paper,
-  Night and Custom palettes, width, height, corners, reading position), the real
+- **Reader popup.** In order: Reader lookup popup (enable, popup style, dictionary names,
+  Anki and voice actions, pitch and frequency; the Dictionary style disables the last
+  four), Lookup appearance (Application, Classic, Paper, Night and Custom palettes,
+  width, height, font size, font, line height, corners, reading position), the real
   preview of 読む, Dictionary cards (Term, Frequency, Pitch sources), Lookup triggers and
   Scanning and results.
 - **Dictionary.** Add dictionaries (and, when empty, starter downloads of five curated open dictionaries: two Japanese–English dictionaries, a word frequency list, a kanji dictionary and a proper-name dictionary, credited in `ACKNOWLEDGEMENTS.md`), the sources in

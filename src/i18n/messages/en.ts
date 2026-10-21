@@ -719,6 +719,16 @@ export const en = {
   "popupSettings.readingPosition": "Reading position",
   "popupSettings.readingPositionHint":
     "Show each headword's reading beside it, or above its kanji as furigana.",
+  "popupSettings.style": "Popup style",
+  "popupSettings.style.standard": "Standard",
+  "popupSettings.style.dictionary": "Dictionary (experimental)",
+  "popupSettings.styleHint":
+    "Dictionary shows only each headword with its furigana and its definitions, for fast lookups without voice, pitch, frequency or Anki.",
+  "popupSettings.font": "Font",
+  "popupSettings.fontHint":
+    "The font of the popup's headwords, readings and definitions. Zen Old Mincho comes with Komori.",
+  "popupSettings.readingPositionDictionary":
+    "The Dictionary style always shows readings above their kanji as furigana.",
   "popupSettings.title": "Reader lookup popup",
   "popupSettings.description": "Show dictionary results without leaving the book.",
   "popupSettings.enable": "Enable reader popup",

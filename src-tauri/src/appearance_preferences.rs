@@ -27,6 +27,8 @@ const POPUP_SHORTCUTS: [&str; 3] = ["shift-enter", "alt-x", "ctrl-space"];
 const POPUP_MOUSE_TRIGGERS: [&str; 4] = ["left", "double", "shift-right", "middle"];
 const POPUP_CLOSE_BEHAVIORS: [&str; 3] = ["escape-outside", "outside", "persistent"];
 const POPUP_READING_POSITIONS: [&str; 2] = ["beside", "above"];
+/// The full lookup popup, or the experimental compact dictionary of headwords and definitions.
+const POPUP_STYLES: [&str; 2] = ["standard", "dictionary"];
 /// Hover/scan delay (0 scans at once), scanned characters, results, and child popup levels.
 const POPUP_HOVER_DELAYS: std::ops::RangeInclusive<i64> = 0..=1200;
 const POPUP_SCAN_LENGTHS: std::ops::RangeInclusive<i64> = 1..=64;
@@ -258,6 +260,10 @@ pub struct AppearancePreferences {
     reader_popup_child_levels: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_reading_position: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_popup_style: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_popup_font: Option<FontChoice>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_enabled: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -582,6 +588,14 @@ impl AppearancePreferences {
                 .as_deref()
                 .is_none_or(|value| POPUP_READING_POSITIONS.contains(&value))
             && self
+                .reader_popup_style
+                .as_deref()
+                .is_none_or(|value| POPUP_STYLES.contains(&value))
+            && self
+                .reader_popup_font
+                .as_ref()
+                .is_none_or(FontChoice::valid)
+            && self
                 .reader_popup_shortcut_preset
                 .as_deref()
                 .is_none_or(|value| POPUP_SHORTCUTS.contains(&value))
@@ -771,6 +785,8 @@ impl AppearancePreferences {
                 "readerPopupReadingPosition",
                 &POPUP_READING_POSITIONS,
             ),
+            reader_popup_style: choice("readerPopupStyle", &POPUP_STYLES),
+            reader_popup_font: FontChoice::from_stored(value.get("readerPopupFont"), None),
             reader_popup_enabled: flag("readerPopupEnabled"),
             reader_popup_mouse_selection: flag("readerPopupMouseSelection"),
             reader_popup_anki_action: flag("readerPopupAnkiAction"),
@@ -1456,6 +1472,8 @@ mod tests {
             reader_popup_max_results: None,
             reader_popup_child_levels: None,
             reader_popup_reading_position: None,
+            reader_popup_style: None,
+            reader_popup_font: None,
             reader_popup_enabled: None,
             reader_popup_mouse_selection: None,
             reader_popup_anki_action: None,
@@ -1908,6 +1926,79 @@ mod tests {
                 AppearancePreferences::from_stored(&legacy).reader_popup_enabled,
                 None
             );
+        }
+    }
+
+    #[test]
+    fn popup_style_and_font_persist_independently_and_reject_invalid_values() {
+        let directory = tempdir().unwrap();
+        let database = directory.path().join("library.sqlite3");
+        let mut saved = AppearancePreferences {
+            reader_popup_radius: Some(7),
+            ..Default::default()
+        };
+        for (style, font) in [
+            (
+                "dictionary",
+                FontChoice::Google {
+                    id: "zen-old-mincho".into(),
+                },
+            ),
+            (
+                "standard",
+                FontChoice::System {
+                    family: "Yu Mincho".into(),
+                },
+            ),
+        ] {
+            saved.reader_popup_style = Some(style.into());
+            saved.reader_popup_font = Some(font);
+            assert!(save(&database, &saved).unwrap());
+            assert_eq!(load(&database).unwrap(), saved);
+            let stored = serde_json::to_value(&saved).unwrap();
+            assert_eq!(stored["readerPopupStyle"], style);
+        }
+        for invalid in [
+            AppearancePreferences {
+                reader_popup_style: Some("compact".into()),
+                ..saved.clone()
+            },
+            AppearancePreferences {
+                reader_popup_font: Some(FontChoice::System {
+                    family: "a; color:red".into(),
+                }),
+                ..saved.clone()
+            },
+            AppearancePreferences {
+                reader_popup_font: Some(FontChoice::Google {
+                    id: "missing".into(),
+                }),
+                ..saved.clone()
+            },
+        ] {
+            assert!(!save(&database, &invalid).unwrap());
+            assert_eq!(load(&database).unwrap(), saved);
+        }
+        for (key, value) in [
+            ("readerPopupStyle", serde_json::json!("Dictionary")),
+            ("readerPopupStyle", serde_json::json!(1)),
+            ("readerPopupFont", serde_json::json!("zen-old-mincho")),
+            (
+                "readerPopupFont",
+                serde_json::json!({"source": "preset", "id": "missing"}),
+            ),
+        ] {
+            let mut stored = serde_json::to_value(&saved).unwrap();
+            stored[key] = value;
+            let kept = AppearancePreferences::from_stored(&stored);
+            assert_eq!(kept.reader_popup_radius, Some(7));
+            if key == "readerPopupStyle" {
+                assert_eq!(kept.reader_popup_style, None);
+                assert_eq!(kept.reader_popup_font, saved.reader_popup_font);
+            } else {
+                assert_eq!(kept.reader_popup_font, None);
+                assert_eq!(kept.reader_popup_style, saved.reader_popup_style);
+            }
         }
     }
 

@@ -7,6 +7,7 @@ import { Card } from "../../components/ui/Card";
 import { Stepper } from "../../components/ui/Stepper";
 import { ToggleSetting } from "../../components/ui/ToggleSetting";
 import { Select } from "../../components/ui/Select";
+import { lookupPopupStyles } from "./lookupPopup";
 import {
   childLevelsRange,
   hoverDelayRange,
@@ -46,7 +47,11 @@ export function ReaderPopupSettings({
     setReaderPopupEnabled,
     readerPopupMouseSelection,
     setReaderPopupMouseSelection,
+    readerPopupStyle,
+    setReaderPopupStyle,
   } = useAppearance();
+  // The dictionary style shows none of the voice, pitch, frequency or Anki its switches add.
+  const dictionaryStyle = readerPopupStyle === "dictionary";
   return (
     <div className="settings-popup">
       <Card className="settings-card settings-card--wide">
@@ -66,6 +71,18 @@ export function ReaderPopupSettings({
             checked={readerPopupEnabled}
             onChange={setReaderPopupEnabled}
           />
+          <div className="settings-field">
+            <Select
+              label={t("popupSettings.style")}
+              value={readerPopupStyle}
+              options={lookupPopupStyles.map((style) => ({
+                value: style,
+                label: t(`popupSettings.style.${style}`),
+              }))}
+              onChange={setReaderPopupStyle}
+            />
+            <p className="settings-field__hint">{t("popupSettings.styleHint")}</p>
+          </div>
           <ToggleSetting
             label={t("popupSettings.names")}
             description={t("popupSettings.namesHint")}
@@ -77,24 +94,28 @@ export function ReaderPopupSettings({
             description={t("popupSettings.ankiHint")}
             checked={readerPopupAnkiAction}
             onChange={setReaderPopupAnkiAction}
+            disabled={dictionaryStyle}
           />
           <ToggleSetting
             label={t("popupSettings.voice")}
             description={t("popupSettings.voiceHint")}
             checked={readerPopupVoiceAction}
             onChange={setReaderPopupVoiceAction}
+            disabled={dictionaryStyle}
           />
           <ToggleSetting
             label={t("popupSettings.pitch")}
             description={t("popupSettings.pitchHint")}
             checked={readerPopupShowPitch}
             onChange={setReaderPopupShowPitch}
+            disabled={dictionaryStyle}
           />
           <ToggleSetting
             label={t("popupSettings.frequency")}
             description={t("popupSettings.frequencyHint")}
             checked={readerPopupShowFrequency}
             onChange={setReaderPopupShowFrequency}
+            disabled={dictionaryStyle}
           />
         </div>
       </Card>

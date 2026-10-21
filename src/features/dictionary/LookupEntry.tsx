@@ -212,6 +212,91 @@ function LookupEntryContent({
 }
 
 /**
+ * One headword in the popup's experimental dictionary style: the headword with its furigana, then
+ * each dictionary's definitions under its name, numbered when it has more than one. It has no
+ * voice, tags, notes, pitch, frequency or actions.
+ */
+export function DictionaryLookupEntry(props: Parameters<typeof DictionaryLookupEntryContent>[0]) {
+  return (
+    <ErrorBoundary fallback={<LookupEntryFailure expression={props.group.expression} />}>
+      <DictionaryLookupEntryContent {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function DictionaryLookupEntryContent({
+  group,
+  showDictionaryNames,
+  onSearchTerm,
+}: {
+  group: TermGroup;
+  showDictionaryNames: boolean;
+  /** Search a headword kanji or glossary link (a child popup in the Reader). */
+  onSearchTerm: (term: string) => void;
+}) {
+  const reading = group.reading !== group.expression ? group.reading : null;
+  // Each dictionary's definitions together, in the order the dictionaries first match.
+  const sources = new Map<number, TermMatch[]>();
+  for (const term of group.terms)
+    sources.set(term.dictionaryId, [...(sources.get(term.dictionaryId) ?? []), term]);
+  return (
+    <article
+      aria-label={reading ? `${group.expression} (${reading})` : group.expression}
+      className="dictionary-entry"
+    >
+      <strong className="dictionary-entry__headword" lang="ja">
+        {reading ? (
+          <FuriganaHeadword
+            expression={group.expression}
+            reading={reading}
+            onSearchTerm={onSearchTerm}
+          />
+        ) : (
+          <HeadwordKanji expression={group.expression} onSearchTerm={onSearchTerm} />
+        )}
+      </strong>
+      {[...sources.values()].map((terms) => (
+        <section
+          aria-label={terms[0].dictionaryTitle}
+          className="dictionary-entry__source"
+          key={terms[0].dictionaryId}
+        >
+          {showDictionaryNames && (
+            <span aria-hidden="true" className="dictionary-entry__name">
+              {terms[0].dictionaryTitle}
+            </span>
+          )}
+          <ol
+            className={`dictionary-entry__senses${terms.length > 1 ? "" : " dictionary-entry__senses--single"}`}
+          >
+            {terms.map((term, index) => (
+              <li key={`${term.sequence}-${index}`}>
+                {senseGlossaries(term).map((glossary, item) => (
+                  <GlossaryText key={item} onSearchTerm={onSearchTerm} value={glossary} />
+                ))}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
+    </article>
+  );
+}
+
+/** A definition's glossaries, with its consecutive plain glosses run together on one line. */
+function senseGlossaries(term: TermMatch): unknown[] {
+  const glossaries: unknown[] = Array.isArray(term.glossary) ? term.glossary : [term.glossary];
+  return glossaries.reduce<unknown[]>((items, glossary) => {
+    if (glossary === "") return items;
+    const last = items.length - 1;
+    if (typeof glossary === "string" && typeof items[last] === "string")
+      items[last] = `${items[last]}; ${glossary}`;
+    else items.push(glossary);
+    return items;
+  }, []);
+}
+
+/**
  * The headword with each kanji run's part of the reading spread evenly above that run, so each kana
  * sits over its kanji rather than bunched at the start; its kanji stay links.
  */
