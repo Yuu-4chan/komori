@@ -395,7 +395,7 @@ describe("real lookup preview", () => {
       within(style)
         .getAllByRole("option")
         .map((option) => option.textContent),
-    ).toEqual(["Standard", "Dictionary (experimental)"]);
+    ).toEqual(["Standard", "Dictionary"]);
     const hidden = ["Add to Anki action", "Voice action", "Show pitch", "Show frequency"];
     for (const name of hidden) expect(screen.getByRole("button", { name })).toBeEnabled();
     expect(screen.getByLabelText("Reading position")).toBeEnabled();

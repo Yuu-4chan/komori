@@ -661,7 +661,7 @@ export const ko: MessageCatalog = {
     "각 표제어의 읽기를 옆에, 또는 한자 위에 후리가나로 표시합니다.",
   "popupSettings.style": "팝업 스타일",
   "popupSettings.style.standard": "기본",
-  "popupSettings.style.dictionary": "사전(실험적)",
+  "popupSettings.style.dictionary": "사전",
   "popupSettings.styleHint":
     "사전은 각 표제어와 후리가나, 뜻만 표시하여 음성, 악센트, 빈도, Anki 없이 빠르게 찾을 수 있습니다.",
   "popupSettings.font": "글꼴",

@@ -623,7 +623,7 @@ export const zhCN: MessageCatalog = {
   "popupSettings.readingPositionHint": "将每个词条的读音显示在其旁边，或作为注音显示在汉字上方。",
   "popupSettings.style": "弹窗样式",
   "popupSettings.style.standard": "标准",
-  "popupSettings.style.dictionary": "词典（实验性）",
+  "popupSettings.style.dictionary": "词典",
   "popupSettings.styleHint":
     "词典样式只显示每个词条及其注音和释义，无需语音、音调、频率或Anki即可快速查词。",
   "popupSettings.font": "字体",

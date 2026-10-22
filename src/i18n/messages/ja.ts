@@ -673,7 +673,7 @@ export const ja: MessageCatalog = {
     "各見出し語の読みを横に、または漢字の上にふりがなとして表示します。",
   "popupSettings.style": "ポップアップの形式",
   "popupSettings.style.standard": "標準",
-  "popupSettings.style.dictionary": "辞書（試験的）",
+  "popupSettings.style.dictionary": "辞書",
   "popupSettings.styleHint":
     "辞書は見出し語とそのふりがな、意味だけを表示し、音声・アクセント・頻度・Ankiなしで素早く引けます。",
   "popupSettings.font": "フォント",

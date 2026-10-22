@@ -168,7 +168,7 @@ export interface AppearancePreferences
   readerPopupTheme: ReaderPopupTheme;
   readerPopupWidth: number;
   readerPopupHeight: number;
-  /** The popup's layout: the full entry, or the experimental dictionary. */
+  /** The popup's layout: the full entry, or the dictionary. */
   readerPopupStyle: LookupPopupStyle;
   /** The font of the popup's headwords, readings and definitions. */
   readerPopupFont: ReaderFontChoice;

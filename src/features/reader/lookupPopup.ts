@@ -25,7 +25,7 @@ export const lookupPopupLineHeight = { min: 1, max: 3, step: 0.05, default: 1.6 
 
 /**
  * The popup's layout: the full entry with its voice, pitch, frequency and actions, or the
- * experimental dictionary of headwords, their furigana and definitions only.
+ * dictionary of headwords, their furigana and definitions only.
  */
 export const lookupPopupStyles = ["standard", "dictionary"] as const;
 export type LookupPopupStyle = (typeof lookupPopupStyles)[number];

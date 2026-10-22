@@ -721,7 +721,7 @@ export const en = {
     "Show each headword's reading beside it, or above its kanji as furigana.",
   "popupSettings.style": "Popup style",
   "popupSettings.style.standard": "Standard",
-  "popupSettings.style.dictionary": "Dictionary (experimental)",
+  "popupSettings.style.dictionary": "Dictionary",
   "popupSettings.styleHint":
     "Dictionary shows only each headword with its furigana and its definitions, for fast lookups without voice, pitch, frequency or Anki.",
   "popupSettings.font": "Font",

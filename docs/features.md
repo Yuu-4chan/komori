@@ -98,7 +98,7 @@ Alt+wheel reveals the beginning of a tall selected entry.
 The text a scan, click or hover lookup matched is marked in the book as selected text is,
 in the theme's Selection color, until the popup closes.
 
-The experimental Dictionary style (Settings > Reader popup > Popup style) turns the popup
+The Dictionary style (Settings > Reader popup > Popup style) turns the popup
 into a compact dictionary for reading with fast lookups: each headword with its furigana
 right on its kanji over a thin rule, then each dictionary's definitions right under its name as a small
 tinted label, numbered ①, ② when it has more than one. It leaves out voice, tags, notes, pitch, frequency, Anki and Open in

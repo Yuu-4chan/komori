@@ -1625,7 +1625,7 @@
   padding: 0 4px 12px 30px;
 }
 
-/* The experimental dictionary style: each headword with its furigana over a rule, then each
+/* The dictionary style: each headword with its furigana over a rule, then each
    dictionary's definitions under its name with circled numbers, all in the popup font. */
 @counter-style komori-circled {
   system: fixed;

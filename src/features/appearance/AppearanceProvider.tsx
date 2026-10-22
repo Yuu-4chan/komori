@@ -172,7 +172,7 @@ interface AppearanceContextValue
   readerPopupHeight: number;
   setReaderPopupWidth: (width: number) => void;
   setReaderPopupHeight: (height: number) => void;
-  /** The popup's layout; the experimental dictionary shows headwords and definitions only. */
+  /** The popup's layout; the dictionary shows headwords and definitions only. */
   readerPopupStyle: LookupPopupStyle;
   setReaderPopupStyle: (style: LookupPopupStyle) => void;
   /** The font of the popup's headwords, readings and definitions. */

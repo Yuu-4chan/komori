@@ -707,7 +707,7 @@ export const ptBR: MessageCatalog = {
     "Mostra a leitura de cada entrada ao lado dela ou acima dos kanji como furigana.",
   "popupSettings.style": "Estilo do pop-up",
   "popupSettings.style.standard": "Padrão",
-  "popupSettings.style.dictionary": "Dicionário (experimental)",
+  "popupSettings.style.dictionary": "Dicionário",
   "popupSettings.styleHint":
     "Dicionário mostra só cada entrada com seu furigana e suas definições, para consultas rápidas sem voz, acento, frequência ou Anki.",
   "popupSettings.font": "Fonte",

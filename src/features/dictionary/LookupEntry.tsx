@@ -212,7 +212,7 @@ function LookupEntryContent({
 }
 
 /**
- * One headword in the popup's experimental dictionary style: the headword with its furigana, then
+ * One headword in the popup's dictionary style: the headword with its furigana, then
  * each dictionary's definitions under its name, numbered when it has more than one. It has no
  * voice, tags, notes, pitch, frequency or actions.
  */

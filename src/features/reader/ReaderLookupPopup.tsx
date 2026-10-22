@@ -65,7 +65,7 @@ interface ReaderLookupPopupProps {
 
 /**
  * The lookup of a Reader selection: each matched headword as an entry with its actions on the
- * headword's row, or in the experimental dictionary style, as just its headword, furigana and
+ * headword's row, or in the dictionary style, as just its headword, furigana and
  * definitions. It looks its query up once; a response arriving after it closed is discarded.
  */
 export function ReaderLookupPopup({
