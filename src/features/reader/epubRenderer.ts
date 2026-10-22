@@ -1891,6 +1891,10 @@ class EpubRenderer implements ReaderRenderer {
             : undefined,
         !this.continuous ? manager?.layout.height : horizontal ? area?.clientHeight : undefined,
         !this.continuous,
+        // Semi-continuous view clears two em before a chapter's first section.
+        this.continuous && this.chapterView && !this.vnView
+          ? 2 * (this.presentation.fontSize ?? readerFontSize.default)
+          : 0,
       );
     }
     let style = document.querySelector("style[data-komori-page-image-width]");
@@ -5747,7 +5751,10 @@ function applyVnCursor(document: Document, shown: boolean): void {
   (document.head ?? document.documentElement).append(created);
 }
 
-/** Keep intrinsic image proportions while limiting their box to the scrollable area. */
+/**
+ * Keep intrinsic image proportions while limiting their box to the scrollable area, inside
+ * the body's side padding, which holds horizontal text's margin.
+ */
 function applyContinuousImageSizing(
   document: Document,
   width: number | undefined,
@@ -5758,8 +5765,15 @@ function applyContinuousImageSizing(
     style?.remove();
     return;
   }
+  const body = document.body && document.defaultView?.getComputedStyle(document.body);
+  const inner = Math.max(
+    1,
+    width -
+      (parseFloat(body?.paddingLeft ?? "") || 0) -
+      (parseFloat(body?.paddingRight ?? "") || 0),
+  );
   const rule =
-    `:root body img, :root body svg { max-width: ${width}px !important; ` +
+    `:root body img, :root body svg { max-width: ${inner}px !important; ` +
     `max-height: ${height}px !important; object-fit: contain !important; }`;
   if (style?.textContent === rule) return;
   if (!style) {

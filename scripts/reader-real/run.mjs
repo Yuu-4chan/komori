@@ -639,6 +639,58 @@ async function resizeKeepsPoint(label, patch, move) {
   check(label, "saves the published locator", saved.ok);
 }
 
+// Spreads wider than the window, as two volumes of one series ship them, show whole in every
+// view, with the text size and maximum text widths that cut them off: one wide enough that the
+// spread fills the reading area's height, one narrow enough that it fills the text's width.
+scenario("wide-images", async () => {
+  const views = [
+    ["paginated single", { readerPageLayout: "single" }],
+    ["paginated double", { readerPageLayout: "double" }],
+    ["continuous", { readerViewMode: "continuous" }],
+    ["semi-continuous", { readerViewMode: "semi-continuous" }],
+  ];
+  const book = bookId["S12-wide-spreads"];
+  for (const maxWidth of [1300, 800])
+    for (const [view, patch] of views)
+      for (const index of [1, 2]) {
+        const name = `wide images ${view} ${maxWidth} px ${index === 1 ? "in a paragraph" : "pre-paginated"}`;
+        await cdp.invoke("save_reading_position", {
+          id: book,
+          position: { spineIndex: index, sectionKey: null, progress: 0 },
+        });
+        await setPreferences({
+          ...DEFAULTS,
+          readerFontSize: 25,
+          readerLineHeight: 1.8,
+          readerMaxWidth: maxWidth,
+          readerMaxHeight: 1440,
+          ...patch,
+        });
+        await evaluate(`__readerReal.open(${JSON.stringify(book)})`);
+        await reopened();
+        const [shown] = await evaluate(`__readerReal.imageBoxes("spread", ${index})`);
+        const inside = (inner, outer) =>
+          !!inner &&
+          !!outer &&
+          inner.left >= outer.left - 1 &&
+          inner.top >= outer.top - 1 &&
+          inner.right <= outer.right + 1 &&
+          inner.bottom <= outer.bottom + 1;
+        const where = (r) =>
+          r
+            ? `${Math.round(r.right - r.left)}x${Math.round(r.bottom - r.top)} at ${Math.round(r.left)},${Math.round(r.top)}`
+            : "none";
+        check(
+          name,
+          "shows the whole spread inside the reading area",
+          inside(shown?.image, shown?.frame) && inside(shown?.image, shown?.host),
+          shown
+            ? `image ${where(shown.image)}; frame ${where(shown.frame)}; host ${where(shown.host)}; body ${Math.round(shown.body)}`
+            : "not displayed",
+        );
+      }
+});
+
 scenario("resize-continuous", () =>
   resizeKeepsPoint("resize continuous", { readerViewMode: "continuous" }, () => scroll(500, 6)),
 );

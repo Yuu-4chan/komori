@@ -213,6 +213,32 @@
     );
   };
 
+  /**
+   * Each displayed image labelled `label` (an img's alt or an svg's aria-label) in spine section
+   * `index`: its box in the window, and the boxes that show it, the reading area's host and its
+   * section's iframe.
+   */
+  R.imageBoxes = (label, index) => {
+    const box = (r) => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+    const host = document.querySelector(".reader-viewport__host")?.getBoundingClientRect();
+    const found = [];
+    for (const view of views(R.adapter())) {
+      if (view.section?.index !== index) continue;
+      const frame = view.iframe.getBoundingClientRect();
+      const doc = view.contents.document;
+      for (const image of doc.querySelectorAll(`img[alt="${label}"], svg[aria-label="${label}"]`)) {
+        const r = image.getBoundingClientRect();
+        found.push({
+          image: box(new DOMRect(r.left + frame.left, r.top + frame.top, r.width, r.height)),
+          frame: box(frame),
+          host: host ? box(host) : null,
+          body: doc.body.getBoundingClientRect().width,
+        });
+      }
+    }
+    return found;
+  };
+
   /** The markers of the paragraphs whose first character is in the reader viewport. */
   R.visibleMarkers = () => {
     const vp = viewport();

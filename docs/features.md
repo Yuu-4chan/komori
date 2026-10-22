@@ -77,8 +77,9 @@ back. The search stays in the top bar even in an empty Library.
   book image, or the image viewer, offers Copy image and Save image. Locations use
   section and text fraction, never invented pages.
 - **Book content.** Character images follow the text size; standalone images and
-  covers center within their page; chapter titles enlarge slightly; damaged EPUBs show
-  the Reader error surface recommending another copy or an EPUB editor and relinking.
+  covers center within their page, and wide spreads show whole within the margins;
+  chapter titles enlarge slightly; damaged EPUBs show the Reader error surface
+  recommending another copy or an EPUB editor and relinking.
 
 ## Lookup popup
 

@@ -135,15 +135,17 @@ export function applyBookImageLayout(document: Document): void {
 }
 
 /**
- * Fit image-only pages, including SVG covers, without a squeezed SVG box. A paginated or
- * vertical page's width is the whole page, its side padding included; a continuous
- * horizontal one's is the width inside the padding.
+ * Fit image-only pages, including SVG covers, without a squeezed SVG box. The width is the
+ * whole page or reading area, the body's side padding (its margin) included, and the image
+ * fits inside that padding. `lead` is the space a scrolled reading area keeps before the
+ * section, which the image leaves room for instead of its gap when it is larger.
  */
 export function fitBookImagePage(
   document: Document,
   width?: number,
   height?: number,
   paginated = false,
+  lead = 0,
 ): void {
   let style = document.querySelector(`style[${FIT_STYLE}]`);
   if (!width || !height || !document.querySelector(`[${PAGE_IMAGE}]`)) {
@@ -151,21 +153,20 @@ export function fitBookImagePage(
     return;
   }
   const bodyStyle = document.defaultView?.getComputedStyle(document.body);
-  const vertical = document.documentElement.style.writingMode.startsWith("vertical");
   const pageHeight = height;
   const horizontalPadding =
     (parseFloat(bodyStyle?.paddingLeft ?? "") || 0) +
     (parseFloat(bodyStyle?.paddingRight ?? "") || 0);
-  const wholePage = vertical || paginated;
-  const pageWidth = wholePage ? width : width + horizontalPadding;
-  if (wholePage) width = Math.max(1, width - horizontalPadding);
+  const pageWidth = width;
+  width = Math.max(1, width - horizontalPadding);
   // EPUB.js adds physical top/bottom padding inside the reading area. Leave room for
-  // that and the common image gap so a fitted cover cannot spill onto a second page.
+  // that and the common image gap (or a larger lead) so a fitted cover cannot spill onto a
+  // second page.
   const fontSize = parseFloat(document.documentElement.style.fontSize) || 16;
   height -=
     (parseFloat(bodyStyle?.paddingTop ?? "") || 0) +
     (parseFloat(bodyStyle?.paddingBottom ?? "") || 0) +
-    (paginated ? 0 : 1.5 * fontSize);
+    (paginated ? 0 : Math.max(1.5 * fontSize, lead));
   height = Math.max(1, height);
   let rule = `:root body [${PAGE_IMAGE}] { width: auto !important; height: auto !important; max-width: ${width}px !important; max-height: ${height}px !important; object-fit: contain !important; }`;
   const svg = document.querySelector(`svg[${PAGE_IMAGE}]`);
@@ -182,9 +183,10 @@ export function fitBookImagePage(
   if (paginated) {
     // A text-free section occupies one page (one column in a horizontal spread).
     // Flex centers its original wrappers, and the image inside one a publisher sizes to the
-    // whole page, without inserting nodes or changing CFIs.
+    // whole page, without inserting nodes or changing CFIs. Its blocks stack as they would
+    // in the text, so blank paragraphs around the image never push it off its page.
     rule += ` @layer komori-book-images {
-:root body { display: flex !important; align-items: center !important; justify-content: center !important; width: ${pageWidth}px !important; height: ${pageHeight}px !important; }
+:root body { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; width: ${pageWidth}px !important; height: ${pageHeight}px !important; }
 :root body :is(${blocks}) { margin: 0 !important; padding: 0 !important; line-height: 0 !important; }
 :root body :is(${blocks}):has([${PAGE_IMAGE}]) { display: flex !important; align-items: center !important; justify-content: center !important; max-width: 100% !important; max-height: 100% !important; }
 :root body [${SPACING}] { padding-block: 0 !important; }

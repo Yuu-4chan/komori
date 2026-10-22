@@ -1,5 +1,5 @@
 // Synthetic EPUBs for the real-engine Reader smoke test, built in code from random letters and
-// numbered markers: S01-S09 and S11, plus a vertical-lr twin of S11. Every paragraph starts with a marker such as [02-005] so a reading point is recognizable.
+// numbered markers: S01-S09, S11 and S12, plus a vertical-lr twin of S11. Every paragraph starts with a marker such as [02-005] so a reading point is recognizable.
 import { crc32, deflateRawSync, deflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -127,7 +127,8 @@ function nav(entries, lang) {
 }
 
 /**
- * sections: [{ id, href, doc }]; files: [{ href, type, data }]; ncx: [[href, text]] for EPUB 2.
+ * sections: [{ id, href, doc, properties? }], `properties` being the itemref's; files:
+ * [{ href, type, data }]; ncx: [[href, text]] for EPUB 2.
  */
 function epub(
   name,
@@ -156,7 +157,12 @@ function epub(
   if (ncx) manifest.push('<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>');
   const spineAttributes =
     (ppd ? ` page-progression-direction="${ppd}"` : "") + (ncx ? ' toc="ncx"' : "");
-  const itemrefs = sections.map(({ id }) => `<itemref idref="${id}"/>`).join("");
+  const itemrefs = sections
+    .map(
+      ({ id, properties }) =>
+        `<itemref idref="${id}"${properties ? ` properties="${properties}"` : ""}/>`,
+    )
+    .join("");
   const opf =
     `<?xml version="1.0" encoding="utf-8"?>\n<package xmlns="http://www.idpf.org/2007/opf" version="${version}" unique-identifier="uid"` +
     ` prefix="rendition: http://www.idpf.org/vocab/rendition/#">` +
@@ -425,6 +431,57 @@ export function buildBooks() {
       }),
     );
   }
+  // S12: landscape two-page spreads larger than the window, shaped as two volumes of one
+  // light novel series ship them: an image in a paragraph after blank ones, with no stylesheet
+  // or head, and a pre-paginated page in the reflowable book whose SVG fills the page.
+  const spread = {
+    href: "spread.png",
+    type: "image/png",
+    data: png(2048, 1453, [70, 120, 190], 6),
+  };
+  const blank = "<p>  \n</p>".repeat(3);
+  const spreads = [
+    ...textSections(1, 20, { lang: "ja" }),
+    {
+      id: "w1",
+      href: "w1.xhtml",
+      doc:
+        `<?xml version='1.0' encoding='utf-8'?>\n<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">` +
+        `<head/><body>${blank}<p>  <span id="#pagestart"></span><img src="spread.png" alt="spread"/>\n</p></body></html>`,
+    },
+    {
+      id: "w2",
+      href: "w2.xhtml",
+      properties:
+        "rendition:layout-pre-paginated rendition:spread-none rendition:page-spread-center",
+      doc: xhtml(
+        "Spread",
+        `<div class="main"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="0 0 2048 1453" aria-label="spread">` +
+          `<image width="2048" height="1453" xlink:href="spread.png"/></svg></div>`,
+        {
+          lang: "ja",
+          css: ["fixed.css"],
+          head: '<meta name="viewport" content="width=2048, height=1453"/>',
+        },
+      ),
+    },
+    ...textSections(1, 20, { lang: "ja", prefix: "e" }),
+  ];
+  books.push(
+    epub("S12-wide-spreads", {
+      title: "Reader real S12 wide spreads",
+      lang: "ja",
+      sections: spreads,
+      navEntries: [
+        ["s0.xhtml", "Start"],
+        ["w1.xhtml", "Spread"],
+        ["w2.xhtml", "Fixed spread"],
+        ["e0.xhtml", "End"],
+      ],
+      files: [spread, { href: "fixed.css", type: "text/css", data: "" }],
+      meta: '<meta name="primary-writing-mode" content="horizontal-lr"/>',
+    }),
+  );
   return books;
 }
 

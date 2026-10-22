@@ -147,6 +147,35 @@ describe("publisher book images", () => {
     },
   );
 
+  it("fits a wide page image inside the side padding and stacks the blank paragraphs around it", () => {
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    const doc = frame.contentDocument!;
+    // A light novel's spread: blank paragraphs, then a wide image in one of its own.
+    doc.body.innerHTML =
+      '<p> </p><p> </p><p> <span id="pagestart"></span><svg viewBox="0 0 2048 1453"></svg></p>';
+    doc.body.style.padding = "0 70px";
+    doc.documentElement.style.fontSize = "20px";
+    applyBookImageLayout(doc);
+    const css = () => doc.querySelector("style[data-komori-page-image-fit]")!.textContent!;
+    // A scrolled reading area's width includes the body's side padding, which holds the margin.
+    fitBookImagePage(doc, 840, 788);
+    expect(css()).toContain("max-width: 700px !important; max-height: 758px !important");
+    expect(css()).toContain(`width: 700px !important; height: ${(700 * 1453) / 2048}px !important`);
+    // A lead before the section larger than the image's gap is left free instead.
+    fitBookImagePage(doc, 840, 788, false, 50);
+    expect(css()).toContain("max-height: 738px !important");
+    fitBookImagePage(doc, 840, 788, false, 10);
+    expect(css()).toContain("max-height: 758px !important");
+    // A page stacks its blocks along the block axis, so the blank ones take no room beside it.
+    fitBookImagePage(doc, 840, 788, true);
+    expect(css()).toContain(
+      ":root body { display: flex !important; flex-direction: column !important; align-items: center !important;",
+    );
+    expect(css()).toContain("max-width: 700px !important; max-height: 788px !important");
+    frame.remove();
+  });
+
   it("finds a page image behind a label its markup hides, but not beside shown text", () => {
     for (const label of ['<span style="display: none">cover</span>', "<span hidden>cover</span>"]) {
       const doc = page(`<section><div>${label}<img src="cover.jpg" alt="Cover"></div></section>`);

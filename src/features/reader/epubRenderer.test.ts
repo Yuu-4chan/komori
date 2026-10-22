@@ -2614,6 +2614,71 @@ describe("EPUB.js renderer adapter", () => {
     renderer.dispose();
   });
 
+  it("fits continuous images and image pages inside the body's side padding", async () => {
+    // A spread page shaped like a light novel's: blank paragraphs, then a wide image.
+    const frames = ["one", "two"].map(() => {
+      const frame = document.createElement("iframe");
+      document.body.append(frame);
+      return frame.contentDocument!;
+    });
+    frames[0].body.innerHTML = '<p><img src="plate.png" width="2048" height="1453"></p><p>Text</p>';
+    frames[1].body.innerHTML =
+      '<p> </p><p> </p><p> <img src="spread.png" width="2048" height="1453"></p>';
+    for (const frame of frames) frame.body.style.padding = "0 70px";
+    const items = frames.map((frame, index) =>
+      Object.assign(section(`Text/${index}.xhtml`, ""), { index, document: frame }),
+    );
+    const { book, rendition } = mockBook(items);
+    const container = document.createElement("div");
+    const manager = rendition.manager;
+    manager.settings.axis = "vertical";
+    Object.defineProperties(container, {
+      clientWidth: { get: () => 840 },
+      clientHeight: { get: () => 788 },
+    });
+    Object.assign(manager, {
+      container,
+      views: { all: () => [], displayed: () => [], remove: vi.fn() },
+    });
+    Object.assign(rendition, { destroy: vi.fn() });
+    rendition.display.mockImplementation(async () => {
+      for (const [hook] of book.spine.hooks.content.register.mock.calls)
+        for (const item of items)
+          await (hook as (document: Document, section: unknown) => unknown)(item.document, item);
+    });
+    try {
+      for (const [viewMode, lead] of [
+        ["continuous", 1.5 * 25],
+        ["semi-continuous", 2 * 25],
+      ] as const) {
+        const renderer = epubRendererFactory(id)();
+        expect(
+          await renderer.mount(
+            document.createElement("div"),
+            new AbortController().signal,
+            vi.fn(),
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { fontSize: 25, viewMode, writingMode: "horizontal" },
+          ),
+        ).toBe("ready");
+        // Never wider than the text between the margins, the side padding.
+        expect(
+          frames[0].querySelector("style[data-komori-continuous-images]")?.textContent,
+        ).toContain("max-width: 700px !important; max-height: 788px !important");
+        // An image page leaves room for its gap, or for a chapter's lead in semi-continuous view.
+        expect(frames[1].querySelector("style[data-komori-page-image-fit]")?.textContent).toContain(
+          `max-width: 700px !important; max-height: ${788 - lead}px !important`,
+        );
+        renderer.dispose();
+      }
+    } finally {
+      for (const frame of frames) frame.defaultView?.frameElement?.remove();
+    }
+  });
+
   it("fits continuous images to the scrollable area on open and after writing-mode switches", async () => {
     const item = Object.assign(
       section("Text/one.xhtml", "", true, '<p><img src="plate.png" width="146" height="1920"></p>'),
