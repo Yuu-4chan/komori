@@ -236,9 +236,9 @@ describe("Dictionary page", () => {
       pitch.compareDocumentPosition(within(card).getByText("to read")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(within(pitch).getByText("Pitch source").parentElement).toHaveClass(
-      "dictionary-pitch__sources",
-    );
+    expect(
+      within(pitch).getByText("Pitch source").closest(".dictionary-pitch__entry")?.parentElement,
+    ).toHaveClass("dictionary-pitch__sources");
     expect(within(pitch).getByText("Position 0")).toBeInTheDocument();
   });
   afterEach(() => {
@@ -972,6 +972,13 @@ describe("Dictionary page", () => {
     expect(rows[0].querySelector(".dictionary-pitch__sources")).toHaveTextContent(
       "NHK, Kanjium, NHK",
     );
+    // Each comma stays with the name before it, so a wrapped line starts on a name.
+    expect(
+      Array.from(
+        rows[0].querySelectorAll(".dictionary-pitch__entry"),
+        (entry) => entry.textContent,
+      ),
+    ).toEqual(["NHK, ", "Kanjium, ", "NHK"]);
     // Position 4 exceeds the two-mora reading, so it keeps its text without a contour.
     expect(rows.map((row) => row.querySelectorAll("svg").length)).toEqual([1, 1, 0, 1]);
     expect(rows[3].querySelector("svg")).toHaveAttribute("height", "36");

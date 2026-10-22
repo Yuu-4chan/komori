@@ -1536,8 +1536,8 @@
 }
 
 /* In the popup the headword and its labels stay near the definitions' size, so the meaning
-   leads: a headword under twice the definitions' size, and small labels for the dictionary
-   names, the section numbers and the tags. */
+   leads: a headword under twice the definitions' size, and one small label size for the
+   dictionary names, section numbers, tags, notes and frequency chips. */
 .reader-lookup .lookup-entry__header {
   padding: 10px 0 9px;
   gap: 8px;
@@ -1558,13 +1558,50 @@
   font-size: 16px;
 }
 .reader-lookup .lookup-entry .dictionary-audio-button {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+.reader-lookup .lookup-entry .dictionary-audio-button svg {
+  width: 14px;
+  height: 14px;
+}
+.reader-lookup .lookup-entry .dictionary-result-card__tags,
+.reader-lookup .lookup-entry__notes,
+.reader-lookup .lookup-entry__frequencies {
+  gap: 4px;
 }
 .reader-lookup .lookup-entry .dictionary-result-card__tags span {
   padding: 1px 7px;
   border-radius: 6px;
   font-size: 11.5px;
+}
+.reader-lookup .lookup-entry__notes > span {
+  padding: 0 7px;
+  font-size: 11.5px;
+}
+.reader-lookup .lookup-entry__frequencies li {
+  border-radius: 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.reader-lookup .lookup-entry__frequencies :is(span, strong),
+.reader-lookup .lookup-entry__more button {
+  padding: 1px 6px;
+}
+.reader-lookup .lookup-entry__more button {
+  font-size: 11.5px;
+}
+/* Pitch lines read as notes beside the contour, its own 11 px mora labels setting the size. */
+.reader-lookup .lookup-entry .dictionary-pitch li {
+  font-size: 12px;
+}
+.reader-lookup .lookup-entry .dictionary-pitch__position {
+  color: var(--text-muted);
+}
+.reader-lookup .lookup-entry .dictionary-pitch__source {
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 .reader-lookup .lookup-definition__toggle {
   padding: 10px 2px 6px 0;

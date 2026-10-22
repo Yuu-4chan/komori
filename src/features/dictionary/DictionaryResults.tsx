@@ -740,13 +740,16 @@ export function PitchPositions({
               <span
                 className={showDictionaryNames ? "dictionary-pitch__sources" : "visually-hidden"}
               >
+                {/* Each comma stays with the name before it, so a wrapped line starts on a name. */}
                 {pattern.sources.map((source, index) => (
-                  <Fragment key={source.key}>
-                    {index > 0 && <span className="dictionary-pitch__separator">, </span>}
+                  <span className="dictionary-pitch__entry" key={source.key}>
                     <span className="dictionary-pitch__source" title={source.title}>
                       {source.title}
                     </span>
-                  </Fragment>
+                    {index < pattern.sources.length - 1 && (
+                      <span className="dictionary-pitch__separator">, </span>
+                    )}
+                  </span>
                 ))}
               </span>
             </li>

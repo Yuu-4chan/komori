@@ -538,8 +538,14 @@ muted and outlined so they do not read as its reading. A
   min-width: 0;
   padding-block: calc((2.25rem - 1lh) / 2);
 }
+.dictionary-pitch__entry {
+  max-width: 100%;
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+}
 .dictionary-pitch__source {
-  max-width: min(12rem, 100%);
+  max-width: 12rem;
   min-width: 0;
   overflow: hidden;
   color: var(--text-primary);

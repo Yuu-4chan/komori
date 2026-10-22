@@ -399,6 +399,12 @@ describe("Reader lookup popup", () => {
       /\.reader-lookup \.lookup-definition__source\s*\{[^}]*font-size: 11\.5px/,
     );
     expect(readerCss).toMatch(
+      /\.reader-lookup \.lookup-entry__frequencies li\s*\{[^}]*font-size: 11\.5px/,
+    );
+    expect(readerCss).toMatch(
+      /\.reader-lookup \.lookup-entry \.dictionary-pitch li\s*\{[^}]*font-size: 12px/,
+    );
+    expect(readerCss).toMatch(
       /\.lookup-entry__expression rt\s*\{[^}]*position: absolute;[^}]*bottom: 100%/,
     );
     expect(readerCss).toMatch(
