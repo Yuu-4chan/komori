@@ -1572,15 +1572,14 @@
 .dictionary-entry {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 .dictionary-entry__headword {
-  padding-bottom: 4px;
+  padding-bottom: 2px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-soft);
   font-size: 26px;
   font-weight: 600;
-  line-height: 1.55;
+  line-height: 1.4;
 }
 .dictionary-entry__headword rt {
   color: var(--text-muted);
@@ -1596,15 +1595,34 @@
 .dictionary-entry__headword .dictionary-result-card__kanji:hover {
   text-decoration-color: currentColor;
 }
+/* Each dictionary sits close under the headword, its name a tinted label right on its own
+   definitions, with more room between one dictionary and the next. */
 .dictionary-entry__source {
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  align-items: flex-start;
+  gap: 4px;
+}
+.dictionary-entry__headword + .dictionary-entry__source {
+  margin-top: 8px;
+}
+.dictionary-entry__source > :not(.dictionary-entry__name) {
+  align-self: stretch;
 }
 .dictionary-entry__name {
-  color: var(--text-muted);
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
+  max-width: 100%;
+  padding: 1px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent-base) 14%, var(--surface-card));
+  border-radius: 6px;
+  font-family: var(--font-interface);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.6;
 }
 .dictionary-entry__senses {
   margin: 0;
@@ -1624,6 +1642,7 @@
 }
 .dictionary-entry .dictionary-glossary {
   max-width: none;
+  margin-top: 0;
 }
 /* A dictionary's own sense lists number as the entry does, unless they set their own markers. */
 .dictionary-entry .dictionary-glossary ol {

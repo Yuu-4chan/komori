@@ -95,8 +95,8 @@ Alt+wheel reveals the beginning of a tall selected entry.
 
 The experimental Dictionary style (Settings > Reader popup > Popup style) turns the popup
 into a compact dictionary for reading with fast lookups: each headword with its furigana
-over a thin rule, then each dictionary's definitions under its name, numbered ①, ② when
-it has more than one. It leaves out voice, tags, notes, pitch, frequency, Anki and Open in
+over a thin rule, then each dictionary's definitions right under its name as a small
+tinted label, numbered ①, ② when it has more than one. It leaves out voice, tags, notes, pitch, frequency, Anki and Open in
 Dictionary; triggers, child popups, size, colors, corners, text size and line height
 are the popup's own settings. The popup's headwords, readings and definitions, in either
 style, use the chosen popup font, by default the included Zen Old Mincho.
