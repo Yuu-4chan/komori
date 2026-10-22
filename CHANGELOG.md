@@ -2,6 +2,16 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.2.0
+
+- The lookup popup has a Popup style in Settings > Reader popup: Standard, or Dictionary, which shows only each headword with furigana right on its kanji and each dictionary's definitions under a small label with its name, numbered ①②③ when there is more than one.
+- Settings > Reader popup > Lookup appearance has a Font for the popup's headwords, readings and definitions, Zen Old Mincho by default, chosen from the same fonts as the Reader.
+- The Standard popup's headword, dictionary names, tags, frequencies, pitch lines and voice button are smaller, so the definitions lead. A wrapped pitch line no longer starts with a comma.
+- A lookup marks its matched text the way a selection is marked, in the Selection color. Highlight colors saved passages only.
+- Appearance, Images, Bookmarks, Notes and Search take the whole Reader sidebar, without the book card, tool tiles or progress card, until Back.
+- Wide two-page spread images show whole in every Reader view instead of losing their edge or being pushed off their page.
+- Settings rows use smaller controls, and a font picker is laid out like the other rows. In narrow windows a menu's arrow stays inside its field.
+
 ## 1.1.0
 
 - Discord status: Settings > Discord can show the book you are reading in Discord, with its title, book progress, chapter progress and reading speed, each of which can be hidden. After 5 minutes without reading it shows Idle. The Komori icon in the status opens Komori's GitHub page. It is off by default.
