@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  LOOKUP_MARKS,
   markBoxes,
   NOTE_HOVER,
   NOTE_MARKS,
   noteAtPoint,
   noteHoverCursor,
   noteHighlightRanges,
+  paintLookupMatch,
   paintSelection,
   SELECTION_MARKS,
   textRanges,
@@ -149,6 +151,28 @@ describe("saved passage clicks and the painted selection", () => {
     expect(marks()).toBeNull();
     expect(doc.querySelector(`[${SELECTION_MARKS}-hide]`)).toBeNull();
     stop();
+    doc.body.replaceChildren();
+  });
+  it("marks a lookup's match as selected text is marked, without selecting it", () => {
+    const doc = document;
+    doc.body.innerHTML = "<p>読む本</p>";
+    const text = doc.querySelector("p")!.firstChild!;
+    const match = doc.createRange();
+    match.setStart(text, 0);
+    match.setEnd(text, 2);
+    const marks = () => doc.documentElement.querySelector(`:scope > [${LOOKUP_MARKS}]`);
+    expect(paintLookupMatch(doc, [])).toBeTypeOf("function");
+    expect(marks()).toBeNull();
+    const clear = paintLookupMatch(doc, [match]);
+    // The selection's rounded marks, in their own layer outside the body.
+    expect(marks()?.getAttribute("aria-hidden")).toBe("true");
+    expect(doc.querySelector(`[${LOOKUP_MARKS}-style]`)?.textContent).toContain(
+      "border-radius: 0.2em",
+    );
+    expect(doc.getSelection()!.rangeCount).toBe(0);
+    clear();
+    expect(marks()).toBeNull();
+    expect(doc.querySelector(`[${LOOKUP_MARKS}-style]`)).toBeNull();
     doc.body.replaceChildren();
   });
 });

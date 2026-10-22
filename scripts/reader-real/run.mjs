@@ -691,6 +691,24 @@ scenario("wide-images", async () => {
       }
 });
 
+// A pointer lookup's match paints as selected text does: the same marks, in the same color.
+scenario("lookup-paint", async () => {
+  for (const viewMode of ["paginated", "semi-continuous"]) {
+    await open("S12-wide-spreads", { readerViewMode: viewMode });
+    const paint = await evaluate("__readerReal.lookupPaint()");
+    const name = `lookup paint ${viewMode}`;
+    check(
+      name,
+      "marks the match as the selection marks the same text",
+      !!paint?.lookup.length && JSON.stringify(paint.lookup) === JSON.stringify(paint.selected),
+      paint
+        ? `${paint.text}: lookup ${paint.lookup.join("; ")}; selection ${paint.selected.join("; ")}`
+        : "no text",
+    );
+    check(name, "clears its marks with the match", !!paint?.cleared);
+  }
+});
+
 scenario("resize-continuous", () =>
   resizeKeepsPoint("resize continuous", { readerViewMode: "continuous" }, () => scroll(500, 6)),
 );

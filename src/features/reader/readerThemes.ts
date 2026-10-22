@@ -27,9 +27,9 @@ export type ReaderPresetThemeId =
 export interface ReaderThemeColors {
   background: string;
   text: string;
-  /** Behind text selected in the book. */
+  /** Behind text selected in the book, and behind the text a pointer lookup matched. */
   selection: string;
-  /** Temporary pointer-lookup match paint, independent of browser selection. */
+  /** Behind saved passages, independent of Selection. */
   highlight: string;
   /** The footer's progress text. */
   footerText: string;
@@ -153,7 +153,7 @@ export function normalizeCustomThemes(value: unknown): ReaderCustomTheme[] | und
   const themes: ReaderCustomTheme[] = [];
   for (const stored of value) {
     if (themes.length === readerCustomThemeLimit) break;
-    // Older saved themes painted pointer matches with Selection. Only an absent
+    // Older saved themes had no Highlight and took Selection for it. Only an absent
     // Highlight gets that compatibility value; an invalid new value is rejected.
     const theme =
       stored && typeof stored === "object" && !Object.hasOwn(stored, "highlight")

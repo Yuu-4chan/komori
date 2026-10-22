@@ -63,6 +63,8 @@ export function noteHighlightResolver(document: Document): (note: NotePassage) =
 export const NOTE_MARKS = "data-komori-note-marks";
 /** The layer that paints the reader's text selection the same way, above saved passages. */
 export const SELECTION_MARKS = "data-komori-selection-marks";
+/** The layer that paints a pointer lookup's matched text as the selection is painted. */
+export const LOOKUP_MARKS = "data-komori-lookup-marks";
 /** Each saved-passage mark names its note. */
 const NOTE_ID = "data-note-id";
 const XHTML = "http://www.w3.org/1999/xhtml";
@@ -373,4 +375,13 @@ export function paintSelection(document: Document): () => void {
     document.removeEventListener("selectionchange", change);
     clear();
   };
+}
+
+/**
+ * Paint the text a pointer lookup matched with the same marks as the reader's selection,
+ * without selecting it, so a lookup looks like selected text whatever triggered it.
+ */
+export function paintLookupMatch(document: Document, ranges: Range[]): () => void {
+  if (!ranges.length) return () => {};
+  return paintMarks(document, LOOKUP_MARKS, "Highlight", -1, () => [{ ranges }]).clear;
 }

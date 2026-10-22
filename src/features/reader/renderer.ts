@@ -379,9 +379,12 @@ export interface ReaderPresentation {
    * each book keeps its own.
    */
   textColor?: string;
-  /** The `#rrggbb` color behind text selected in the book. Absent, the browser's own. */
+  /**
+   * The `#rrggbb` color behind text selected in the book and behind a pointer lookup's
+   * match. Absent, the browser's own.
+   */
   selectionColor?: string;
-  /** The `#rrggbb` color of temporary pointer matches. Absent, no chosen paint color. */
+  /** The `#rrggbb` color behind saved passages. Absent, Komori's default yellow. */
   highlightColor?: string;
   /**
    * Whether reflowable books turn pages, scroll continuously across sections, or scroll

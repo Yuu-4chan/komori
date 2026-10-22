@@ -239,6 +239,45 @@
     return found;
   };
 
+  /**
+   * Paints two characters of the first displayed paragraph as a pointer lookup's match, as the
+   * Reader does once a lookup finds them, then selects the same characters, and returns each
+   * paint's marks (box and color) and whether clearing the match removed its own.
+   */
+  R.lookupPaint = async () => {
+    const a = R.adapter();
+    const doc = views(a)[0]?.contents.document;
+    const text = [...(doc?.querySelectorAll("p") ?? [])]
+      .map((p) => p.firstChild)
+      .find((node) => node?.nodeType === Node.TEXT_NODE && node.data.includes("〉"));
+    if (!text) return null;
+    const range = doc.createRange();
+    const start = text.data.indexOf("〉") + 1;
+    range.setStart(text, start);
+    range.setEnd(text, start + 2);
+    const marks = (attribute) =>
+      [...(doc.documentElement.querySelector(`:scope > [${attribute}]`)?.children ?? [])].map(
+        (mark) => {
+          const r = mark.getBoundingClientRect();
+          const color = doc.defaultView.getComputedStyle(mark).backgroundColor;
+          return [r.left, r.top, r.width, r.height].map(Math.round).join(",") + " " + color;
+        },
+      );
+    a.pointerScan = { id: -1, ranges: [range] };
+    a.highlightPointerMatch(-1, 2);
+    const lookup = marks("data-komori-lookup-marks");
+    a.highlightPointerMatch(null);
+    const cleared = !doc.documentElement.querySelector(":scope > [data-komori-lookup-marks]");
+    const selection = doc.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range.cloneRange());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const selected = marks("data-komori-selection-marks");
+    selection.removeAllRanges();
+    return { text: range.toString(), lookup, selected, cleared };
+  };
+
   /** The markers of the paragraphs whose first character is in the reader viewport. */
   R.visibleMarkers = () => {
     const vp = viewport();

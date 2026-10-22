@@ -8319,7 +8319,7 @@ describe("EPUB.js renderer adapter", () => {
             "{ color: color-mix(in srgb, #d9dce3 60%, #3d7be0) !important; }",
           ":root ::selection { background-color: transparent !important; }",
           ":root [data-komori-selection-marks] span { background-color: #3e4e6e !important; }",
-          "::highlight(komori-pointer-match) { background-color: #475b82 !important; }",
+          ":root [data-komori-lookup-marks] span { background-color: #3e4e6e !important; }",
           ":root [data-komori-note-marks] span { background-color: #475b82 !important; }",
           "}",
         ].join("\n"),
@@ -8411,10 +8411,15 @@ describe("EPUB.js renderer adapter", () => {
           highlightColor: "#89b4fa",
         });
         expect(colorStyle(contents.document)).toContain("background-color: #123456 !important");
-        for (const target of [sections[0].document, contents.document])
+        for (const target of [sections[0].document, contents.document]) {
+          // A lookup's match paints as selected text does.
           expect(colorStyle(target)).toContain(
-            "::highlight(komori-pointer-match) { background-color: #89b4fa !important; }",
+            ":root [data-komori-lookup-marks] span { background-color: #123456 !important; }",
           );
+          expect(colorStyle(target)).toContain(
+            ":root [data-komori-note-marks] span { background-color: #89b4fa !important; }",
+          );
+        }
         // Highlight alone changes in displayed and cached sections, with Selection kept.
         await renderer.setPresentation?.({
           fontSize: 16,
@@ -8428,7 +8433,7 @@ describe("EPUB.js renderer adapter", () => {
             ":root [data-komori-selection-marks] span { background-color: #123456 !important; }",
           );
           expect(colorStyle(target)).toContain(
-            "::highlight(komori-pointer-match) { background-color: #abcdef !important; }",
+            ":root [data-komori-note-marks] span { background-color: #abcdef !important; }",
           );
         }
         await renderer.setPresentation?.({
@@ -10002,65 +10007,78 @@ describe("EPUB.js renderer adapter", () => {
       }
     });
 
-    it("paints only the matched Unicode start across ruby and inline text, replaces and clears without changing selection or markup", async () => {
+    it("paints only the matched Unicode start across ruby and inline text as selected text, replaces and clears without changing selection or markup", async () => {
       const view = await mountSelectable(
         '<p style="writing-mode: vertical-rl">本<ruby>𠮷<rt>よし</rt><rp>(よし)</rp></ruby><span>読む</span></p>',
       );
-      const registry = new Map<string, Set<Range>>();
-      Object.defineProperty(view.contentDocument.defaultView, "CSS", {
-        configurable: true,
-        value: { highlights: registry },
-      });
-      Object.defineProperty(view.contentDocument.defaultView, "Highlight", {
-        configurable: true,
-        value: class extends Set<Range> {
-          constructor(...ranges: Range[]) {
-            super(ranges);
-          }
-        },
-      });
-      const paint = () => [...(registry.get("komori-pointer-match") ?? [])];
+      const layer = () =>
+        view.contentDocument.documentElement.querySelector(":scope > [data-komori-lookup-marks]");
+      // While a match paints, each piece of text it measures lies on a row of its own, so
+      // every mark names its text.
+      const measured: string[] = [];
+      let painting = false;
+      const paint = () =>
+        [...(layer()?.children ?? [])].map(
+          (mark) => measured[Math.round(parseFloat((mark as HTMLElement).style.top) / 100)],
+        );
+      const match = (scanId: number | null, length?: number) => {
+        painting = true;
+        try {
+          view.renderer.highlightPointerMatch!(scanId, length);
+        } finally {
+          painting = false;
+        }
+      };
       try {
         const paragraph = view.contentDocument.querySelector("p")!;
         const html = paragraph.outerHTML;
         view.select([paragraph.firstChild!, 0], [paragraph.firstChild!, 1]);
         const original = view.contentDocument.getSelection()!.getRangeAt(0);
         const hit = pointAt(view, paragraph.querySelector("ruby")!.firstChild!, 0);
+        const scanRange = vi.mocked(view.contentDocument.createRange).getMockImplementation()!;
+        vi.mocked(view.contentDocument.createRange).mockImplementation(() => {
+          const range = scanRange();
+          const rects = range.getClientRects;
+          range.getClientRects = () => {
+            if (!painting) return rects();
+            measured.push(range.toString());
+            return [new DOMRect(10, (measured.length - 1) * 100, 20, 20)] as unknown as DOMRectList;
+          };
+          return range;
+        });
         hit.move();
         const firstId = view.selected.mock.lastCall![0].scanId;
-        view.renderer.highlightPointerMatch!(firstId, 2);
-        expect(paint().map((range) => range.toString())).toEqual(["𠮷", "読"]);
-        expect(paint()[0].endOffset).toBe(2);
-        expect(
-          paint().every((range) => !range.startContainer.parentElement?.closest("rt, rp")),
-        ).toBe(true);
+        match(firstId, 2);
+        // The selection's marks, outside the book's markup, without its ruby annotations.
+        expect(paint()).toEqual(["𠮷", "読"]);
+        expect(layer()!.getAttribute("aria-hidden")).toBe("true");
         expect(view.contentDocument.getSelection()!.getRangeAt(0)).toBe(original);
         expect(paragraph.outerHTML).toBe(html);
         hit.caret.setStart(paragraph.querySelector("span")!.firstChild!, 1);
         hit.move();
         expect(paint()).toEqual([]);
         const secondId = view.selected.mock.lastCall![0].scanId;
-        view.renderer.highlightPointerMatch!(secondId, 1);
-        expect(paint().map((range) => range.toString())).toEqual(["む"]);
-        view.renderer.highlightPointerMatch!(firstId, 0);
-        view.renderer.highlightPointerMatch!(firstId, 2);
-        expect(paint().map((range) => range.toString())).toEqual(["む"]);
-        view.renderer.highlightPointerMatch!(secondId, 0);
+        match(secondId, 1);
+        expect(paint()).toEqual(["む"]);
+        match(firstId, 0);
+        match(firstId, 2);
+        expect(paint()).toEqual(["む"]);
+        match(secondId, 0);
         expect(paint()).toEqual([]);
-        view.renderer.highlightPointerMatch!(secondId, 1);
+        match(secondId, 1);
         view.rendition.emit("resized");
         expect(paint()).toEqual([]);
-        view.renderer.highlightPointerMatch!(secondId, 1);
+        match(secondId, 1);
         expect(paint()).toEqual([]);
         document.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
         hit.move();
-        view.renderer.highlightPointerMatch!(view.selected.mock.lastCall![0].scanId, 1);
+        match(view.selected.mock.lastCall![0].scanId, 1);
         expect(paint().length).toBe(1);
-        view.renderer.highlightPointerMatch!(null);
+        match(null);
         expect(paint()).toEqual([]);
         document.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
         hit.move();
-        view.renderer.highlightPointerMatch!(view.selected.mock.lastCall![0].scanId, 1);
+        match(view.selected.mock.lastCall![0].scanId, 1);
         view.renderer.dispose();
         expect(paint()).toEqual([]);
         expect(view.contentDocument.getSelection()!.getRangeAt(0)).toBe(original);

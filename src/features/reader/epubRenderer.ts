@@ -90,8 +90,10 @@ import { normalizeBookmarkLocator } from "./bookmarks";
 import { notePassage } from "./noteCapture";
 import type { NotePassage, ReaderNote } from "./notes";
 import {
+  LOOKUP_MARKS,
   NOTE_MARKS,
   noteHighlightResolver,
+  paintLookupMatch,
   paintNoteHighlights,
   paintSelection,
   SELECTION_MARKS,
@@ -4384,9 +4386,7 @@ class EpubRenderer implements ReaderRenderer {
     if (!Number.isInteger(length) || length <= 0 || length > 256) return;
     const ranges = this.pointerScan!.ranges;
     const document = ranges[0]?.startContainer.ownerDocument;
-    const view = document?.defaultView as (Window & typeof globalThis) | null;
-    const registry = view?.CSS?.highlights;
-    if (!registry || !view?.Highlight) return;
+    if (!document?.defaultView) return;
     const matched: Range[] = [];
     let remaining = length;
     for (const range of ranges) {
@@ -4400,8 +4400,7 @@ class EpubRenderer implements ReaderRenderer {
     }
     // A response must describe a start that exists in this scan.
     if (remaining) return;
-    registry.set("komori-pointer-match", new view.Highlight(...matched));
-    this.clearPointerPaint = () => registry.delete("komori-pointer-match");
+    this.clearPointerPaint = paintLookupMatch(document, matched);
   }
 
   dispose(): void {
@@ -5664,7 +5663,7 @@ const LINK_HUE = "#3d7be0";
 
 /**
  * The chosen text color on the root and every element, links tinted toward a blue, and
- * the independently chosen selection and pointer-match colors. The book's own backgrounds
+ * the independently chosen selection (also a pointer lookup's match) and saved-passage colors. The book's own backgrounds
  * give way to the Reader's page, so its text keeps its contrast; images keep theirs. Important declarations in a layer
  * outrank the book's important ones whatever their specificity. Colors change no layout.
  */
@@ -5684,14 +5683,15 @@ function colorRules(
     );
   }
   // The selection paints as line marks, like saved passages; the browser's own stays clear.
+  // A pointer lookup's match paints as selected text does.
   if (selection !== undefined)
     rules.push(
       ":root ::selection { background-color: transparent !important; }",
       `:root [${SELECTION_MARKS}] span { background-color: ${selection} !important; }`,
+      `:root [${LOOKUP_MARKS}] span { background-color: ${selection} !important; }`,
     );
   if (highlight !== undefined)
     rules.push(
-      `::highlight(komori-pointer-match) { background-color: ${highlight} !important; }`,
       // No child combinator: EPUB.js serializes the section as XHTML before showing it,
       // which would turn ">" into a literal "&gt;" that matches nothing.
       `:root [${NOTE_MARKS}] span { background-color: ${highlight} !important; }`,

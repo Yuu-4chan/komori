@@ -95,6 +95,8 @@ and centre the character under their Kanji label.
 With click lookup on, the mouse trigger can also be a middle click, which scans text and
 leaves blank space to autoscroll.
 Alt+wheel reveals the beginning of a tall selected entry.
+The text a scan, click or hover lookup matched is marked in the book as selected text is,
+in the theme's Selection color, until the popup closes.
 
 The experimental Dictionary style (Settings > Reader popup > Popup style) turns the popup
 into a compact dictionary for reading with fast lookups: each headword with its furigana
