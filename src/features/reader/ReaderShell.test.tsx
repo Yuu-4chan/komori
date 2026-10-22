@@ -1393,21 +1393,26 @@ describe("Reader shell", () => {
     );
     expect(within(sidebar).getByLabelText("Chapter 5% read")).toBeInTheDocument();
 
-    // The contents show by default; each tool opens its panel, and a second press returns.
+    // The contents show by default; each tool opens its panel, which takes the whole sidebar
+    // under the top bar until its arrow returns.
     const tools = within(sidebar).getByRole("group", { name: "Book tools" });
     expect(
       within(tools)
         .getAllByRole("button")
         .map((tool) => tool.textContent),
     ).toEqual(["Images", "Bookmarks", "Notes", "Search"]);
-    const search = within(tools).getByRole("button", { name: "Search" });
-    await user.click(search);
-    expect(search).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(tools).getByRole("button", { name: "Search" }));
     expect(screen.queryByRole("heading", { name: "Chapters" })).not.toBeInTheDocument();
-    await user.click(search);
-    expect(search).toHaveAttribute("aria-pressed", "false");
+    expect(within(sidebar).queryByRole("group", { name: "Book tools" })).not.toBeInTheDocument();
+    expect(within(sidebar).queryByRole("heading", { name: "星降る町の手紙" })).toBeNull();
+    expect(within(sidebar).queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: "Reader appearance" })).toBeInTheDocument();
+    await user.click(within(sidebar).getByRole("button", { name: "Back to reader controls" }));
     expect(screen.getByRole("heading", { name: "Chapters" })).toBeInTheDocument();
-    expect(search).toHaveFocus();
+    expect(within(sidebar).getByRole("progressbar", { name: "Book progress" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(sidebar).getByRole("button", { name: "Search" })).toHaveFocus(),
+    );
 
     // A book outside any series shows no series line.
     view.rerender(

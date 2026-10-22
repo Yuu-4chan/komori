@@ -73,9 +73,10 @@ interface ReaderSidebarProps {
 
 /**
  * The Reader sidebar: a top bar with the back arrow, Appearance and pin; the book's card with its
- * cover, title, author and series; the tool bar under it; then the book's contents, or the panel
- * chosen from the tool bar; and along the bottom, the current chapter and how far it and the book
- * are read. Floating, it is an inset card over the book; pinned, it sits beside the book.
+ * cover, title, author and series; the tool bar under it; then the book's contents; and along the
+ * bottom, the current chapter and how far it and the book are read. A panel chosen from the tool
+ * bar, or Appearance, takes the whole sidebar under the top bar, whose arrow returns to the
+ * contents. Floating, it is an inset card over the book; pinned, it sits beside the book.
  */
 export function ReaderSidebar({
   identity,
@@ -114,6 +115,7 @@ export function ReaderSidebar({
   const book = identity.status === "book" ? identity.book : null;
   const { t } = useI18n();
   const appearanceOpen = view === "appearance";
+  const panelOpen = view !== "main";
   const contentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (contentRef.current) contentRef.current.scrollTop = 0;
@@ -201,40 +203,41 @@ export function ReaderSidebar({
           ) : null}
         </div>
       </div>
-      <BookCard identity={identity} />
-      {/* A tool's second press returns to the contents. */}
-      <div className="reader-sidebar__tools" role="group" aria-label={t("sidebar.tools")}>
-        <ToolButton
-          buttonRef={imagesRef}
-          active={view === "images"}
-          label={t("sidebar.images")}
-          onClick={view === "images" ? onCloseAppearance : onOpenImages}
-          icon={<ImagesIcon aria-hidden="true" />}
-        />
-        <ToolButton
-          buttonRef={bookmarksRef}
-          active={view === "bookmarks"}
-          label={t("sidebar.bookmarks")}
-          count={bookmarks.bookmarks.status === "ready" ? bookmarks.bookmarks.items.length : null}
-          onClick={view === "bookmarks" ? onCloseAppearance : onOpenBookmarks}
-          icon={<BookmarkSimpleIcon aria-hidden="true" />}
-        />
-        <ToolButton
-          buttonRef={notesRef}
-          active={view === "notes"}
-          label={t("sidebar.notes")}
-          count={notes.notes.status === "ready" ? notes.notes.items.length : null}
-          onClick={view === "notes" ? onCloseAppearance : onOpenNotes}
-          icon={<NotePencilIcon aria-hidden="true" />}
-        />
-        <ToolButton
-          buttonRef={searchRef}
-          active={view === "search"}
-          label={t("sidebar.search")}
-          onClick={view === "search" ? onCloseAppearance : onOpenSearch}
-          icon={<MagnifyingGlassIcon aria-hidden="true" />}
-        />
-      </div>
+      {panelOpen ? null : (
+        <>
+          <BookCard identity={identity} />
+          <div className="reader-sidebar__tools" role="group" aria-label={t("sidebar.tools")}>
+            <ToolButton
+              buttonRef={imagesRef}
+              label={t("sidebar.images")}
+              onClick={onOpenImages}
+              icon={<ImagesIcon aria-hidden="true" />}
+            />
+            <ToolButton
+              buttonRef={bookmarksRef}
+              label={t("sidebar.bookmarks")}
+              count={
+                bookmarks.bookmarks.status === "ready" ? bookmarks.bookmarks.items.length : null
+              }
+              onClick={onOpenBookmarks}
+              icon={<BookmarkSimpleIcon aria-hidden="true" />}
+            />
+            <ToolButton
+              buttonRef={notesRef}
+              label={t("sidebar.notes")}
+              count={notes.notes.status === "ready" ? notes.notes.items.length : null}
+              onClick={onOpenNotes}
+              icon={<NotePencilIcon aria-hidden="true" />}
+            />
+            <ToolButton
+              buttonRef={searchRef}
+              label={t("sidebar.search")}
+              onClick={onOpenSearch}
+              icon={<MagnifyingGlassIcon aria-hidden="true" />}
+            />
+          </div>
+        </>
+      )}
       <div
         ref={contentRef}
         className={`reader-sidebar__content scroll-safe${view === "main" ? " reader-sidebar__content--contents" : ""}`}
@@ -277,7 +280,7 @@ export function ReaderSidebar({
           </div>
         )}
       </div>
-      {progress && progress.total ? (
+      {!panelOpen && progress && progress.total ? (
         <ReadingProgress progress={progress} chapterLabel={chapterLabel ?? null} />
       ) : null}
     </aside>
@@ -376,17 +379,15 @@ function ReadingProgress({
   );
 }
 
-/** One of the tool bar's panels: its icon over its name, pressed while the panel shows. */
+/** One of the tool bar's panels: its icon over its name. */
 function ToolButton({
   buttonRef,
-  active,
   label,
   count = null,
   icon,
   onClick,
 }: {
   buttonRef: Ref<HTMLButtonElement>;
-  active: boolean;
   label: string;
   count?: number | null;
   icon: ReactNode;
@@ -398,7 +399,6 @@ function ToolButton({
       type="button"
       className="reader-sidebar__tool"
       aria-label={count === null ? label : `${label} (${count})`}
-      aria-pressed={active}
       onClick={onClick}
     >
       {icon}

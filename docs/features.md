@@ -33,7 +33,9 @@ back. The search stays in the top bar even in an empty Library.
   under it; the chapters under a `Chapters` label as a scrolling timeline (read, current, unread) with each entry's
   start; at the bottom, the current chapter with its read percentage and the book's
   `Ch.` (or `Wo.`) position with a progress bar. Pinned or floating, it is the same
-  vertically centered card no taller than 960px. Pinning keeps it visible and reserves
+  vertically centered card no taller than 960px. Appearance, Images, Bookmarks, Notes
+  and Search take the whole card under its round buttons, without the book's card, the
+  tiles or the bottom progress, until Back returns to the chapters. Pinning keeps it visible and reserves
   reading space on roomy windows. Floating, it is hidden when a book opens until the
   window's left edge, focus or S brings it. S toggles the
   sidebar (reopening on its controls), A toggles Appearance, G opens Images, Ctrl+F Search, Ctrl+B Bookmarks and R

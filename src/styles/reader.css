@@ -327,12 +327,6 @@
   border-color: var(--border-medium);
 }
 
-.reader-sidebar__tool[aria-pressed="true"] {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border-color: var(--border-accent);
-}
-
 .reader-sidebar__tool:focus-visible {
   outline: var(--focus-ring);
   outline-offset: -2px;
