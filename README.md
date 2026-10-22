@@ -109,7 +109,7 @@ computer. See [docs/privacy.md](docs/privacy.md) for details.
 | [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with Desktop development with C++ | 2022 (17.14.40)                          |
 | [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)                               | 155.0.4283.45                            |
 | [Rust](https://rustup.rs/) (MSVC toolchain)                                                                               | 1.98.1 (`stable-x86_64-pc-windows-msvc`) |
-| [Node.js](https://nodejs.org/)                                                                                            | 26.3.0                                   |
+| [Node.js](https://nodejs.org/)                                                                                            | 26.12.1                                  |
 | [pnpm](https://pnpm.io/)                                                                                                  | 11.19.0 (pinned in `package.json`)       |
 
 See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for more on the
