@@ -218,6 +218,164 @@ describe("EPUB.js renderer adapter", () => {
     renderer.dispose();
   });
 
+  /** A fixed-layout book whose pages declare these spread sides, and its view manager. */
+  async function mountFixedSpreads(direction: "ltr" | "rtl", sides: Array<string | undefined>) {
+    const pages = sides.map((side, index) =>
+      Object.assign(section(`Text/p${index}.xhtml`, ""), {
+        index,
+        properties: side ? [`page-spread-${side}`] : [],
+      }),
+    );
+    const { book, rendition } = mockBook(pages);
+    Object.assign(book.package, { metadata: { layout: "pre-paginated", direction } });
+    const { manager } = rendition;
+    // EPUB.js's view manager: a double layout gives each page half the reading area, and
+    // adding a section appends its view in the stage's progression.
+    type View = { section: (typeof pages)[number]; element: HTMLElement };
+    const views: View[] = [];
+    const format = vi.fn();
+    Object.assign(manager.layout, { divisor: 2, columnWidth: 533, format });
+    const original = {
+      display: vi.fn(async () => undefined),
+      next: vi.fn(async () => undefined),
+      prev: vi.fn(async () => undefined),
+    };
+    Object.assign(manager, {
+      ...original,
+      views: { all: () => views, displayed: () => views, remove: vi.fn(), show: vi.fn() },
+      add: vi.fn(async (shown: (typeof pages)[number]) => {
+        views.push({ section: shown, element: document.createElement("div") });
+      }),
+      clear: vi.fn(() => views.splice(0)),
+    });
+    const hooked = manager as unknown as {
+      display(section: unknown): Promise<unknown>;
+      next(): Promise<unknown> | undefined;
+      prev(): Promise<unknown> | undefined;
+      layout: { format(contents: unknown, section: unknown): unknown };
+    };
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 16, pageLayout: "double" },
+    );
+    const shown = () => views.map((view) => view.section.index);
+    return { pages, manager, hooked, original, views, shown, format, renderer };
+  }
+
+  it("pairs a right-to-left fixed-layout book's pages by their sides and turns through its spreads", async () => {
+    const { pages, manager, hooked, original, views, shown, renderer } = await mountFixedSpreads(
+      "rtl",
+      ["left", "right", "left", "right", "left", undefined],
+    );
+    try {
+      // Read right to left, a spread starts on its right page and the cover, declared on
+      // the left, stands alone there.
+      await hooked.display(pages[2]);
+      expect(shown()).toEqual([1, 2]);
+      await hooked.next();
+      expect(shown()).toEqual([3, 4]);
+      await hooked.next();
+      expect(shown()).toEqual([5]);
+      expect(views[0].element.style.marginRight).toBe("");
+      expect(hooked.next()).toBeUndefined();
+      await hooked.prev();
+      expect(shown()).toEqual([3, 4]);
+      await hooked.prev();
+      await hooked.prev();
+      expect(shown()).toEqual([0]);
+      expect(views[0].element.style.marginRight).toBe("533px");
+      expect(hooked.prev()).toBeUndefined();
+      expect(manager.updateLayout).toHaveBeenCalled();
+      expect(original.display).not.toHaveBeenCalled();
+      expect(original.next).not.toHaveBeenCalled();
+      expect(original.prev).not.toHaveBeenCalled();
+      // One page at a time, EPUB.js turns the pages itself.
+      Object.assign(manager.layout, { divisor: 1 });
+      await hooked.next();
+      await hooked.display(pages[2]);
+      expect(original.next).toHaveBeenCalledOnce();
+      expect(original.display).toHaveBeenCalledOnce();
+    } finally {
+      renderer.dispose();
+    }
+  });
+
+  it("shows a fixed-layout right page beside its declared left page and sets pages against the spine", async () => {
+    const { pages, manager, hooked, views, shown, format, renderer } = await mountFixedSpreads(
+      "ltr",
+      ["right", "left", "right", undefined, undefined, "left", "center", "right"],
+    );
+    try {
+      // The cover starts the book on the right; a right page opened directly brings
+      // the left one before it.
+      await hooked.display(pages[0]);
+      expect(shown()).toEqual([0]);
+      expect(views[0].element.style.marginLeft).toBe("533px");
+      await hooked.display(pages[2]);
+      expect(shown()).toEqual([1, 2]);
+      // Undeclared pages pair as they follow. A left page stands alone before a centered
+      // page, which is alone too, as is the right page after it.
+      await hooked.next();
+      expect(shown()).toEqual([3, 4]);
+      await hooked.next();
+      expect(shown()).toEqual([5]);
+      expect(views[0].element.style.marginLeft).toBe("");
+      await hooked.next();
+      expect(shown()).toEqual([6]);
+      expect(views[0].element.style.marginLeft).toBe("266.5px");
+      await hooked.next();
+      expect(shown()).toEqual([7]);
+      expect(views[0].element.style.marginLeft).toBe("533px");
+
+      // A page half as wide as tall fits the reading area's height, beside the spine:
+      // the left page's spare width lies before it and the right page's after it.
+      const css = vi.fn();
+      const contents = (viewport: { width: string; height: string }) => ({
+        document,
+        viewport: () => viewport,
+        css,
+      });
+      const portrait = contents({ width: "500", height: "1000" });
+      hooked.layout.format(portrait, pages[1]);
+      expect(format).toHaveBeenLastCalledWith(portrait, pages[1]);
+      expect(css.mock.calls).toEqual([
+        ["margin-left", "143px"],
+        ["margin-top", "0px"],
+      ]);
+      css.mockClear();
+      hooked.layout.format(portrait, pages[2]);
+      expect(css).toHaveBeenCalledWith("margin-left", "0px");
+      // A page alone in the center of its spread, or a single page, is centered, a wide
+      // one in the area's height too.
+      css.mockClear();
+      hooked.layout.format(portrait, pages[6]);
+      expect(css).toHaveBeenCalledWith("margin-left", "71.5px");
+      Object.assign(manager.layout, { divisor: 1, columnWidth: 1066 });
+      css.mockClear();
+      hooked.layout.format(contents({ width: "1000", height: "500" }), pages[1]);
+      expect(css.mock.calls).toEqual([
+        ["margin-left", "0px"],
+        ["margin-top", "123.5px"],
+      ]);
+      css.mockClear();
+      hooked.layout.format(portrait, pages[1]);
+      expect(css).toHaveBeenCalledWith("margin-left", "338px");
+      // A page without a declared size keeps EPUB.js's placement.
+      css.mockClear();
+      hooked.layout.format(contents({ width: "", height: "" }), pages[1]);
+      expect(css).not.toHaveBeenCalled();
+    } finally {
+      renderer.dispose();
+    }
+  });
+
   it("publishes measured contents starts, aliases and honest unresolved fragments without navigating", async () => {
     const sections = [
       section(
@@ -1538,6 +1696,144 @@ describe("EPUB.js renderer adapter", () => {
     } finally {
       renderer.dispose();
       container.remove();
+    }
+  });
+
+  async function mountLongContinuous(count: number) {
+    const { rendition } = mockBook(
+      Array.from({ length: count }, (_, index) => section(`Text/${index}.xhtml`, `${index}`)),
+    );
+    const container = document.createElement("div");
+    document.body.append(container);
+    vi.spyOn(container, "getBoundingClientRect").mockImplementation(
+      () => ({ top: 0, bottom: 500, left: 0, right: 100, width: 100, height: 500 }) as DOMRect,
+    );
+    // jsdom has no layout: every section is 100px tall, loaded or not.
+    const views = Array.from({ length: count }, (_, index) => {
+      const element = document.createElement("div");
+      vi.spyOn(element, "getBoundingClientRect").mockImplementation(() => {
+        const top = index * 100 - container.scrollTop;
+        return { top, bottom: top + 100, left: 0, right: 100, width: 100, height: 100 } as DOMRect;
+      });
+      const view = {
+        element,
+        section: { index, href: `Text/${index}.xhtml`, prev: () => null, next: () => null },
+        displayed: true,
+        display: vi.fn(async () => {
+          view.displayed = true;
+          return view;
+        }),
+        destroy: vi.fn(() => {
+          view.displayed = false;
+        }),
+        show: vi.fn(),
+        hide: vi.fn(),
+      };
+      return view;
+    });
+    const update = vi.fn(async () => undefined);
+    const display = vi.fn(async () => undefined);
+    Object.assign(rendition.manager, {
+      container,
+      settings: { axis: "vertical", direction: "ltr" },
+      views: {
+        all: () => views,
+        displayed: () => views.filter((view) => view.displayed),
+        remove: vi.fn(),
+      },
+      update,
+      display,
+    });
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 16, viewMode: "continuous" },
+    );
+    const rendered = rendition.on.mock.calls.find(([name]) => name === "rendered")?.[1] as (
+      section: unknown,
+      view: unknown,
+    ) => void;
+    return {
+      manager: rendition.manager as unknown as {
+        update(): Promise<unknown>;
+        display(section: unknown, target?: string): Promise<unknown>;
+      },
+      update,
+      display,
+      views,
+      container,
+      // EPUB.js reports each section once it has rendered and run its content hooks.
+      rendered: (first: number, last: number) => {
+        for (const view of views.slice(first, last + 1)) rendered(view.section, view);
+      },
+      loaded: () => views.flatMap((view) => (view.displayed ? [view.section.index] : [])),
+      dispose: () => {
+        renderer.dispose();
+        container.remove();
+      },
+    };
+  }
+
+  const sectionRange = (first: number, last: number) =>
+    Array.from({ length: last - first + 1 }, (_, index) => first + index);
+
+  it("keeps only the sections near the reading area loaded in a continuous book too long for its frames", async () => {
+    const book = await mountLongContinuous(450);
+    try {
+      // 200 sections in, each section rendered far from the reading area is released.
+      book.container.scrollTop = 20_000;
+      book.rendered(0, 449);
+      expect(book.loaded()).toEqual(sectionRange(176, 228));
+      expect(book.views[0].destroy).toHaveBeenCalled();
+      expect(book.views[200].destroy).not.toHaveBeenCalled();
+
+      // After a scroll, EPUB.js's update loads the sections near the new reading area.
+      book.container.scrollTop = 30_000;
+      await book.manager.update();
+      expect(book.update).not.toHaveBeenCalled();
+      expect(book.loaded()).toEqual(sectionRange(276, 328));
+      expect(book.views[300].display).toHaveBeenCalled();
+      expect(book.views[300].show).toHaveBeenCalled();
+      book.rendered(276, 328);
+
+      // Showing a released section scrolls to where it lies instead of laying the book out again.
+      await book.manager.display(book.views[100].section, "Text/100.xhtml");
+      expect(book.display).not.toHaveBeenCalled();
+      expect(book.container.scrollTop).toBe(10_000);
+      expect(book.loaded()).toEqual(sectionRange(76, 128));
+      book.rendered(76, 128);
+
+      // A point within a released section is found once it loads.
+      await book.manager.display(book.views[300].section, "Text/300.xhtml#note");
+      expect(book.container.scrollTop).toBe(30_000);
+      expect(book.display).toHaveBeenCalledWith(book.views[300].section, "Text/300.xhtml#note");
+      expect(book.views[300].displayed).toBe(true);
+      // The section last shown stays loaded wherever the reading area goes.
+      book.rendered(276, 328);
+      book.container.scrollTop = 40_000;
+      await book.manager.update();
+      expect(book.loaded()).toEqual([...sectionRange(276, 324), ...sectionRange(376, 428)]);
+    } finally {
+      book.dispose();
+    }
+  });
+
+  it("keeps every section loaded in a continuous book its frames allow", async () => {
+    const book = await mountLongContinuous(400);
+    try {
+      book.container.scrollTop = 20_000;
+      book.rendered(0, 399);
+      expect(book.loaded()).toEqual(sectionRange(0, 399));
+      await book.manager.update();
+      expect(book.update).toHaveBeenCalled();
+    } finally {
+      book.dispose();
     }
   });
 

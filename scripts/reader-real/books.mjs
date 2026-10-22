@@ -1,6 +1,7 @@
 // Synthetic EPUBs for the real-engine Reader smoke test, built in code from random letters and
-// numbered markers: S01-S09, S11-S15, a twin of S09 set right to left on its bodies alone, and a
-// vertical-lr twin of S11. Every paragraph starts with a marker such as [02-005] so a reading point is recognizable.
+// numbered markers: S01-S09, S11-S17, a twin of S09 set right to left on its bodies alone, a
+// vertical-lr twin of S11 and a left-to-right twin of S16. Every paragraph starts with a marker
+// such as [02-005] so a reading point is recognizable.
 import { crc32, deflateRawSync, deflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -576,6 +577,57 @@ export function buildBooks() {
       sections: placeholder,
       navEntries: [["Section0001.xhtml", "Start"]],
       ncx: navOf(placeholder),
+    }),
+  );
+  // S16: a right-to-left fixed-layout book whose pages declare their sides of a spread, the
+  // cover alone on the left, and its left-to-right twin with the cover alone on the right.
+  for (const [name, ppd, sides] of [
+    ["S16-fxl-rtl-spreads", "rtl", ["left", "right"]],
+    ["S16lr-fxl-ltr-spreads", "ltr", ["right", "left"]],
+  ]) {
+    const pages = Array.from({ length: 7 }, (_, i) => ({
+      id: `p${i}`,
+      href: `p${i}.xhtml`,
+      properties: `page-spread-${sides[i % 2]}`,
+      doc: xhtml(
+        `Page ${i}`,
+        `<div class="page" style="background:#${pad(((i * 53) % 200).toString(16), 2)}80c0">` +
+          `<p>[16-${pad(i, 3)}] ${words(12)}</p></div>`,
+        {
+          css: ["page.css"],
+          head: '<meta name="viewport" content="width=600, height=900"/>',
+        },
+      ),
+    }));
+    books.push(
+      epub(name, {
+        title: `Reader real ${name.split("-")[0]} fixed-layout spreads`,
+        sections: pages,
+        navEntries: pages.map(({ href }, i) => [href, `Page ${i}`]),
+        ppd,
+        meta:
+          '<meta property="rendition:layout">pre-paginated</meta>' +
+          '<meta property="rendition:spread">landscape</meta>',
+        files: [
+          {
+            href: "page.css",
+            type: "text/css",
+            data:
+              "html,body{margin:0;padding:0}body{width:600px;height:900px}" +
+              ".page{width:600px;height:900px;overflow:hidden}p{margin:0;padding:60px;font-size:40px}",
+          },
+        ],
+      }),
+    );
+  }
+  // S17: more sections than WebView2 loads frames in a page, the first chapter alone holding
+  // 1000 of them and the others 50.
+  const many = textSections(1100, 2);
+  books.push(
+    epub("S17-many-sections", {
+      title: "Reader real S17 many sections",
+      sections: many,
+      navEntries: navOf(many).filter((_, i) => i === 0 || (i >= 1000 && i % 50 === 0)),
     }),
   );
   return books;
