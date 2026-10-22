@@ -110,6 +110,8 @@
   --lookup-entry-placeholder-height: 15rem;
   --control-height: 2.625rem;
   --control-height-compact: 2rem;
+  /* A control in a list of settings rows, sized to its short choice or value. */
+  --control-height-row: 2.25rem;
   /* Every control's keyboard focus: one solid accent ring; each control keeps its own offset. */
   --focus-ring: 2px solid var(--accent-ink);
   --selection-box-size: 1.55rem;

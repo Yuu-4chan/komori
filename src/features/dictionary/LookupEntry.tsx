@@ -244,7 +244,10 @@ function DictionaryLookupEntryContent({
       aria-label={reading ? `${group.expression} (${reading})` : group.expression}
       className="dictionary-entry"
     >
-      <strong className="dictionary-entry__headword" lang="ja">
+      <strong
+        className={`dictionary-entry__headword${reading ? " dictionary-entry__headword--furigana" : ""}`}
+        lang="ja"
+      >
         {reading ? (
           <FuriganaHeadword
             expression={group.expression}

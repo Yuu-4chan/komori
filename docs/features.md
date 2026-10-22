@@ -85,8 +85,8 @@ back. The search stays in the top bar even in an empty Library.
 
 A lookup trigger (by default Shift scan, the Shift+Enter shortcut and a middle click on a
 word; mouse selection and hover can be turned on in Settings > Reader popup) opens a borderless floating sheet beside the text with the
-Dictionary's result entries: headword, reading (beside, or above as furigana spread over
-each kanji run), tags,
+Dictionary's result entries: headword (kept close to its definitions' size), reading
+(beside, or above as furigana spread over each kanji run), tags,
 frequency chips, pitch, and numbered, source-labelled collapsible definitions.
 Headword kanji and dictionary links open child popups up to the saved level. Each entry
 has Voice (a recorded pronunciation from the word audio sources) and, left to right, Open in Dictionary, Open card in Anki (when a card
@@ -100,7 +100,7 @@ in the theme's Selection color, until the popup closes.
 
 The experimental Dictionary style (Settings > Reader popup > Popup style) turns the popup
 into a compact dictionary for reading with fast lookups: each headword with its furigana
-over a thin rule, then each dictionary's definitions right under its name as a small
+right on its kanji over a thin rule, then each dictionary's definitions right under its name as a small
 tinted label, numbered ①, ② when it has more than one. It leaves out voice, tags, notes, pitch, frequency, Anki and Open in
 Dictionary; triggers, child popups, size, colors, corners, text size and line height
 are the popup's own settings. The popup's headwords, readings and definitions, in either

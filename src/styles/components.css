@@ -546,11 +546,14 @@
 }
 
 /* The control sits centered on the right, out of the text's flow, so a label and its hint stay
-   together whatever the control's height. */
+   together whatever the control's height. Row controls are lower than standalone ones, in a
+   column sized to the rows' short choices and values. */
 .settings-list > .settings-field {
+  --control-height: var(--control-height-row);
+  --settings-control-width: min(14rem, 42%);
   position: relative;
   min-height: calc(var(--control-height) + 1.5rem);
-  padding-right: calc(min(17rem, 42%) + 2rem);
+  padding-right: calc(var(--settings-control-width) + 2rem);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -576,12 +579,48 @@
   white-space: normal;
 }
 
-.settings-list > .settings-field :is(.select-control, .stepper, .text-field__input) {
+.settings-list
+  > .settings-field
+  :is(.select-control, .stepper, .text-field__input, .font-picker__controls) {
   position: absolute;
   top: 50%;
   right: 1rem;
-  width: min(17rem, 42%);
+  width: var(--settings-control-width);
   transform: translateY(-50%);
+}
+
+/* A font is a row like the others: its name and notes on the left, and on the right its field
+   with the "+" beside it as a button of the field's height. */
+.settings-list > .settings-field > .reader-font-field,
+.settings-list > .settings-field > .reader-font-field > .select-field {
+  display: contents;
+}
+
+.settings-list > .settings-field .font-picker__input-control {
+  height: var(--control-height);
+  box-shadow: var(--shadow-xs);
+}
+
+.settings-list > .settings-field .font-picker__input-control input {
+  min-height: 0;
+  height: 100%;
+  padding: 0 0.25rem 0 0.75rem;
+  font-weight: 550;
+}
+
+.settings-list > .settings-field .font-picker__controls > .icon-button {
+  width: var(--control-height);
+  height: var(--control-height);
+  color: var(--text-secondary);
+  background: var(--surface-card);
+  border-color: var(--border-medium);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+}
+
+.settings-list > .settings-field .font-picker__controls > .icon-button:hover {
+  color: var(--accent-strong);
+  border-color: var(--border-accent);
 }
 
 /* Above the cards' paragraph spacing: the hint sits right under its label. */
@@ -630,8 +669,13 @@
   .settings-list > .settings-field {
     padding-right: 1rem;
   }
-  .settings-list > .settings-field :is(.select-control, .stepper, .text-field__input) {
-    position: static;
+  .settings-list
+    > .settings-field
+    :is(.select-control, .stepper, .text-field__input, .font-picker__controls) {
+    /* In the flow, still the frame of a select's chevron. */
+    position: relative;
+    top: auto;
+    right: auto;
     width: 100%;
     order: 3;
     margin-top: 0.35rem;

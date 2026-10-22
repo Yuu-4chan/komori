@@ -762,8 +762,8 @@
 
 .reader-appearance-rows :is(.stepper, .select-control select, .font-picker__input-control),
 .reader-custom-theme-grid :is(.color-field__swatch, .color-field__hex) {
-  min-height: 2.25rem;
-  height: 2.25rem;
+  min-height: var(--control-height-row);
+  height: var(--control-height-row);
 }
 
 .reader-appearance-rows .segmented-control {
@@ -1535,6 +1535,59 @@
   line-height: 1;
 }
 
+/* In the popup the headword and its labels stay near the definitions' size, so the meaning
+   leads: a headword under twice the definitions' size, and small labels for the dictionary
+   names, the section numbers and the tags. */
+.reader-lookup .lookup-entry__header {
+  padding: 10px 0 9px;
+  gap: 8px;
+}
+.reader-lookup .lookup-entry__headline {
+  --lookup-headword-line: 32px;
+}
+.reader-lookup .lookup-entry--furigana .lookup-entry__headline {
+  --lookup-reading-line: 13px;
+}
+.reader-lookup .lookup-entry__expression {
+  font-size: 27px;
+}
+.reader-lookup .lookup-entry__expression rt {
+  font-size: 12px;
+}
+.reader-lookup .lookup-entry__reading {
+  font-size: 16px;
+}
+.reader-lookup .lookup-entry .dictionary-audio-button {
+  width: 28px;
+  height: 28px;
+}
+.reader-lookup .lookup-entry .dictionary-result-card__tags span {
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 11.5px;
+}
+.reader-lookup .lookup-definition__toggle {
+  padding: 10px 2px 6px 0;
+  gap: 8px;
+}
+.reader-lookup .lookup-definition--closed .lookup-definition__toggle {
+  padding-bottom: 10px;
+}
+.reader-lookup .lookup-definition__index {
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11.5px;
+}
+.reader-lookup .lookup-definition__source {
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 11.5px;
+}
+.reader-lookup .lookup-definition__body {
+  padding: 0 4px 12px 30px;
+}
+
 /* The experimental dictionary style: each headword with its furigana over a rule, then each
    dictionary's definitions under its name with circled numbers, all in the popup font. */
 @counter-style komori-circled {
@@ -1573,12 +1626,36 @@
   border-bottom: 1px solid var(--border-soft);
   font-size: 26px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.3;
+}
+/* Furigana sits right on its kanji run, as in the standard style, whatever the font's ascent:
+   every line keeps room above its text for the readings, so a wrapped line's readings stay off
+   the line above, and the first line's share of that room is padding. */
+.dictionary-entry__headword--furigana {
+  --dictionary-reading-line: 12px;
+  padding-top: calc(var(--dictionary-reading-line) / 2);
+  padding-bottom: 0;
+  line-height: calc(1.15em + var(--dictionary-reading-line));
+}
+.dictionary-entry__headword ruby {
+  position: relative;
+  display: inline-flex;
+  line-height: 1.15;
 }
 .dictionary-entry__headword rt {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  display: flex;
+  justify-content: space-around;
+  min-width: 100%;
+  margin-bottom: 1px;
+  transform: translateX(-50%);
   color: var(--text-muted);
-  font-size: 0.42em;
+  font-size: 11px;
   font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
 }
 .dictionary-entry__headword .dictionary-result-card__kanji {
   font: inherit;

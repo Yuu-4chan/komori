@@ -140,6 +140,25 @@ describe("grouped settings rows", () => {
     ).toEqual([]);
   });
 
+  it("lowers a row's controls to the row height, and lays a font out like any other row", () => {
+    expect(tokens).toMatch(/--control-height-row:\s*2\.25rem;/);
+    expect(body(".settings-list > .settings-field")).toMatch(
+      /--control-height:\s*var\(--control-height-row\);/,
+    );
+    const placed = all.find(({ selector }) =>
+      /^\.settings-list\s*>\s*\.settings-field\s*:is\([^)]*\.font-picker__controls/.test(selector),
+    );
+    expect(placed?.body).toMatch(
+      /position:\s*absolute;[^]*width:\s*var\(--settings-control-width\);/,
+    );
+    expect(body(".settings-list > .settings-field > .reader-font-field")).toMatch(
+      /display:\s*contents;/,
+    );
+    expect(body(".settings-list > .settings-field .font-picker__controls > .icon-button")).toMatch(
+      /height:\s*var\(--control-height\);/,
+    );
+  });
+
   it("puts Save on the right like every other action, and draws no box inside a kanji result", () => {
     expect(body(".anki-save-bar")).toMatch(/justify-items:\s*end;/);
     expect(body(".dictionary-sheet > .dictionary-kanji-card")).not.toMatch(/background:\s*var/);

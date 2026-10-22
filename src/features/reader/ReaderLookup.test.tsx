@@ -386,7 +386,18 @@ describe("Reader lookup popup", () => {
       ).toBeInTheDocument();
     }
     // Ruby annotations are out of the row's layout. Both action and word rows share
-    // the annotation inset and the expression's 42px line rather than the full ruby height.
+    // the annotation inset and the expression's own line rather than the full ruby height.
+    // In the popup that line, the headword and the dictionary labels stay near the definitions'
+    // size, so the meaning leads.
+    expect(readerCss).toMatch(
+      /\.reader-lookup \.lookup-entry__headline\s*\{[^}]*--lookup-headword-line: 32px/,
+    );
+    expect(readerCss).toMatch(
+      /\.reader-lookup \.lookup-entry__expression\s*\{[^}]*font-size: 27px/,
+    );
+    expect(readerCss).toMatch(
+      /\.reader-lookup \.lookup-definition__source\s*\{[^}]*font-size: 11\.5px/,
+    );
     expect(readerCss).toMatch(
       /\.lookup-entry__expression rt\s*\{[^}]*position: absolute;[^}]*bottom: 100%/,
     );
@@ -1586,6 +1597,13 @@ describe("Reader lookup popup", () => {
     // Readings are furigana above their kanji, whatever the reading position.
     expect([...entry.querySelectorAll("rt")].map((rt) => rt.textContent)).toEqual(["どくしょ"]);
     expect(entry.querySelector(".dictionary-entry__headword")).toHaveAttribute("lang", "ja");
+    // Furigana sits right on its kanji, out of the line's flow, whatever the font's ascent.
+    expect(entry.querySelector(".dictionary-entry__headword")).toHaveClass(
+      "dictionary-entry__headword--furigana",
+    );
+    expect(readerCss).toMatch(
+      /\.dictionary-entry__headword rt\s*\{[^}]*position: absolute;[^}]*bottom: 100%/,
+    );
     // Each dictionary's definitions together under its name, numbered when it has more than one.
     const jitendex = within(entry).getByRole("region", { name: "Jitendex" });
     expect(within(jitendex).getByText("Jitendex")).toHaveClass("dictionary-entry__name");
