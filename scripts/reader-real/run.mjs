@@ -485,6 +485,30 @@ scenario("toc-fragments", async () => {
   }
 });
 
+// A placeholder navigation document leaves the book's NCX to list its contents.
+scenario("ncx-contents", async () => {
+  const label = "contents from the NCX";
+  await open("S15-placeholder-nav");
+  const entries = await evaluate(
+    "(__readerReal.adapter()?.contents ?? []).map((entry) => [entry.label, entry.navigable])",
+  );
+  check(
+    label,
+    "lists the NCX's chapters",
+    JSON.stringify(entries) ===
+      JSON.stringify([
+        ["Part 0", true],
+        ["Part 1", true],
+        ["Part 2", true],
+      ]),
+    JSON.stringify(entries),
+  );
+  const jumped = await evaluate('__readerReal.adapter().goToContentsEntry("toc.2")');
+  await settle();
+  const shown = await firstVisible();
+  check(label, "opens a chapter it lists", jumped && shown?.section === 2, at(shown));
+});
+
 async function crossImages(label, patch, forward, { imageOnly = true } = {}) {
   const opened = await open("S07-adjacent-images", patch);
   check(label, "opens at the first section", opened.first?.section === 0, at(opened.first));
@@ -725,6 +749,15 @@ scenario("resize-paginated", () =>
 
 scenario("rtl-documents", async () => {
   await turnsForward("rtl paginated horizontal", "S09-rtl-arabic-script", "ArrowLeft");
+  // Each section spans several spreads, all to the left of its first.
+  await open("S09-rtl-arabic-script");
+  const second = await press("ArrowLeft");
+  check(
+    "rtl paginated horizontal",
+    "turns to the first section's second spread",
+    second?.section === 0 && second.offset > 0,
+    at(second),
+  );
   const vertical = await open("S09-rtl-arabic-script", { readerWritingMode: "vertical" });
   check(
     "rtl paginated vertical",
@@ -734,6 +767,69 @@ scenario("rtl-documents", async () => {
       vertical.first?.section === 0 &&
       vertical.first.offset !== null,
     at(vertical.first),
+  );
+});
+
+// A section set right to left on its body alone pages right to left through all its pages.
+scenario("rtl-bodies", async () => {
+  const label = "rtl bodies paginated";
+  const last = await turnsForward(label, "S09b-rtl-bodies", "ArrowLeft");
+  check(label, "turns through the first section's later pages", last?.section === 0, at(last));
+});
+
+// A book that forces its bodies vertical reads horizontally in Horizontal, page by page.
+scenario("forced-vertical", async () => {
+  const label = "forced vertical in horizontal";
+  const last = await turnsForward(label, "S13-forced-vertical", "ArrowRight", {
+    readerWritingMode: "horizontal",
+  });
+  const shown = await layout();
+  check(
+    label,
+    "lays its text out horizontally",
+    shown?.writingMode === "horizontal-tb",
+    shown?.writingMode,
+  );
+  check(label, "turns through the first section's later pages", last?.section === 0, at(last));
+});
+
+// Assets named by paths other than their relative ones load, in the section and its stylesheet.
+scenario("asset-spellings", async () => {
+  const label = "asset spellings";
+  const opened = await open("S14-asset-spellings");
+  check(label, "opens settled", opened.settled.settled, at(opened.first));
+  const assets = await evaluate(`(async () => {
+    const doc = __readerReal.adapter()?.rendition?.manager?.views?.all?.()[0]?.contents?.document;
+    if (!doc) return null;
+    const images = [...doc.images];
+    await Promise.all(images.map((image) => image.decode().catch(() => {})));
+    const style = (selector) => doc.defaultView.getComputedStyle(doc.querySelector(selector));
+    const background = style(".framed").backgroundImage;
+    const url = background.slice(background.indexOf("(") + 1, background.lastIndexOf(")")).replaceAll('"', "");
+    const drawn = url && (await new Promise((resolve) => {
+      const probe = new Image();
+      probe.onload = () => resolve(probe.naturalWidth);
+      probe.onerror = () => resolve(0);
+      probe.src = url;
+    }));
+    return {
+      images: images.map((image) => image.naturalWidth),
+      width: style(".framed").width,
+      background: drawn ?? 0,
+    };
+  })()`);
+  check(
+    label,
+    "loads the section's images",
+    assets?.images.length === 2 && assets.images.every((width) => width === 320),
+    JSON.stringify(assets?.images),
+  );
+  check(label, "applies the stylesheet", assets?.width === "64px", assets?.width);
+  check(
+    label,
+    "loads the stylesheet's image",
+    assets?.background === 320,
+    String(assets?.background),
   );
 });
 

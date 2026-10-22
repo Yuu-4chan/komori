@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -891,6 +891,52 @@ describe("Komori foundation", () => {
           { timeout: readerChunkTimeout },
         ),
       ).toBeInTheDocument();
+    },
+    readerChunkTimeout + 5_000,
+  );
+
+  it(
+    "keeps the current page while the Reader chunk loads, never revealing its placeholder",
+    async () => {
+      // A fresh module graph, so the Reader chunk is not loaded yet.
+      vi.resetModules();
+      const [{ App: FreshApp }, { AppearanceProvider: FreshAppearance }, router] =
+        await Promise.all([
+          import("./App"),
+          import("./features/appearance/AppearanceProvider"),
+          import("react-router-dom"),
+        ]);
+      let navigate: ((to: string) => void) | undefined;
+      function Navigator() {
+        navigate = router.useNavigate();
+        return null;
+      }
+      render(
+        <router.MemoryRouter initialEntries={["/library"]}>
+          <FreshAppearance>
+            <FreshApp />
+            <Navigator />
+          </FreshAppearance>
+        </router.MemoryRouter>,
+      );
+      expect(screen.getByRole("heading", { level: 1, name: "Library" })).toBeInTheDocument();
+      let placeholders = 0;
+      const observer = new MutationObserver(() => {
+        if (document.querySelector('.reader-shell[aria-busy="true"]')) placeholders++;
+      });
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+      act(() => navigate!("/reader"));
+      // The Library stays until the Reader can show itself.
+      expect(screen.getByRole("heading", { level: 1, name: "Library" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole(
+          "heading",
+          { level: 1, name: "Komori Reader" },
+          { timeout: readerChunkTimeout },
+        ),
+      ).toBeInTheDocument();
+      observer.disconnect();
+      expect(placeholders).toBe(0);
     },
     readerChunkTimeout + 5_000,
   );

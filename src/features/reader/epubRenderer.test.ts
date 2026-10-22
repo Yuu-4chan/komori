@@ -1646,6 +1646,24 @@ describe("EPUB.js renderer adapter", () => {
     range.left = -2;
     range.right = 57580;
     expect(contents.textWidth()).toBe(57600);
+    // Right-to-left columns run from the body's right edge: every page after the first
+    // lies to the left of the body, and the padding is measured on the right.
+    document.body.style.direction = "rtl";
+    document.body.style.paddingRight = "20px";
+    vi.spyOn(document.body, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      right: 1440,
+    } as DOMRect);
+    range.left = 1440 - 57580;
+    range.right = 1440;
+    expect(contents.textWidth()).toBe(57600);
+    range.right = 1420;
+    expect(contents.textWidth()).toBe(57600);
+    range.right = 1442;
+    expect(contents.textWidth()).toBe(57600);
+    vi.mocked(document.body.getBoundingClientRect).mockRestore();
+    document.body.style.direction = "";
+    document.body.style.paddingRight = "";
     Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
     document.body.style.paddingLeft = "";
     renderer.dispose();
@@ -3766,6 +3784,78 @@ describe("EPUB.js renderer adapter", () => {
     },
   );
 
+  it("pages a section in its body's direction and turns its root to match", async () => {
+    const { rendition, display } = mockBook([
+      section("Text/one.xhtml", "First chapter ".repeat(70)),
+      section("Text/two.xhtml", "Second chapter ".repeat(70)),
+    ]);
+    const { manager } = rendition;
+    const formatted: string[] = [];
+    const layout = Object.assign(manager.layout, {
+      format: vi.fn((_contents: unknown, _section?: unknown, _axis?: string): unknown => {
+        formatted.push(manager.layout.settings.direction);
+        return undefined;
+      }),
+    });
+    Object.assign(manager, { stage: { direction: vi.fn() }, mapping: { direction: "ltr" } });
+    // A section whose body runs one way inside a root that runs the other (jsdom has no
+    // layout, so each element's own direction is its computed one).
+    const sectionContents = (root: "ltr" | "rtl", body: "ltr" | "rtl") => {
+      const contentDocument = document.implementation.createHTMLDocument();
+      contentDocument.documentElement.dir = root;
+      contentDocument.body.dir = body;
+      contentDocument.body.textContent = "Chapter text ".repeat(70);
+      Object.defineProperty(contentDocument, "defaultView", {
+        value: {
+          getComputedStyle: (element: HTMLElement) => ({
+            writingMode: "horizontal-tb",
+            direction: element.style.direction || element.dir,
+          }),
+        },
+      });
+      return { document: contentDocument, cfiFromRange: vi.fn(() => "epubcfi(text)") };
+    };
+    // Some books set `dir="rtl"` on the body alone.
+    const bodyRtl = sectionContents("ltr", "rtl");
+    const bodyLtr = sectionContents("rtl", "ltr");
+    display.mockImplementation(async () => {
+      layout.format(bodyRtl, undefined, "horizontal");
+    });
+    rendition.next.mockImplementation(async () => {
+      layout.format(bodyLtr, undefined, "horizontal");
+      rendition.emit("relocated");
+    });
+    const changed = vi.fn();
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      changed,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 16, writingMode: "horizontal" },
+    );
+
+    // EPUB.js lays the columns out on the body, so they run right to left, and the root
+    // that scrolls them runs so too: its later pages lie to the left of its first.
+    expect(formatted).toEqual(["rtl"]);
+    expect(bodyRtl.document.documentElement.style.direction).toBe("rtl");
+    expect(changed).toHaveBeenLastCalledWith(
+      expect.objectContaining({ forwardArrow: "ArrowLeft" }),
+    );
+
+    // A body that runs left to right inside a right-to-left root pages left to right.
+    await renderer.advancePage();
+    expect(formatted).toEqual(["rtl", "ltr"]);
+    expect(bodyLtr.document.documentElement.style.direction).toBe("ltr");
+    expect(changed).toHaveBeenLastCalledWith(
+      expect.objectContaining({ forwardArrow: "ArrowRight" }),
+    );
+    renderer.dispose();
+  });
+
   it("keeps the page in sight until the next section's page shows when a turn crosses sections", async () => {
     const { rendition } = mockBook([
       section("Text/one.xhtml", "First chapter ".repeat(70)),
@@ -4689,6 +4779,137 @@ describe("EPUB.js renderer adapter", () => {
       ),
     ).toBe("ready");
     expect(changed).toHaveBeenCalledWith([]);
+    renderer.dispose();
+  });
+
+  it("shows the entries of an entry without a label in its place", async () => {
+    mockBook(
+      [section("Text/doc1.xhtml", "Prologue and chapters")],
+      [
+        {
+          label: "　",
+          href: "Text/doc1.xhtml#part",
+          subitems: [
+            { label: "プロローグ", href: "Text/doc1.xhtml#prologue" },
+            { label: "第一章", href: "Text/doc1.xhtml#one" },
+          ],
+        },
+      ],
+    );
+    const changed = vi.fn();
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      changed,
+    );
+    expect(changed).toHaveBeenLastCalledWith([
+      expect.objectContaining({ id: "toc.0.0", label: "プロローグ", navigable: true }),
+      expect.objectContaining({ id: "toc.0.1", label: "第一章", navigable: true }),
+    ]);
+    renderer.dispose();
+  });
+
+  it.each([
+    ["leads nowhere in the book", [{ label: "开始", href: "Section0001.xhtml" }]],
+    [
+      "names a file the book lacks",
+      [
+        { label: "プロローグ", href: "p-001.xhtml" },
+        { label: "天野ハザマ", href: "Section0050.xhtml" },
+      ],
+    ],
+  ])("lists the NCX's contents when the navigation document %s", async (_case, toc) => {
+    // An editor's unfinished placeholder.
+    const { book, rendition } = mockBook(
+      [section("xhtml/p-001.xhtml", "First chapter"), section("xhtml/p-003.xhtml", "Second")],
+      toc,
+    );
+    Object.assign(book.package, { navPath: "xhtml/nav.xhtml", ncxPath: "toc.ncx" });
+    // The book's own loader, before the tolerance layer wraps it.
+    const { loadNavigation } = book;
+    loadNavigation.mockResolvedValue({
+      toc: [
+        { label: "第一章", href: "xhtml/p-001.xhtml#toc-001" },
+        { label: "第二章", href: "xhtml/p-003.xhtml#toc-002" },
+      ],
+    });
+    const changed = vi.fn();
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      changed,
+    );
+    // EPUB.js reads the NCX alone, and its links are relative to the NCX.
+    expect(loadNavigation).toHaveBeenCalledWith(
+      expect.objectContaining({ navPath: "", ncxPath: "toc.ncx" }),
+    );
+    expect(changed).toHaveBeenLastCalledWith([
+      expect.objectContaining({ id: "toc.0", label: "第一章", navigable: true }),
+      expect.objectContaining({ id: "toc.1", label: "第二章", navigable: true }),
+    ]);
+    mockAnchor(rendition, "toc-002", "epubcfi(toc-002)");
+    expect(await renderer.goToContentsEntry?.("toc.1")).toBe(true);
+    expect(rendition.display).toHaveBeenCalledWith("xhtml/p-003.xhtml#toc-002");
+    renderer.dispose();
+  });
+
+  it("keeps a navigation document over an NCX that leads to no more places", async () => {
+    const { book, rendition } = mockBook(
+      [section("Text/chapter.xhtml", "Chapter")],
+      [
+        { label: "Chapter", href: "chapter.xhtml" },
+        { label: "Missing", href: "missing.xhtml" },
+      ],
+    );
+    Object.assign(book.package, { navPath: "Text/nav.xhtml", ncxPath: "toc.ncx" });
+    book.loadNavigation.mockResolvedValue({
+      toc: [{ label: "NCX chapter", href: "Text/chapter.xhtml" }],
+    });
+    const changed = vi.fn();
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      changed,
+    );
+    expect(changed).toHaveBeenLastCalledWith([
+      expect.objectContaining({ id: "toc.0", label: "Chapter", navigable: true }),
+      expect.objectContaining({ id: "toc.1", label: "Missing", navigable: false }),
+    ]);
+    // Its own destinations stay.
+    expect(await renderer.goToContentsEntry?.("toc.0")).toBe(true);
+    expect(rendition.display).toHaveBeenCalledWith("Text/chapter.xhtml");
+    renderer.dispose();
+  });
+
+  it("keeps a navigation document that leads into the book over its NCX", async () => {
+    const { book } = mockBook(
+      [section("Text/chapter.xhtml", "Chapter")],
+      [{ label: "Chapter", href: "chapter.xhtml" }],
+    );
+    Object.assign(book.package, { navPath: "Text/nav.xhtml", ncxPath: "toc.ncx" });
+    const { loadNavigation } = book;
+    const changed = vi.fn();
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      changed,
+    );
+    expect(loadNavigation).not.toHaveBeenCalled();
+    expect(changed).toHaveBeenLastCalledWith([
+      expect.objectContaining({ label: "Chapter", navigable: true }),
+    ]);
     renderer.dispose();
   });
 
@@ -7436,9 +7657,10 @@ describe("EPUB.js renderer adapter", () => {
         const root = styled.documentElement;
         // jsdom keeps no priority for writing-mode; the app sets it as important.
         expect(root.style.getPropertyValue("writing-mode")).toBe(css);
-        // The book's own modes on the body and its elements give way to the chosen one.
-        expect(writingModeStyle(styled)).toContain(
-          ":root body, :root body * { writing-mode: inherit !important;",
+        // The book's own modes on the body and its elements give way to the chosen one, in a
+        // layer that outranks the book's important rules however specific they are.
+        expect(writingModeStyle(styled)).toMatch(
+          /^@layer komori-writing-mode \{ :root body, :root body \* \{ writing-mode: inherit !important;/,
         );
         expect(rendition.settings.direction).toBe(direction);
         // EPUB.js formats each section's columns in its layout's copy of the direction.

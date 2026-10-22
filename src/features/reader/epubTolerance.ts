@@ -64,8 +64,29 @@ interface Archive {
   zip?: { file(name: string): ZipEntry | null };
 }
 
+interface Resources {
+  urls?: string[];
+  cssUrls?: string[];
+  replacementUrls?: string[];
+  settings?: { resolver(href: string): string };
+  createUrl(url: string): Promise<string>;
+  relativeTo(absolute: string): string[];
+  substitute(content: string, url?: string): string;
+}
+
 interface RecoverableBook {
   archive?: Archive;
+  resources?: Resources;
+  spine?: {
+    hooks: {
+      serialize: {
+        register(
+          hook: (output: string, section: { url: string; output?: string }) => unknown,
+        ): void;
+      };
+    };
+  };
+  replacements?(): Promise<unknown>;
   unarchive(input: unknown, encoding?: unknown): Promise<unknown>;
   loadNavigation(packaging: Record<string, unknown>): Promise<unknown>;
 }
@@ -113,10 +134,9 @@ function inflate(entry: ZipEntry & { internalStream(type: "uint8array"): ZipStre
   });
 }
 
-/** EPUB.js inflates every manifest asset before Komori's spine preflight, and only
- * forwards successful reads, so a damaged entry would leave opening pending. Its
- * getBlob/getText/getBase64 now inflate within the per-entry and running-total
- * budgets, and its URL and request reads settle when an entry is refused.
+/** EPUB.js only forwards successful archive reads, so a damaged entry would leave
+ * opening pending. Its getBlob/getText/getBase64 now inflate within the per-entry and
+ * running-total budgets, and its URL and request reads settle when an entry is refused.
  */
 function limitArchiveReads(archive: Archive, limits: EpubArchiveLimits) {
   const zip = archive.zip!;
@@ -124,19 +144,23 @@ function limitArchiveReads(archive: Archive, limits: EpubArchiveLimits) {
   const counted = new Set<string>();
   let total = 0;
   let exhausted = false;
-  const read = (name: string, entry: Parameters<typeof inflate>[0]) => {
-    const declared = entry._data?.uncompressedSize ?? 0;
-    if (exhausted || declared > limits.entryBytes) return Promise.reject(new EpubResourceLimit());
+  /** Counts an entry's declared size against the running total; false once it is refused. */
+  const count = (name: string, declared: number) => {
+    if (exhausted || declared > limits.entryBytes) return false;
     if (!counted.has(name)) {
       if (total + declared > limits.totalBytes) {
         exhausted = true;
-        return Promise.reject(new EpubResourceLimit());
+        return false;
       }
       counted.add(name);
       total += declared;
     }
-    return inflate(entry);
+    return true;
   };
+  const read = (name: string, entry: Parameters<typeof inflate>[0]) =>
+    count(name, entry._data?.uncompressedSize ?? 0)
+      ? inflate(entry)
+      : Promise.reject(new EpubResourceLimit());
   zip.file = (name) => {
     const entry = file(name);
     if (!entry?.internalStream) return entry;
@@ -170,10 +194,167 @@ function limitArchiveReads(archive: Archive, limits: EpubArchiveLimits) {
     cache[url] = created;
     return created;
   };
-  return (url: string, type: string | undefined) => {
-    const response = type === "blob" ? archive.getBlob!(url) : archive.getText(url);
-    return response?.then((value) => archive.handleResponse!(value, type));
+  return {
+    request: (url: string, type: string | undefined) => {
+      const response = type === "blob" ? archive.getBlob!(url) : archive.getText(url);
+      return response?.then((value) => archive.handleResponse!(value, type));
+    },
+    /** Counts an asset as if it were read now, without inflating it. */
+    reserve: (url: string) => {
+      const name = decodeURIComponent(url.replace(/^\//, ""));
+      count(name, file(name)?._data?.uncompressedSize ?? 0);
+    },
   };
+}
+
+const ARCHIVE_ORIGIN = "https://komori-book.invalid";
+
+/** The decoded archive path a relative reference names from a base path. A reference
+ * with a scheme, a network path or only a fragment names no archive entry. */
+function referencedPath(reference: string, base: string): string | undefined {
+  if (!reference || /^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(reference)) return undefined;
+  try {
+    const url = new URL(reference, new URL(base, `${ARCHIVE_ORIGIN}/`));
+    return url.origin === ARCHIVE_ORIGIN ? decodeURIComponent(url.pathname) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** URL-bearing attribute values, and CSS url() values, in markup or stylesheet text. */
+const ATTRIBUTE_REFERENCE = /(\s(?:[\w-]+:)?(srcset|src|href|poster|data)\s*=\s*)(["'])(.*?)\3/gis;
+const CSS_REFERENCE = /(url\(\s*)(["']|&quot;|&apos;)?(.*?)\2(\s*\))/gis;
+
+/**
+ * A text with each reference a function finds a URL for replaced by that URL, keeping
+ * the reference's fragment. Serialized markup escapes its ampersands; stylesheet text
+ * does not. Every other character of the text stays as it was.
+ */
+function rewriteReferences(
+  text: string,
+  markup: boolean,
+  replace: (reference: string) => string | undefined,
+): string {
+  const each = (value: string) => {
+    const url = replace((markup ? value.replaceAll("&amp;", "&") : value).trim());
+    if (url === undefined) return value;
+    const fragment = value.indexOf("#");
+    return fragment < 0 ? url : url + value.slice(fragment).trim();
+  };
+  const rewritten = markup
+    ? text.replace(
+        ATTRIBUTE_REFERENCE,
+        (_, start: string, name: string, quote: string, value: string) =>
+          start +
+          quote +
+          // Each srcset candidate starts with its URL; descriptors follow a space.
+          (name.toLowerCase() === "srcset"
+            ? value.replace(
+                /(^|,)(\s*)([^\s,]+)/g,
+                (__, comma: string, space: string, url: string) => comma + space + each(url),
+              )
+            : each(value)) +
+          quote,
+      )
+    : text;
+  return rewritten.replace(
+    CSS_REFERENCE,
+    (_, start: string, quote = "", value: string, end: string) =>
+      start + quote + each(value) + quote + end,
+  );
+}
+
+/** EPUB.js inflates every manifest asset into a blob URL before a book opens (about
+ * 8 ms a megabyte: over a second for a large illustrated book) and drops the assets it
+ * cannot read from its URL list, so every later asset takes the URL of the one after
+ * it. Here each asset's URL is created at its own index when a section that names it
+ * is shown, or as the book opens for an asset a stylesheet names. Assets still count
+ * against the running total in manifest order as the book opens, so a book whose
+ * assets exceed it is refused as before.
+ *
+ * EPUB.js also swaps only the text of each asset's canonical relative path, so a
+ * reference spelled another way, such as `../OEBPS/images/a.jpg` from `OEBPS/`, a
+ * differently encoded name or a query, kept naming a file the page cannot load. Each
+ * reference is now resolved against its document or stylesheet first; EPUB.js's own
+ * swap still follows for text the references here do not cover.
+ */
+function replaceAssetsOnDemand(book: RecoverableBook, reserve: (url: string) => void) {
+  const resources = book.resources;
+  const resolve = resources?.settings?.resolver;
+  if (!resources?.urls || !resolve || !book.spine) return Promise.resolve();
+  const urls = resources.urls;
+  const indexes = new Map<string, number>();
+  urls.forEach((url, index) => {
+    reserve(resolve(url));
+    const path = referencedPath(resolve(url), "/");
+    if (path && !indexes.has(path)) indexes.set(path, index);
+  });
+  resources.replacementUrls = [];
+  const pending = new Map<number, Promise<void>>();
+  const create = (index: number) => {
+    // A stylesheet keeps the rewritten copy made as the book opened.
+    if (resources.replacementUrls?.[index]) return;
+    let created = pending.get(index);
+    if (!created) {
+      created = resources.createUrl(resolve(urls[index]!)).then(
+        (url) => {
+          // A URL created after the book closed is released at once.
+          if (resources.replacementUrls) resources.replacementUrls[index] = url;
+          else if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+        },
+        // A refused or damaged asset is left out: its reference stays unresolved.
+        () => undefined,
+      );
+      pending.set(index, created);
+    }
+    return created;
+  };
+  /** The manifest index of the asset a reference names from a path, if any. */
+  const asset = (reference: string, path: string) => {
+    const named = referencedPath(reference, path);
+    return named === undefined ? undefined : indexes.get(named);
+  };
+  /** Creates the URLs of the assets a text references, or names by EPUB.js's canonical
+   * relative path, from its own path. */
+  const prepare = (text: string, markup: boolean, path: string) => {
+    const wanted = new Set<number>();
+    rewriteReferences(text, markup, (reference) => {
+      const index = asset(reference, path);
+      if (index !== undefined) wanted.add(index);
+      return undefined;
+    });
+    resources.relativeTo(path).forEach((relative, index) => {
+      if (relative && text.includes(relative)) wanted.add(index);
+    });
+    return Promise.all([...wanted].map(create));
+  };
+  /** A text with its assets' URLs in place of their references. */
+  const substitute = (text: string, markup: boolean, path: string) =>
+    resources.substitute(
+      rewriteReferences(text, markup, (reference) => {
+        const index = asset(reference, path);
+        return index === undefined ? undefined : resources.replacementUrls?.[index] || undefined;
+      }),
+      path,
+    );
+  book.spine.hooks.serialize.register(async (output, section) => {
+    // A book closed while a section renders has no resources left to substitute.
+    if (!resources.urls) return;
+    await prepare(output, true, section.url);
+    if (resources.urls) section.output = substitute(output, true, section.url);
+  });
+  return (async () => {
+    for (const href of resources.cssUrls ?? []) {
+      const index = urls.indexOf(href);
+      const path = resolve(href);
+      const text = await book.archive?.getText(path)?.catch(() => undefined);
+      if (text === undefined || index < 0 || !resources.urls) continue;
+      await prepare(text, false, path);
+      if (!resources.replacementUrls) return;
+      const css = new Blob([substitute(text, false, path)], { type: "text/css" });
+      resources.replacementUrls[index] = URL.createObjectURL(css);
+    }
+  })();
 }
 
 /** Install before open: EPUB.js loads its package/navigation during unarchive/unpack. */
@@ -186,11 +367,14 @@ export function installEpubTolerance(book: RecoverableBook, limits = ARCHIVE_LIM
     const request = archive.request.bind(archive);
     // Only EPUB.js's own archive creates replacement URLs from JSZip entries.
     const limited = archive.createUrl ? limitArchiveReads(archive, limits) : undefined;
+    // EPUB.js prepares asset URLs as it unpacks the package, after unarchiving.
+    if (limited && book.replacements)
+      book.replacements = () => replaceAssetsOnDemand(book, limited.reserve);
     archive.request = async (url, type) => {
       const extension = url.split(".").at(-1);
       const kind = type === "xml" ? extension : (type ?? extension);
       if (kind !== "opf" && kind !== "ncx" && kind !== "xhtml")
-        return limited?.(url, type ?? extension) ?? request(url, type);
+        return limited?.request(url, type ?? extension) ?? request(url, type);
       // Check JSZip's declared size before inflation, then the actual UTF-8 bytes.
       const entry = archive.zip?.file(decodeURIComponent(url.replace(/^\//, "")));
       if ((entry?._data?.uncompressedSize ?? 0) > XML_BYTES) throw new EpubResourceLimit();

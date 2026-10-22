@@ -16,12 +16,13 @@ EPUB tolerance repairs only diagnosed XML variations in memory (see
 source handles and the original protocol payload. Strict parsing after repair,
 bounded XML/spine reads and refusal of truncated content prevent recovery from
 inventing missing text or bypassing resource limits. Every archive entry the
-Reader inflates, including manifest assets EPUB.js prepares before the spine
-preflight, is checked against its declared size, a 32 MiB entry limit and a
+Reader inflates is checked against its declared size, a 32 MiB entry limit and a
 512 MiB running total before inflating, and stops when its actual bytes exceed
-the declared size. A refused or damaged asset is dropped from the book; a
-damaged linear document or an exceeded total refuses the open, which always
-settles. A refused Reader open leaves
+the declared size. Manifest assets count toward the total in manifest order as
+the book opens, before the spine preflight, though each is inflated only when a
+stylesheet or a shown section names it. A refused or damaged asset is left out of
+the pages that name it; a damaged linear document or an exceeded total refuses the
+open, which always settles. A refused Reader open leaves
 saved position/progress intact; import and relink retain their existing per-item
 outcomes, cancellation and transactional rollback.
 

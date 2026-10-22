@@ -154,14 +154,18 @@ describe("archive reads with the pinned EPUB.js engine", () => {
   const chapter =
     '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>One</title></head><body><p>Text</p></body></html>';
 
-  /** A synthetic book with one linear chapter and the given unused manifest assets. */
-  async function epub(assets: Record<string, string>) {
+  /** A synthetic book with one linear chapter and the given manifest assets; `missing`
+   * assets are declared in the manifest but absent from the archive. */
+  async function epub(
+    assets: Record<string, string>,
+    { body = chapter, missing = [] as string[] } = {},
+  ) {
     const { zip } = new EpubArchive();
     zip.file(
       "META-INF/container.xml",
       '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OPS/book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>',
     );
-    const items = Object.keys(assets).map(
+    const items = [...missing, ...Object.keys(assets)].map(
       (name, index) =>
         `<item id="a${index}" href="${name}" media-type="${name.endsWith(".css") ? "text/css" : "application/octet-stream"}"/>`,
     );
@@ -169,10 +173,26 @@ describe("archive reads with the pinned EPUB.js engine", () => {
       "OPS/book.opf",
       `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">synthetic</dc:identifier><dc:title>Synthetic</dc:title><dc:language>en</dc:language></metadata><manifest><item id="c" href="chapter.xhtml" media-type="application/xhtml+xml"/>${items.join("")}</manifest><spine><itemref idref="c"/></spine></package>`,
     );
-    zip.file("OPS/chapter.xhtml", chapter);
+    zip.file("OPS/chapter.xhtml", body);
     for (const [name, text] of Object.entries(assets)) zip.file(`OPS/${name}`, text);
     return (await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" })) as Uint8Array;
   }
+
+  /** The serialized chapter as a rendition would show it, with its asset URLs. */
+  async function shown(book: Awaited<ReturnType<typeof open>>) {
+    const section = book.spine.get(0)!;
+    return (await section.render(book.load.bind(book))) as string;
+  }
+
+  /** A blob's text. jsdom's Blob has no text(). */
+  const read = (blob: Blob) =>
+    new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsText(blob);
+    });
+  /** The text of the blob behind a `blob:synthetic-N` URL. */
+  const blobText = (url: string) => read(urls[Number(url.split("-").at(-1)) - 1]!);
 
   /** The local data offset and central size field of one entry. */
   function locate(bytes: Uint8Array, name: string) {
@@ -234,6 +254,99 @@ describe("archive reads with the pinned EPUB.js engine", () => {
     await expect(archive.getText("/OPS/unused.dat")).rejects.toThrow(EpubResourceLimit);
     await expect(archive.request("/OPS/unused.dat", "blob")).rejects.toThrow(EpubResourceLimit);
     expect(await archive.request("/OPS/style.css", "text")).toBe("p { color: red }");
+  });
+
+  it("creates a section's asset URLs as it is shown, each at its own asset's index", async () => {
+    const book = await open(
+      await epub(
+        { "seen.png": "seen", "later.png": "later", "unused.png": "unused" },
+        {
+          body: chapter.replace(
+            "<p>Text</p>",
+            '<p>Text</p><img src="seen.png" alt=""/><img src="later.png" alt=""/>',
+          ),
+          // Listed first, so EPUB.js's eager list gave "seen.png" the URL of "later.png".
+          missing: ["gone.png"],
+        },
+      ),
+    );
+    expect(urls).toEqual([]);
+    const output = await shown(book);
+    const sources = [...output.matchAll(/src="([^"]+)"/g)].map((match) => match[1]!);
+    expect(sources).toHaveLength(2);
+    expect(await Promise.all(sources.map(blobText))).toEqual(["seen", "later"]);
+    // Only the shown section's assets were read.
+    expect(urls).toHaveLength(2);
+    // Showing it again reuses its URLs.
+    await shown(book);
+    expect(urls).toHaveLength(2);
+  });
+
+  it("prepares the assets a stylesheet names as the book opens", async () => {
+    const book = await open(
+      await epub(
+        {
+          "style.css": '@font-face { font-family: Book; src: url("font.woff") }',
+          "font.woff": "font",
+          "picture.png": "picture",
+        },
+        {
+          body: chapter.replace(
+            "<title>One</title>",
+            '<title>One</title><link rel="stylesheet" href="style.css"/>',
+          ),
+        },
+      ),
+    );
+    const texts = await Promise.all(urls.map(read));
+    expect(texts).toContain("font");
+    expect(texts).not.toContain("picture");
+    const css = texts.find((text) => text.startsWith("@font-face"))!;
+    const font = css.match(/url\("([^"]+)"\)/)![1]!;
+    expect(await blobText(font)).toBe("font");
+    const output = await shown(book);
+    const stylesheet = output.match(/href="(blob:[^"]+)"/)![1]!;
+    expect(await blobText(stylesheet)).toBe(css);
+  });
+
+  it("resolves asset references spelled other than their relative paths", async () => {
+    const book = await open(
+      await epub(
+        {
+          "images/a.png": "a",
+          "images/b.png": "b",
+          "images/c.png": "c",
+          // As converters write them: from the package's own directory.
+          "style.css": "@font-face { font-family: Book; src: url(../OPS/fonts/f.woff?#iefix) }",
+          "fonts/f.woff": "f",
+        },
+        {
+          body: chapter
+            .replace(
+              "<title>One</title>",
+              '<title>One</title><link rel="stylesheet" href="./style.css"/>',
+            )
+            .replace(
+              "<p>Text</p>",
+              '<p><a href="#note">Text</a></p><img src="../OPS/images/a.png" alt=""/>' +
+                '<img src="images/b.png?v=2" srcset="./images/b.png 1x, images/../images/c.png 2x" alt=""/>',
+            ),
+        },
+      ),
+    );
+    const output = await shown(book);
+    const sources = [...output.matchAll(/ src="([^"]+)"/g)].map((match) => match[1]!);
+    expect(await Promise.all(sources.map(blobText))).toEqual(["a", "b"]);
+    const [one, two] = output.match(/srcset="([^"]+)"/)![1]!.split(", ");
+    expect(one).toMatch(/ 1x$/);
+    expect(two).toMatch(/ 2x$/);
+    expect(await blobText(one!.split(" ")[0]!)).toBe("b");
+    expect(await blobText(two!.split(" ")[0]!)).toBe("c");
+    expect(output).toContain('href="#note"');
+    const css = await blobText(output.match(/href="(blob:[^"]+)"/)![1]!);
+    const [, font, fragment] = css.match(/url\((blob:[^#)]+)(#[^)]*)\)/)!;
+    expect(fragment).toBe("#iefix");
+    expect(await blobText(font!)).toBe("f");
   });
 
   it("refuses the book once its assets exceed the running total", async () => {

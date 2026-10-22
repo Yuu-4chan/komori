@@ -1,5 +1,6 @@
 // Synthetic EPUBs for the real-engine Reader smoke test, built in code from random letters and
-// numbered markers: S01-S09, S11 and S12, plus a vertical-lr twin of S11. Every paragraph starts with a marker such as [02-005] so a reading point is recognizable.
+// numbered markers: S01-S09, S11-S15, a twin of S09 set right to left on its bodies alone, and a
+// vertical-lr twin of S11. Every paragraph starts with a marker such as [02-005] so a reading point is recognizable.
 import { crc32, deflateRawSync, deflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -108,12 +109,16 @@ function png(width, height, rgb, bars) {
 }
 
 // ---------- EPUB ----------
-function xhtml(title, body, { lang = "en", css = [], head = "", htmlAttrs = "" } = {}) {
+function xhtml(
+  title,
+  body,
+  { lang = "en", css = [], head = "", htmlAttrs = "", bodyAttrs = "" } = {},
+) {
   const links = css.map((c) => `<link rel="stylesheet" type="text/css" href="${c}"/>`).join("");
   return (
     `<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n` +
     `<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${lang}" lang="${lang}"${htmlAttrs}>` +
-    `<head><meta charset="utf-8"/><title>${title}</title>${head}${links}</head><body>${body}</body></html>`
+    `<head><meta charset="utf-8"/><title>${title}</title>${head}${links}</head><body${bodyAttrs}>${body}</body></html>`
   );
 }
 
@@ -414,6 +419,28 @@ export function buildBooks() {
       navEntries: rtl.map(({ href }, i) => [href, `${i}`]),
     }),
   );
+  // S09b: the same script set right to left on each body alone, in a left-to-right book.
+  const rtlBodies = Array.from({ length: 4 }, (_, i) => ({
+    id: `s${i}`,
+    href: `s${i}.xhtml`,
+    doc: xhtml(
+      `${i}`,
+      `<h1 id="c${i}">${i}</h1>` +
+        Array.from(
+          { length: 90 },
+          (_, p) => `<p>[${pad(i, 2)}-${pad(p, 3)}] ${words(between(40, 80), ARABIC)}.</p>`,
+        ).join(""),
+      { lang: "he", bodyAttrs: ' style="text-align:right" dir="rtl"' },
+    ),
+  }));
+  books.push(
+    epub("S09b-rtl-bodies", {
+      title: "Reader real S09b rtl bodies",
+      lang: "he",
+      sections: rtlBodies,
+      navEntries: rtlBodies.map(({ href }, i) => [href, `${i}`]),
+    }),
+  );
   // S11: declared vertical-rl marker book, and its vertical-lr twin.
   for (const [name, mode, ppd] of [
     ["S11-vertical-rl-markers", "vertical-rl", "rtl"],
@@ -480,6 +507,75 @@ export function buildBooks() {
       ],
       files: [spread, { href: "fixed.css", type: "text/css", data: "" }],
       meta: '<meta name="primary-writing-mode" content="horizontal-lr"/>',
+    }),
+  );
+  // S13: a vertical book whose stylesheet forces its bodies vertical through a class on the root,
+  // as some Japanese conversions do, so that only a cascade layer outranks it.
+  const forced = textSections(4, 120, { lang: "ja", css: ["forced.css"] }).map((section) => ({
+    ...section,
+    doc: section.doc.replace('<html xmlns="', '<html class="vrtl" xmlns="'),
+  }));
+  books.push(
+    epub("S13-forced-vertical", {
+      title: "Reader real S13 forced vertical",
+      lang: "ja",
+      ppd: "rtl",
+      sections: forced,
+      navEntries: forced.map(({ href }, i) => [href, `〈${pad(i, 2)}〉`]),
+      files: [
+        {
+          href: "forced.css",
+          type: "text/css",
+          data:
+            "html.vrtl { writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl; }\n" +
+            "html.vrtl body { writing-mode: vertical-rl !important; -webkit-writing-mode: vertical-rl !important; }",
+        },
+      ],
+      meta: '<meta name="primary-writing-mode" content="vertical-rl"/>',
+    }),
+  );
+  // S14: assets named by paths other than their relative ones, as calibre conversions write
+  // them: through the package folder's own name, with "./", and from a stylesheet's folder.
+  const picture = (rgb) => png(320, 480, rgb, 4);
+  books.push(
+    epub("S14-asset-spellings", {
+      title: "Reader real S14 asset spellings",
+      sections: [
+        {
+          id: "s0",
+          href: "Text/s0.xhtml",
+          doc: xhtml(
+            "Pictures",
+            `<h1 id="c0">Pictures</h1><p>[00-000] ${words(30)}.</p>` +
+              '<p><img src="../../OEBPS/Images/a.png" alt="a"/></p>' +
+              '<p><img src="./../Images/b.png" alt="b"/></p>' +
+              '<div class="framed"></div>',
+            { css: ["../../OEBPS/Styles/style.css"] },
+          ),
+        },
+      ],
+      navEntries: [["Text/s0.xhtml", "Pictures"]],
+      files: [
+        { href: "Images/a.png", type: "image/png", data: picture([200, 80, 60]) },
+        { href: "Images/b.png", type: "image/png", data: picture([60, 160, 90]) },
+        { href: "Images/c.png", type: "image/png", data: picture([60, 90, 200]) },
+        {
+          href: "Styles/style.css",
+          type: "text/css",
+          data: ".framed { width: 64px; height: 96px; background: url(../../OEBPS/Images/c.png) center / contain no-repeat; }",
+        },
+      ],
+    }),
+  );
+  // S15: an EPUB 3 book whose navigation document is an editor's placeholder, naming a file the
+  // book lacks, while its NCX lists every chapter.
+  const placeholder = textSections(3, 20);
+  books.push(
+    epub("S15-placeholder-nav", {
+      title: "Reader real S15 placeholder nav",
+      sections: placeholder,
+      navEntries: [["Section0001.xhtml", "Start"]],
+      ncx: navOf(placeholder),
     }),
   );
   return books;

@@ -677,7 +677,30 @@ class EpubRenderer implements ReaderRenderer {
       // Navigation values stay in this adapter; React receives session-local IDs only.
       const navigation = await book.loaded.navigation.catch(() => undefined);
       if (signal.aborted || this.disposed) return "error";
-      const contents = await this.normalizeContents(navigation?.toc, book, navigation);
+      const fromNavigation = await this.normalizeContents(navigation?.toc, book, navigation);
+      let contents = fromNavigation.entries;
+      const packaging = (book as unknown as { package?: { navPath?: string; ncxPath?: string } })
+        .package;
+      if (
+        (fromNavigation.leadsNowhere || !this.destinations.size) &&
+        packaging?.navPath &&
+        packaging.ncxPath
+      ) {
+        // EPUB.js reads only an EPUB 3 book's navigation document. One that is missing,
+        // unreadable or names a file the book lacks, as an editor's unfinished placeholder
+        // does, leaves its EPUB 2 NCX to list the contents when that leads to more places.
+        const ncx = await (
+          book as unknown as { loadNavigation(packaging: object): Promise<{ toc?: unknown }> }
+        )
+          .loadNavigation({ ...packaging, navPath: "" })
+          .catch(() => undefined);
+        if (signal.aborted || this.disposed) return "error";
+        const destinations = this.destinations;
+        this.destinations = new Map();
+        const listed = await this.normalizeContents(ncx?.toc, book, navigation, packaging.ncxPath);
+        if (this.destinations.size > destinations.size) contents = listed.entries;
+        else this.destinations = destinations;
+      }
       this.contents = contents;
       const collectLabels = (entries: ReaderContentsEntry[]) => {
         for (const entry of entries) {
@@ -2405,10 +2428,10 @@ class EpubRenderer implements ReaderRenderer {
   }
 
   /**
-   * EPUB.js lays a paginated section's columns out in the section root's own direction
-   * when it is right to left, whatever the page progression, and would read such a
-   * section from its last page. Each horizontal section's own direction is followed as
-   * EPUB.js formats it, before it is positioned in its first or last page.
+   * EPUB.js lays a paginated section's columns out in the section's own direction when it
+   * is right to left, whatever the page progression, and would read such a section from
+   * its last page. Each horizontal section's own direction is followed as EPUB.js formats
+   * it, before it is positioned in its first or last page.
    */
   private followSectionDirection(): void {
     this.sectionRtl = false;
@@ -2417,7 +2440,7 @@ class EpubRenderer implements ReaderRenderer {
     if (!layout || !format) return;
     layout.format = (contents, ...rest) => {
       if (!this.continuous && !this.fixedLayout && !this.disposed && contents?.document) {
-        const rtl = rightToLeftRoot(contents.document);
+        const rtl = followBodyDirection(contents.document);
         if (rtl !== this.sectionRtl) {
           this.sectionRtl = rtl;
           this.followWritingMode(false);
@@ -3624,13 +3647,17 @@ class EpubRenderer implements ReaderRenderer {
     return settled && anchorAt(settled);
   }
 
+  /**
+   * The contents entries of navigation items whose links are relative to `base`, with each
+   * destination recorded, and whether an entry names a document the book cannot open.
+   */
   private async normalizeContents(
     items: unknown,
     book: Book,
     navigation?: { landmark?(type: string): unknown },
-  ): Promise<ReaderContentsEntry[]> {
-    if (!Array.isArray(items)) return [];
-    const base = navigationBase(book);
+    base = navigationBase(book),
+  ): Promise<{ entries: ReaderContentsEntry[]; leadsNowhere: boolean }> {
+    if (!Array.isArray(items)) return { entries: [], leadsNowhere: false };
     // Entries whose document is not in the spine, resolved once the tree is built.
     const offSpine: Array<{ entry: ReaderContentsEntry; path: string }> = [];
     const normalize = (nodes: unknown[], trail: string): ReaderContentsEntry[] =>
@@ -3638,8 +3665,11 @@ class EpubRenderer implements ReaderRenderer {
         if (!raw || typeof raw !== "object") return [];
         const item = raw as { label?: unknown; href?: unknown; subitems?: unknown };
         const label = typeof item.label === "string" ? item.label : "";
-        if (!label.trim()) return [];
         const id = `${trail}${index}`;
+        // An entry without a label, such as a part titled with an ideographic space, shows
+        // its own entries in its place.
+        if (!label.trim())
+          return Array.isArray(item.subitems) ? normalize(item.subitems, `${id}.`) : [];
         const href = typeof item.href === "string" ? item.href : "";
         const entry: ReaderContentsEntry = { id, label, navigable: false, children: [] };
         const target = resolveNavHref(href, base);
@@ -3653,18 +3683,22 @@ class EpubRenderer implements ReaderRenderer {
         return [entry];
       });
     const entries = normalize(items, "toc.");
+    let leadsNowhere = false;
     if (offSpine.length) {
       // A converter can drop a book's own cover page from the spine and add its own cover
       // page in its place, leaving the contents pointing at the dropped page. An image-only
       // page outside the spine therefore opens the declared cover page. EPUB.js displays
       // only spine documents, so any other entry outside the spine is not navigable.
-      const cover = await spineCoverPage(book, navigation, base);
+      const cover = await spineCoverPage(book, navigation, navigationBase(book));
       for (const { entry, path } of offSpine) {
         if (cover && (await imageOnlyPage(book, path))) this.destinations.set(entry.id, cover);
-        else entry.navigable = false;
+        else {
+          entry.navigable = false;
+          leadsNowhere = true;
+        }
       }
     }
-    return entries;
+    return { entries, leadsNowhere };
   }
 
   private async turnPage(direction: "advance" | "retreat"): Promise<void> {
@@ -4777,7 +4811,8 @@ const pageMeasured = new WeakSet<EpubPageContents>();
  * that begins at the body's very edge, before the padding, already spans the left padding,
  * which then counts twice: a section whose last page is full gained an empty page after it.
  * A glyph that overhangs the body's left edge widens the text by as much again, so the
- * width runs from the body's edge, whatever lies before it.
+ * width runs from the body's edge, whatever lies before it. Right-to-left columns run
+ * from the body's right edge, and all but the first lie to the left of the body.
  */
 function pageTextWidth(contents: EpubPageContents): void {
   const measure = contents.textWidth?.bind(contents);
@@ -4791,8 +4826,12 @@ function pageTextWidth(contents: EpubPageContents): void {
     const range = contents.document.createRange();
     if (typeof range.getBoundingClientRect !== "function") return width;
     range.selectNodeContents(body);
-    const start = range.getBoundingClientRect().left - body.getBoundingClientRect().left;
-    const padding = parseFloat(view.getComputedStyle(body).paddingLeft) || 0;
+    const text = range.getBoundingClientRect();
+    const box = body.getBoundingClientRect();
+    const style = view.getComputedStyle(body);
+    const rtl = style.direction === "rtl" && !style.writingMode?.startsWith("vertical");
+    const start = rtl ? box.right - text.right : text.left - box.left;
+    const padding = parseFloat(rtl ? style.paddingRight : style.paddingLeft) || 0;
     return start < padding ? width - Math.round(padding - start) : width;
   };
 }
@@ -5490,18 +5529,33 @@ function applyWritingMode(
     style.setAttribute(WRITING_MODE_STYLE, "");
     (document.head ?? root).append(style);
   }
+  // A layer's important rules outrank the book's own, however specific: a book that forces
+  // its body vertical, as `html.vrtl body { writing-mode: vertical-rl !important }` does,
+  // would otherwise lay its text out across a horizontal root's single page.
   style.textContent =
-    ":root body, :root body * { writing-mode: inherit !important; -webkit-writing-mode: inherit !important; }" +
+    "@layer komori-writing-mode { :root body, :root body * { writing-mode: inherit !important; -webkit-writing-mode: inherit !important; }" +
     // A document set right to left would run its vertical lines and pages upwards, where
     // EPUB.js cannot page them. Its text reads from the top; its own runs keep their direction.
-    (mode === "vertical" ? " :root, :root body { direction: ltr !important; }" : "");
+    (mode === "vertical" ? " :root, :root body { direction: ltr !important; }" : "") +
+    " }";
 }
 
-/** Whether a horizontal section's root sets it right to left, laying its columns out so. */
-function rightToLeftRoot(document: Document): boolean {
+/**
+ * Whether a horizontal section's columns run right to left. EPUB.js lays them out on the
+ * section's body, in the body's direction, and scrolls them in its root, which takes the
+ * body's direction: a book that sets `dir="rtl"` on its body alone would otherwise run
+ * every page after its first out of the root's reach.
+ */
+function followBodyDirection(document: Document): boolean {
   const root = document.documentElement;
-  const style = root && document.defaultView?.getComputedStyle(root);
-  return !!style && !style.writingMode?.startsWith("vertical") && style.direction === "rtl";
+  const body = document.body ?? root;
+  const view = document.defaultView;
+  if (!root || !view) return false;
+  const style = view.getComputedStyle(body);
+  if (style.writingMode?.startsWith("vertical")) return false;
+  if (body !== root && view.getComputedStyle(root).direction !== style.direction)
+    root.style.setProperty("direction", style.direction, "important");
+  return style.direction === "rtl";
 }
 
 /** Marks a view a paginated turn keeps in sight until the next section's view shows. */
