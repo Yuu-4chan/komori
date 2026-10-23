@@ -5309,7 +5309,16 @@ function startsAtOrBefore(
     offset = (point as Range).startOffset;
   }
   try {
-    return !node || boundary.comparePoint(node, offset) >= 0;
+    if (!node || boundary.comparePoint(node, offset) >= 0) return true;
+    // Blank space before the start is no content, so a section's own start, before its
+    // first block, is in the section's first chapter rather than the one before it.
+    const between = document.createRange();
+    between.setStart(node, offset);
+    between.setEndBefore(anchor);
+    return (
+      !between.toString().trim() &&
+      !between.cloneContents().querySelector([...MEDIA_ELEMENTS].join(", "))
+    );
   } catch {
     return true;
   }

@@ -3905,6 +3905,28 @@ describe("EPUB.js renderer adapter", () => {
       renderer.dispose();
     });
 
+    it("jumps in VN view to a section's first group past the blank space before it", async () => {
+      // As authored XHTML often is, the section's markup opens with a line break.
+      const book = chapterBook([{ label: "Two", href: "Text/s1.xhtml" }], "vertical", [
+        "<p>ab</p><p>cd</p>",
+        "\n<p>ef</p><p>ghij</p>",
+      ]);
+      const { renderer, position } = await mountChapters(book, {
+        fontSize: 16,
+        viewMode: "vn",
+        vnParagraphs: 1,
+        vnTextSpeed: 0,
+      });
+      expect(extents(book)).toEqual([40, 0]);
+      expect(await renderer.goToContentsEntry?.("toc.0")).toBe(true);
+      // The section's first group shows, not the last group of the section before it.
+      expect(extents(book)).toEqual([0, 40]);
+      expect(position.onLocationChanged).toHaveBeenLastCalledWith(
+        expect.objectContaining({ spineIndex: 1 }),
+      );
+      renderer.dispose();
+    });
+
     it("scrolls one chapter at a time and crosses chapter boundaries both ways", async () => {
       const book = chapterBook();
       const { renderer, position, turns } = await mountChapters(book);
