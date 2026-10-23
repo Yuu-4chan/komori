@@ -33,6 +33,7 @@ import { VnReveal } from "./vnReveal";
 import { applyParagraphLayout } from "./paragraphLayout";
 import { applyHangingIndentLayout } from "./hangingIndentLayout";
 import { prepareReaderContent } from "./contentApi";
+import { installNativeArchive, openNativeArchive } from "./nativeArchive";
 import {
   countUnits,
   progressUnit,
@@ -453,6 +454,8 @@ class EpubRenderer implements ReaderRenderer {
   private onContentsChanged?: (entries: ReaderContentsEntry[]) => void;
   private contents: ReaderContentsEntry[] = [];
   private progressCounts?: BookProgressCounts;
+  /** The prepared content URL, which names the source version being read. */
+  private contentUrl?: string;
   private progressRevision = 0;
   private destinations = new Map<string, string>();
   /** Each image-only section that shares a spread, and the section beside it. */
@@ -707,6 +710,7 @@ class EpubRenderer implements ReaderRenderer {
       }
     }
 
+    this.contentUrl = access.url;
     const request = new AbortController();
     this.request = request;
     signal.addEventListener("abort", () => request.abort(), { once: true });
@@ -715,18 +719,18 @@ class EpubRenderer implements ReaderRenderer {
     let book: Book | undefined;
     try {
       // The UUID URL has no .epub suffix, so tell EPUB.js explicitly that it is an archive.
-      // Only this exact URL is fetched; internal entries come from EPUB.js's ZIP archive.
+      // Only this exact URL is requested: it lists the archive's entries, which the native
+      // archive then reads under it as EPUB.js asks for them.
       book = ePub({
         openAs: "epub",
         replacements: "blobUrl",
         requestMethod: async (url: string) => {
           if (url !== access.url) throw new Error("Unexpected EPUB request");
-          const response = await fetch(url, { signal: request.signal, cache: "no-store" });
-          if (!response.ok) throw new Error("EPUB content unavailable");
-          return response.arrayBuffer();
+          return openNativeArchive(url, request.signal);
         },
       });
       this.book = book;
+      installNativeArchive(book as unknown as Parameters<typeof installNativeArchive>[0]);
       installEpubTolerance(book as unknown as Parameters<typeof installEpubTolerance>[0]);
       await book.open(access.url, "epub");
       await book.opened;
@@ -1026,7 +1030,7 @@ class EpubRenderer implements ReaderRenderer {
   private imageLoads = new Set<AbortController>();
   private imageReads = 0;
 
-  /** Check ZIP metadata before decompressing image or section payloads. */
+  /** Check the declared entry size before reading image or section payloads. */
   private checkImageEntry(path: string, limit: number) {
     const zip = (
       this.book?.archive as unknown as {
@@ -1109,7 +1113,7 @@ class EpubRenderer implements ReaderRenderer {
         check();
         result.failedSections++;
       }
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await nextTask();
     }
     check();
     this.imageCatalog = result;
@@ -1416,7 +1420,7 @@ class EpubRenderer implements ReaderRenderer {
           });
         }
         // Give input/query cancellation a turn between archive sections.
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        await nextTask();
       }
       check();
       return results;
@@ -4480,30 +4484,25 @@ class EpubRenderer implements ReaderRenderer {
     await this.applySkippedPresentation();
   }
 
-  private async countProgress(book: Book): Promise<void> {
-    const signal = this.navigationAbort.signal;
-    const sections: Array<{ linear?: boolean; url?: string }> = [];
-    book.spine.each((section: { linear?: boolean; url?: string }) => sections.push(section));
-    // Destinations in contents order, and their anchors grouped by spine index:
-    // "" for a section start, else a fragment ID.
-    const targets: Array<{ id: string; index: number; fragment: string }> = [];
-    const anchors = new Map<number, Set<string>>();
-    for (const [id, destination] of this.destinations) {
-      const index = sections.indexOf(book.spine.get(destination) as (typeof sections)[number]);
-      if (index < 0) continue;
-      const fragment = destination.split("#")[1] ?? "";
-      targets.push({ id, index, fragment });
-      if (!anchors.has(index)) anchors.set(index, new Set());
-      anchors.get(index)?.add(fragment);
-    }
-    const measured: Array<{ length: UnitCounts; anchors: Map<string, AnchorPosition> }> = [];
-    const imagePages = new Set<number>();
-    const textPages = new Set<number>();
-    const resolved = new Set<string>();
-    const script = { cjk: 0, letters: 0 };
+  /** Read every linear section for its counted text, page kind and anchors, between turns. */
+  private async measureSections(
+    book: Book,
+    sections: Array<{ linear?: boolean; url?: string }>,
+    anchors: Map<number, Set<string>>,
+    signal: AbortSignal,
+  ): Promise<SectionMeasures | undefined> {
+    const measures: SectionMeasures = {
+      sections: [],
+      imagePages: new Set(),
+      textPages: new Set(),
+      resolved: new Set(),
+      asked: anchors,
+      script: { cjk: 0, letters: 0 },
+    };
+    const { imagePages, textPages, resolved, script } = measures;
     for (const [index, section] of sections.entries()) {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      if (signal.aborted || this.disposed) return;
+      await nextTask();
+      if (signal.aborted || this.disposed) return undefined;
       const counts = { length: unitCounts(""), anchors: new Map<string, AnchorPosition>() };
       if (section.linear && section.url) {
         try {
@@ -4530,9 +4529,43 @@ class EpubRenderer implements ReaderRenderer {
           // A section that cannot be read cannot be displayed either; it adds nothing.
         }
       }
-      measured.push(counts);
+      measures.sections.push(counts);
     }
-    if (signal.aborted || this.disposed) return;
+    return signal.aborted || this.disposed ? undefined : measures;
+  }
+
+  private async countProgress(book: Book): Promise<void> {
+    const signal = this.navigationAbort.signal;
+    const sections: Array<{ linear?: boolean; url?: string }> = [];
+    book.spine.each((section: { linear?: boolean; url?: string }) => sections.push(section));
+    // Destinations in contents order, and their anchors grouped by spine index:
+    // "" for a section start, else a fragment ID.
+    const targets: Array<{ id: string; index: number; fragment: string }> = [];
+    const anchors = new Map<number, Set<string>>();
+    for (const [id, destination] of this.destinations) {
+      const index = sections.indexOf(book.spine.get(destination) as (typeof sections)[number]);
+      if (index < 0) continue;
+      const fragment = destination.split("#")[1] ?? "";
+      targets.push({ id, index, fragment });
+      if (!anchors.has(index)) anchors.set(index, new Set());
+      anchors.get(index)?.add(fragment);
+    }
+    const url = this.contentUrl;
+    const known = url === undefined ? undefined : measuredBooks.get(url);
+    const measures =
+      known && known.sections.length === sections.length && measuresAnchors(known, anchors)
+        ? known
+        : await this.measureSections(book, sections, anchors, signal);
+    if (!measures || signal.aborted || this.disposed) return;
+    if (url !== undefined) {
+      measuredBooks.delete(url);
+      measuredBooks.set(url, measures);
+      for (const old of measuredBooks.keys()) {
+        if (measuredBooks.size <= MEASURED_BOOKS) break;
+        measuredBooks.delete(old);
+      }
+    }
+    const { sections: measured, imagePages, textPages, resolved, script } = measures;
     const navigation = await book.loaded.navigation.catch(() => undefined);
     const cover = await spineCoverPage(book, navigation, navigationBase(book)).catch(() => null);
     if (signal.aborted || this.disposed) return;
@@ -4996,6 +5029,21 @@ async function settledWithin(task: Promise<unknown> | undefined): Promise<void> 
   }
 }
 
+/**
+ * A turn of the event loop between sections. A zero timeout is clamped to 4 ms once
+ * timeouts nest, which sections read from memory never interrupt; a message is not.
+ */
+function nextTask(): Promise<void> {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(undefined);
+  });
+}
+
 /** Where a chapter begins: at a section's start, or at an element of it by ID. */
 interface ChapterStart {
   spineIndex: number;
@@ -5394,6 +5442,32 @@ interface BookProgressCounts {
   chapterStarts: number[];
   /** Resolved contents destinations in reading order. */
   chapterEntries: ChapterEntry[];
+}
+
+/** What a book-wide count reads from each section, which depends on its content alone. */
+interface SectionMeasures {
+  /** Per spine index: its counted text, and the anchors asked for in it. */
+  sections: Array<{ length: UnitCounts; anchors: Map<string, AnchorPosition> }>;
+  imagePages: Set<number>;
+  textPages: Set<number>;
+  /** Anchors found in their sections, as "index#fragment", of those asked for by spine index. */
+  resolved: Set<string>;
+  asked: Map<number, Set<string>>;
+  script: { cjk: number; letters: number };
+}
+
+/**
+ * The section measures of the last few books read in this session, by content URL. The URL
+ * names the source version, so a book reopened unchanged is counted without rereading it.
+ */
+const MEASURED_BOOKS = 4;
+const measuredBooks = new Map<string, SectionMeasures>();
+
+/** Whether measures were taken for every anchor a count asks for. */
+function measuresAnchors(measures: SectionMeasures, anchors: Map<number, Set<string>>): boolean {
+  for (const [index, fragments] of anchors)
+    for (const fragment of fragments) if (!measures.asked.get(index)?.has(fragment)) return false;
+  return true;
 }
 
 interface ChapterEntry {

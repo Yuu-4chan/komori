@@ -1,5 +1,7 @@
 /** Bounded repairs for format defects reproduced in the read-only real corpus. */
 const XML_BYTES = 2 * 1024 * 1024;
+/** Declared bytes of the linear documents a book may have, all checked as it opens. */
+const SPINE_BYTES = 64 * 1024 * 1024;
 const DC = "http://purl.org/dc/elements/1.1/";
 
 export class InvalidEpubDocument extends Error {}
@@ -39,18 +41,9 @@ export function parseEpubXml(text: string, type: "opf" | "ncx" | "xhtml"): Docum
   return document;
 }
 
-interface ZipStream {
-  on(event: "data", listener: (chunk: Uint8Array) => void): ZipStream;
-  on(event: "error", listener: (error: unknown) => void): ZipStream;
-  on(event: "end", listener: () => void): ZipStream;
-  pause(): ZipStream;
-  resume(): ZipStream;
-}
-
 interface ZipEntry {
   _data?: { uncompressedSize?: number };
   async?(type: string): Promise<unknown>;
-  internalStream?(type: "uint8array"): ZipStream;
 }
 
 interface Archive {
@@ -61,7 +54,7 @@ interface Archive {
   getBase64?(url: string): Promise<string> | undefined;
   handleResponse?(response: unknown, type?: string): unknown;
   urlCache?: Record<string, string>;
-  zip?: { file(name: string): ZipEntry | null };
+  zip?: { file(name: string): ZipEntry | null; prefetch?(names: Iterable<string>): void };
 }
 
 interface Resources {
@@ -103,40 +96,11 @@ const ARCHIVE_LIMITS: EpubArchiveLimits = {
   totalBytes: 512 * 1024 * 1024,
 };
 
-/** Inflate one entry after its declared size fits, stopping as soon as the actual
- * bytes exceed it. Damaged data rejects with a typed error. */
-function inflate(entry: ZipEntry & { internalStream(type: "uint8array"): ZipStream }) {
-  const declared = entry._data?.uncompressedSize ?? 0;
-  return new Promise<Uint8Array>((resolve, reject) => {
-    const stream = entry.internalStream("uint8array");
-    const chunks: Uint8Array[] = [];
-    let length = 0;
-    stream
-      .on("data", (chunk) => {
-        length += chunk.length;
-        if (length <= declared) chunks.push(chunk);
-        else {
-          stream.pause();
-          reject(new EpubResourceLimit());
-        }
-      })
-      .on("error", () => reject(new InvalidEpubDocument()))
-      .on("end", () => {
-        const bytes = new Uint8Array(length);
-        let offset = 0;
-        for (const chunk of chunks) {
-          bytes.set(chunk, offset);
-          offset += chunk.length;
-        }
-        resolve(bytes);
-      })
-      .resume();
-  });
-}
-
-/** EPUB.js only forwards successful archive reads, so a damaged entry would leave
- * opening pending. Its getBlob/getText/getBase64 now inflate within the per-entry and
- * running-total budgets, and its URL and request reads settle when an entry is refused.
+/** EPUB.js only forwards successful archive reads, so a refused entry would leave
+ * opening pending. Its getBlob/getText/getBase64 now read an entry only within the
+ * per-entry and running-total budgets, by its declared size; the native side reads no
+ * entry past that size or the entry limit, and refuses damaged data. Its URL and request
+ * reads settle when an entry is refused.
  */
 function limitArchiveReads(archive: Archive, limits: EpubArchiveLimits) {
   const zip = archive.zip!;
@@ -157,27 +121,16 @@ function limitArchiveReads(archive: Archive, limits: EpubArchiveLimits) {
     }
     return true;
   };
-  const read = (name: string, entry: Parameters<typeof inflate>[0]) =>
-    count(name, entry._data?.uncompressedSize ?? 0)
-      ? inflate(entry)
-      : Promise.reject(new EpubResourceLimit());
   zip.file = (name) => {
     const entry = file(name);
-    if (!entry?.internalStream) return entry;
-    const stream = entry as Parameters<typeof inflate>[0];
+    const read = entry?.async?.bind(entry);
+    if (!read) return entry;
     return Object.create(entry, {
       async: {
         value: (type: string) =>
-          read(name, stream).then((bytes) => {
-            if (type === "uint8array") return bytes;
-            // JSZip keeps a byte order mark in its text output.
-            if (type === "string")
-              return new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
-            let binary = "";
-            for (let offset = 0; offset < bytes.length; offset += 0x8000)
-              binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
-            return btoa(binary);
-          }),
+          count(name, entry!._data?.uncompressedSize ?? 0)
+            ? read(type)
+            : Promise.reject(new EpubResourceLimit()),
       },
     }) as ZipEntry;
   };
@@ -199,7 +152,7 @@ function limitArchiveReads(archive: Archive, limits: EpubArchiveLimits) {
       const response = type === "blob" ? archive.getBlob!(url) : archive.getText(url);
       return response?.then((value) => archive.handleResponse!(value, type));
     },
-    /** Counts an asset as if it were read now, without inflating it. */
+    /** Counts an asset as if it were read now, without reading it. */
     reserve: (url: string) => {
       const name = decodeURIComponent(url.replace(/^\//, ""));
       count(name, file(name)?._data?.uncompressedSize ?? 0);
@@ -344,7 +297,12 @@ function replaceAssetsOnDemand(book: RecoverableBook, reserve: (url: string) => 
     if (resources.urls) section.output = substitute(output, true, section.url);
   });
   return (async () => {
-    for (const href of resources.cssUrls ?? []) {
+    const stylesheets = resources.cssUrls ?? [];
+    // An archive that reads ahead reads the stylesheets in one request.
+    book.archive?.zip?.prefetch?.(
+      stylesheets.map((href) => decodeURIComponent(resolve(href).replace(/^\//, ""))),
+    );
+    for (const href of stylesheets) {
       const index = urls.indexOf(href);
       const path = resolve(href);
       const text = await book.archive?.getText(path)?.catch(() => undefined);
@@ -365,7 +323,7 @@ export function installEpubTolerance(book: RecoverableBook, limits = ARCHIVE_LIM
     const archive = book.archive;
     if (!archive) return result;
     const request = archive.request.bind(archive);
-    // Only EPUB.js's own archive creates replacement URLs from JSZip entries.
+    // Only EPUB.js's own archive creates replacement URLs from archive entries.
     const limited = archive.createUrl ? limitArchiveReads(archive, limits) : undefined;
     // EPUB.js prepares asset URLs as it unpacks the package, after unarchiving.
     if (limited && book.replacements)
@@ -375,7 +333,7 @@ export function installEpubTolerance(book: RecoverableBook, limits = ARCHIVE_LIM
       const kind = type === "xml" ? extension : (type ?? extension);
       if (kind !== "opf" && kind !== "ncx" && kind !== "xhtml")
         return limited?.request(url, type ?? extension) ?? request(url, type);
-      // Check JSZip's declared size before inflation, then the actual UTF-8 bytes.
+      // Check the declared size before reading, then the actual UTF-8 bytes.
       const entry = archive.zip?.file(decodeURIComponent(url.replace(/^\//, "")));
       if ((entry?._data?.uncompressedSize ?? 0) > XML_BYTES) throw new EpubResourceLimit();
       const text = await archive.getText(url);
@@ -412,12 +370,17 @@ export async function validateEpubSpine(
     if (section.linear) sections.push(section.url);
   });
   if (sections.length > 10_000) throw new EpubResourceLimit();
+  const zip = book.archive.zip;
+  const names = sections.map((url) => decodeURIComponent(url.replace(/^\//, "")));
+  const sizes = names.map((name) => zip.file(name)?._data?.uncompressedSize ?? 0);
+  // A book within the budget has its documents read ahead, in a few requests.
+  if (!signal.aborted && sizes.reduce((total, size) => total + size, 0) <= SPINE_BYTES)
+    zip.prefetch?.(names);
   let bytes = 0;
-  for (const url of sections) {
+  for (const [index, url] of sections.entries()) {
     if (signal.aborted) return;
-    const entry = book.archive?.zip?.file(decodeURIComponent(url.replace(/^\//, "")));
-    bytes += entry?._data?.uncompressedSize ?? 0;
-    if (bytes > 64 * 1024 * 1024) throw new EpubResourceLimit();
+    bytes += sizes[index]!;
+    if (bytes > SPINE_BYTES) throw new EpubResourceLimit();
     const document = (await book.archive.request(url)) as Document;
     if (!document?.documentElement || !valid(document)) throw new InvalidEpubDocument();
   }

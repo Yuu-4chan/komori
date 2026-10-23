@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prepareReaderContent } from "./contentApi";
 import { epubRendererFactory } from "./epubRenderer";
 import { EpubResourceLimit, InvalidEpubDocument } from "./epubTolerance";
+import { NativeZip } from "./nativeArchive";
 import { imageInkShift } from "./imageInk";
 import { renderBookImage } from "./bookImages";
 import type { ReaderPresentation } from "./renderer";
@@ -26,7 +27,9 @@ vi.mock("./bookImages", async (importOriginal) => ({
 }));
 
 const id = "11111111-1111-4111-8111-111111111111";
-const url = `http://komori-book.localhost/${id}`;
+/** Each test reads its own source version, so no test counts with another test's measures. */
+let version = 0;
+let url = "";
 const prepare = vi.mocked(prepareReaderContent);
 const epub = vi.mocked(ePub);
 
@@ -186,10 +189,11 @@ describe("EPUB.js renderer adapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("Blob", NativeBlob);
+    url = `http://komori-book.localhost/${id}/${(++version).toString(16).padStart(16, "0")}`;
     prepare.mockResolvedValue({ status: "ready", url });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) })),
+      vi.fn(async () => ({ ok: true, json: async () => [["mimetype", 20]] })),
     );
   });
 
@@ -3872,10 +3876,14 @@ describe("EPUB.js renderer adapter", () => {
     );
     expect(display).toHaveBeenCalledWith("Images/cover.xhtml");
     const request = epub.mock.calls[0]?.[0] as {
-      requestMethod: (input: string) => Promise<ArrayBuffer>;
+      requestMethod: (input: string) => Promise<NativeZip>;
     };
-    await expect(request.requestMethod(url)).resolves.toBeInstanceOf(ArrayBuffer);
+    // The catalog URL lists the archive's entries; the native archive reads them under it.
+    const archive = await request.requestMethod(url);
+    expect(archive).toBeInstanceOf(NativeZip);
+    expect(archive.file("mimetype")?._data.uncompressedSize).toBe(20);
     await expect(request.requestMethod("file:///private/book.epub")).rejects.toThrow();
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith(url, expect.objectContaining({ cache: "no-store" }));
     renderer.dispose();
   });
@@ -6316,6 +6324,41 @@ describe("EPUB.js renderer adapter", () => {
         ),
       );
       renderer.dispose();
+    });
+
+    it("counts a book reopened unchanged without reading its sections again", async () => {
+      const sections = [
+        section("Text/one.xhtml", "あ".repeat(100)),
+        section("Text/notes.xhtml", "ね".repeat(50), false),
+        section("Text/two.xhtml", "い".repeat(200)),
+      ];
+      const contents = [
+        { label: "Notes", href: "Text/notes.xhtml" },
+        { label: "Two", href: "Text/two.xhtml" },
+      ];
+      const open = async () => {
+        const { book, rendition } = mockBook(sections, contents);
+        showPage(rendition, 0, "あ".repeat(100), 0);
+        const renderer = epubRendererFactory(id)();
+        const { mounted, onProgress } = mountWithProgress(renderer);
+        expect(await mounted).toBe("ready");
+        await vi.waitFor(() => expect(onProgress).toHaveBeenCalled());
+        renderer.dispose();
+        return {
+          read: book.load.mock.calls.some(([href]) => href === "/Text/two.xhtml"),
+          progress: onProgress.mock.lastCall?.[0] as unknown,
+        };
+      };
+      const first = await open();
+      expect(first).toEqual({
+        read: true,
+        progress: expect.objectContaining({ total: 300, chapter: { current: 0, total: 100 } }),
+      });
+      // A contents entry in a non-linear section does not keep the count from being reused.
+      expect(await open()).toEqual({ ...first, read: false });
+      // A changed source has another content URL, and its sections are read again.
+      prepare.mockResolvedValue({ status: "ready", url: `${url.slice(0, -16)}${"f".repeat(16)}` });
+      expect(await open()).toEqual(first);
     });
 
     it("counts linear text after the first display and publishes it with settled positions", async () => {

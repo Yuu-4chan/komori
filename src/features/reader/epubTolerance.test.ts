@@ -9,6 +9,7 @@ import {
   parseEpubXml,
   validateEpubSpine,
 } from "./epubTolerance";
+import { installNativeArchive, openNativeArchive } from "./nativeArchive";
 
 const missingDc =
   '<package version="3"><metadata><dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Title</dc:title><dc:language>ja</dc:language></metadata><manifest/><spine/></package>';
@@ -194,27 +195,76 @@ describe("archive reads with the pinned EPUB.js engine", () => {
   /** The text of the blob behind a `blob:synthetic-N` URL. */
   const blobText = (url: string) => read(urls[Number(url.split("-").at(-1)) - 1]!);
 
-  /** The local data offset and central size field of one entry. */
-  function locate(bytes: Uint8Array, name: string) {
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    const named = (at: number) =>
-      new TextDecoder().decode(bytes.subarray(at, at + name.length)) === name;
-    let data = -1;
-    let size = -1;
-    for (let at = 0; at < bytes.length - 46; at++) {
-      const signature = view.getUint32(at, true);
-      if (signature === 0x04034b50 && named(at + 30))
-        data = at + 30 + view.getUint16(at + 26, true) + view.getUint16(at + 28, true);
-      if (signature === 0x02014b50 && named(at + 46)) size = at + 24;
-    }
-    return { view, data, size };
+  const base = "http://komori-book.localhost/11111111-1111-4111-8111-111111111111/0123456789abcdef";
+  /** The native requests of the last opened book: "list", "bundle <names>" or an entry name. */
+  let requests: string[] = [];
+
+  /** Serves an archive as the native side does: its entry list, single entries and bundles.
+   * A `refused` entry answers with its status: 413 when it is longer than it declares or over
+   * the entry limit, 422 when its data is damaged. */
+  async function serve(bytes: Uint8Array, refused: Record<string, 413 | 422>) {
+    const { zip } = new EpubArchive();
+    await zip.loadAsync(bytes);
+    const files = (
+      Object.values(zip.files) as {
+        name: string;
+        dir: boolean;
+        _data: { uncompressedSize: number };
+        async(type: "uint8array"): Promise<Uint8Array>;
+      }[]
+    ).filter((file) => !file.dir);
+    const read = (number: number) =>
+      (refused[files[number]!.name] as 413 | 422 | undefined) ?? files[number]!.async("uint8array");
+    const reply = (body: Uint8Array | string, status = 200) => ({
+      ok: status === 200,
+      status,
+      json: async () => JSON.parse(body as string) as unknown,
+      arrayBuffer: async () =>
+        (typeof body === "string" ? new TextEncoder().encode(body) : body).slice().buffer,
+    });
+    requests = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === base && init?.method === "POST") {
+          const numbers = new DataView(init.body as ArrayBuffer);
+          const frames: number[] = [];
+          const names: string[] = [];
+          for (let at = 0; at < numbers.byteLength; at += 4) {
+            const number = numbers.getUint32(at, true);
+            names.push(files[number]!.name);
+            const data = await read(number);
+            const length = data === 413 ? 0xffff_ffff : data === 422 ? 0xffff_fffe : data.length;
+            frames.push(...new Uint8Array(new Uint32Array([length]).buffer));
+            if (typeof data !== "number") frames.push(...data);
+          }
+          requests.push(`bundle ${names.join(" ")}`);
+          return reply(new Uint8Array(frames));
+        }
+        if (url === base) {
+          requests.push("list");
+          return reply(
+            JSON.stringify(files.map((file) => [file.name, file._data.uncompressedSize])),
+          );
+        }
+        const number = Number(url.slice(base.length + 1));
+        requests.push(files[number]!.name);
+        const data = await read(number);
+        return typeof data === "number" ? reply("", data) : reply(data);
+      }),
+    );
   }
 
-  async function open(bytes: Uint8Array, bounds = limits) {
-    const book = ePub({ replacements: "blobUrl" });
+  async function open(bytes: Uint8Array, bounds = limits, refused: Record<string, 413 | 422> = {}) {
+    await serve(bytes, refused);
+    const book = ePub({
+      replacements: "blobUrl",
+      requestMethod: (url: string) => openNativeArchive(url, new AbortController().signal),
+    });
+    installNativeArchive(book as unknown as Parameters<typeof installNativeArchive>[0]);
     installEpubTolerance(book as unknown as Parameters<typeof installEpubTolerance>[0], bounds);
     const opened = (async () => {
-      await book.open(bytes.buffer as ArrayBuffer, "binary");
+      await book.open(base, "epub");
       await book.opened;
       await validateEpubSpine(
         book as unknown as Parameters<typeof validateEpubSpine>[0],
@@ -242,9 +292,12 @@ describe("archive reads with the pinned EPUB.js engine", () => {
     URL.revokeObjectURL = vi.fn();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
-  it("opens small books and drops an oversized unused asset without inflating it", async () => {
+  it("opens small books and drops an oversized unused asset without reading it", async () => {
     const book = await open(
       await epub({ "style.css": "p { color: red }", "unused.dat": "x".repeat(65 * 1024) }),
     );
@@ -254,6 +307,42 @@ describe("archive reads with the pinned EPUB.js engine", () => {
     await expect(archive.getText("/OPS/unused.dat")).rejects.toThrow(EpubResourceLimit);
     await expect(archive.request("/OPS/unused.dat", "blob")).rejects.toThrow(EpubResourceLimit);
     expect(await archive.request("/OPS/style.css", "text")).toBe("p { color: red }");
+    expect(requests).not.toContain("OPS/unused.dat");
+  });
+
+  it("transfers only the entries it reads, with the linear documents in one bundle", async () => {
+    const book = await open(
+      await epub(
+        { "seen.png": "seen", "unused.png": "unused" },
+        { body: chapter.replace("<p>Text</p>", '<p>Text</p><img src="seen.png" alt=""/>') },
+      ),
+    );
+    expect(requests).toEqual([
+      "list",
+      "META-INF/container.xml",
+      "OPS/book.opf",
+      "bundle OPS/chapter.xhtml",
+    ]);
+    await shown(book);
+    await book.load("/OPS/chapter.xhtml");
+    // Showing the section reads its asset; its document stays from the bundle.
+    expect(requests.slice(4)).toEqual(["OPS/seen.png"]);
+  });
+
+  it("reads the stylesheets in one bundle and each text entry once", async () => {
+    const book = await open(
+      await epub({ "a.css": "p { color: red }", "b.css": "p { color: blue }" }),
+    );
+    expect(requests).toEqual([
+      "list",
+      "META-INF/container.xml",
+      "OPS/book.opf",
+      "bundle OPS/a.css OPS/b.css",
+      "bundle OPS/chapter.xhtml",
+    ]);
+    expect(await book.archive.getText("/OPS/book.opf")).toContain("<package");
+    expect(await book.archive.getText("/OPS/b.css")).toBe("p { color: blue }");
+    expect(requests).toHaveLength(5);
   });
 
   it("creates a section's asset URLs as it is shown, each at its own asset's index", async () => {
@@ -357,27 +446,27 @@ describe("archive reads with the pinned EPUB.js engine", () => {
     expect(urls.reduce((total, blob) => total + blob.size, 0)).toBeLessThanOrEqual(256 * 1024);
   });
 
-  it("stops inflating an entry that exceeds its declared size", async () => {
-    const bytes = await epub({ "false.dat": "z".repeat(60 * 1024) });
-    const { view, size } = locate(bytes, "OPS/false.dat");
-    view.setUint32(size, 1024, true);
-    const book = await open(bytes);
+  it("refuses an entry the native side finds longer than it declares", async () => {
+    const book = await open(await epub({ "false.dat": "z".repeat(1024) }), limits, {
+      "OPS/false.dat": 413,
+    });
     await expect(book.archive.getBlob("/OPS/false.dat")).rejects.toThrow(EpubResourceLimit);
-    expect(urls.some((blob) => blob.size > 1024)).toBe(false);
+    expect(urls).toEqual([]);
   });
 
-  it("settles opening when a compressed entry is damaged", async () => {
-    const asset = await epub({ "style.css": `p { margin: 0 }${" ".repeat(4096)}` });
-    const damaged = locate(asset, "OPS/style.css");
-    asset[damaged.data] = 7;
-    const book = await open(asset);
+  it("settles opening when the native side finds an entry damaged", async () => {
+    const book = await open(await epub({ "style.css": "p { margin: 0 }" }), limits, {
+      "OPS/style.css": 422,
+    });
     await expect(book.archive.createUrl("/OPS/style.css", { base64: false })).rejects.toThrow(
       InvalidEpubDocument,
     );
-
-    const document = await epub({});
-    const text = locate(document, "OPS/chapter.xhtml");
-    document[text.data] = 7;
-    await expect(open(document)).rejects.toThrow(InvalidEpubDocument);
+    // A damaged linear document comes in its bundle as a damaged frame.
+    await expect(open(await epub({}), limits, { "OPS/chapter.xhtml": 422 })).rejects.toThrow(
+      InvalidEpubDocument,
+    );
+    await expect(open(await epub({}), limits, { "OPS/chapter.xhtml": 413 })).rejects.toThrow(
+      EpubResourceLimit,
+    );
   });
 });

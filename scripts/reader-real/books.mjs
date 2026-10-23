@@ -201,7 +201,7 @@ function epub(
     });
   }
   for (const { href, doc } of sections) entries.push({ name: `OEBPS/${href}`, data: doc });
-  for (const { href, data } of files) entries.push({ name: `OEBPS/${href}`, data });
+  for (const { href, data, store } of files) entries.push({ name: `OEBPS/${href}`, data, store });
   return { name, title, data: zip(entries) };
 }
 
@@ -628,6 +628,21 @@ export function buildBooks() {
       title: "Reader real S17 many sections",
       sections: many,
       navEntries: navOf(many).filter((_, i) => i === 0 || (i >= 1000 && i % 50 === 0)),
+    }),
+  );
+  // S18: a short book in an archive of 192 MiB, its media stored, listed and never shown.
+  const large = textSections(3, 20);
+  books.push(
+    epub("S18-large-archive", {
+      title: "Reader real S18 large archive",
+      sections: large,
+      navEntries: navOf(large),
+      files: Array.from({ length: 8 }, (_, i) => ({
+        href: `Media/m${i}.bin`,
+        type: "application/octet-stream",
+        data: Buffer.alloc(24 * 1024 * 1024, i),
+        store: true,
+      })),
     }),
   );
   return books;

@@ -19,11 +19,9 @@ describe("Reader content boundary", () => {
   });
 
   it("requests only the selected catalog ID and accepts a scoped URL", async () => {
-    invokeMock.mockResolvedValue({ status: "ready", url: `http://komori-book.localhost/${id}` });
-    expect(await prepareReaderContent(id)).toEqual({
-      status: "ready",
-      url: `http://komori-book.localhost/${id}`,
-    });
+    const url = `http://komori-book.localhost/${id}/0123456789abcdef`;
+    invokeMock.mockResolvedValue({ status: "ready", url });
+    expect(await prepareReaderContent(id)).toEqual({ status: "ready", url });
     expect(invokeMock).toHaveBeenCalledWith("prepare_book_content", { id });
   });
 
@@ -36,8 +34,17 @@ describe("Reader content boundary", () => {
   );
 
   it("drops an unsafe URL or a native error containing a private path", async () => {
-    invokeMock.mockResolvedValueOnce({ status: "ready", url: "file:///C:/private/book.epub" });
-    expect(await prepareReaderContent(id)).toEqual({ status: "failed", url: null });
+    for (const url of [
+      "file:///C:/private/book.epub",
+      `http://komori-book.localhost/${id}`,
+      `http://komori-book.localhost/${id}/0123456789ABCDEF`,
+      `http://komori-book.localhost/${id}/0123456789abcdef/0`,
+      `http://komori-book.localhost/../${id}/0123456789abcdef`,
+      `http://komori-book.localhost/55be5081-d0b1-4c11-891f-b709b6491070/0123456789abcdef`,
+    ]) {
+      invokeMock.mockResolvedValueOnce({ status: "ready", url });
+      expect(await prepareReaderContent(id)).toEqual({ status: "failed", url: null });
+    }
     invokeMock.mockRejectedValueOnce(new Error("C:\\private\\book.epub"));
     expect(await prepareReaderContent(id)).toEqual({ status: "failed", url: null });
   });

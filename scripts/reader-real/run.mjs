@@ -967,6 +967,57 @@ scenario("many-sections", async () => {
   }
 });
 
+scenario("large-archive", async () => {
+  const label = "large archive";
+  const book = "S18-large-archive";
+  const archive = statSync(books.find(({ name }) => name === book).path).size;
+  await cdp.invoke("save_reading_position", {
+    id: bookId[book],
+    position: { spineIndex: 0, sectionKey: null, progress: 0 },
+  });
+  // Count the bytes the page receives from the book protocol, from the open on.
+  const opening = async () => {
+    await setPreferences(DEFAULTS);
+    await evaluate(`(() => {
+      const fetch = window.fetch;
+      window.__bookBytes = 0;
+      window.fetch = async (...args) => {
+        const response = await fetch(...args);
+        if (String(args[0]?.url ?? args[0]).includes("komori-book"))
+          response.clone().arrayBuffer().then((body) => (window.__bookBytes += body.byteLength));
+        return response;
+      };
+      return true;
+    })()`);
+    const started = Date.now();
+    await evaluate(`__readerReal.open(${JSON.stringify(bookId[book])})`);
+    const opened = await reopened();
+    const ms = Date.now() - started;
+    let counted = 0;
+    for (let i = 0; i < 100 && !counted; i++, await delay(100))
+      counted = await evaluate("__readerReal.adapter()?.progressCounts?.total ?? 0");
+    return { opened, ms, counted, bytes: await evaluate("window.__bookBytes") };
+  };
+  for (const time of ["first", "again"]) {
+    const { opened, ms, counted, bytes } = await opening();
+    check(
+      label,
+      `opens settled at the start of the book, ${time}`,
+      opened.settled.settled && opened.first?.section === 0 && opened.first.offset < 40,
+      `${at(opened.first)} in ${ms} ms`,
+    );
+    check(label, `counts the book's progress, ${time}`, counted > 0, counted);
+    check(
+      label,
+      `receives its documents, not the archive, ${time}`,
+      bytes > 0 && bytes < 1024 * 1024,
+      `${bytes} of ${archive} bytes`,
+    );
+  }
+  const next = await press("ArrowRight");
+  check(label, "turns a page", after(next, { section: 0, offset: 0 }), at(next));
+});
+
 scenario("import-cycle", async () => {
   const label = "import cycle";
   const opened = await open("S06-css-two-root-cycle");

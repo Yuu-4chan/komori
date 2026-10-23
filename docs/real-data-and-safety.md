@@ -16,11 +16,13 @@ EPUB tolerance repairs only diagnosed XML variations in memory (see
 source handles and the original protocol payload. Strict parsing after repair,
 bounded XML/spine reads and refusal of truncated content prevent recovery from
 inventing missing text or bypassing resource limits. Every archive entry the
-Reader inflates is checked against its declared size, a 32 MiB entry limit and a
-512 MiB running total before inflating, and stops when its actual bytes exceed
-the declared size. Manifest assets count toward the total in manifest order as
-the book opens, before the spine preflight, though each is inflated only when a
-stylesheet or a shown section names it. A refused or damaged asset is left out of
+Reader reads is checked against its declared size, a 32 MiB entry limit and a
+512 MiB running total before it is read; native code refuses an entry declared
+over 32 MiB and stops reading one whose data exceeds its declared size, is
+shorter than declared or is damaged. Manifest assets count toward the total in
+manifest order as the book opens, before the spine preflight, though each is
+read only when a stylesheet or a shown section names it. A refused or damaged
+asset is left out of
 the pages that name it; a damaged linear document or an exceeded total refuses the
 open, which always settles. A refused Reader open leaves
 saved position/progress intact; import and relink retain their existing per-item
@@ -96,8 +98,8 @@ failed maintenance never restores a deleted entry or damages a surviving record.
 - Cover-discovery methods remain native diagnostics; neither source paths nor internal archive paths are exposed to the frontend.
 - Catalog removal accepts only a Komori ID; the frontend cannot supply an arbitrary source path.
 - EPUB content does not receive generic native capabilities.
-- Reader content preparation and binary protocol requests resolve a Komori catalog UUID in native code. Only a catalog-ID URL crosses to the EPUB.js renderer adapter; private source paths, archive entry paths, and native errors remain native. The source is opened read-only, validated before delivery, and never copied into persistent Komori storage. The protocol is limited to the main webview and Komori origins, with no-store responses and a 512 MiB response cap.
-- The adapter's EPUB.js request method fetches only the exact catalog URL returned by the Komori content service. EPUB entry resources resolve from the in-memory archive, with no generic native filesystem or network route. EPUB.js and book CSS live in an isolated iframe with scripted content disabled. Reader components see only Komori-owned status values.
+- Reader content preparation and binary protocol requests resolve a Komori catalog UUID in native code, and every request checks the source again. Only a catalog-ID URL, with an opaque stamp naming the source version, crosses to the EPUB.js renderer adapter; private source paths and native errors remain native. The adapter receives the archive's entry names and declared sizes, as it did when it read the whole archive itself, and asks for entries only by their number in that list, never by a path. The source is opened read-only, validated once per version before any entry is served, and never copied into persistent Komori storage. The protocol is limited to the main webview and Komori origins, with no-store responses; a response holds at most one 32 MiB entry or a bundle of 64 MiB declared bytes.
+- The adapter's EPUB.js request method fetches only the exact catalog URL returned by the Komori content service. EPUB entry resources resolve from the native archive under that URL, with no generic native filesystem or network route. EPUB.js and book CSS live in an isolated iframe with scripted content disabled. Reader components see only Komori-owned status values.
 - Production CSP allows the Komori protocol in `connect-src`, archive-generated `blob:` images and styles, word audio played from `blob:` media, and embedded `data:`/`blob:` fonts, managed `komori-font` fonts, and sets `object-src 'none'`. These are narrow resource allowances, not generic network or filesystem permissions. The task validation profile checks the policy and rejects broadened sources, duplicate directives and changed source lists.
 - Reader position commands accept only a catalog UUID and a bounded locator (spine index, 8-hex section fingerprint, progress). Locators contain no source path, archive path, or CFI, and position failures never surface native details.
 - Bookmark commands accept only catalog/bookmark UUIDs, bounded Komori locators with a 64-hex section-content hash, and plain-text labels/excerpts (80/160 Unicode characters, no controls). The native catalog limits each book to 1,000 bookmarks, deduplicates places transactionally and cascades removal. Creation, rename, removal and relink retention never write an EPUB; unresolved locations never silently redirect to another place. The frontend suppresses native storage details.
