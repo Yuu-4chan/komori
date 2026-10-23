@@ -1,5 +1,7 @@
 // Synthetic EPUBs for the real-engine Reader smoke test, built in code from random letters and
-// numbered markers: S01-S09, S11 and S12, plus a vertical-lr twin of S11. Every paragraph starts with a marker such as [02-005] so a reading point is recognizable.
+// numbered markers: S01-S09, S11-S19, a twin of S09 set right to left on its bodies alone, a
+// vertical-lr twin of S11, a left-to-right twin of S16 and a fixed-layout twin of S19. Every
+// paragraph starts with a marker such as [02-005] so a reading point is recognizable.
 import { crc32, deflateRawSync, deflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -108,12 +110,16 @@ function png(width, height, rgb, bars) {
 }
 
 // ---------- EPUB ----------
-function xhtml(title, body, { lang = "en", css = [], head = "", htmlAttrs = "" } = {}) {
+function xhtml(
+  title,
+  body,
+  { lang = "en", css = [], head = "", htmlAttrs = "", bodyAttrs = "" } = {},
+) {
   const links = css.map((c) => `<link rel="stylesheet" type="text/css" href="${c}"/>`).join("");
   return (
     `<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n` +
     `<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${lang}" lang="${lang}"${htmlAttrs}>` +
-    `<head><meta charset="utf-8"/><title>${title}</title>${head}${links}</head><body>${body}</body></html>`
+    `<head><meta charset="utf-8"/><title>${title}</title>${head}${links}</head><body${bodyAttrs}>${body}</body></html>`
   );
 }
 
@@ -127,8 +133,9 @@ function nav(entries, lang) {
 }
 
 /**
- * sections: [{ id, href, doc, properties? }], `properties` being the itemref's; files:
- * [{ href, type, data }]; ncx: [[href, text]] for EPUB 2.
+ * sections: [{ id, href, doc, type?, properties? }], `type` being the media type, XHTML unless
+ * given, and `properties` the itemref's; files: [{ href, type, data }]; ncx: [[href, text]] for
+ * EPUB 2.
  */
 function epub(
   name,
@@ -149,8 +156,8 @@ function epub(
   const manifest = epub3
     ? ['<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>']
     : [];
-  for (const { id, href } of sections)
-    manifest.push(`<item id="${id}" href="${href}" media-type="application/xhtml+xml"/>`);
+  for (const { id, href, type = "application/xhtml+xml" } of sections)
+    manifest.push(`<item id="${id}" href="${href}" media-type="${type}"/>`);
   files.forEach(({ href, type }, i) =>
     manifest.push(`<item id="f${i}" href="${href}" media-type="${type}"/>`),
   );
@@ -195,7 +202,7 @@ function epub(
     });
   }
   for (const { href, doc } of sections) entries.push({ name: `OEBPS/${href}`, data: doc });
-  for (const { href, data } of files) entries.push({ name: `OEBPS/${href}`, data });
+  for (const { href, data, store } of files) entries.push({ name: `OEBPS/${href}`, data, store });
   return { name, title, data: zip(entries) };
 }
 
@@ -414,6 +421,28 @@ export function buildBooks() {
       navEntries: rtl.map(({ href }, i) => [href, `${i}`]),
     }),
   );
+  // S09b: the same script set right to left on each body alone, in a left-to-right book.
+  const rtlBodies = Array.from({ length: 4 }, (_, i) => ({
+    id: `s${i}`,
+    href: `s${i}.xhtml`,
+    doc: xhtml(
+      `${i}`,
+      `<h1 id="c${i}">${i}</h1>` +
+        Array.from(
+          { length: 90 },
+          (_, p) => `<p>[${pad(i, 2)}-${pad(p, 3)}] ${words(between(40, 80), ARABIC)}.</p>`,
+        ).join(""),
+      { lang: "he", bodyAttrs: ' style="text-align:right" dir="rtl"' },
+    ),
+  }));
+  books.push(
+    epub("S09b-rtl-bodies", {
+      title: "Reader real S09b rtl bodies",
+      lang: "he",
+      sections: rtlBodies,
+      navEntries: rtlBodies.map(({ href }, i) => [href, `${i}`]),
+    }),
+  );
   // S11: declared vertical-rl marker book, and its vertical-lr twin.
   for (const [name, mode, ppd] of [
     ["S11-vertical-rl-markers", "vertical-rl", "rtl"],
@@ -480,6 +509,223 @@ export function buildBooks() {
       ],
       files: [spread, { href: "fixed.css", type: "text/css", data: "" }],
       meta: '<meta name="primary-writing-mode" content="horizontal-lr"/>',
+    }),
+  );
+  // S13: a vertical book whose stylesheet forces its bodies vertical through a class on the root,
+  // as some Japanese conversions do, so that only a cascade layer outranks it.
+  const forced = textSections(4, 120, { lang: "ja", css: ["forced.css"] }).map((section) => ({
+    ...section,
+    doc: section.doc.replace('<html xmlns="', '<html class="vrtl" xmlns="'),
+  }));
+  books.push(
+    epub("S13-forced-vertical", {
+      title: "Reader real S13 forced vertical",
+      lang: "ja",
+      ppd: "rtl",
+      sections: forced,
+      navEntries: forced.map(({ href }, i) => [href, `〈${pad(i, 2)}〉`]),
+      files: [
+        {
+          href: "forced.css",
+          type: "text/css",
+          data:
+            "html.vrtl { writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl; }\n" +
+            "html.vrtl body { writing-mode: vertical-rl !important; -webkit-writing-mode: vertical-rl !important; }",
+        },
+      ],
+      meta: '<meta name="primary-writing-mode" content="vertical-rl"/>',
+    }),
+  );
+  // S14: assets named by paths other than their relative ones, as calibre conversions write
+  // them: through the package folder's own name, with "./", and from a stylesheet's folder.
+  const picture = (rgb) => png(320, 480, rgb, 4);
+  books.push(
+    epub("S14-asset-spellings", {
+      title: "Reader real S14 asset spellings",
+      sections: [
+        {
+          id: "s0",
+          href: "Text/s0.xhtml",
+          doc: xhtml(
+            "Pictures",
+            `<h1 id="c0">Pictures</h1><p>[00-000] ${words(30)}.</p>` +
+              '<p><img src="../../OEBPS/Images/a.png" alt="a"/></p>' +
+              '<p><img src="./../Images/b.png" alt="b"/></p>' +
+              '<div class="framed"></div>',
+            { css: ["../../OEBPS/Styles/style.css"] },
+          ),
+        },
+      ],
+      navEntries: [["Text/s0.xhtml", "Pictures"]],
+      files: [
+        { href: "Images/a.png", type: "image/png", data: picture([200, 80, 60]) },
+        { href: "Images/b.png", type: "image/png", data: picture([60, 160, 90]) },
+        { href: "Images/c.png", type: "image/png", data: picture([60, 90, 200]) },
+        {
+          href: "Styles/style.css",
+          type: "text/css",
+          data: ".framed { width: 64px; height: 96px; background: url(../../OEBPS/Images/c.png) center / contain no-repeat; }",
+        },
+      ],
+    }),
+  );
+  // S15: an EPUB 3 book whose navigation document is an editor's placeholder, naming a file the
+  // book lacks, while its NCX lists every chapter.
+  const placeholder = textSections(3, 20);
+  books.push(
+    epub("S15-placeholder-nav", {
+      title: "Reader real S15 placeholder nav",
+      sections: placeholder,
+      navEntries: [["Section0001.xhtml", "Start"]],
+      ncx: navOf(placeholder),
+    }),
+  );
+  // S16: a right-to-left fixed-layout book whose pages declare their sides of a spread, the
+  // cover alone on the left, and its left-to-right twin with the cover alone on the right.
+  for (const [name, ppd, sides] of [
+    ["S16-fxl-rtl-spreads", "rtl", ["left", "right"]],
+    ["S16lr-fxl-ltr-spreads", "ltr", ["right", "left"]],
+  ]) {
+    const pages = Array.from({ length: 7 }, (_, i) => ({
+      id: `p${i}`,
+      href: `p${i}.xhtml`,
+      properties: `page-spread-${sides[i % 2]}`,
+      doc: xhtml(
+        `Page ${i}`,
+        `<div class="page" style="background:#${pad(((i * 53) % 200).toString(16), 2)}80c0">` +
+          `<p>[16-${pad(i, 3)}] ${words(12)}</p></div>`,
+        {
+          css: ["page.css"],
+          head: '<meta name="viewport" content="width=600, height=900"/>',
+        },
+      ),
+    }));
+    books.push(
+      epub(name, {
+        title: `Reader real ${name.split("-")[0]} fixed-layout spreads`,
+        sections: pages,
+        navEntries: pages.map(({ href }, i) => [href, `Page ${i}`]),
+        ppd,
+        meta:
+          '<meta property="rendition:layout">pre-paginated</meta>' +
+          '<meta property="rendition:spread">landscape</meta>',
+        files: [
+          {
+            href: "page.css",
+            type: "text/css",
+            data:
+              "html,body{margin:0;padding:0}body{width:600px;height:900px}" +
+              ".page{width:600px;height:900px;overflow:hidden}p{margin:0;padding:60px;font-size:40px}",
+          },
+        ],
+      }),
+    );
+  }
+  // S17: more sections than WebView2 loads frames in a page, the first chapter alone holding
+  // 1000 of them and the others 50.
+  const many = textSections(1100, 2);
+  books.push(
+    epub("S17-many-sections", {
+      title: "Reader real S17 many sections",
+      sections: many,
+      navEntries: navOf(many).filter((_, i) => i === 0 || (i >= 1000 && i % 50 === 0)),
+    }),
+  );
+  // S18: a short book in an archive of 192 MiB, its media stored, listed and never shown.
+  const large = textSections(3, 20);
+  books.push(
+    epub("S18-large-archive", {
+      title: "Reader real S18 large archive",
+      sections: large,
+      navEntries: navOf(large),
+      files: Array.from({ length: 8 }, (_, i) => ({
+        href: `Media/m${i}.bin`,
+        type: "application/octet-stream",
+        data: Buffer.alloc(24 * 1024 * 1024, i),
+        store: true,
+      })),
+    }),
+  );
+  // S19: SVG content documents in the spine between text sections, as the IDPF "SVG in Spine"
+  // sample has them: a page showing an image, styled by its own style element, and a page
+  // drawing its text, styled by an xml-stylesheet instruction as well. S19fx: a fixed-layout
+  // book of SVG pages, which declare their sides of a spread.
+  const svg = (label, drawing, instructions = "") =>
+    `<?xml version="1.0" encoding="utf-8"?>\n${instructions}` +
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"` +
+    ` width="100%" height="100%" viewBox="0 0 600 900" aria-label="${label}">${drawing}</svg>`;
+  const styled = '<?xml-stylesheet href="svg.css" type="text/css"?>\n';
+  const drawn = Array.from(
+    { length: 10 },
+    (_, i) => `<text class="ink" x="40" y="${90 + i * 75}">[19-${pad(i, 3)}] ${words(3)}</text>`,
+  ).join("");
+  const svgSpine = [
+    ...textSections(1, 12),
+    {
+      id: "g1",
+      href: "g1.svg",
+      type: "image/svg+xml",
+      doc: svg(
+        "art",
+        "<title>Plate</title><style>.frame { fill: none; stroke: #222; stroke-width: 8px; }</style>" +
+          '<image width="600" height="900" xlink:href="plate.png"/>' +
+          '<rect class="frame" x="4" y="4" width="592" height="892"/>',
+      ),
+    },
+    {
+      id: "g2",
+      href: "g2.svg",
+      type: "image/svg+xml",
+      doc: svg(
+        "drawn",
+        "<desc>A page of drawn text.</desc><style>.ink { fill: rgb(34, 34, 34); }</style>" + drawn,
+        styled,
+      ),
+    },
+    ...textSections(1, 12, { prefix: "e" }),
+  ];
+  const svgCss = {
+    href: "svg.css",
+    type: "text/css",
+    data: ".ink { font-family: serif; font-size: 36px; }",
+  };
+  books.push(
+    epub("S19-svg-spine", {
+      title: "Reader real S19 SVG spine",
+      sections: svgSpine,
+      navEntries: [
+        ["s0.xhtml", "Start"],
+        ["g1.svg", "Plate"],
+        ["g2.svg", "Drawn"],
+        ["e0.xhtml", "End"],
+      ],
+      files: [
+        { href: "plate.png", type: "image/png", data: png(600, 900, [190, 120, 70], 5) },
+        svgCss,
+      ],
+    }),
+  );
+  const svgPages = Array.from({ length: 5 }, (_, i) => ({
+    id: `q${i}`,
+    href: `q${i}.svg`,
+    type: "image/svg+xml",
+    properties: `page-spread-${i % 2 ? "left" : "right"}`,
+    doc: svg(
+      `page ${i}`,
+      `<rect width="600" height="900" fill="#${pad(((i * 53) % 200).toString(16), 2)}80c0"/>` +
+        `<text class="ink" x="60" y="140">[19-${pad(100 + i, 3)}] ${words(2)}</text>`,
+      styled,
+    ),
+  }));
+  books.push(
+    epub("S19fx-svg-spine-fixed", {
+      title: "Reader real S19fx SVG spine fixed",
+      sections: svgPages,
+      navEntries: svgPages.map(({ href }, i) => [href, `Page ${i}`]),
+      meta:
+        '<meta property="rendition:layout">pre-paginated</meta>' +
+        '<meta property="rendition:spread">landscape</meta>',
+      files: [svgCss],
     }),
   );
   return books;

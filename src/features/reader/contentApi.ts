@@ -17,9 +17,13 @@ export async function prepareReaderContent(catalogId: string): Promise<ReaderCon
         : { status: "failed", url: null };
     }
     const validId = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(catalogId);
+    // The stamp names the source version whose entries the URL lists.
+    const at = result.url.lastIndexOf("/");
+    const [book, stamp] = [result.url.slice(0, at), result.url.slice(at + 1)];
     const safeUrl =
-      result.url === `http://komori-book.localhost/${catalogId}` ||
-      result.url === `komori-book://localhost/${catalogId}`;
+      /^[\da-f]{16}$/.test(stamp) &&
+      (book === `http://komori-book.localhost/${catalogId}` ||
+        book === `komori-book://localhost/${catalogId}`);
     return validId && safeUrl ? result : { status: "failed", url: null };
   } catch {
     // Native diagnostics stay native; invoke errors may include private details.

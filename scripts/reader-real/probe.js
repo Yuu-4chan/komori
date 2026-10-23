@@ -91,14 +91,26 @@
     };
   };
 
+  /** The part of one rect inside another, or the first rect without another. */
+  const clip = (r, by) => {
+    if (!by) return r;
+    const left = Math.max(r.left, by.left);
+    const top = Math.max(r.top, by.top);
+    const right = Math.max(left, Math.min(r.right, by.right));
+    const bottom = Math.max(top, Math.min(r.bottom, by.bottom));
+    return { left, top, right, bottom, width: right - left, height: bottom - top };
+  };
+
   /**
    * The first character shown in document order, sampled on a grid over the reader viewport from
-   * section geometry (never hit testing), or the first image when no text is shown.
+   * section geometry (never hit testing), or the first image when no text is shown. Clipped, the
+   * grid covers only a continuous book's scroll container, and each section only where its view
+   * shows it, leaving out a section scrolled past or collapsed outside the shown chapter.
    */
-  R.firstVisible = () => {
+  R.firstVisible = ({ clipped = false } = {}) => {
     const a = R.adapter();
     if (!a) return null;
-    const vp = viewport();
+    const vp = clipped ? clip(viewport(), a.scrollContainer?.getBoundingClientRect()) : viewport();
     const layout = R.layout() ?? { writingMode: "horizontal-tb", direction: "ltr" };
     const vertical = layout.writingMode.startsWith("vertical");
     const cols = 30;
@@ -123,12 +135,17 @@
           points.push([x, vp.top + inset + (height * major) / (rows - 1)]);
         }
       }
-    const frames = views(a).map((v) => ({ v, r: v.iframe.getBoundingClientRect() }));
+    const frames = views(a).map((v) => {
+      const r = v.iframe.getBoundingClientRect();
+      return { v, r, shown: clipped ? clip(r, v.element.getBoundingClientRect()) : r };
+    });
     let media = null;
     let best = null;
     const mediaSections = new Set();
     for (const [x, y] of points) {
-      const hit = frames.find(({ r }) => x >= r.left && x < r.right && y >= r.top && y < r.bottom);
+      const hit = frames.find(
+        ({ shown }) => x >= shown.left && x < shown.right && y >= shown.top && y < shown.bottom,
+      );
       if (!hit) continue;
       const doc = hit.v.contents.document;
       const lx = x - hit.r.left;

@@ -230,13 +230,19 @@ mod tests {
             .uri(format!("/uploaded/{}.ttf", fonts[0].id))
             .body(vec![])
             .unwrap();
+        let served = super::super::handle_request(root.path(), &[], &request);
+        assert_eq!(served.body(), &original);
+        // The URL names the font's hash, so each section of a book reuses the one response.
         assert_eq!(
-            super::super::handle_request(root.path(), &[], &request).body(),
-            &original
+            served.headers()["Cache-Control"],
+            "public, max-age=31536000, immutable"
         );
         assert_eq!(fs::read(source).unwrap(), original);
         clean_stage(&root.path().join(format!("upload-{}", fonts[0].id))).unwrap();
         assert!(list(root.path()).is_empty());
+        let removed = super::super::handle_request(root.path(), &[], &request);
+        assert_eq!(removed.status(), StatusCode::NOT_FOUND);
+        assert_eq!(removed.headers()["Cache-Control"], "no-store");
         import(root.path(), &original).unwrap();
         fs::write(
             root.path()

@@ -769,11 +769,19 @@ fn handle_request(
     }
 }
 fn response(status: StatusCode, bytes: Vec<u8>) -> Response<Vec<u8>> {
+    // Every font URL names the SHA-256 of the only bytes it serves, so a served font never
+    // changes: each section of a book reuses it instead of fetching it again. A font not
+    // found may be downloaded later.
+    let cache = if status == StatusCode::OK {
+        "public, max-age=31536000, immutable"
+    } else {
+        "no-store"
+    };
     Response::builder()
         .status(status)
         .header("Content-Type", "font/ttf")
         .header("X-Content-Type-Options", "nosniff")
-        .header("Cache-Control", "no-store")
+        .header("Cache-Control", cache)
         .header("Access-Control-Allow-Origin", "*")
         .body(bytes)
         .expect("Static font response")
@@ -997,15 +1005,14 @@ mod tests {
             "/unknown/123.ttf",
             "/zen-old-mincho/font.ttf",
         ] {
-            assert_eq!(
-                handle_request(
-                    dir.path(),
-                    &[],
-                    &Request::builder().uri(path).body(Vec::new()).unwrap()
-                )
-                .status(),
-                StatusCode::NOT_FOUND
+            let refused = handle_request(
+                dir.path(),
+                &[],
+                &Request::builder().uri(path).body(Vec::new()).unwrap(),
             );
+            assert_eq!(refused.status(), StatusCode::NOT_FOUND);
+            // A font not found now may be downloaded later.
+            assert_eq!(refused.headers()["Cache-Control"], "no-store");
         }
         let path = format!("/{}/{}.ttf", FONTS[0].id, FONTS[0].hash);
         assert_eq!(

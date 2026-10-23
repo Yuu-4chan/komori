@@ -1,3 +1,37 @@
+diff --git a/lib/contents.js b/lib/contents.js
+index 8392d8710b768cab227120ccf32ea8347e213e83..2106afde1382df825d6b95048bd9e2df48c0469c 100644
+--- a/lib/contents.js
++++ b/lib/contents.js
+@@ -1066,21 +1066,23 @@ class Contents {
+       scale: 1.0,
+       scalable: "no"
+     };
+-    this.layoutStyle("scrolling");
++    this.layoutStyle("scrolling"); // Only written: reading each value back forced a layout of the section.
++
++    var content = this.content || this.document.body;
+ 
+     if (width >= 0) {
+-      this.width(width);
++      if (width) this.content.style.width = width + "px";
+       viewport.width = width;
+-      this.css("padding", "0 " + width / 12 + "px");
++      content.style.setProperty("padding", "0 " + width / 12 + "px");
+     }
+ 
+     if (height >= 0) {
+-      this.height(height);
++      if (height) this.content.style.height = height + "px";
+       viewport.height = height;
+     }
+ 
+-    this.css("margin", "0");
+-    this.css("box-sizing", "border-box");
++    content.style.setProperty("margin", "0");
++    content.style.setProperty("box-sizing", "border-box");
+     this.viewport(viewport);
+   }
+   /**
 diff --git a/lib/managers/continuous/index.js b/lib/managers/continuous/index.js
 index 491287623a3a45d6f8d63044cb5925eaa5df53f5..75ab0c90846ef559e9f6d5560d0a7ed13b6d0a23 100644
 --- a/lib/managers/continuous/index.js
@@ -27,9 +61,18 @@ index 491287623a3a45d6f8d63044cb5925eaa5df53f5..75ab0c90846ef559e9f6d5560d0a7ed1
  
    onScroll() {
 diff --git a/lib/managers/default/index.js b/lib/managers/default/index.js
-index 4f56aafcb2b987af310b1a52411731a4e3e83650..9a4dd52780f5e97b50ffcd3eeae6ce7139e3e604 100644
+index 4f56aafcb2b987af310b1a52411731a4e3e83650..dde4dbfc6ff6a795426059ef9fcb93a4373631e8 100644
 --- a/lib/managers/default/index.js
 +++ b/lib/managers/default/index.js
+@@ -89,7 +89,7 @@ class DefaultViewManager {
+ 
+     this.container = this.stage.getContainer(); // Views array methods
+ 
+-    this.views = new _views.default(this.container); // Calculate Stage Size
++    this.views = new _views.default(this.container, this.settings.groupViews); // Calculate Stage Size
+ 
+     this._bounds = this.bounds();
+     this._stageSize = this.stage.size(); // Set the dimensions for views
 @@ -113,9 +113,10 @@ class DefaultViewManager {
  
    addEventListeners() {
@@ -65,6 +108,327 @@ index fcec0c939f2b6ff3d464fe7e5dcf66f25a467f93..54138dc6b227a8a40901f5add0755502
      }
    }
  
+diff --git a/lib/managers/helpers/views.js b/lib/managers/helpers/views.js
+index 85221996030b400058f611b9753d6c9ca4e25635..e9727280423789f0c64f89b49b48ec9fa726c0e3 100644
+--- a/lib/managers/helpers/views.js
++++ b/lib/managers/helpers/views.js
+@@ -6,11 +6,14 @@ Object.defineProperty(exports, "__esModule", {
+ exports.default = void 0;
+ 
+ class Views {
+-  constructor(container) {
++  constructor(container, group) {
+     this.container = container;
+     this._views = [];
+     this.length = 0;
+     this.hidden = false;
++    // Komori: grouped views are kept in groups of at most this many, so a view that
++    // changes size lays out its own group and the groups rather than every view.
++    this.group = group || 0;
+   }
+ 
+   all() {
+@@ -41,7 +44,11 @@ class Views {
+     this._views.push(view);
+ 
+     if (this.container) {
+-      this.container.appendChild(view.element);
++      if (this.group) {
++        this.attach(view, this._views.length - 1);
++      } else {
++        this.container.appendChild(view.element);
++      }
+     }
+ 
+     this.length++;
+@@ -52,7 +59,11 @@ class Views {
+     this._views.unshift(view);
+ 
+     if (this.container) {
+-      this.container.insertBefore(view.element, this.container.firstChild);
++      if (this.group) {
++        this.attach(view, 0);
++      } else {
++        this.container.insertBefore(view.element, this.container.firstChild);
++      }
+     }
+ 
+     this.length++;
+@@ -63,7 +74,9 @@ class Views {
+     this._views.splice(index, 0, view);
+ 
+     if (this.container) {
+-      if (index < this.container.children.length) {
++      if (this.group) {
++        this.attach(view, index);
++      } else if (index < this.container.children.length) {
+         this.container.insertBefore(view.element, this.container.children[index]);
+       } else {
+         this.container.appendChild(view.element);
+@@ -74,6 +87,48 @@ class Views {
+     return view;
+   }
+ 
++  // Komori: put a grouped view's element in place among its neighbours', in a group with
++  // room. Within a full group, the views after it move to a group of their own.
++  attach(view, index) {
++    var before = this._views[index - 1];
++    var after = this._views[index + 1];
++    var previous = before && this.groupOf(before);
++    var next = after && this.groupOf(after);
++    if (previous && previous.childElementCount >= this.group && before.element.nextSibling) {
++      var rest = this.createGroup();
++      while (before.element.nextSibling) {
++        rest.appendChild(before.element.nextSibling);
++      }
++      this.container.insertBefore(rest, previous.nextSibling);
++      next = rest;
++    }
++    if (previous && previous.childElementCount < this.group) {
++      previous.insertBefore(view.element, before.element.nextSibling);
++    } else if (next && next.childElementCount < this.group) {
++      next.insertBefore(view.element, next.firstChild);
++    } else {
++      var group = this.createGroup();
++      group.appendChild(view.element);
++      this.container.insertBefore(group, previous ? previous.nextSibling : next || null);
++    }
++  }
++
++  groupOf(view) {
++    var group = view.element.parentNode;
++    return group && group !== this.container && group.parentNode === this.container ? group : undefined;
++  }
++
++  // A group lays out its views as the container does, and takes their whole size.
++  createGroup() {
++    var group = document.createElement("div");
++    group.classList.add("epub-view-group");
++    group.style.display = "inherit";
++    group.style.flexDirection = "inherit";
++    group.style.flexWrap = "inherit";
++    group.style.flex = "none";
++    return group;
++  }
++
+   remove(view) {
+     var index = this._views.indexOf(view);
+ 
+@@ -91,7 +146,18 @@ class Views {
+     }
+ 
+     if (this.container) {
+-      this.container.removeChild(view.element);
++      if (this.group) {
++        // A group goes with its last view.
++        var group = view.element.parentNode;
++        if (group) {
++          group.removeChild(view.element);
++          if (group !== this.container && !group.firstChild && group.parentNode) {
++            group.parentNode.removeChild(group);
++          }
++        }
++      } else {
++        this.container.removeChild(view.element);
++      }
+     }
+ 
+     view = null;
+diff --git a/lib/managers/views/iframe.js b/lib/managers/views/iframe.js
+index 00b69acd5be6bc185e2f49227aa5639a8b292178..339d114cdfcea13342da7f93cf1a5ea5b7dfaa51 100644
+--- a/lib/managers/views/iframe.js
++++ b/lib/managers/views/iframe.js
+@@ -115,7 +115,8 @@ class IframeView {
+     this._height = 0;
+     this.element.setAttribute("ref", this.index);
+     this.added = true;
+-    this.elementBounds = (0, _core.bounds)(this.element); // if(width || height){
++    // Measured when asked for, as reading it forces a layout of every view.
++    this.elementBounds = undefined; // if(width || height){
+     //   this.resize(width, height);
+     // } else if(this.width && this.height){
+     //   this.resize(this.width, this.height);
+@@ -227,30 +228,26 @@ class IframeView {
+ 
+ 
+   lock(what, width, height) {
+-    var elBorders = (0, _core.borders)(this.element);
+-    var iframeBorders;
++    // Komori: reading the borders lays out every view, so they are taken into account
++    // only as the locked size is next used (see settleLock).
++    var pending = this.pendingLock || {};
+ 
+-    if (this.iframe) {
+-      iframeBorders = (0, _core.borders)(this.iframe);
+-    } else {
+-      iframeBorders = {
+-        width: 0,
+-        height: 0
+-      };
++    if(what == "width" && (0, _core.isNumber)(width)){
++      pending.width = width;
+     }
+ 
+-    if (what == "width" && (0, _core.isNumber)(width)) {
+-      this.lockedWidth = width - elBorders.width - iframeBorders.width; // this.resize(this.lockedWidth, width); //  width keeps ratio correct
++    if(what == "height" && (0, _core.isNumber)(height)){
++      pending.height = height;
+     }
+ 
+-    if (what == "height" && (0, _core.isNumber)(height)) {
+-      this.lockedHeight = height - elBorders.height - iframeBorders.height; // this.resize(width, this.lockedHeight);
++    if(what === "both" &&
++       (0, _core.isNumber)(width) &&
++       (0, _core.isNumber)(height)){
++      pending.width = width;
++      pending.height = height;
+     }
+ 
+-    if (what === "both" && (0, _core.isNumber)(width) && (0, _core.isNumber)(height)) {
+-      this.lockedWidth = width - elBorders.width - iframeBorders.width;
+-      this.lockedHeight = height - elBorders.height - iframeBorders.height; // this.resize(this.lockedWidth, this.lockedHeight);
+-    }
++    this.pendingLock = pending;
+ 
+     if (this.displayed && this.iframe) {
+       // this.contents.layout();
+@@ -259,6 +256,52 @@ class IframeView {
+   } // Resize a single axis based on content dimensions
+ 
+ 
++  // Komori: lock the size last asked for, taking the borders as they are now into account.
++  settleLock() {
++    var pending = this.pendingLock;
++    if(!pending) return;
++    this.pendingLock = undefined;
++    if(pending.width === undefined && pending.height === undefined) return;
++
++    var elBorders = (0, _core.borders)(this.element);
++    var iframeBorders;
++
++    if(this.iframe) {
++      iframeBorders = (0, _core.borders)(this.iframe);
++    } else {
++      iframeBorders = {width: 0, height: 0};
++    }
++
++    if(pending.width !== undefined) {
++      this._lockedWidth = pending.width - elBorders.width - iframeBorders.width;
++    }
++
++    if(pending.height !== undefined) {
++      this._lockedHeight = pending.height - elBorders.height - iframeBorders.height;
++    }
++  }
++
++  get lockedWidth() {
++    this.settleLock();
++    return this._lockedWidth;
++  }
++
++  set lockedWidth(width) {
++    if(this.pendingLock) this.pendingLock.width = undefined;
++    this._lockedWidth = width;
++  }
++
++  get lockedHeight() {
++    this.settleLock();
++    return this._lockedHeight;
++  }
++
++  set lockedHeight(height) {
++    if(this.pendingLock) this.pendingLock.height = undefined;
++    this._lockedHeight = height;
++  }
++
++
+   expand(force) {
+     var width = this.lockedWidth;
+     var height = this.lockedHeight;
+@@ -342,7 +385,7 @@ class IframeView {
+     this.onResize(this, size);
+     this.emit(_constants.EVENTS.VIEWS.RESIZED, size);
+     this.prevBounds = size;
+-    this.elementBounds = (0, _core.bounds)(this.element);
++    this.elementBounds = undefined;
+   }
+ 
+   load(contents) {
+diff --git a/lib/rendition.js b/lib/rendition.js
+index 0dda80cf9d62af2eaec2dee5a3849950574f54a9..97ed639a6afc2e281536c5b17980d9410fc983a0 100644
+--- a/lib/rendition.js
++++ b/lib/rendition.js
+@@ -954,21 +954,29 @@ class Rendition {
+       });
+     }
+ 
+-    let computed = contents.window.getComputedStyle(contents.content, null);
+-    let height = (contents.content.offsetHeight - (parseFloat(computed.paddingTop) + parseFloat(computed.paddingBottom))) * .95;
+-    let horizontalPadding = parseFloat(computed.paddingLeft) + parseFloat(computed.paddingRight);
++    // Komori: measuring the section lays it and every view before it out. A rendition
++    // that limits its images' size itself has them limited without measuring.
++    let limits = {};
++    if (this.settings.limitImages !== false) {
++      let computed = contents.window.getComputedStyle(contents.content, null);
++      let height = (contents.content.offsetHeight - (parseFloat(computed.paddingTop) + parseFloat(computed.paddingBottom))) * .95;
++      let horizontalPadding = parseFloat(computed.paddingLeft) + parseFloat(computed.paddingRight);
++      limits = {
++        "max-width": (this._layout.columnWidth ? (this._layout.columnWidth - horizontalPadding) + "px" : "100%") + "!important",
++        "max-height": height + "px" + "!important"
++      };
++    }
++
+     contents.addStylesheetRules({
+-      "img": {
+-        "max-width": (this._layout.columnWidth ? this._layout.columnWidth - horizontalPadding + "px" : "100%") + "!important",
+-        "max-height": height + "px" + "!important",
++      "img" : {
++        ...limits,
+         "object-fit": "contain",
+         "page-break-inside": "avoid",
+         "break-inside": "avoid",
+         "box-sizing": "border-box"
+       },
+-      "svg": {
+-        "max-width": (this._layout.columnWidth ? this._layout.columnWidth - horizontalPadding + "px" : "100%") + "!important",
+-        "max-height": height + "px" + "!important",
++      "svg" : {
++        ...limits,
+         "page-break-inside": "avoid",
+         "break-inside": "avoid"
+       }
+diff --git a/src/contents.js b/src/contents.js
+index 3effe7252459218ad3d83d1b47ef338007a6d66a..8264ec51c100d5001c00641578e60a9d2fbce6cb 100644
+--- a/src/contents.js
++++ b/src/contents.js
+@@ -1022,19 +1022,22 @@ class Contents {
+ 
+ 		this.layoutStyle("scrolling");
+ 
++		// Only written: reading each value back forced a layout of the section.
++		var content = this.content || this.document.body;
++
+ 		if (width >= 0) {
+-			this.width(width);
++			if (width) this.content.style.width = width + "px";
+ 			viewport.width = width;
+-			this.css("padding", "0 "+(width/12)+"px");
++			content.style.setProperty("padding", "0 "+(width/12)+"px");
+ 		}
+ 
+ 		if (height >= 0) {
+-			this.height(height);
++			if (height) this.content.style.height = height + "px";
+ 			viewport.height = height;
+ 		}
+ 
+-		this.css("margin", "0");
+-		this.css("box-sizing", "border-box");
++		content.style.setProperty("margin", "0");
++		content.style.setProperty("box-sizing", "border-box");
+ 
+ 
+ 		this.viewport(viewport);
 diff --git a/src/managers/continuous/index.js b/src/managers/continuous/index.js
 index d61f8f76c215589ddc2c5e1fde4262db76585de8..23568b3831cddc6881aaff51c83015358537bbfe 100644
 --- a/src/managers/continuous/index.js
@@ -94,9 +458,18 @@ index d61f8f76c215589ddc2c5e1fde4262db76585de8..23568b3831cddc6881aaff51c8301535
  
  	onScroll(){
 diff --git a/src/managers/default/index.js b/src/managers/default/index.js
-index 2812d878ad8eaa773abe5a55dbdfce7eec1f2a04..905f8014b06a90c8b8ec2b86a912b4df33b172f3 100644
+index 2812d878ad8eaa773abe5a55dbdfce7eec1f2a04..f7de44a2950462369976a9d3505e369f82c4ae22 100644
 --- a/src/managers/default/index.js
 +++ b/src/managers/default/index.js
+@@ -85,7 +85,7 @@ class DefaultViewManager {
+ 		this.container = this.stage.getContainer();
+ 
+ 		// Views array methods
+-		this.views = new Views(this.container);
++		this.views = new Views(this.container, this.settings.groupViews);
+ 
+ 		// Calculate Stage Size
+ 		this._bounds = this.bounds();
 @@ -117,9 +117,10 @@ class DefaultViewManager {
  	addEventListeners(){
  		var scroller;
@@ -132,3 +505,287 @@ index d0f67e65ded36ec79e7755a01523829cc7ea6c3c..b7abeebbbbf98961dd1cc7cdda386ad6
  
  		}
  	}
+diff --git a/src/managers/helpers/views.js b/src/managers/helpers/views.js
+index 4368da2c20e2edcf6341eae8069b6c56dda3c3f4..b934c060a432a13ff1392260d06d61d5f5c5ea3b 100644
+--- a/src/managers/helpers/views.js
++++ b/src/managers/helpers/views.js
+@@ -1,9 +1,12 @@
+ class Views {
+-	constructor(container) {
++	constructor(container, group) {
+ 		this.container = container;
+ 		this._views = [];
+ 		this.length = 0;
+ 		this.hidden = false;
++		// Komori: grouped views are kept in groups of at most this many, so a view that
++		// changes size lays out its own group and the groups rather than every view.
++		this.group = group || 0;
+ 	}
+ 
+ 	all() {
+@@ -33,7 +36,11 @@ class Views {
+ 	append(view){
+ 		this._views.push(view);
+ 		if(this.container){
+-			this.container.appendChild(view.element);
++			if (this.group) {
++				this.attach(view, this._views.length - 1);
++			} else {
++				this.container.appendChild(view.element);
++			}
+ 		}
+ 		this.length++;
+ 		return view;
+@@ -42,7 +49,11 @@ class Views {
+ 	prepend(view){
+ 		this._views.unshift(view);
+ 		if(this.container){
+-			this.container.insertBefore(view.element, this.container.firstChild);
++			if (this.group) {
++				this.attach(view, 0);
++			} else {
++				this.container.insertBefore(view.element, this.container.firstChild);
++			}
+ 		}
+ 		this.length++;
+ 		return view;
+@@ -52,7 +63,9 @@ class Views {
+ 		this._views.splice(index, 0, view);
+ 
+ 		if(this.container){
+-			if(index < this.container.children.length){
++			if (this.group) {
++				this.attach(view, index);
++			} else if(index < this.container.children.length){
+ 				this.container.insertBefore(view.element, this.container.children[index]);
+ 			} else {
+ 				this.container.appendChild(view.element);
+@@ -63,6 +76,48 @@ class Views {
+ 		return view;
+ 	}
+ 
++	// Komori: put a grouped view's element in place among its neighbours', in a group with
++	// room. Within a full group, the views after it move to a group of their own.
++	attach(view, index) {
++		var before = this._views[index - 1];
++		var after = this._views[index + 1];
++		var previous = before && this.groupOf(before);
++		var next = after && this.groupOf(after);
++		if (previous && previous.childElementCount >= this.group && before.element.nextSibling) {
++			var rest = this.createGroup();
++			while (before.element.nextSibling) {
++				rest.appendChild(before.element.nextSibling);
++			}
++			this.container.insertBefore(rest, previous.nextSibling);
++			next = rest;
++		}
++		if (previous && previous.childElementCount < this.group) {
++			previous.insertBefore(view.element, before.element.nextSibling);
++		} else if (next && next.childElementCount < this.group) {
++			next.insertBefore(view.element, next.firstChild);
++		} else {
++			var group = this.createGroup();
++			group.appendChild(view.element);
++			this.container.insertBefore(group, previous ? previous.nextSibling : next || null);
++		}
++	}
++
++	groupOf(view) {
++		var group = view.element.parentNode;
++		return group && group !== this.container && group.parentNode === this.container ? group : undefined;
++	}
++
++	// A group lays out its views as the container does, and takes their whole size.
++	createGroup() {
++		var group = document.createElement("div");
++		group.classList.add("epub-view-group");
++		group.style.display = "inherit";
++		group.style.flexDirection = "inherit";
++		group.style.flexWrap = "inherit";
++		group.style.flex = "none";
++		return group;
++	}
++
+ 	remove(view) {
+ 		var index = this._views.indexOf(view);
+ 
+@@ -82,7 +137,18 @@ class Views {
+ 		}
+ 		
+ 		if(this.container){
+-			 this.container.removeChild(view.element);
++			if (this.group) {
++				// A group goes with its last view.
++				var group = view.element.parentNode;
++				if (group) {
++					group.removeChild(view.element);
++					if (group !== this.container && !group.firstChild && group.parentNode) {
++						group.parentNode.removeChild(group);
++					}
++				}
++			} else {
++				this.container.removeChild(view.element);
++			}
+ 		}
+ 		view = null;
+ 	}
+diff --git a/src/managers/views/iframe.js b/src/managers/views/iframe.js
+index e20e54d1395de3ad9875d9e5ffc1ac7af2d729f2..c4f3762661c970903297f63fe0cf627a7228a4a9 100644
+--- a/src/managers/views/iframe.js
++++ b/src/managers/views/iframe.js
+@@ -116,7 +116,8 @@ class IframeView {
+ 
+ 		this.added = true;
+ 
+-		this.elementBounds = bounds(this.element);
++		// Measured when asked for, as reading it forces a layout of every view.
++		this.elementBounds = undefined;
+ 
+ 		// if(width || height){
+ 		//   this.resize(width, height);
+@@ -242,34 +243,27 @@ class IframeView {
+ 
+ 	// Lock an axis to element dimensions, taking borders into account
+ 	lock(what, width, height) {
+-		var elBorders = borders(this.element);
+-		var iframeBorders;
+-
+-		if(this.iframe) {
+-			iframeBorders = borders(this.iframe);
+-		} else {
+-			iframeBorders = {width: 0, height: 0};
+-		}
++		// Komori: reading the borders lays out every view, so they are taken into account
++		// only as the locked size is next used (see settleLock).
++		var pending = this.pendingLock || {};
+ 
+ 		if(what == "width" && isNumber(width)){
+-			this.lockedWidth = width - elBorders.width - iframeBorders.width;
+-			// this.resize(this.lockedWidth, width); //  width keeps ratio correct
++			pending.width = width;
+ 		}
+ 
+ 		if(what == "height" && isNumber(height)){
+-			this.lockedHeight = height - elBorders.height - iframeBorders.height;
+-			// this.resize(width, this.lockedHeight);
++			pending.height = height;
+ 		}
+ 
+ 		if(what === "both" &&
+ 			 isNumber(width) &&
+ 			 isNumber(height)){
+-
+-			this.lockedWidth = width - elBorders.width - iframeBorders.width;
+-			this.lockedHeight = height - elBorders.height - iframeBorders.height;
+-			// this.resize(this.lockedWidth, this.lockedHeight);
++			pending.width = width;
++			pending.height = height;
+ 		}
+ 
++		this.pendingLock = pending;
++
+ 		if(this.displayed && this.iframe) {
+ 
+ 			// this.contents.layout();
+@@ -280,6 +274,51 @@ class IframeView {
+ 
+ 	}
+ 
++	// Komori: lock the size last asked for, taking the borders as they are now into account.
++	settleLock() {
++		var pending = this.pendingLock;
++		if(!pending) return;
++		this.pendingLock = undefined;
++		if(pending.width === undefined && pending.height === undefined) return;
++
++		var elBorders = borders(this.element);
++		var iframeBorders;
++
++		if(this.iframe) {
++			iframeBorders = borders(this.iframe);
++		} else {
++			iframeBorders = {width: 0, height: 0};
++		}
++
++		if(pending.width !== undefined) {
++			this._lockedWidth = pending.width - elBorders.width - iframeBorders.width;
++		}
++
++		if(pending.height !== undefined) {
++			this._lockedHeight = pending.height - elBorders.height - iframeBorders.height;
++		}
++	}
++
++	get lockedWidth() {
++		this.settleLock();
++		return this._lockedWidth;
++	}
++
++	set lockedWidth(width) {
++		if(this.pendingLock) this.pendingLock.width = undefined;
++		this._lockedWidth = width;
++	}
++
++	get lockedHeight() {
++		this.settleLock();
++		return this._lockedHeight;
++	}
++
++	set lockedHeight(height) {
++		if(this.pendingLock) this.pendingLock.height = undefined;
++		this._lockedHeight = height;
++	}
++
+ 	// Resize a single axis based on content dimensions
+ 	expand(force) {
+ 		var width = this.lockedWidth;
+@@ -376,7 +415,7 @@ class IframeView {
+ 
+ 		this.prevBounds = size;
+ 
+-		this.elementBounds = bounds(this.element);
++		this.elementBounds = undefined;
+ 
+ 	}
+ 
+diff --git a/src/rendition.js b/src/rendition.js
+index 14a21b4506366b9193dc68b379a0548492db53f6..0331aa42cdb06a6e9d26ce8eab3bb9f115348574 100644
+--- a/src/rendition.js
++++ b/src/rendition.js
+@@ -954,22 +954,29 @@ class Rendition {
+ 			});
+ 		}
+ 
+-		let computed = contents.window.getComputedStyle(contents.content, null);
+-		let height = (contents.content.offsetHeight - (parseFloat(computed.paddingTop) + parseFloat(computed.paddingBottom))) * .95;
+-		let horizontalPadding = parseFloat(computed.paddingLeft) + parseFloat(computed.paddingRight);
++		// Komori: measuring the section lays it and every view before it out. A rendition
++		// that limits its images' size itself has them limited without measuring.
++		let limits = {};
++		if (this.settings.limitImages !== false) {
++			let computed = contents.window.getComputedStyle(contents.content, null);
++			let height = (contents.content.offsetHeight - (parseFloat(computed.paddingTop) + parseFloat(computed.paddingBottom))) * .95;
++			let horizontalPadding = parseFloat(computed.paddingLeft) + parseFloat(computed.paddingRight);
++			limits = {
++				"max-width": (this._layout.columnWidth ? (this._layout.columnWidth - horizontalPadding) + "px" : "100%") + "!important",
++				"max-height": height + "px" + "!important"
++			};
++		}
+ 
+ 		contents.addStylesheetRules({
+ 			"img" : {
+-				"max-width": (this._layout.columnWidth ? (this._layout.columnWidth - horizontalPadding) + "px" : "100%") + "!important",
+-				"max-height": height + "px" + "!important",
++				...limits,
+ 				"object-fit": "contain",
+ 				"page-break-inside": "avoid",
+ 				"break-inside": "avoid",
+ 				"box-sizing": "border-box"
+ 			},
+ 			"svg" : {
+-				"max-width": (this._layout.columnWidth ? (this._layout.columnWidth - horizontalPadding) + "px" : "100%") + "!important",
+-				"max-height": height + "px" + "!important",
++				...limits,
+ 				"page-break-inside": "avoid",
+ 				"break-inside": "avoid"
+ 			}

@@ -10,6 +10,7 @@ import { getStartupBook } from "./features/startup/startupApi";
 import { useLibraryImportController, LibraryImportContext } from "./features/library/libraryImport";
 import { useStarterDictionaryNotifications } from "./features/dictionary/useStarterDictionaries";
 import { UpdatesProvider } from "./features/updates/updates";
+import { refreshReaderFonts } from "./features/reader/readerFonts";
 
 function StartupRoute() {
   const [book, setBook] = useState<string | null | undefined>(undefined);
@@ -42,11 +43,7 @@ function StartupRoute() {
 const ReaderPage = lazy(() =>
   import("./pages/ReaderPage").then((module) => ({ default: module.ReaderPage })),
 );
-const reader = (
-  <Suspense fallback={<div className="reader-shell" aria-busy="true" />}>
-    <ReaderPage />
-  </Suspense>
-);
+const reader = <ReaderPage />;
 
 // `/dictionary?q=<text>` opens the Dictionary page searching that text, as the Reader's lookup
 // popup does; each query opens the page afresh.
@@ -63,21 +60,30 @@ export function App() {
   useEffect(() => {
     void scanFolders();
   }, [scanFolders]);
+  // A book waits for the Reader's fonts before its first layout; list them before one opens.
+  useEffect(() => {
+    void refreshReaderFonts();
+  }, []);
   return (
     <LibraryImportContext.Provider value={imports}>
       <UpdatesProvider>
-        <Routes>
-          <Route index element={<StartupRoute />} />
-          <Route element={<AppShell />}>
-            <Route path="library" element={<LibraryPage />} />
-            <Route path="dictionary" element={<DictionaryRoute />} />
-            <Route path="statistics" element={<StatisticsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate replace to="/library" />} />
-          </Route>
-          <Route path="reader" element={reader} />
-          <Route path="reader/:catalogId" element={reader} />
-        </Routes>
+        {/* Router navigations are transitions. While the Reader chunk loads, this boundary,
+            already showing a page, keeps that page instead of revealing a fallback, which
+            React would hold on screen for at least 300 ms. Only a first render shows it. */}
+        <Suspense fallback={<div className="reader-shell" aria-busy="true" />}>
+          <Routes>
+            <Route index element={<StartupRoute />} />
+            <Route element={<AppShell />}>
+              <Route path="library" element={<LibraryPage />} />
+              <Route path="dictionary" element={<DictionaryRoute />} />
+              <Route path="statistics" element={<StatisticsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate replace to="/library" />} />
+            </Route>
+            <Route path="reader" element={reader} />
+            <Route path="reader/:catalogId" element={reader} />
+          </Routes>
+        </Suspense>
       </UpdatesProvider>
     </LibraryImportContext.Provider>
   );

@@ -144,8 +144,9 @@ export class ImageBlurSession {
   /** Bind before lookup listeners. Release documents that the rendition discarded. */
   watchDocuments(documents: Document[]): void {
     if (this.disposed) return;
+    const kept = new Set(documents);
     for (const [document, stop] of this.watches) {
-      if (documents.includes(document)) continue;
+      if (kept.has(document)) continue;
       stop();
       this.watches.delete(document);
     }

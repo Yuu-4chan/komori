@@ -1,3 +1,5 @@
+import { isSvgPage } from "./svgPage";
+
 const namespace = "http://www.w3.org/1999/xhtml";
 const TEXT_IMAGE = "data-komori-text-image";
 const SPACING = "data-komori-image-spacing";
@@ -120,7 +122,12 @@ export function applyBookImageLayout(document: Document): void {
     const lines = [...block.querySelectorAll(`[${IMAGE_LINE}]`)];
     lines.forEach((line, index) => line.toggleAttribute(IMAGE_GAP, index < lines.length - 1));
   }
-  if (images.length === 1 && !shownText(body).trim() && !isTextImage(images[0]))
+  // An SVG page's drawing fills its page whatever text it draws.
+  if (
+    images.length === 1 &&
+    (isSvgPage(document) || !shownText(body).trim()) &&
+    !isTextImage(images[0])
+  )
     images[0].setAttribute(PAGE_IMAGE, "");
   if (!images.length || document.querySelector(`style[${STYLE}]`)) return;
   const style = document.createElementNS(namespace, "style");

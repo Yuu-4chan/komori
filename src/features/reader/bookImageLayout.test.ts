@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyBookImageLayout, fitBookImagePage, shownText } from "./bookImageLayout";
+import { svgPageDocument } from "./svgPage";
 
 function page(html: string) {
   const document = window.document.implementation.createHTMLDocument();
@@ -186,6 +187,24 @@ describe("publisher book images", () => {
     const captioned = page('<div><span style="color: red">Cover</span><img src="cover.jpg"></div>');
     applyBookImageLayout(captioned);
     expect(captioned.querySelector("img")!.hasAttribute("data-komori-page-image")).toBe(false);
+  });
+
+  it("fits an SVG spine page by its drawing's box even when the drawing holds text", () => {
+    const drawing =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900">' +
+      '<text x="10" y="20">Under the wind</text></svg>';
+    const doc = svgPageDocument(new DOMParser().parseFromString(drawing, "image/svg+xml"));
+    doc.documentElement.style.fontSize = "20px";
+    applyBookImageLayout(doc);
+    expect(doc.querySelector("svg")!.hasAttribute("data-komori-page-image")).toBe(true);
+    fitBookImagePage(doc, 800, 630);
+    expect(doc.querySelector("style[data-komori-page-image-fit]")!.textContent).toContain(
+      "width: 400px !important; height: 600px !important",
+    );
+    // The same drawing in a chapter's text is an illustration beside that text.
+    const chapter = page(`<div>${drawing}</div>`);
+    applyBookImageLayout(chapter);
+    expect(chapter.querySelector("svg")!.hasAttribute("data-komori-page-image")).toBe(false);
   });
 
   it("separates an unwrapped image from its caption while keeping running illustrations inline", () => {

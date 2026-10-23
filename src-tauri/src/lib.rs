@@ -47,6 +47,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(updates::UpdateState::default())
+        .manage(reader_content::ReaderArchives::default())
         .register_asynchronous_uri_scheme_protocol("komori-book", reader_content::serve_book)
         .register_asynchronous_uri_scheme_protocol("komori-cover", covers::serve_cover)
         .register_asynchronous_uri_scheme_protocol("komori-font", reader_fonts::serve_font)

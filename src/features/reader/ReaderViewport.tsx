@@ -10,17 +10,9 @@ interface ReaderViewportProps {
   viewportRef?: RefObject<HTMLElement | null>;
   identity: ReaderIdentity;
   status: ReaderStatus;
-  /** Whether the book opens in continuous view, laid out whole before it shows. */
-  continuous?: boolean;
 }
 
-export function ReaderViewport({
-  hostRef,
-  viewportRef,
-  identity,
-  status,
-  continuous = false,
-}: ReaderViewportProps) {
+export function ReaderViewport({ hostRef, viewportRef, identity, status }: ReaderViewportProps) {
   const { t } = useI18n();
   const book = identity.status === "book" ? identity.book : null;
   const selected = identity.status !== "empty";
@@ -71,9 +63,7 @@ export function ReaderViewport({
                       ? "viewport.missing"
                       : "viewport.unreadable"
                     : status === "loading"
-                      ? continuous
-                        ? "viewport.layingOutWhole"
-                        : "viewport.loadingFirst"
+                      ? "viewport.loadingFirst"
                       : status === "missing"
                         ? "viewport.missing"
                         : status === "unreadable"

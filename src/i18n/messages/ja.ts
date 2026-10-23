@@ -1491,7 +1491,6 @@ export const ja: MessageCatalog = {
   "viewport.couldNotStart": "読書画面を起動できませんでした",
   "viewport.missing": "この本のファイルが見つかりません。本棚に戻って再リンクしてください。",
   "viewport.unreadable": "この本のファイルを読み込めません。本棚に戻って再リンクしてください。",
-  "viewport.layingOutWhole": "本全体をレイアウトしています。",
   "viewport.loadingFirst": "最初に読める部分を読み込んでいます。",
   "viewport.invalid":
     "このEPUBは内容が正しくないため開けませんでした。別のコピーを試すかEPUBエディターで修復してから、本棚で再リンクしてください。",

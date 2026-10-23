@@ -63,11 +63,13 @@ pub(crate) fn read_details(source: File) -> Result<BookDetails, String> {
 }
 
 /// Checks the archive, container, and package document without resolving or decoding a cover.
-/// Reader content access uses this on every open and protocol request.
-pub(crate) fn validate(source: File) -> Result<(), String> {
-    let mut archive = open_archive(source)?;
-    let (package_path, package) = read_package(&mut archive)?;
-    check_structure(&archive, &package_path, &parse_package(&package)?)
+/// Reader content access checks each archive version it serves this way once, before listing
+/// its entries.
+pub(crate) fn validate_archive<R: Read + std::io::Seek>(
+    archive: &mut ZipArchive<R>,
+) -> Result<(), String> {
+    let (package_path, package) = read_package(archive)?;
+    check_structure(archive, &package_path, &parse_package(&package)?)
 }
 
 /// Requires the least a Reader can open: a `package` root with a manifest and a spine, and at
@@ -115,7 +117,9 @@ fn open_archive(source: File) -> Result<ZipArchive<File>, String> {
     ZipArchive::new(source).map_err(|_| crate::failure::EPUB_NOT_ARCHIVE.to_string())
 }
 
-fn read_package(archive: &mut ZipArchive<File>) -> Result<(String, String), String> {
+fn read_package<R: Read + std::io::Seek>(
+    archive: &mut ZipArchive<R>,
+) -> Result<(String, String), String> {
     let container = read_entry(archive, "META-INF/container.xml", MAX_XML_BYTES)
         .map_err(|_| crate::failure::EPUB_NO_CONTAINER.to_string())?;
     let container = std::str::from_utf8(&container)
@@ -239,6 +243,10 @@ mod tests {
     const JPEG: &[u8] = b"\xff\xd8\xfffixture";
     const START: &[u8] =
         br#"<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Start</p></body></html>"#;
+
+    fn validate(source: File) -> Result<(), String> {
+        validate_archive(&mut open_archive(source)?)
+    }
 
     #[test]
     #[ignore = "requires an explicit read-only corpus file list"]

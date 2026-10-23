@@ -254,11 +254,12 @@ const DEFAULTS = {
 };
 
 /** Opens `book` with these preferences and waits until the Reader settles there. */
-async function open(book, patch = {}) {
-  // Every scenario starts at the beginning of the book, whatever an earlier one saved.
+async function open(book, patch = {}, spineIndex = 0) {
+  // Every scenario starts at the beginning of the book, or of the section it names, whatever
+  // an earlier one saved.
   await cdp.invoke("save_reading_position", {
     id: bookId[book],
-    position: { spineIndex: 0, sectionKey: null, progress: 0 },
+    position: { spineIndex, sectionKey: null, progress: 0 },
   });
   await setPreferences({ ...DEFAULTS, ...patch });
   await evaluate(`__readerReal.open(${JSON.stringify(bookId[book])})`);
@@ -483,6 +484,30 @@ scenario("toc-fragments", async () => {
       at(opened.first),
     );
   }
+});
+
+// A placeholder navigation document leaves the book's NCX to list its contents.
+scenario("ncx-contents", async () => {
+  const label = "contents from the NCX";
+  await open("S15-placeholder-nav");
+  const entries = await evaluate(
+    "(__readerReal.adapter()?.contents ?? []).map((entry) => [entry.label, entry.navigable])",
+  );
+  check(
+    label,
+    "lists the NCX's chapters",
+    JSON.stringify(entries) ===
+      JSON.stringify([
+        ["Part 0", true],
+        ["Part 1", true],
+        ["Part 2", true],
+      ]),
+    JSON.stringify(entries),
+  );
+  const jumped = await evaluate('__readerReal.adapter().goToContentsEntry("toc.2")');
+  await settle();
+  const shown = await firstVisible();
+  check(label, "opens a chapter it lists", jumped && shown?.section === 2, at(shown));
 });
 
 async function crossImages(label, patch, forward, { imageOnly = true } = {}) {
@@ -725,6 +750,15 @@ scenario("resize-paginated", () =>
 
 scenario("rtl-documents", async () => {
   await turnsForward("rtl paginated horizontal", "S09-rtl-arabic-script", "ArrowLeft");
+  // Each section spans several spreads, all to the left of its first.
+  await open("S09-rtl-arabic-script");
+  const second = await press("ArrowLeft");
+  check(
+    "rtl paginated horizontal",
+    "turns to the first section's second spread",
+    second?.section === 0 && second.offset > 0,
+    at(second),
+  );
   const vertical = await open("S09-rtl-arabic-script", { readerWritingMode: "vertical" });
   check(
     "rtl paginated vertical",
@@ -734,6 +768,69 @@ scenario("rtl-documents", async () => {
       vertical.first?.section === 0 &&
       vertical.first.offset !== null,
     at(vertical.first),
+  );
+});
+
+// A section set right to left on its body alone pages right to left through all its pages.
+scenario("rtl-bodies", async () => {
+  const label = "rtl bodies paginated";
+  const last = await turnsForward(label, "S09b-rtl-bodies", "ArrowLeft");
+  check(label, "turns through the first section's later pages", last?.section === 0, at(last));
+});
+
+// A book that forces its bodies vertical reads horizontally in Horizontal, page by page.
+scenario("forced-vertical", async () => {
+  const label = "forced vertical in horizontal";
+  const last = await turnsForward(label, "S13-forced-vertical", "ArrowRight", {
+    readerWritingMode: "horizontal",
+  });
+  const shown = await layout();
+  check(
+    label,
+    "lays its text out horizontally",
+    shown?.writingMode === "horizontal-tb",
+    shown?.writingMode,
+  );
+  check(label, "turns through the first section's later pages", last?.section === 0, at(last));
+});
+
+// Assets named by paths other than their relative ones load, in the section and its stylesheet.
+scenario("asset-spellings", async () => {
+  const label = "asset spellings";
+  const opened = await open("S14-asset-spellings");
+  check(label, "opens settled", opened.settled.settled, at(opened.first));
+  const assets = await evaluate(`(async () => {
+    const doc = __readerReal.adapter()?.rendition?.manager?.views?.all?.()[0]?.contents?.document;
+    if (!doc) return null;
+    const images = [...doc.images];
+    await Promise.all(images.map((image) => image.decode().catch(() => {})));
+    const style = (selector) => doc.defaultView.getComputedStyle(doc.querySelector(selector));
+    const background = style(".framed").backgroundImage;
+    const url = background.slice(background.indexOf("(") + 1, background.lastIndexOf(")")).replaceAll('"', "");
+    const drawn = url && (await new Promise((resolve) => {
+      const probe = new Image();
+      probe.onload = () => resolve(probe.naturalWidth);
+      probe.onerror = () => resolve(0);
+      probe.src = url;
+    }));
+    return {
+      images: images.map((image) => image.naturalWidth),
+      width: style(".framed").width,
+      background: drawn ?? 0,
+    };
+  })()`);
+  check(
+    label,
+    "loads the section's images",
+    assets?.images.length === 2 && assets.images.every((width) => width === 320),
+    JSON.stringify(assets?.images),
+  );
+  check(label, "applies the stylesheet", assets?.width === "64px", assets?.width);
+  check(
+    label,
+    "loads the stylesheet's image",
+    assets?.background === 320,
+    String(assets?.background),
   );
 });
 
@@ -760,6 +857,345 @@ scenario("fixed-layout", async () => {
       published?.spineIndex >= 1,
       JSON.stringify(published),
     );
+  }
+});
+
+// The displayed fixed-layout pages, in reading order, each as its section and its side of the
+// reading area's center: L ends there, R starts there and C is centered on it.
+const FIXED_PAGES = `(() => {
+  const area = document.querySelector(".reader-viewport").getBoundingClientRect();
+  const center = area.left + area.width / 2;
+  return (__readerReal.adapter()?.rendition?.manager?.views?.all?.() ?? []).map((view) => {
+    const frame = view.iframe.getBoundingClientRect();
+    const page = view.contents.document.querySelector(".page").getBoundingClientRect();
+    const left = frame.left + page.left - center;
+    const right = frame.left + page.right - center;
+    const side = Math.abs(right) <= 2 ? "L" : Math.abs(left) <= 2 ? "R" :
+      Math.abs(left + right) <= 2 ? "C" : \`?\${Math.round(left)},\${Math.round(right)}\`;
+    return view.section.index + side;
+  }).join(" ");
+})()`;
+
+// Fixed-layout pages pair as their declared sides set them, read in either direction, from
+// the book's start: a turn, a reopened book and a page opened directly all show whole spreads,
+// each page against the spine, a page alone on its own side, and in a window too narrow for a
+// spread, a single page centered. The book's own spreads apply whatever the page layout.
+scenario("fixed-layout-spreads", async () => {
+  const label = "fixed-layout spreads right to left";
+  await open("S16-fxl-rtl-spreads");
+  const shown = [await evaluate(FIXED_PAGES)];
+  for (const key of ["ArrowLeft", "ArrowLeft", "ArrowLeft", "ArrowLeft", "ArrowRight"]) {
+    await press(key);
+    shown.push(await evaluate(FIXED_PAGES));
+  }
+  check(
+    label,
+    "turns through spreads paired from the cover, alone on the left",
+    JSON.stringify(shown) === JSON.stringify(["0L", "1R 2L", "3R 4L", "5R 6L", "5R 6L", "3R 4L"]),
+    shown.join(" | "),
+  );
+  const saved = await savedMatchesPublished("S16-fxl-rtl-spreads");
+  check(label, "saves the spread's first page", saved.ok && saved.saved?.spineIndex === 3);
+  await setPreferences({});
+  await evaluate(`__readerReal.open(${JSON.stringify(bookId["S16-fxl-rtl-spreads"])})`);
+  await reopened();
+  const reopenedPages = await evaluate(FIXED_PAGES);
+  check(label, "reopens on the same spread", reopenedPages === "3R 4L", reopenedPages);
+  await press("ArrowRight");
+  await press("ArrowRight");
+  const start = await state();
+  const coverPages = await evaluate(FIXED_PAGES);
+  check(
+    label,
+    "turns back to the cover and publishes it",
+    coverPages === "0L" && start.published?.spineIndex === 0 && !start.busy,
+    `${coverPages} ${JSON.stringify(start.published)}`,
+  );
+
+  const ltr = "fixed-layout spreads left to right";
+  await open("S16lr-fxl-ltr-spreads");
+  const cover = await evaluate(FIXED_PAGES);
+  await open("S16lr-fxl-ltr-spreads", {}, 2);
+  const partnered = await evaluate(FIXED_PAGES);
+  check(
+    ltr,
+    "shows the cover alone on the right and a right page beside its left page",
+    cover === "0R" && partnered === "1L 2R",
+    `${cover} | ${partnered}`,
+  );
+  await windows().command(`size ${app.pid} 760 900`);
+  await delay(150);
+  await settle();
+  const single = await evaluate(FIXED_PAGES);
+  await windows().command(`size ${app.pid} ${WIDTH} ${HEIGHT}`);
+  await delay(150);
+  await settle();
+  check(ltr, "centers a single page in a narrow window", single === "1C", single);
+});
+
+// A book with more sections than WebView2 loads frames in a page lays out whole, keeping only
+// the sections near its reading point loaded.
+scenario("many-sections", async () => {
+  const book = "S17-many-sections";
+  const frames = () => evaluate(`document.querySelectorAll("iframe").length`);
+  // The end of the section before can lie above the scroll container, inside the viewport.
+  const shownFirst = () => evaluate("__readerReal.firstVisible({ clipped: true })");
+  for (const viewMode of ["continuous", "semi-continuous"]) {
+    const label = `many sections ${viewMode}`;
+    const started = Date.now();
+    const opened = await open(book, { readerViewMode: viewMode }, 600);
+    const first = await shownFirst();
+    check(
+      label,
+      "opens settled at its saved section",
+      opened.settled.settled && first?.section === 600 && first.offset < 40,
+      `${at(first)} in ${Date.now() - started} ms`,
+    );
+    const loaded = await frames();
+    check(label, "keeps only the sections near it loaded", loaded > 0 && loaded < 300, loaded);
+    const jumped = await evaluate('__readerReal.adapter().goToContentsEntry("toc.1")');
+    await settle();
+    const shown = await shownFirst();
+    check(label, "opens a distant chapter", jumped && shown?.section === 1000, at(shown));
+    await scroll(500, 4);
+    await settle();
+    const next = await shownFirst();
+    check(label, "the wheel moves on from it", after(next, shown), at(next));
+    const saved = await savedMatchesPublished(book);
+    check(label, "saves the published locator", saved.ok, JSON.stringify(saved.published));
+    check(label, "still keeps only the sections near it loaded", (await frames()) < 300);
+  }
+});
+
+scenario("large-archive", async () => {
+  const label = "large archive";
+  const book = "S18-large-archive";
+  const archive = statSync(books.find(({ name }) => name === book).path).size;
+  await cdp.invoke("save_reading_position", {
+    id: bookId[book],
+    position: { spineIndex: 0, sectionKey: null, progress: 0 },
+  });
+  // Count the bytes the page receives from the book protocol, from the open on.
+  const opening = async () => {
+    await setPreferences(DEFAULTS);
+    await evaluate(`(() => {
+      const fetch = window.fetch;
+      window.__bookBytes = 0;
+      window.fetch = async (...args) => {
+        const response = await fetch(...args);
+        if (String(args[0]?.url ?? args[0]).includes("komori-book"))
+          response.clone().arrayBuffer().then((body) => (window.__bookBytes += body.byteLength));
+        return response;
+      };
+      return true;
+    })()`);
+    const started = Date.now();
+    await evaluate(`__readerReal.open(${JSON.stringify(bookId[book])})`);
+    const opened = await reopened();
+    const ms = Date.now() - started;
+    let counted = 0;
+    for (let i = 0; i < 100 && !counted; i++, await delay(100))
+      counted = await evaluate("__readerReal.adapter()?.progressCounts?.total ?? 0");
+    return { opened, ms, counted, bytes: await evaluate("window.__bookBytes") };
+  };
+  for (const time of ["first", "again"]) {
+    const { opened, ms, counted, bytes } = await opening();
+    check(
+      label,
+      `opens settled at the start of the book, ${time}`,
+      opened.settled.settled && opened.first?.section === 0 && opened.first.offset < 40,
+      `${at(opened.first)} in ${ms} ms`,
+    );
+    check(label, `counts the book's progress, ${time}`, counted > 0, counted);
+    check(
+      label,
+      `receives its documents, not the archive, ${time}`,
+      bytes > 0 && bytes < 1024 * 1024,
+      `${bytes} of ${archive} bytes`,
+    );
+  }
+  const next = await press("ArrowRight");
+  check(label, "turns a page", after(next, { section: 0, offset: 0 }), at(next));
+});
+
+// Each displayed SVG page whose label starts with `label`, in section `index` or any: its
+// drawing's box, its body's (a fixed-layout page's, scaled into its frame), its frame's, the
+// reading area's host, and its first drawn text's styles.
+const svgPages = (label, index = null) =>
+  evaluate(`(() => {
+    const box = (r) => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+    const host = document.querySelector(".reader-viewport__host").getBoundingClientRect();
+    return (__readerReal.adapter()?.rendition?.manager?.views?.all?.() ?? [])
+      .filter((view) => ${index} === null || view.section.index === ${index})
+      .flatMap((view) => {
+        const doc = view.contents.document;
+        const frame = view.iframe.getBoundingClientRect();
+        const shifted = (r) => box(new DOMRect(r.left + frame.left, r.top + frame.top, r.width, r.height));
+        return [...doc.querySelectorAll('svg[aria-label^="${label}"]')].map((svg) => {
+          const text = svg.querySelector("text.ink");
+          const style = text ? doc.defaultView.getComputedStyle(text) : null;
+          return {
+            section: view.section.index,
+            page: doc.documentElement.hasAttribute("data-komori-svg-page"),
+            image: shifted(svg.getBoundingClientRect()),
+            sheet: shifted(doc.body.getBoundingClientRect()),
+            frame: box(frame),
+            host: box(host),
+            text: style && { fontSize: style.fontSize, fill: style.fill },
+          };
+        });
+      });
+  })()`);
+
+const inside = (inner, outer) =>
+  !!inner &&
+  !!outer &&
+  inner.left >= outer.left - 1 &&
+  inner.top >= outer.top - 1 &&
+  inner.right <= outer.right + 1 &&
+  inner.bottom <= outer.bottom + 1;
+const size = (r) => ({ width: r.right - r.left, height: r.bottom - r.top });
+const where = (r) =>
+  r
+    ? `${Math.round(r.right - r.left)}x${Math.round(r.bottom - r.top)} at ${Math.round(r.left)},${Math.round(r.top)}`
+    : "none";
+
+// SVG content documents in the spine, as the IDPF "SVG in Spine" sample has them: each opens and
+// shows whole on its own page, at its drawing's proportions and its styles applied, in every
+// view, and reading on crosses them into the text after them.
+scenario("svg-spine", async () => {
+  const book = "S19-svg-spine";
+  const scrollOn = async () => {
+    await scroll(450, 2);
+    await settle();
+  };
+  const views = [
+    ["paginated single", { readerPageLayout: "single" }, () => press("ArrowRight")],
+    ["paginated double", { readerPageLayout: "double" }, () => press("ArrowRight")],
+    ["semi-continuous", { readerViewMode: "semi-continuous" }, scrollOn],
+    ["continuous", { readerViewMode: "continuous" }, scrollOn],
+  ];
+  for (const [view, patch, forward] of views) {
+    const label = `svg spine ${view}`;
+    for (const [index, name] of [
+      [1, "art"],
+      [2, "drawn"],
+    ]) {
+      const opened = await open(book, patch, index);
+      const [shown] = await svgPages(name, index);
+      const { width, height } = shown ? size(shown.image) : { width: 0, height: 0 };
+      check(
+        label,
+        `opens on the ${name} SVG page, whole inside the reading area at its proportions`,
+        opened.settled.settled &&
+          !opened.state.error &&
+          shown?.page &&
+          inside(shown.image, shown.frame) &&
+          inside(shown.image, shown.host) &&
+          Math.abs(width / height - 600 / 900) < 0.02 &&
+          height >= 0.6 * size(shown.host).height,
+        shown
+          ? `image ${where(shown.image)}; frame ${where(shown.frame)}; host ${where(shown.host)}`
+          : `not displayed: ${JSON.stringify(opened.state)}`,
+      );
+      if (name === "drawn")
+        check(
+          label,
+          "styles the drawn text from its stylesheet instruction and its style element",
+          shown?.text?.fontSize === "36px" && shown.text.fill === "rgb(34, 34, 34)",
+          JSON.stringify(shown?.text),
+        );
+    }
+    const opened = await open(book, patch);
+    const seen = new Set([0]);
+    let stuck = 0;
+    let last = opened.state.published;
+    for (let i = 0; i < 60 && !seen.has(3); i++) {
+      await forward();
+      const first = await firstVisible();
+      const now = (await state()).published;
+      // A short last section can be reached with the page before it still at the top.
+      for (const section of [now?.spineIndex, first?.section, ...(first?.mediaSections ?? [])])
+        if (section !== undefined && section !== null) seen.add(section);
+      // A page counts once part of its drawing is in the reading area.
+      for (const { section, image, host } of [
+        ...(await svgPages("art")),
+        ...(await svgPages("drawn")),
+      ])
+        if (image.bottom > host.top && image.top < host.bottom) seen.add(section);
+      stuck = JSON.stringify(now) === JSON.stringify(last) ? stuck + 1 : 0;
+      last = now;
+      if (stuck >= 3) break;
+    }
+    check(
+      label,
+      "reads on through both SVG pages into the text after them",
+      seen.has(1) && seen.has(2) && seen.has(3) && stuck < 3,
+      `${[...seen].join(",")} ${JSON.stringify(last)}`,
+    );
+    const saved = await savedMatchesPublished(book);
+    check(label, "saves the published locator", saved.ok, JSON.stringify(saved.published));
+  }
+  // On a double page the two SVG pages share a spread, which the first of them locates.
+  const label = "svg spine contents";
+  await open(book, { readerPageLayout: "single" });
+  const jumped = await evaluate('__readerReal.adapter().goToContentsEntry("toc.2")');
+  await settle();
+  const { published } = await state();
+  const [drawn] = await svgPages("drawn", 2);
+  check(
+    label,
+    "a contents entry opens its SVG page",
+    jumped && published?.spineIndex === 2 && inside(drawn?.image, drawn?.host),
+    JSON.stringify(published),
+  );
+
+  // A fixed-layout book of SVG pages fills each page at the size it declares, in spreads.
+  const fixed = "S19fx-svg-spine-fixed";
+  for (const viewMode of ["paginated", "semi-continuous", "continuous"]) {
+    const label = `svg spine fixed layout ${viewMode}`;
+    const opened = await open(fixed, { readerViewMode: viewMode });
+    check(
+      label,
+      "is detected as fixed layout and turns pages",
+      opened.state.fixedLayout === true && opened.state.continuous === false && !opened.state.error,
+      JSON.stringify(opened.state),
+    );
+    const spreads = [];
+    let filled = true;
+    let detail = "";
+    for (let i = 0; i < 3; i++) {
+      if (i) await press("ArrowRight");
+      const pages = await svgPages("page");
+      spreads.push(pages.map(({ section }) => section).join(" "));
+      // Each page is scaled whole into its frame, meeting it on one side, and its drawing
+      // covers the page.
+      for (const { section, image, sheet, frame, host } of pages) {
+        const { width, height } = size(sheet);
+        const slot = size(frame);
+        const fills =
+          ["left", "top", "right", "bottom"].every(
+            (edge) => Math.abs(image[edge] - sheet[edge]) <= 2,
+          ) &&
+          Math.abs(width / height - 600 / 900) < 0.02 &&
+          (Math.abs(width - slot.width) <= 2 || Math.abs(height - slot.height) <= 2) &&
+          inside(sheet, frame) &&
+          inside(image, host);
+        if (!fills && filled) {
+          filled = false;
+          detail =
+            `page ${section}: image ${where(image)}; page ${where(sheet)}; ` +
+            `frame ${where(frame)}; host ${where(host)}`;
+        }
+      }
+    }
+    check(
+      label,
+      "turns through its spreads from the cover alone",
+      JSON.stringify(spreads) === JSON.stringify(["0", "1 2", "3 4"]),
+      spreads.join(" | "),
+    );
+    check(label, "each SVG page fills its page at its declared proportions", filled, detail);
   }
 });
 

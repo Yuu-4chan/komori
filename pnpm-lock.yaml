@@ -9,7 +9,7 @@ overrides:
   source-map-js: ^1.2.2
 
 patchedDependencies:
-  epubjs@0.3.93: 94e1f52246f3f328111b34aca209ace12fd8e20a67ca388d7bb075fb9000e2db
+  epubjs@0.3.93: ae2b767ca1ebb16654622bdab099c21a223ef17fa50a3d6b950e85d58b58ced2
 
 importers:
 
@@ -26,7 +26,7 @@ importers:
         version: 2.11.1
       epubjs:
         specifier: ^0.3.93
-        version: 0.3.93(patch_hash=94e1f52246f3f328111b34aca209ace12fd8e20a67ca388d7bb075fb9000e2db)
+        version: 0.3.93(patch_hash=ae2b767ca1ebb16654622bdab099c21a223ef17fa50a3d6b950e85d58b58ced2)
       react:
         specifier: ^19.2.0
         version: 19.3.0
@@ -1599,7 +1599,7 @@ snapshots:
 
   entities@8.1.0: {}
 
-  epubjs@0.3.93(patch_hash=94e1f52246f3f328111b34aca209ace12fd8e20a67ca388d7bb075fb9000e2db):
+  epubjs@0.3.93(patch_hash=ae2b767ca1ebb16654622bdab099c21a223ef17fa50a3d6b950e85d58b58ced2):
     dependencies:
       '@types/localforage': 0.0.34
       '@xmldom/xmldom': 0.8.15

@@ -57,7 +57,8 @@ let snapshot: Snapshot = {
   completed: 0,
   total: 0,
   error: null,
-  loaded: false,
+  // Outside the desktop app there is no font list to load.
+  loaded: !isTauri(),
 };
 const observers = new Set<() => void>();
 const publish = (patch: Partial<Snapshot>) => {
@@ -132,8 +133,13 @@ export async function checkSystemFont(
   if (!isTauri()) throw Error("System font checks require the desktop app.");
   return invoke("check_system_font", { family });
 }
-/** Native face names let the script aliases use real local bold/italic faces. */
-export function useSystemFontFaces(choices: readonly ReaderFontChoice[]): SystemFontFace[] {
+/**
+ * Native face names let the script aliases use real local bold/italic faces: none while they
+ * are read, as when a font is chosen.
+ */
+export function useSystemFontFaces(
+  choices: readonly ReaderFontChoice[],
+): SystemFontFace[] | undefined {
   const families = [
     ...new Set(
       choices.flatMap((c) =>
@@ -169,22 +175,23 @@ export function useSystemFontFaces(choices: readonly ReaderFontChoice[]): System
       current = false;
     };
   }, [families]);
-  return state.key === families ? state.faces : [];
+  return state.key === families || !isTauri() ? state.faces : undefined;
 }
 /** Whether Yu Mincho, once the default Japanese font, is installed: asked once per run. */
 let minchoInstalled: Promise<boolean> | null = null;
+let minchoMissing: boolean | undefined;
 
 /**
  * The Asian font a book shows. Yu Mincho comes with Windows' Japanese language support; on a
  * computer without it, a saved Yu Mincho shows as the included Zen Old Mincho instead, keeping
- * the saved choice. Any other choice is shown as chosen.
+ * the saved choice. Any other choice is shown as chosen. None is known until the check answers.
  */
-export function useAsianFontFallback(choice: ReaderFontChoice): ReaderFontChoice {
+export function useAsianFontFallback(choice: ReaderFontChoice): ReaderFontChoice | undefined {
   const { fonts } = useReaderFonts();
-  const isMincho = fontChoiceKey(choice) === fontChoiceKey(minchoFallback.choice);
-  const [missing, setMissing] = useState(false);
+  const isMincho = fontChoiceKey(choice) === fontChoiceKey(minchoFallback.choice) && isTauri();
+  const [missing, setMissing] = useState(minchoMissing);
   useEffect(() => {
-    if (!isMincho || !isTauri()) return;
+    if (!isMincho) return;
     let current = true;
     minchoInstalled ??= checkSystemFont(minchoFallback.family).then(
       (font) => font.available,
@@ -192,14 +199,17 @@ export function useAsianFontFallback(choice: ReaderFontChoice): ReaderFontChoice
       () => true,
     );
     void minchoInstalled.then((installed) => {
+      minchoMissing = !installed;
       if (current) setMissing(!installed);
     });
     return () => {
       current = false;
     };
   }, [isMincho]);
+  if (!isMincho) return choice;
+  if (missing === undefined) return undefined;
   const included = fonts.some((font) => font.id === minchoFallback.id && font.available);
-  return isMincho && missing && included ? { source: "google", id: minchoFallback.id } : choice;
+  return missing && included ? { source: "google", id: minchoFallback.id } : choice;
 }
 const minchoFallback = {
   choice: { source: "preset", id: "yu-mincho" },

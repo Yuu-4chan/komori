@@ -105,8 +105,9 @@ export class FuriganaSession {
   /** Install before lookup/VN click handlers; drop listeners as views are discarded. */
   watchDocuments(documents: Document[]): void {
     if (this.disposed) return;
+    const kept = new Set(documents);
     for (const [document, stop] of this.watches) {
-      if (documents.includes(document) && document.querySelector(`[${ACTION}]`)) continue;
+      if (kept.has(document) && document.querySelector(`[${ACTION}]`)) continue;
       stop();
       this.watches.delete(document);
     }
