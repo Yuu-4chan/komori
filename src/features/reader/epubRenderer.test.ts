@@ -9,6 +9,7 @@ import { prepareReaderContent } from "./contentApi";
 import { epubRendererFactory } from "./epubRenderer";
 import { EpubResourceLimit, InvalidEpubDocument } from "./epubTolerance";
 import { NativeZip } from "./nativeArchive";
+import { svgPageDocument } from "./svgPage";
 import { imageInkShift } from "./imageInk";
 import { renderBookImage } from "./bookImages";
 import type { ReaderPresentation } from "./renderer";
@@ -45,6 +46,18 @@ function section(href: string, text: string, linear = true, html?: string) {
     load: vi.fn(async () => document.documentElement),
     unload: vi.fn(),
   };
+}
+
+/** An SVG spine document as the archive hands it over: an XHTML page holding the drawing. */
+function svgSection(href: string, drawing: string) {
+  const shown = section(href, "");
+  const document = svgPageDocument(
+    new DOMParser().parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900">${drawing}</svg>`,
+      "image/svg+xml",
+    ),
+  );
+  return Object.assign(shown, { document, load: vi.fn(async () => document.documentElement) });
 }
 
 function mockBook(
@@ -741,6 +754,67 @@ describe("EPUB.js renderer adapter", () => {
       expect(display).toHaveBeenLastCalledWith("Text/one.xhtml");
       await hooked.handleNextPrePaginated(false, spine(1), action);
       expect(action).not.toHaveBeenCalled();
+    } finally {
+      renderer.dispose();
+    }
+  });
+
+  it("shows two SVG spine pages to a spread, the first drawing text", async () => {
+    // A page drawing text is still an image page, so it opens the pair rather than
+    // partnering the page after it as text would.
+    const { rendition } = mockBook([
+      section("Text/story.xhtml", "Readable story text ".repeat(20)),
+      svgSection("Images/one.svg", '<text x="10" y="20">Under the wind</text>'),
+      svgSection("Images/two.svg", '<image href="../Images/a.png" width="600" height="900"/>'),
+      section("Text/after.xhtml", "Readable story text ".repeat(20)),
+    ]);
+    const { manager } = rendition;
+    type View = { section: { index: number }; settings: { forceEvenPages: boolean } };
+    const views: View[] = [];
+    const createView = vi.fn((shown: { index: number }) => ({
+      section: shown,
+      settings: { forceEvenPages: true },
+    }));
+    const handleNextPrePaginated = vi.fn();
+    Object.assign(manager.layout, { divisor: 2 });
+    Object.assign(manager, {
+      views: { all: () => views, displayed: () => views, remove: vi.fn() },
+      createView,
+      handleNextPrePaginated,
+      prepend: vi.fn(async () => undefined),
+    });
+    const hooked = manager as unknown as {
+      createView(section: { index: number }): View;
+      handleNextPrePaginated(forceRight: boolean, section: unknown, action: unknown): unknown;
+    };
+    const spine = (index: number) => ({ index });
+    views.push(createView(spine(0)));
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      vi.fn(),
+      undefined,
+      undefined,
+      { fontSize: 16, pageLayout: "double" },
+    );
+    try {
+      await vi.waitFor(() =>
+        expect(hooked.createView(spine(1)).settings.forceEvenPages).toBe(false),
+      );
+      expect([2, 3].map((index) => hooked.createView(spine(index)).settings)).toEqual([
+        { forceEvenPages: false },
+        { forceEvenPages: true },
+      ]);
+      const action = vi.fn(async () => undefined);
+      views.splice(0, views.length, createView(spine(1)));
+      await hooked.handleNextPrePaginated(false, spine(1), action);
+      expect(action).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ href: "Images/two.svg" }),
+      );
+      expect(handleNextPrePaginated).not.toHaveBeenCalled();
     } finally {
       renderer.dispose();
     }
@@ -2327,6 +2401,69 @@ describe("EPUB.js renderer adapter", () => {
       ),
     ).toBe("ready");
     expect(container.scrollTop).toBe(80);
+    renderer.dispose();
+    container.remove();
+  });
+
+  it("opens a continuous SVG page at its drawing's top, not at the first text it draws", async () => {
+    const target = Object.assign(section("Images/one.svg", ""), { index: 0 });
+    const { rendition } = mockBook([target]);
+    const container = document.createElement("div");
+    const iframe = document.createElement("iframe");
+    container.append(iframe);
+    document.body.append(container);
+    const contentDocument = iframe.contentDocument!;
+    contentDocument.body.innerHTML =
+      '<svg viewBox="0 0 600 900"><text x="10" y="60">Under the wind</text></svg>';
+    const drawing = contentDocument.querySelector("svg")!;
+    vi.spyOn(drawing, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          top: 30 - container.scrollTop,
+          bottom: 930 - container.scrollTop,
+          left: 0,
+          right: 600,
+          width: 600,
+          height: 900,
+        }) as DOMRect,
+    );
+    vi.spyOn(iframe, "getBoundingClientRect").mockImplementation(
+      () => ({ top: 0, bottom: 100, left: 0, right: 100, width: 100, height: 100 }) as DOMRect,
+    );
+    // The drawing's contents begin with its text, partway down the drawing.
+    const createRange = contentDocument.createRange.bind(contentDocument);
+    const decorate = (range: Range): Range => {
+      const clone = range.cloneRange.bind(range);
+      range.cloneRange = () => decorate(clone());
+      range.getClientRects = () =>
+        (range.startContainer === drawing
+          ? [{ top: 78 - container.scrollTop, bottom: 114 - container.scrollTop, height: 36 }]
+          : []) as unknown as DOMRectList;
+      return range;
+    };
+    vi.spyOn(contentDocument, "createRange").mockImplementation(() => decorate(createRange()));
+    Object.assign(rendition.manager, {
+      container,
+      settings: { axis: "vertical", direction: "ltr" },
+      views: { all: () => [], displayed: () => [], remove: vi.fn() },
+    });
+    rendition.getContents.mockReturnValue([
+      { document: contentDocument, sectionIndex: 0, cfiFromRange: vi.fn() },
+    ] as never);
+    const renderer = epubRendererFactory(id)();
+    expect(
+      await renderer.mount(
+        document.createElement("div"),
+        new AbortController().signal,
+        vi.fn(),
+        undefined,
+        undefined,
+        positionBinding(Promise.resolve({ spineIndex: 0, progress: 0 })),
+        undefined,
+        { fontSize: 16, viewMode: "continuous" },
+      ),
+    ).toBe("ready");
+    expect(container.scrollTop).toBe(30);
     renderer.dispose();
     container.remove();
   });
@@ -6321,6 +6458,28 @@ describe("EPUB.js renderer adapter", () => {
       await vi.waitFor(() =>
         expect(onProgress).toHaveBeenCalledWith(
           expect.objectContaining({ unit: "characters", total: 100 }),
+        ),
+      );
+      renderer.dispose();
+    });
+
+    it("counts the text an SVG page draws, and not its title, description or styles", async () => {
+      const sections = [
+        section("Text/body.xhtml", "あ".repeat(100)),
+        svgSection(
+          "Images/page.svg",
+          "<title>題名</title><desc>挿絵の説明</desc><style>text { fill: red; }</style>" +
+            `<text x="10" y="20">${"い".repeat(20)}</text>`,
+        ),
+      ];
+      const { rendition } = mockBook(sections, []);
+      showPage(rendition, 0, "あ".repeat(100), 0);
+      const renderer = epubRendererFactory(id)();
+      const { mounted, onProgress } = mountWithProgress(renderer);
+      expect(await mounted).toBe("ready");
+      await vi.waitFor(() =>
+        expect(onProgress).toHaveBeenCalledWith(
+          expect.objectContaining({ unit: "characters", total: 120 }),
         ),
       );
       renderer.dispose();

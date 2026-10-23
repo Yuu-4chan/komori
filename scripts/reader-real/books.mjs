@@ -1,7 +1,7 @@
 // Synthetic EPUBs for the real-engine Reader smoke test, built in code from random letters and
-// numbered markers: S01-S09, S11-S17, a twin of S09 set right to left on its bodies alone, a
-// vertical-lr twin of S11 and a left-to-right twin of S16. Every paragraph starts with a marker
-// such as [02-005] so a reading point is recognizable.
+// numbered markers: S01-S09, S11-S19, a twin of S09 set right to left on its bodies alone, a
+// vertical-lr twin of S11, a left-to-right twin of S16 and a fixed-layout twin of S19. Every
+// paragraph starts with a marker such as [02-005] so a reading point is recognizable.
 import { crc32, deflateRawSync, deflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -133,8 +133,9 @@ function nav(entries, lang) {
 }
 
 /**
- * sections: [{ id, href, doc, properties? }], `properties` being the itemref's; files:
- * [{ href, type, data }]; ncx: [[href, text]] for EPUB 2.
+ * sections: [{ id, href, doc, type?, properties? }], `type` being the media type, XHTML unless
+ * given, and `properties` the itemref's; files: [{ href, type, data }]; ncx: [[href, text]] for
+ * EPUB 2.
  */
 function epub(
   name,
@@ -155,8 +156,8 @@ function epub(
   const manifest = epub3
     ? ['<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>']
     : [];
-  for (const { id, href } of sections)
-    manifest.push(`<item id="${id}" href="${href}" media-type="application/xhtml+xml"/>`);
+  for (const { id, href, type = "application/xhtml+xml" } of sections)
+    manifest.push(`<item id="${id}" href="${href}" media-type="${type}"/>`);
   files.forEach(({ href, type }, i) =>
     manifest.push(`<item id="f${i}" href="${href}" media-type="${type}"/>`),
   );
@@ -643,6 +644,88 @@ export function buildBooks() {
         data: Buffer.alloc(24 * 1024 * 1024, i),
         store: true,
       })),
+    }),
+  );
+  // S19: SVG content documents in the spine between text sections, as the IDPF "SVG in Spine"
+  // sample has them: a page showing an image, styled by its own style element, and a page
+  // drawing its text, styled by an xml-stylesheet instruction as well. S19fx: a fixed-layout
+  // book of SVG pages, which declare their sides of a spread.
+  const svg = (label, drawing, instructions = "") =>
+    `<?xml version="1.0" encoding="utf-8"?>\n${instructions}` +
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"` +
+    ` width="100%" height="100%" viewBox="0 0 600 900" aria-label="${label}">${drawing}</svg>`;
+  const styled = '<?xml-stylesheet href="svg.css" type="text/css"?>\n';
+  const drawn = Array.from(
+    { length: 10 },
+    (_, i) => `<text class="ink" x="40" y="${90 + i * 75}">[19-${pad(i, 3)}] ${words(3)}</text>`,
+  ).join("");
+  const svgSpine = [
+    ...textSections(1, 12),
+    {
+      id: "g1",
+      href: "g1.svg",
+      type: "image/svg+xml",
+      doc: svg(
+        "art",
+        "<title>Plate</title><style>.frame { fill: none; stroke: #222; stroke-width: 8px; }</style>" +
+          '<image width="600" height="900" xlink:href="plate.png"/>' +
+          '<rect class="frame" x="4" y="4" width="592" height="892"/>',
+      ),
+    },
+    {
+      id: "g2",
+      href: "g2.svg",
+      type: "image/svg+xml",
+      doc: svg(
+        "drawn",
+        "<desc>A page of drawn text.</desc><style>.ink { fill: rgb(34, 34, 34); }</style>" + drawn,
+        styled,
+      ),
+    },
+    ...textSections(1, 12, { prefix: "e" }),
+  ];
+  const svgCss = {
+    href: "svg.css",
+    type: "text/css",
+    data: ".ink { font-family: serif; font-size: 36px; }",
+  };
+  books.push(
+    epub("S19-svg-spine", {
+      title: "Reader real S19 SVG spine",
+      sections: svgSpine,
+      navEntries: [
+        ["s0.xhtml", "Start"],
+        ["g1.svg", "Plate"],
+        ["g2.svg", "Drawn"],
+        ["e0.xhtml", "End"],
+      ],
+      files: [
+        { href: "plate.png", type: "image/png", data: png(600, 900, [190, 120, 70], 5) },
+        svgCss,
+      ],
+    }),
+  );
+  const svgPages = Array.from({ length: 5 }, (_, i) => ({
+    id: `q${i}`,
+    href: `q${i}.svg`,
+    type: "image/svg+xml",
+    properties: `page-spread-${i % 2 ? "left" : "right"}`,
+    doc: svg(
+      `page ${i}`,
+      `<rect width="600" height="900" fill="#${pad(((i * 53) % 200).toString(16), 2)}80c0"/>` +
+        `<text class="ink" x="60" y="140">[19-${pad(100 + i, 3)}] ${words(2)}</text>`,
+      styled,
+    ),
+  }));
+  books.push(
+    epub("S19fx-svg-spine-fixed", {
+      title: "Reader real S19fx SVG spine fixed",
+      sections: svgPages,
+      navEntries: svgPages.map(({ href }, i) => [href, `Page ${i}`]),
+      meta:
+        '<meta property="rendition:layout">pre-paginated</meta>' +
+        '<meta property="rendition:spread">landscape</meta>',
+      files: [svgCss],
     }),
   );
   return books;

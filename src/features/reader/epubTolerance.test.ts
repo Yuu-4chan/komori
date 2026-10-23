@@ -159,7 +159,12 @@ describe("archive reads with the pinned EPUB.js engine", () => {
    * assets are declared in the manifest but absent from the archive. */
   async function epub(
     assets: Record<string, string>,
-    { body = chapter, missing = [] as string[] } = {},
+    {
+      body = chapter,
+      missing = [] as string[],
+      href = "chapter.xhtml",
+      type = "application/xhtml+xml",
+    } = {},
   ) {
     const { zip } = new EpubArchive();
     zip.file(
@@ -172,9 +177,9 @@ describe("archive reads with the pinned EPUB.js engine", () => {
     );
     zip.file(
       "OPS/book.opf",
-      `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">synthetic</dc:identifier><dc:title>Synthetic</dc:title><dc:language>en</dc:language></metadata><manifest><item id="c" href="chapter.xhtml" media-type="application/xhtml+xml"/>${items.join("")}</manifest><spine><itemref idref="c"/></spine></package>`,
+      `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">synthetic</dc:identifier><dc:title>Synthetic</dc:title><dc:language>en</dc:language></metadata><manifest><item id="c" href="${href}" media-type="${type}"/>${items.join("")}</manifest><spine><itemref idref="c"/></spine></package>`,
     );
-    zip.file("OPS/chapter.xhtml", body);
+    zip.file(`OPS/${href}`, body);
     for (const [name, text] of Object.entries(assets)) zip.file(`OPS/${name}`, text);
     return (await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" })) as Uint8Array;
   }
@@ -369,6 +374,54 @@ describe("archive reads with the pinned EPUB.js engine", () => {
     // Showing it again reuses its URLs.
     await shown(book);
     expect(urls).toHaveLength(2);
+  });
+
+  it("shows an SVG spine document as an XHTML page holding it, with its assets", async () => {
+    const drawing =
+      '<?xml version="1.0"?><?xml-stylesheet href="../style/page.css" type="text/css"?>' +
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 600 900">' +
+      '<title>Page</title><text x="10" y="20">Drawn words</text><image width="600" height="900" xlink:href="../images/art.png"/></svg>';
+    const book = await open(
+      await epub(
+        { "images/art.png": "art", "style/page.css": "svg { width: 100% }" },
+        { href: "pages/one.svg", type: "image/svg+xml", body: drawing },
+      ),
+    );
+    const output = await shown(book);
+    const page = new DOMParser().parseFromString(output, "application/xhtml+xml");
+    expect(page.documentElement.hasAttribute("data-komori-svg-page")).toBe(true);
+    expect(page.body?.firstElementChild?.localName).toBe("svg");
+    expect(page.querySelector("text")?.textContent).toBe("Drawn words");
+    const stylesheet = page.querySelector('link[rel="stylesheet"]')!.getAttribute("href")!;
+    expect(await blobText(stylesheet)).toBe("svg { width: 100% }");
+    const art = page
+      .querySelector("image")!
+      .getAttributeNS("http://www.w3.org/1999/xlink", "href")!;
+    expect(await blobText(art)).toBe("art");
+    // The book-wide count and searches read the same page.
+    const loaded = (await book.load("/OPS/pages/one.svg")) as unknown as Document;
+    expect(loaded.body?.textContent).toBe("Drawn words");
+
+    for (const refused of [
+      drawing.replace("</svg>", ""),
+      drawing.replace('xmlns="http://www.w3.org/2000/svg" ', ""),
+      '<html xmlns="http://www.w3.org/1999/xhtml"><body/></html>',
+    ])
+      await expect(
+        open(await epub({}, { href: "pages/one.svg", type: "image/svg+xml", body: refused })),
+      ).rejects.toThrow(InvalidEpubDocument);
+    await expect(
+      open(
+        await epub(
+          {},
+          {
+            href: "pages/one.svg",
+            type: "image/svg+xml",
+            body: drawing.replace("Drawn words", "a".repeat(2 * 1024 * 1024)),
+          },
+        ),
+      ),
+    ).rejects.toThrow(EpubResourceLimit);
   });
 
   it("prepares the assets a stylesheet names as the book opens", async () => {

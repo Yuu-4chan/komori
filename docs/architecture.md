@@ -653,6 +653,26 @@ the native protocol still serves original bytes, and the source is never changed
 Invalid-book feedback recommends another copy or an EPUB editor followed by
 Library relinking; it does not expose archive paths or parser diagnostics.
 
+An SVG content document in the spine (`image/svg+xml`, as in the IDPF "SVG in Spine"
+sample) is read as strict SVG, with no repair and within the same 2 MiB; one whose root
+is not an SVG `svg` element is invalid. `svgPage.ts` then shows it as an XHTML page
+holding its drawing: the body holds the root `svg` alone, and the head its first title,
+a viewport of its declared size (its `viewBox`, else a pixel `width` and `height`), a
+stylesheet link for each CSS `xml-stylesheet` instruction that is not an alternate, and
+its own CSS `style` elements, in that order. The page keeps the document's address, so
+its stylesheets and images resolve and are replaced from the archive as an XHTML
+section's are, and locations, bookmarks and notes address the page. Its `title`, `desc`,
+`metadata` and `script` elements are left out, so they are neither shown nor counted;
+the text the drawing draws is the page's text and counts in progress. In a reflowable
+book an SVG page is an image page whatever text it draws: in every view it fits the page
+by its `viewBox` as an image-only page does, and it shares a double-page spread as
+image-only sections do (see Reader images). A continuous view opened or jumped to an
+SVG page shows its drawing from the top rather than from the first text it draws: a
+reading point at an `svg` element is measured by the element's box, as an image's is.
+In a fixed-layout book EPUB.js takes the page's size from its viewport, and the drawing
+fills the page: the body has no margin and the `svg` takes its whole size, in a cascade
+layer the book's own styles outrank.
+
 For an OPF that declares `primary-writing-mode` as `vertical-rl` or `vertical-lr`, the adapter promotes that declared mode to each displayed XHTML document root before EPUB.js formats it, including sections reached from the contents. EPUB.js measures the root rather than a vertically styled body when choosing its axis. Without this narrowly scoped correction, a vertical body with a right-to-left spine can inherit CSS `direction: rtl` and begin short lines at the bottom of the viewport. The correction preserves the book's declared mode; a chosen writing mode replaces it (see Reader presentation).
 
 The Reader has no visible Previous/Next buttons. EPUB.js chooses physical turn direction from the book's progression and layout, or from a chosen writing mode; the adapter converts relocation state to Komori's availability and normalized forward-arrow direction. Horizontal LTR uses Right to advance; RTL or declared vertical-rl uses Left, as does a paginated horizontal section that sets itself right to left (see Writing mode). Vertical wheel down advances and up retreats regardless of page direction. Reader input is scoped to content and excludes interactive and internally scrollable surfaces. `src/features/reader/navigationInput.ts` measures wheel movement in wheel steps: 100 px of delta, the delta the browser reports for one mouse wheel step (three lines in line mode, one page in page mode). An event of at least half a step is a mouse wheel's, and counts as its whole steps and at least one, so a step a display scale makes slightly larger still counts once. In paginated view each wheel step turns one page. Steps that arrive during a turn wait and turn one after another as each turn finishes, and a step in the other direction drops the waiting ones. Finer movement, such as a touchpad's, turns a page for each whole step's worth built up in one direction. The adapter completes a turn once the new page is located and disables turns during reflow. EPUB.js reports a relocation from a single animation frame and reports nothing when the new view has not been sized by then, as can happen when a turn leaves a text-less page such as an illustration or part title. After each navigation resolves, the adapter therefore also reads the rendition's own location on every following frame, and the relocation or the first location found settles the turn. The 1.5 s relocation wait remains only a bound for a view that never gets a location. When EPUB.js retreats across a reflowable section's boundary to that section's first page, the adapter targets its last text character so retreat still moves one displayed page, then publishes the settled position. A turn into another section, or to another fixed-layout page or spread, would show an empty reading area while the new section loads: EPUB.js removes the page it leaves first and shows the new view only once it is laid out. The adapter keeps the page in sight where it is (each page of a two-section spread measured before any is moved, so neither slides over the other), clipped to the reading area and inert, until EPUB.js shows the new view, hides it in the same frame, and tears its section down once that frame is drawn. EPUB.js locations and CFI remain confined to the adapter. EPUB.js sizes a paginated section to its text's measured width plus the body's left and right padding; when the text already starts inside the left padding the adapter counts that padding once, and a glyph overhanging the body's left edge adds nothing, so a full last column never adds an empty page or spread between sections. Right-to-left columns are measured the same way from the body's right edge, where they start; every column after the first lies to the left of the body.
@@ -1165,9 +1185,10 @@ beside it; its extra image gap is suppressed, and fitting leaves
 room for page padding. Text the section's markup hides (`hidden` or an inline
 `display: none`, such as a cover's hidden "Cover" label) does not count as text.
 In a horizontal double-page spread, consecutive image-only sections (one image, no
-readable text) share spreads two by two in reading order, one image a page, rather than
-each filling one side beside a blank page. A cover stays alone: the first page of the
-reading order (a book whose declared cover lies outside it opens on its cover art there)
+readable text, or an SVG spine page) share spreads two by two in reading order, one
+image a page, rather than each filling one side beside a blank page. A cover stays
+alone: the first page of the reading order (a book whose declared cover lies outside
+it opens on its cover art there)
 and the cover page the book declares (contents landmark or guide). An odd last page of a
 run shares its spread with the first page of the text section after it, a new chapter's
 included; that text then takes an odd number of pages, so the two sections

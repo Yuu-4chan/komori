@@ -1,8 +1,11 @@
 /** Bounded repairs for format defects reproduced in the read-only real corpus. */
+import { svgPageDocument } from "./svgPage";
+
 const XML_BYTES = 2 * 1024 * 1024;
 /** Declared bytes of the linear documents a book may have, all checked as it opens. */
 const SPINE_BYTES = 64 * 1024 * 1024;
 const DC = "http://purl.org/dc/elements/1.1/";
+const SVG = "http://www.w3.org/2000/svg";
 
 export class InvalidEpubDocument extends Error {}
 export class EpubResourceLimit extends Error {}
@@ -18,9 +21,17 @@ function recoverXhtml(text: string) {
   );
 }
 
-export function parseEpubXml(text: string, type: "opf" | "ncx" | "xhtml"): Document {
+export function parseEpubXml(text: string, type: "opf" | "ncx" | "xhtml" | "svg"): Document {
   if (new TextEncoder().encode(text).length > XML_BYTES) throw new EpubResourceLimit();
   const parser = new DOMParser();
+  if (type === "svg") {
+    // No SVG defect has been reproduced, so none is repaired.
+    const document = parser.parseFromString(text, "image/svg+xml");
+    const root = document.documentElement;
+    if (!valid(document) || root.namespaceURI !== SVG || root.localName !== "svg")
+      throw new InvalidEpubDocument();
+    return document;
+  }
   const mime = type === "xhtml" ? "application/xhtml+xml" : "text/xml";
   let document = parser.parseFromString(text, mime);
   if (valid(document)) return document;
@@ -331,14 +342,16 @@ export function installEpubTolerance(book: RecoverableBook, limits = ARCHIVE_LIM
     archive.request = async (url, type) => {
       const extension = url.split(".").at(-1);
       const kind = type === "xml" ? extension : (type ?? extension);
-      if (kind !== "opf" && kind !== "ncx" && kind !== "xhtml")
+      if (kind !== "opf" && kind !== "ncx" && kind !== "xhtml" && kind !== "svg")
         return limited?.request(url, type ?? extension) ?? request(url, type);
       // Check the declared size before reading, then the actual UTF-8 bytes.
       const entry = archive.zip?.file(decodeURIComponent(url.replace(/^\//, "")));
       if ((entry?._data?.uncompressedSize ?? 0) > XML_BYTES) throw new EpubResourceLimit();
       const text = await archive.getText(url);
       if (text === undefined) throw new InvalidEpubDocument();
-      return parseEpubXml(text, kind);
+      const document = parseEpubXml(text, kind);
+      // EPUB.js reads only an SVG spine document this way, which it would take as text.
+      return kind === "svg" ? svgPageDocument(document) : document;
     };
     return result;
   };

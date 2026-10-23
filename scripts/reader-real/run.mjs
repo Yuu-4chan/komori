@@ -1018,6 +1018,187 @@ scenario("large-archive", async () => {
   check(label, "turns a page", after(next, { section: 0, offset: 0 }), at(next));
 });
 
+// Each displayed SVG page whose label starts with `label`, in section `index` or any: its
+// drawing's box, its body's (a fixed-layout page's, scaled into its frame), its frame's, the
+// reading area's host, and its first drawn text's styles.
+const svgPages = (label, index = null) =>
+  evaluate(`(() => {
+    const box = (r) => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+    const host = document.querySelector(".reader-viewport__host").getBoundingClientRect();
+    return (__readerReal.adapter()?.rendition?.manager?.views?.all?.() ?? [])
+      .filter((view) => ${index} === null || view.section.index === ${index})
+      .flatMap((view) => {
+        const doc = view.contents.document;
+        const frame = view.iframe.getBoundingClientRect();
+        const shifted = (r) => box(new DOMRect(r.left + frame.left, r.top + frame.top, r.width, r.height));
+        return [...doc.querySelectorAll('svg[aria-label^="${label}"]')].map((svg) => {
+          const text = svg.querySelector("text.ink");
+          const style = text ? doc.defaultView.getComputedStyle(text) : null;
+          return {
+            section: view.section.index,
+            page: doc.documentElement.hasAttribute("data-komori-svg-page"),
+            image: shifted(svg.getBoundingClientRect()),
+            sheet: shifted(doc.body.getBoundingClientRect()),
+            frame: box(frame),
+            host: box(host),
+            text: style && { fontSize: style.fontSize, fill: style.fill },
+          };
+        });
+      });
+  })()`);
+
+const inside = (inner, outer) =>
+  !!inner &&
+  !!outer &&
+  inner.left >= outer.left - 1 &&
+  inner.top >= outer.top - 1 &&
+  inner.right <= outer.right + 1 &&
+  inner.bottom <= outer.bottom + 1;
+const size = (r) => ({ width: r.right - r.left, height: r.bottom - r.top });
+const where = (r) =>
+  r
+    ? `${Math.round(r.right - r.left)}x${Math.round(r.bottom - r.top)} at ${Math.round(r.left)},${Math.round(r.top)}`
+    : "none";
+
+// SVG content documents in the spine, as the IDPF "SVG in Spine" sample has them: each opens and
+// shows whole on its own page, at its drawing's proportions and its styles applied, in every
+// view, and reading on crosses them into the text after them.
+scenario("svg-spine", async () => {
+  const book = "S19-svg-spine";
+  const scrollOn = async () => {
+    await scroll(450, 2);
+    await settle();
+  };
+  const views = [
+    ["paginated single", { readerPageLayout: "single" }, () => press("ArrowRight")],
+    ["paginated double", { readerPageLayout: "double" }, () => press("ArrowRight")],
+    ["semi-continuous", { readerViewMode: "semi-continuous" }, scrollOn],
+    ["continuous", { readerViewMode: "continuous" }, scrollOn],
+  ];
+  for (const [view, patch, forward] of views) {
+    const label = `svg spine ${view}`;
+    for (const [index, name] of [
+      [1, "art"],
+      [2, "drawn"],
+    ]) {
+      const opened = await open(book, patch, index);
+      const [shown] = await svgPages(name, index);
+      const { width, height } = shown ? size(shown.image) : { width: 0, height: 0 };
+      check(
+        label,
+        `opens on the ${name} SVG page, whole inside the reading area at its proportions`,
+        opened.settled.settled &&
+          !opened.state.error &&
+          shown?.page &&
+          inside(shown.image, shown.frame) &&
+          inside(shown.image, shown.host) &&
+          Math.abs(width / height - 600 / 900) < 0.02 &&
+          height >= 0.6 * size(shown.host).height,
+        shown
+          ? `image ${where(shown.image)}; frame ${where(shown.frame)}; host ${where(shown.host)}`
+          : `not displayed: ${JSON.stringify(opened.state)}`,
+      );
+      if (name === "drawn")
+        check(
+          label,
+          "styles the drawn text from its stylesheet instruction and its style element",
+          shown?.text?.fontSize === "36px" && shown.text.fill === "rgb(34, 34, 34)",
+          JSON.stringify(shown?.text),
+        );
+    }
+    const opened = await open(book, patch);
+    const seen = new Set([0]);
+    let stuck = 0;
+    let last = opened.state.published;
+    for (let i = 0; i < 60 && !seen.has(3); i++) {
+      await forward();
+      const first = await firstVisible();
+      const now = (await state()).published;
+      // A short last section can be reached with the page before it still at the top.
+      for (const section of [now?.spineIndex, first?.section, ...(first?.mediaSections ?? [])])
+        if (section !== undefined && section !== null) seen.add(section);
+      // A page counts once part of its drawing is in the reading area.
+      for (const { section, image, host } of [
+        ...(await svgPages("art")),
+        ...(await svgPages("drawn")),
+      ])
+        if (image.bottom > host.top && image.top < host.bottom) seen.add(section);
+      stuck = JSON.stringify(now) === JSON.stringify(last) ? stuck + 1 : 0;
+      last = now;
+      if (stuck >= 3) break;
+    }
+    check(
+      label,
+      "reads on through both SVG pages into the text after them",
+      seen.has(1) && seen.has(2) && seen.has(3) && stuck < 3,
+      `${[...seen].join(",")} ${JSON.stringify(last)}`,
+    );
+    const saved = await savedMatchesPublished(book);
+    check(label, "saves the published locator", saved.ok, JSON.stringify(saved.published));
+  }
+  // On a double page the two SVG pages share a spread, which the first of them locates.
+  const label = "svg spine contents";
+  await open(book, { readerPageLayout: "single" });
+  const jumped = await evaluate('__readerReal.adapter().goToContentsEntry("toc.2")');
+  await settle();
+  const { published } = await state();
+  const [drawn] = await svgPages("drawn", 2);
+  check(
+    label,
+    "a contents entry opens its SVG page",
+    jumped && published?.spineIndex === 2 && inside(drawn?.image, drawn?.host),
+    JSON.stringify(published),
+  );
+
+  // A fixed-layout book of SVG pages fills each page at the size it declares, in spreads.
+  const fixed = "S19fx-svg-spine-fixed";
+  for (const viewMode of ["paginated", "semi-continuous", "continuous"]) {
+    const label = `svg spine fixed layout ${viewMode}`;
+    const opened = await open(fixed, { readerViewMode: viewMode });
+    check(
+      label,
+      "is detected as fixed layout and turns pages",
+      opened.state.fixedLayout === true && opened.state.continuous === false && !opened.state.error,
+      JSON.stringify(opened.state),
+    );
+    const spreads = [];
+    let filled = true;
+    let detail = "";
+    for (let i = 0; i < 3; i++) {
+      if (i) await press("ArrowRight");
+      const pages = await svgPages("page");
+      spreads.push(pages.map(({ section }) => section).join(" "));
+      // Each page is scaled whole into its frame, meeting it on one side, and its drawing
+      // covers the page.
+      for (const { section, image, sheet, frame, host } of pages) {
+        const { width, height } = size(sheet);
+        const slot = size(frame);
+        const fills =
+          ["left", "top", "right", "bottom"].every(
+            (edge) => Math.abs(image[edge] - sheet[edge]) <= 2,
+          ) &&
+          Math.abs(width / height - 600 / 900) < 0.02 &&
+          (Math.abs(width - slot.width) <= 2 || Math.abs(height - slot.height) <= 2) &&
+          inside(sheet, frame) &&
+          inside(image, host);
+        if (!fills && filled) {
+          filled = false;
+          detail =
+            `page ${section}: image ${where(image)}; page ${where(sheet)}; ` +
+            `frame ${where(frame)}; host ${where(host)}`;
+        }
+      }
+    }
+    check(
+      label,
+      "turns through its spreads from the cover alone",
+      JSON.stringify(spreads) === JSON.stringify(["0", "1 2", "3 4"]),
+      spreads.join(" | "),
+    );
+    check(label, "each SVG page fills its page at its declared proportions", filled, detail);
+  }
+});
+
 scenario("import-cycle", async () => {
   const label = "import cycle";
   const opened = await open("S06-css-two-root-cycle");

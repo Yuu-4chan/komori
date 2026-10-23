@@ -19,6 +19,7 @@ import {
   validateEpubSpine,
 } from "./epubTolerance";
 import { applyBookImageLayout, fitBookImagePage, isTextImage, shownText } from "./bookImageLayout";
+import { fillFixedSvgPage, isSvgPage } from "./svgPage";
 import {
   isReaderSerifFont,
   isReaderSansFont,
@@ -833,6 +834,7 @@ class EpubRenderer implements ReaderRenderer {
             ? []
             : applyHeadingCentering(document, this.headingTargets.get(section));
           if (!this.fixedLayout) applyBookImageLayout(document);
+          else fillFixedSvgPage(document);
           applyPresentation(document, this.sectionPresentation());
           let index = section?.index ?? -1;
           if (index < 0) {
@@ -7105,6 +7107,10 @@ function pointRect(point: Range): Pick<DOMRect, "top" | "left" | "width" | "heig
     else if (point.startOffset > 0) probe.setStart(node, point.startOffset - 1);
   } else {
     target = node.childNodes[point.startOffset] ?? node;
+    // A drawing is measured by its own box, as an image is, not by its first shape,
+    // which can lie anywhere inside it, such as an SVG page's first line of drawn text.
+    if (target.nodeType === Node.ELEMENT_NODE && (target as Element).localName === "svg")
+      return (target as Element).getBoundingClientRect();
     probe.selectNodeContents(target);
   }
   const rect = probe.getClientRects?.()[0] ?? probe.getBoundingClientRect?.();
@@ -7276,9 +7282,14 @@ async function imageOnlyPage(book: Book, path: string): Promise<boolean> {
   }
 }
 
-/** A section document with one image and no readable text, such as a cover or an insert. */
+/**
+ * A section document with one image and no readable text, such as a cover or an insert, or
+ * an SVG page, whose drawing is its page whatever text it draws.
+ */
 function showsOneImage(document: Document): boolean {
-  if (!document.body || shownText(document.body).trim()) return false;
+  if (!document.body) return false;
+  if (isSvgPage(document)) return true;
+  if (shownText(document.body).trim()) return false;
   return document.body.querySelectorAll("img, image").length === 1;
 }
 
