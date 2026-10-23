@@ -346,7 +346,10 @@ without splitting text nodes or changing locations/ruby. The existing queue refl
 weight/resource changes at the retained anchor, including late section documents.
 The read-only main-webview `komori-font`
 protocol accepts only exact catalog ID/hash paths or `/uploaded/<hash>.ttf`,
-re-verifies bytes, refuses methods/queries, and uses `nosniff`/`no-store`. CSP
+re-verifies bytes, refuses methods/queries, and uses `nosniff`. Every served path
+names the SHA-256 of the only bytes it serves, so a served font is cached as
+immutable and each section document of a book reuses it instead of fetching it
+again; a refusal or missing font is `no-store`, since it may be downloaded later. CSP
 still permits only this protocol in `font-src`; network capabilities are unchanged.
 Google OFL licenses stay beside their unmodified fonts. Source/license references
 are in `real-data-and-safety.md`.
