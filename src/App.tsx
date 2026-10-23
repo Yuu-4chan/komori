@@ -10,6 +10,7 @@ import { getStartupBook } from "./features/startup/startupApi";
 import { useLibraryImportController, LibraryImportContext } from "./features/library/libraryImport";
 import { useStarterDictionaryNotifications } from "./features/dictionary/useStarterDictionaries";
 import { UpdatesProvider } from "./features/updates/updates";
+import { refreshReaderFonts } from "./features/reader/readerFonts";
 
 function StartupRoute() {
   const [book, setBook] = useState<string | null | undefined>(undefined);
@@ -59,6 +60,10 @@ export function App() {
   useEffect(() => {
     void scanFolders();
   }, [scanFolders]);
+  // A book waits for the Reader's fonts before its first layout; list them before one opens.
+  useEffect(() => {
+    void refreshReaderFonts();
+  }, []);
   return (
     <LibraryImportContext.Provider value={imports}>
       <UpdatesProvider>

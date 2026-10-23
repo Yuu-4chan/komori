@@ -180,12 +180,16 @@ export function ReaderShell({
   const readingAreaRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const appearance = useAppearance();
-  const managedFonts = useReaderFonts().fonts;
+  const { fonts: managedFonts, loaded: fontsListed } = useReaderFonts();
   // The popup font loads with the book, so the first lookup shows in it at once.
   usePopupFont(appearance.readerPopupFont);
   // The default Yu Mincho, or the Noto Serif JP that stands in for it on a computer without it.
-  const asianFont = useAsianFontFallback(appearance.readerAsianFont);
-  const systemFaces = useSystemFontFaces([appearance.readerWesternFont, asianFont]);
+  const shownAsianFont = useAsianFontFallback(appearance.readerAsianFont);
+  const asianFont = shownAsianFont ?? appearance.readerAsianFont;
+  const checkedFaces = useSystemFontFaces([appearance.readerWesternFont, asianFont]);
+  const systemFaces = checkedFaces ?? [];
+  // A book is laid out once its fonts are known, so it does not open in one and turn to another.
+  const fontsKnown = fontsListed && !!shownAsianFont && !!checkedFaces;
   const westernWeight = resolveFontWeight(
     appearance.readerWesternFontWeight,
     availableFontWeights(appearance.readerWesternFont, managedFonts),
@@ -590,6 +594,7 @@ export function ReaderShell({
     readerVnParagraphs,
     readerVnTextSpeed,
     readerFuriganaStyle,
+    fontsKnown,
   );
   highlightPointerMatchRef.current = highlightPointerMatch;
 

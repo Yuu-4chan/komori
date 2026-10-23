@@ -297,6 +297,13 @@ matching size and hashes, serves it from there with the same verification, does
 nothing on its download, and refuses its removal; the frontend takes the included
 files as available before the first listing, so a book shows them at once.
 
+Komori lists the Reader's fonts as it starts. A book is laid out only once its fonts are
+known: that listing, the system faces of its chosen fonts and, for a saved Yu Mincho,
+whether the computer has it. It opens in the weights and faces it keeps, rather than in
+others it would lay itself out again from a moment later; a book whose fonts are not known
+within 1 s opens without them and takes them when they are. A font chosen while reading
+lays the open book out again.
+
 `reader_fonts.rs` deserializes that same owned catalog. WinHTTP fetches fixed
 HTTPS paths on `raw.githubusercontent.com` only, refuses redirects, uses timeouts
 and a 32 MiB font/16 KiB license cap, and verifies size and both hashes before

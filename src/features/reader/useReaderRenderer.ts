@@ -35,6 +35,8 @@ import type {
 } from "./renderer";
 
 const unavailable: ReaderPageTurnAvailability = { canAdvance: false, canRetreat: false };
+/** How long a book waits for its fonts before it opens without them. */
+const FONTS_WAIT_LIMIT_MS = 1000;
 
 interface RendererState {
   factory?: ReaderRendererFactory;
@@ -96,7 +98,18 @@ export function useReaderRenderer(
   vnParagraphs?: number,
   vnTextSpeed?: number,
   furiganaStyle?: ReaderFuriganaStyle,
+  /** Whether the fonts are known: a book waits for them, so its first layout is its last. */
+  fontsKnown = true,
 ) {
+  // A book waits for its fonts once, as it opens, and not for long; a font chosen while
+  // reading lays the open book out again.
+  const [awaitingFonts, setAwaitingFonts] = useState(!fontsKnown);
+  if (awaitingFonts && fontsKnown) setAwaitingFonts(false);
+  useEffect(() => {
+    if (!awaitingFonts) return;
+    const timer = setTimeout(() => setAwaitingFonts(false), FONTS_WAIT_LIMIT_MS);
+    return () => clearTimeout(timer);
+  }, [awaitingFonts]);
   const triggersRef = useRef(lookupTriggers);
   triggersRef.current = lookupTriggers;
   const hostRef = useRef<HTMLDivElement>(null);
@@ -355,6 +368,17 @@ export function useReaderRenderer(
       });
       return;
     }
+    if (awaitingFonts) {
+      activeRef.current = null;
+      setState({
+        factory,
+        status: "loading",
+        availability: unavailable,
+        turning: false,
+        ...emptyBook,
+      });
+      return;
+    }
 
     const controller = new AbortController();
     let active = true;
@@ -516,7 +540,14 @@ export function useReaderRenderer(
       active = false;
       dispose();
     };
-  }, [factory, onContentDocument, positionStore, applyPresentation, onSelectionChanged]);
+  }, [
+    factory,
+    awaitingFonts,
+    onContentDocument,
+    positionStore,
+    applyPresentation,
+    onSelectionChanged,
+  ]);
 
   const visible: RendererState =
     state.factory === factory
