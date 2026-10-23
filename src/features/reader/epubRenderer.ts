@@ -3060,6 +3060,16 @@ class EpubRenderer implements ReaderRenderer {
         if (this.chapterView) this.clipView(view);
         anchoring?.observe(view.element);
         this.scrollExtent?.observe(view.element);
+        // While the rest of the book loads, a section added before the text in view keeps
+        // that text in place as EPUB.js sizes it, not a frame later: until then, the reading
+        // point the Reader measures and publishes would lie in a section before it.
+        const reframe = view.reframe?.bind(view);
+        if (reframe && anchoring)
+          view.reframe = (width, height) => {
+            reframe(width, height);
+            if (this.sectionsLoading && !this.disposed)
+              this.followSectionSize(view.element, container);
+          };
         // After every section it adds, EPUB.js shows each view again, forcing a layout
         // of the whole book per view to redraw it for Safari: a long book took seconds to
         // open. A view already shown is left as it is.
@@ -3159,21 +3169,24 @@ class EpubRenderer implements ReaderRenderer {
     const observer = new ResizeObserver((entries) => {
       if (this.disposed) return;
       if (this.chapterView) this.applyChapterBounds();
-      const span = this.blockSpan();
-      const start = span(container.getBoundingClientRect())[0];
-      for (const entry of entries) {
-        const size = this.sectionExtent(entry.target);
-        const previous = this.sectionExtents.get(entry.target);
-        this.sectionExtents.set(entry.target, size);
-        if (previous === undefined || previous === size) continue;
-        // Before the change, the section ended at or before the reading area's start.
-        const end = span(entry.target.getBoundingClientRect())[1];
-        if (end - (size - previous) <= start + 1) this.scrollReading(size - previous);
-      }
+      for (const entry of entries) this.followSectionSize(entry.target, container);
     });
     manager.counter = () => undefined;
     this.sectionSizes = observer;
     return observer;
+  }
+
+  /** Scroll as far as a section entirely before the reading area grew or shrank. */
+  private followSectionSize(element: Element, container: HTMLElement): void {
+    const size = this.sectionExtent(element);
+    const previous = this.sectionExtents.get(element);
+    this.sectionExtents.set(element, size);
+    if (previous === undefined || previous === size) return;
+    const span = this.blockSpan();
+    // Before the change, the section ended at or before the reading area's start.
+    const end = span(element.getBoundingClientRect())[1];
+    if (end - (size - previous) <= span(container.getBoundingClientRect())[0] + 1)
+      this.scrollReading(size - previous);
   }
 
   /**

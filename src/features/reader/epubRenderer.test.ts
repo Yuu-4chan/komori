@@ -1781,6 +1781,117 @@ describe("EPUB.js renderer adapter", () => {
     }
   });
 
+  it("keeps the text in view in place as soon as a section loaded before it is sized", async () => {
+    // The observer is never called back: what is measured before the next frame counts.
+    const observed: Array<(entries: Array<{ target: Element }>) => void> = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: (entries: Array<{ target: Element }>) => void) {
+          observed.push(callback);
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const { rendition } = mockBook(
+      ["一", "二", "三"].map((text, index) =>
+        Object.assign(section(`Text/${index}.xhtml`, text), { index }),
+      ),
+    );
+    const container = document.createElement("div");
+    document.body.append(container);
+    vi.spyOn(container, "getBoundingClientRect").mockImplementation(
+      () => ({ top: 0, bottom: 500, left: 0, right: 100, width: 100, height: 500 }) as DOMRect,
+    );
+    // jsdom has no layout: the sections stack from the top of the scrolled container, each
+    // as tall as EPUB.js last sized it.
+    const heights = [0, 400, 300];
+    const shown: Array<{
+      element: HTMLElement;
+      section: { index: number; prev(): null; next(): null };
+      display: () => Promise<undefined>;
+      reframe(width: number, height: number): void;
+    }> = [];
+    const views = heights.map((_, index) => {
+      const element = document.createElement("div");
+      const view = {
+        element,
+        section: { index, prev: () => null, next: () => null },
+        display: async () => undefined,
+        reframe: (_width: number, height: number) => {
+          heights[index] = height;
+        },
+      };
+      vi.spyOn(element, "getBoundingClientRect").mockImplementation(() => {
+        const before = shown.slice(0, shown.indexOf(view));
+        const top =
+          before.reduce((sum, other) => sum + heights[other.section.index], 0) -
+          container.scrollTop;
+        const height = heights[index];
+        return { top, bottom: top + height, left: 0, right: 100, width: 100, height } as DOMRect;
+      });
+      return view;
+    });
+    let release = () => {};
+    const loading = new Promise<void>((resolve) => (release = resolve));
+    const manager = Object.assign(rendition.manager, {
+      container,
+      settings: { axis: "vertical", direction: "ltr" },
+      views: {
+        all: () => shown,
+        displayed: () => shown,
+        first: () => shown[0],
+        last: () => shown.at(-1),
+        remove: vi.fn(),
+      },
+      createView: (added: { index: number }) => views[added.index],
+      // EPUB.js adds the section before the first one shown, still unsized.
+      check: vi.fn(async () => {
+        const view = manager.createView({ index: 0 });
+        shown.unshift(view);
+        return true;
+      }),
+      fill: vi.fn(() => loading),
+    });
+    const renderer = epubRendererFactory(id)();
+    try {
+      expect(
+        await renderer.mount(
+          document.createElement("div"),
+          new AbortController().signal,
+          vi.fn(),
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { fontSize: 16, viewMode: "continuous" },
+        ),
+      ).toBe("ready");
+      expect(manager.fill).toHaveBeenCalledOnce();
+      shown.push(manager.createView({ index: 1 }), manager.createView({ index: 2 }));
+      // The reading point is 50px into the second section.
+      container.scrollTop = 50;
+      for (const callback of observed) callback(shown.map(({ element }) => ({ target: element })));
+      const secondTop = () => views[1].element.getBoundingClientRect().top;
+      expect(secondTop()).toBe(-50);
+
+      // As the rest of the book loads, the first section is added and sized.
+      await manager.check();
+      views[0].reframe(100, 300);
+      expect(secondTop()).toBe(-50);
+      // The next frame's measurement finds nothing more to follow.
+      for (const callback of observed) callback([{ target: views[0].element }]);
+      expect(secondTop()).toBe(-50);
+      expect(container.scrollTop).toBe(350);
+    } finally {
+      release();
+      renderer.dispose();
+      container.remove();
+    }
+  });
+
   async function mountLongContinuous(count: number) {
     const { rendition } = mockBook(
       Array.from({ length: count }, (_, index) => section(`Text/${index}.xhtml`, `${index}`)),
