@@ -2,6 +2,19 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.2.1
+
+- In Continuous, Semi-continuous and VN view a book shows where you were reading in about a third of a second, and the rest of the book loads behind it. A book with 2,000 sections that took 40 seconds to open shows in under 2 seconds. Until the rest has loaded, jumps and layout changes wait for it, and Continuous view shows no scrollbar.
+- Books open faster in every view, large illustrated books most of all: a 151 MB book shows its first page in a tenth of a second instead of more than a second. A downloaded Reader font no longer slows opening.
+- The first book opened after Komori starts shows in its chosen font weight at once, instead of changing weight a moment later.
+- Long books in Continuous view open and resize faster.
+- Right-to-left books turn through every page, and a book that forces vertical text follows the chosen horizontal writing mode.
+- Books whose contents page is empty or a placeholder list their chapters from the book's other table of contents.
+- Images and styles that a book names with slightly wrong paths load.
+- Fixed-layout books pair their pages into two-page spreads as the book places them, in either reading direction.
+- Books with more than 1,000 sections open instead of hanging, and books with SVG pages open and show their drawings.
+- In VN view, a chapter chosen from the contents opens at its start instead of at the end of the chapter before it.
+
 ## 1.2.0
 
 - The lookup popup has a Popup style in Settings > Reader popup: Standard, or Dictionary, which shows only each headword with furigana right on its kanji and each dictionary's definitions under a small label with its name, numbered ①②③ when there is more than one.
