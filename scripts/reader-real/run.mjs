@@ -245,6 +245,18 @@ async function setPreferences(patch) {
   await evaluate(probe);
 }
 
+/**
+ * Starts the next open at the beginning of the book, or of the section it names, whatever an
+ * earlier scenario saved. The Reader writes a turn's position up to a second later, so it is
+ * closed first, as setPreferences does, or its last write could land after this one.
+ */
+async function startAt(id, spineIndex = 0) {
+  await cdp.invoke("save_reading_position", {
+    id,
+    position: { spineIndex, sectionKey: null, progress: 0 },
+  });
+}
+
 const bookId = {};
 // No writing mode is chosen, so each book keeps its own.
 const DEFAULTS = {
@@ -255,13 +267,8 @@ const DEFAULTS = {
 
 /** Opens `book` with these preferences and waits until the Reader settles there. */
 async function open(book, patch = {}, spineIndex = 0) {
-  // Every scenario starts at the beginning of the book, or of the section it names, whatever
-  // an earlier one saved.
-  await cdp.invoke("save_reading_position", {
-    id: bookId[book],
-    position: { spineIndex, sectionKey: null, progress: 0 },
-  });
   await setPreferences({ ...DEFAULTS, ...patch });
+  await startAt(bookId[book], spineIndex);
   await evaluate(`__readerReal.open(${JSON.stringify(bookId[book])})`);
   return reopened();
 }
@@ -679,10 +686,6 @@ scenario("wide-images", async () => {
     for (const [view, patch] of views)
       for (const index of [1, 2]) {
         const name = `wide images ${view} ${maxWidth} px ${index === 1 ? "in a paragraph" : "pre-paginated"}`;
-        await cdp.invoke("save_reading_position", {
-          id: book,
-          position: { spineIndex: index, sectionKey: null, progress: 0 },
-        });
         await setPreferences({
           ...DEFAULTS,
           readerFontSize: 25,
@@ -691,6 +694,7 @@ scenario("wide-images", async () => {
           readerMaxHeight: 1440,
           ...patch,
         });
+        await startAt(book, index);
         await evaluate(`__readerReal.open(${JSON.stringify(book)})`);
         await reopened();
         const [shown] = await evaluate(`__readerReal.imageBoxes("spread", ${index})`);
@@ -971,10 +975,7 @@ scenario("large-archive", async () => {
   const label = "large archive";
   const book = "S18-large-archive";
   const archive = statSync(books.find(({ name }) => name === book).path).size;
-  await cdp.invoke("save_reading_position", {
-    id: bookId[book],
-    position: { spineIndex: 0, sectionKey: null, progress: 0 },
-  });
+  await startAt(bookId[book]);
   // Count the bytes the page receives from the book protocol, from the open on.
   const opening = async () => {
     await setPreferences(DEFAULTS);
