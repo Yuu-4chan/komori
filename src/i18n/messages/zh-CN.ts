@@ -1408,7 +1408,6 @@ export const zhCN: MessageCatalog = {
   "viewport.couldNotStart": "阅读器无法启动",
   "viewport.missing": "找不到这本书的源文件。请返回书架重新关联。",
   "viewport.unreadable": "无法读取这本书的源文件。请返回书架重新关联。",
-  "viewport.layingOutWhole": "正在为整本书排版。",
   "viewport.loadingFirst": "正在加载第一个可读部分。",
   "viewport.invalid":
     "此EPUB内容无效，无法打开。请尝试其他副本，或用EPUB编辑器修复后在书架中重新关联。",

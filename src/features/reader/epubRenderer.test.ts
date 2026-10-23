@@ -2299,6 +2299,193 @@ describe("EPUB.js renderer adapter", () => {
     renderer.dispose();
   });
 
+  describe("continuous opening", () => {
+    /**
+     * A continuous book of six linear sections whose view manager checks for sections as
+     * EPUB.js does: it asks its first view for the section before it and its last view for
+     * the one after, adds them, and checks again until neither has one. A display shows its
+     * section alone and checks; the fill the Reader asks for once the book shows waits to
+     * be let through.
+     */
+    function openingBook(toc: unknown[] = []) {
+      const sections = Array.from({ length: 6 }, (_, index) =>
+        Object.assign(
+          section(
+            `Text/s${index}.xhtml`,
+            "",
+            true,
+            `<p>Section ${index} opens.</p><p id="mid">Section ${index} goes on.</p>`,
+          ),
+          { index },
+        ),
+      );
+      const mocked = mockBook(sections, toc);
+      const { rendition, display } = mocked;
+      const spine: Array<{ index: number; prev(): unknown; next(): unknown }> = sections.map(
+        (_, index) => ({ index, prev: () => spine[index - 1], next: () => spine[index + 1] }),
+      );
+      const shown: Array<{
+        element: HTMLElement;
+        section: (typeof spine)[number];
+        displayed: boolean;
+        display(): Promise<unknown>;
+        show(): void;
+      }> = [];
+      const view = (index: number) => ({
+        element: document.createElement("div"),
+        section: spine[index],
+        displayed: true,
+        display: vi.fn(async () => undefined),
+        show: vi.fn(),
+      });
+      const container = document.createElement("div");
+      Object.defineProperties(container, {
+        clientHeight: { value: 600 },
+        clientWidth: { value: 800 },
+      });
+      const checks: Array<{ before?: number; after?: number; offset?: number }> = [];
+      const events: string[] = [];
+      let release = () => {};
+      const released = new Promise<void>((resolve) => (release = resolve));
+      const manager = Object.assign(rendition.manager, {
+        container,
+        settings: { axis: "vertical", direction: "ltr", offset: Number.POSITIVE_INFINITY },
+        views: {
+          all: () => shown,
+          displayed: () => shown,
+          first: () => shown[0],
+          last: () => shown.at(-1),
+          remove: vi.fn(),
+        },
+        check: vi.fn(async () => {
+          const before = shown[0]?.section.prev() as (typeof spine)[number] | undefined;
+          const after = shown.at(-1)?.section.next() as (typeof spine)[number] | undefined;
+          checks.push({
+            before: before?.index,
+            after: after?.index,
+            offset: manager.settings.offset,
+          });
+          if (before) shown.unshift(view(before.index));
+          if (after) shown.push(view(after.index));
+          return !!(before || after);
+        }),
+        fill: vi.fn(async () => {
+          await released;
+          while (await manager.check()) {}
+          events.push("loaded");
+        }),
+      });
+      rendition.getContents.mockImplementation(
+        () =>
+          shown.map((item) => ({
+            document: sections[item.section.index].document,
+            sectionIndex: item.section.index,
+            cfiFromRange: vi.fn(),
+          })) as never,
+      );
+      display.mockImplementation((async (target: string) => {
+        events.push(`display ${target}`);
+        const index = sections.findIndex((item) => item.href === target);
+        shown.splice(0, shown.length, view(index));
+        while (await manager.check()) {}
+      }) as never);
+      const indexes = () => shown.map((item) => item.section.index);
+      return { ...mocked, manager, checks, events, release, indexes };
+    }
+
+    async function open(
+      book: ReturnType<typeof openingBook>,
+      viewMode: ReaderPresentation["viewMode"],
+      spineIndex = 2,
+    ) {
+      const renderer = epubRendererFactory(id)();
+      expect(
+        await renderer.mount(
+          document.createElement("div"),
+          new AbortController().signal,
+          vi.fn(),
+          undefined,
+          undefined,
+          positionBinding(Promise.resolve({ spineIndex, progress: 0 })),
+          undefined,
+          { fontSize: 16, viewMode },
+        ),
+      ).toBe("ready");
+      return renderer;
+    }
+
+    it("shows the reading point first, then loads the rest before a jump", async () => {
+      const book = openingBook([{ label: "Start", href: "Text/s0.xhtml" }]);
+      const renderer = await open(book, "continuous");
+      // Only the sections from the reading point on load, within a reading area's length
+      // of it, as EPUB.js's offset bounds.
+      expect(book.indexes()).toEqual([2, 3, 4, 5]);
+      expect(
+        book.checks.every(({ before, offset }) => before === undefined && offset === 800),
+      ).toBe(true);
+      // The rest loads once the book shows, through an unbounded offset again.
+      expect(book.manager.settings.offset).toBe(Number.POSITIVE_INFINITY);
+      expect(book.manager.fill).toHaveBeenCalledOnce();
+      // The whole book's scroll length is not known yet.
+      expect(renderer.scrollMetrics?.()).toBeNull();
+      const jumping = renderer.goToContentsEntry?.("toc.0");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(book.events).toEqual(["display Text/s2.xhtml"]);
+      book.release();
+      expect(await jumping).toBe(true);
+      expect(book.indexes()).toEqual([0, 1, 2, 3, 4, 5]);
+      // The jump waited for the rest of the book, which was then laid out whole.
+      expect(book.events).toEqual(["display Text/s2.xhtml", "loaded", "display Text/s0.xhtml"]);
+      expect(renderer.scrollMetrics?.()).not.toBeNull();
+      renderer.dispose();
+    });
+
+    it("stops waiting for the rest of a book once its load adds no section", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const book = openingBook([{ label: "Start", href: "Text/s0.xhtml" }]);
+        const renderer = await open(book, "continuous");
+        await vi.advanceTimersByTimeAsync(9_000);
+        expect(renderer.scrollMetrics?.()).toBeNull();
+        await vi.advanceTimersByTimeAsync(1_000);
+        expect(renderer.scrollMetrics?.()).not.toBeNull();
+        expect(await renderer.goToContentsEntry?.("toc.0")).toBe(true);
+        expect(book.events).toEqual(["display Text/s2.xhtml", "display Text/s0.xhtml"]);
+        renderer.dispose();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("opens a chapter view with the sections of the chapters its reading point may lie in", async () => {
+      const toc = [
+        { label: "Prologue", href: "Text/s0.xhtml" },
+        { label: "One", href: "Text/s2.xhtml" },
+        { label: "One, later", href: "Text/s2.xhtml#mid" },
+        { label: "Two", href: "Text/s4.xhtml" },
+      ];
+      const semi = openingBook(toc);
+      const renderer = await open(semi, "semi-continuous", 3);
+      // Section 3 lies in the chapter beginning at section 2's anchor, which ends at section 4.
+      expect(semi.indexes()).toEqual([2, 3, 4]);
+      // The chapter loaded whole, so its scrollbar shows at once.
+      expect(renderer.scrollMetrics?.()).not.toBeNull();
+      semi.release();
+      await vi.waitFor(() => expect(semi.events).toContain("loaded"));
+      expect(semi.indexes()).toEqual([0, 1, 2, 3, 4, 5]);
+      renderer.dispose();
+
+      // A VN group never crosses a section.
+      const vn = openingBook(toc);
+      const reader = await open(vn, "vn", 3);
+      expect(vn.indexes()).toEqual([3]);
+      vn.release();
+      await vi.waitFor(() => expect(vn.events).toContain("loaded"));
+      expect(vn.indexes()).toEqual([0, 1, 2, 3, 4, 5]);
+      reader.dispose();
+    });
+  });
+
   it("aligns an image-only continuous contents target by its box", async () => {
     const target = Object.assign(section("Text/one.xhtml", ""), { index: 0 });
     const { rendition } = mockBook(

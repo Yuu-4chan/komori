@@ -1479,7 +1479,6 @@ export const ko: MessageCatalog = {
   "viewport.couldNotStart": "뷰어를 시작하지 못했습니다",
   "viewport.missing": "이 책의 원본 파일이 없습니다. 서재로 돌아가 다시 연결하세요.",
   "viewport.unreadable": "이 책의 원본 파일을 읽을 수 없습니다. 서재로 돌아가 다시 연결하세요.",
-  "viewport.layingOutWhole": "책 전체를 배치하는 중입니다.",
   "viewport.loadingFirst": "처음 읽을 수 있는 부분을 불러오는 중입니다.",
   "viewport.invalid":
     "이 EPUB은 내용이 올바르지 않아 열지 못했습니다. 다른 사본을 쓰거나 EPUB 편집기로 고친 뒤 서재에서 다시 연결하세요.",

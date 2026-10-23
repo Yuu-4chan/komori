@@ -1954,7 +1954,7 @@ describe("Reader shell", () => {
       await waitFor(() => expect(screen.queryByText("Laying out the book")).toBeNull());
     });
 
-    it("says a continuous book is laid out whole while it opens", async () => {
+    it("says a continuous book loads its reading place while it opens", async () => {
       const opened = deferred();
       readerWithAppearance(
         () => ({
@@ -1979,9 +1979,12 @@ describe("Reader shell", () => {
         },
       );
       expect(await screen.findByText("Preparing your book")).toBeInTheDocument();
-      expect(screen.getByText("Laying out the whole book.")).toBeInTheDocument();
+      // The rest of the book loads after it shows.
+      expect(screen.getByText("Loading the first readable section.")).toBeInTheDocument();
       await act(async () => opened.resolve());
-      await waitFor(() => expect(screen.queryByText("Laying out the whole book.")).toBeNull());
+      await waitFor(() =>
+        expect(screen.queryByText("Loading the first readable section.")).toBeNull(),
+      );
     });
 
     it("shows every setting at its default, in order, without book or automatic values", async () => {

@@ -1618,7 +1618,6 @@ export const en = {
   "viewport.missing": "This book's source file is missing. Return to your library to relink it.",
   "viewport.unreadable":
     "This book's source file cannot be read. Return to your library to relink it.",
-  "viewport.layingOutWhole": "Laying out the whole book.",
   "viewport.loadingFirst": "Loading the first readable section.",
   "viewport.invalid":
     "This EPUB could not be opened because its contents are invalid. Try another copy or repair it with an EPUB editor, then relink it in your library.",

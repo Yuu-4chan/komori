@@ -1621,7 +1621,6 @@ export function ReaderShell({
           viewportRef={viewportRef}
           identity={identity}
           status={status}
-          continuous={readerViewMode !== "paginated"}
         />
         {status === "ready" && pageTurns.scrollAxis && (
           <ReaderScrollbar track={scrollTrack} refresh={pageTurns} />

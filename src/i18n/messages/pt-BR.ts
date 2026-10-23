@@ -1577,7 +1577,6 @@ export const ptBR: MessageCatalog = {
     "O arquivo de origem deste livro não foi encontrado. Volte à biblioteca para revinculá-lo.",
   "viewport.unreadable":
     "O arquivo de origem deste livro não pode ser lido. Volte à biblioteca para revinculá-lo.",
-  "viewport.layingOutWhole": "Diagramando o livro inteiro.",
   "viewport.loadingFirst": "Carregando a primeira seção legível.",
   "viewport.invalid":
     "Não foi possível abrir este EPUB porque o conteúdo dele é inválido. Tente outra cópia ou repare-o com um editor de EPUB e depois revincule-o na biblioteca.",

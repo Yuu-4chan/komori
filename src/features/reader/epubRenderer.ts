@@ -218,9 +218,10 @@ interface EpubManager {
   _stageSize?: { width: number; height: number };
   /**
    * The axis of the last section EPUB.js displayed, vertical for vertical writing, and
-   * the page progression it pages and positions sections in.
+   * the page progression it pages and positions sections in. A continuous view adds
+   * sections within its offset of the reading area.
    */
-  settings?: { axis?: string; direction?: string };
+  settings?: { axis?: string; direction?: string; offset?: number };
   /** Lay the pages out again and reformat the displayed views. */
   updateLayout?(): void;
   /** The size new views are created at, which a layout sets to the page size. */
@@ -243,6 +244,8 @@ interface EpubManager {
   views?: {
     all(): EpubView[];
     displayed(): EpubView[];
+    first?(): EpubView | undefined;
+    last?(): EpubView | undefined;
     remove(view: EpubView): void;
     /** Remove a section's view from the page, as clearing and trimming do. */
     destroy?(view: EpubView): void;
@@ -284,6 +287,13 @@ interface EpubManager {
   counter?(bounds: unknown): void;
   /** Continuous view: remove sections outside the visible range. */
   trim?(): Promise<unknown>;
+  /**
+   * Continuous view: add the sections before and after the views while the reading area
+   * lies within its offset of either end, and render them.
+   */
+  check?(...args: unknown[]): Promise<unknown>;
+  /** Continuous view: check, in its queue, until no section is added. */
+  fill?(): Promise<unknown>;
   /** Refresh the sections that intersect the current scroll position. */
   update?(offset?: number): Promise<unknown>;
   /** What each view loads its section with. */
@@ -298,6 +308,7 @@ interface EpubSection {
   linear?: boolean;
   /** The spine item's properties, such as the side of a spread a page is set on. */
   properties?: string[];
+  /** The linear sections before and after it, which EPUB.js adds views for. */
   prev(): unknown;
   next(): unknown;
 }
@@ -614,6 +625,13 @@ class EpubRenderer implements ReaderRenderer {
   /** The section a continuous book was last asked to show, kept loaded with those near it. */
   private keptSection?: number;
   /**
+   * While a continuous book opens, the spine indexes EPUB.js adds its sections within, so
+   * the reading point shows without the whole book laid out first.
+   */
+  private openingSections?: { from: number; to: number };
+  /** The rest of a continuous book loading after it shows, until it has. */
+  private sectionsLoading?: Promise<void>;
+  /**
    * Whether the book is vertical: declared in its package, or found in a section EPUB.js
    * rendered vertically. A continuous book scrolls along one axis for all its sections.
    */
@@ -865,10 +883,13 @@ class EpubRenderer implements ReaderRenderer {
       if (signal.aborted || this.disposed) return "error";
       // A missing, stale, or unresolvable position quietly opens the authored start.
       let opening: ReflowAnchor | undefined = saved ?? undefined;
+      if (saved) await this.limitOpening(book, saved.spineIndex);
       if (!saved || !(await this.restore(rendition, book, saved))) {
         if (signal.aborted || this.disposed) return "error";
-        await rendition.display(initial);
         const index = (book.spine.get(initial) as { index?: number } | null)?.index;
+        await this.limitOpening(book, index);
+        if (signal.aborted || this.disposed) return "error";
+        await rendition.display(initial);
         opening = index === undefined ? undefined : { spineIndex: index, progress: 0 };
         if (this.continuous && index !== undefined) await this.showSectionStart(rendition, index);
       }
@@ -882,6 +903,7 @@ class EpubRenderer implements ReaderRenderer {
       this.updateVnReveal();
       await this.refreshPageTurns();
       this.observeHost(host);
+      this.loadRemainingSections();
       // The book-wide count runs after the first page is visible and never blocks a turn.
       if (onProgressChanged || onContentsChanged) void this.countProgress(book);
       return "ready";
@@ -1259,6 +1281,7 @@ class EpubRenderer implements ReaderRenderer {
   }
 
   async goToImage(id: string, signal: AbortSignal): Promise<boolean> {
+    if (this.sectionsLoading) await this.sectionsLoaded();
     const destination = this.imageDestinations.get(id);
     const book = this.book;
     const rendition = this.rendition;
@@ -1435,6 +1458,7 @@ class EpubRenderer implements ReaderRenderer {
   private searchLabels = new Map<string, string>();
 
   async goToSearchResult(id: string, signal: AbortSignal): Promise<boolean> {
+    if (this.sectionsLoading) await this.sectionsLoaded();
     const destination = this.searchDestinations.get(id);
     const rendition = this.rendition;
     const book = this.book;
@@ -1622,6 +1646,7 @@ class EpubRenderer implements ReaderRenderer {
   }
 
   async goToBookmark(value: ReaderBookmarkLocator): Promise<boolean> {
+    if (this.sectionsLoading) await this.sectionsLoaded();
     const locator = normalizeBookmarkLocator(value);
     const rendition = this.rendition;
     const book = this.book;
@@ -1657,6 +1682,8 @@ class EpubRenderer implements ReaderRenderer {
   }
 
   async goToContentsEntry(entryId: string): Promise<boolean> {
+    // A jump finds the rest of a continuous book laid out, as a book always shows whole.
+    if (this.sectionsLoading) await this.sectionsLoaded();
     const rendition = this.rendition;
     const destination = this.destinations.get(entryId);
     if (!rendition || !destination || this.disposed || this.turnPending || this.layoutPending)
@@ -1744,6 +1771,15 @@ class EpubRenderer implements ReaderRenderer {
       this.updateVnReveal();
       await this.refreshPageTurns();
       return;
+    }
+    // A new layout lays out the whole of a continuous book, once the rest of it has loaded.
+    if (this.sectionsLoading) {
+      await this.sectionsLoaded();
+      if (this.disposed) return;
+      if (this.turnPending) {
+        this.skippedPresentation = presentation;
+        return;
+      }
     }
     this.turnPending = true;
     this.invalidateSelection();
@@ -2328,7 +2364,7 @@ class EpubRenderer implements ReaderRenderer {
     if (!rendition || !book || !host || !anchored || !this.ready || this.disposed) return;
     this.applyHostHeight();
     if (!this.reflowPending()) return;
-    if (this.turnPending || this.layoutPending) {
+    if (this.turnPending || this.layoutPending || this.sectionsLoading) {
       this.scheduleHostSize();
       return;
     }
@@ -3100,6 +3136,7 @@ class EpubRenderer implements ReaderRenderer {
           axis ?? (contents.writingMode?.().startsWith("vertical") ? "horizontal" : "vertical"),
         );
     }
+    this.followOpeningSections(manager);
     this.limitsLoadedSections = this.linearSections > LOADED_SECTIONS_LIMIT;
     if (this.limitsLoadedSections) this.followLoadedSections(manager, container);
     else this.followAllSections(manager);
@@ -3137,6 +3174,143 @@ class EpubRenderer implements ReaderRenderer {
     manager.counter = () => undefined;
     this.sectionSizes = observer;
     return observer;
+  }
+
+  /**
+   * Add sections, as EPUB.js checks for them, only within the opening range while the book
+   * opens. A section added before the others is measured from empty, so the text in view
+   * keeps its place as it renders, however late it is first measured.
+   */
+  private followOpeningSections(manager: EpubManager): void {
+    const check = manager.check?.bind(manager);
+    if (!check) return;
+    manager.check = (...args) => {
+      const first = manager.views?.first?.();
+      const last = manager.views?.last?.();
+      const range = this.openingSections;
+      // EPUB.js asks only the first view for the section before it and the last view for
+      // the one after it, as its check begins.
+      const prev = first?.section.prev;
+      const next = last?.section.next;
+      const within = (section: unknown) => {
+        const index = (section as EpubSection | undefined)?.index;
+        return range && index !== undefined && index >= range.from && index <= range.to
+          ? section
+          : undefined;
+      };
+      if (range && first && last && prev && next) {
+        first.section.prev = () => within(prev());
+        last.section.next = () => within(next());
+      }
+      try {
+        return check(...args);
+      } finally {
+        if (first && prev) first.section.prev = prev;
+        if (last && next) last.section.next = next;
+        const added = manager.views?.first?.();
+        if (added && added !== first) this.sectionExtents.set(added.element, 0);
+      }
+    };
+  }
+
+  /**
+   * Open a continuous book with only the sections near a section: those within a reading
+   * area's length after it, or, in a chapter view, those of the chapters it lies in. The
+   * others load once the book shows.
+   */
+  private async limitOpening(book: Book, spineIndex: number | undefined): Promise<void> {
+    const manager = this.manager();
+    if (!this.continuous || spineIndex === undefined || !manager?.settings) return;
+    if (!this.chapterView) {
+      const container = manager.container;
+      manager.settings.offset = Math.max(container?.clientWidth ?? 0, container?.clientHeight ?? 0);
+      this.openingSections = { from: spineIndex, to: Number.POSITIVE_INFINITY };
+      return;
+    }
+    // A VN group never crosses a section.
+    if (this.vnView) {
+      this.openingSections = { from: spineIndex, to: spineIndex };
+      return;
+    }
+    this.chapterStarts ??= this.findChapterStarts(book);
+    const chapters = await this.chapterStarts;
+    if (this.disposed) return;
+    // A point of the section lies in a chapter beginning at or after the last chapter start
+    // in an earlier section or at its own start, and ending at or before the next section a
+    // chapter starts in.
+    let from = spineIndex;
+    let to = this.lastSpineIndex;
+    for (const start of chapters) {
+      if (start.spineIndex > spineIndex) {
+        to = start.spineIndex;
+        break;
+      }
+      if (start.spineIndex < spineIndex || start.anchorId === undefined) from = start.spineIndex;
+    }
+    this.openingSections = { from, to };
+  }
+
+  /**
+   * Load the rest of a continuous book once it shows. Meanwhile its scrollbar, whose
+   * length grows with each section, is held back.
+   */
+  private loadRemainingSections(): void {
+    const manager = this.manager();
+    const limited = this.openingSections;
+    this.openingSections = undefined;
+    if (!limited || !manager || this.disposed) return;
+    if (manager.settings) manager.settings.offset = Number.POSITIVE_INFINITY;
+    if (!manager.fill) return;
+    const loading = this.loadSettled(manager, manager.fill()).then(() => {
+      if (this.sectionsLoading !== loading) return;
+      this.sectionsLoading = undefined;
+      if (this.disposed) return;
+      this.notifyScroll();
+      void this.refreshPageTurns();
+    });
+    this.sectionsLoading = loading;
+  }
+
+  /** Wait for the rest of a continuous book to load, as a jump or a new layout needs it. */
+  private async sectionsLoaded(): Promise<void> {
+    await this.sectionsLoading;
+  }
+
+  /**
+   * The end of a continuous book's load, however long a long book takes; a load that adds
+   * no section for a while, or whose book no longer shows, is not waited for.
+   */
+  private async loadSettled(manager: EpubManager, load: Promise<unknown>): Promise<void> {
+    let ended = false;
+    void load.then(
+      () => (ended = true),
+      () => (ended = true),
+    );
+    let added = -1;
+    while (!ended && !this.disposed && this.manager() === manager) {
+      const views = manager.views?.all().length ?? 0;
+      if (views === added) return;
+      added = views;
+      await settledWithin(load, SECTIONS_LOAD_LIMIT_MS);
+    }
+  }
+
+  /** Whether every section a chapter view's chapter lies in is loaded. */
+  private chapterLoaded(chapter: number): boolean {
+    const start = this.chapters[chapter];
+    if (!start) return true;
+    const end = this.vnView
+      ? start.spineIndex
+      : (this.chapters[chapter + 1]?.spineIndex ?? this.lastSpineIndex);
+    const views = this.manager()?.views?.all() ?? [];
+    // The views lie in reading order, one for each linear section between the first and last.
+    const first = views[0]?.section.index;
+    const last = views.at(-1)?.section.index;
+    if (first === undefined || last === undefined || first > start.spineIndex || last < end)
+      return false;
+    return views.every(
+      (view) => view.section.index < start.spineIndex || view.section.index > end || view.displayed,
+    );
   }
 
   /**
@@ -3305,6 +3479,8 @@ class EpubRenderer implements ReaderRenderer {
   private releaseScrolling(): void {
     this.limitsLoadedSections = false;
     this.keptSection = undefined;
+    this.openingSections = undefined;
+    this.sectionsLoading = undefined;
     this.sectionSizes?.disconnect();
     this.sectionSizes = undefined;
     this.scrollContainer?.removeEventListener("scroll", this.onScroll);
@@ -3330,6 +3506,9 @@ class EpubRenderer implements ReaderRenderer {
 
   scrollMetrics(): ReaderScrollMetrics | null {
     if (!this.continuous || !this.ready || this.disposed) return null;
+    // The whole book's length is known once its sections have loaded. A chapter view's
+    // chapter is loaded as it shows.
+    if ((this.openingSections || this.sectionsLoading) && !this.chapterView) return null;
     const manager = this.manager();
     const container = manager?.container;
     if (!container) return null;
@@ -4165,8 +4344,13 @@ class EpubRenderer implements ReaderRenderer {
       if (this.continuous) {
         if (this.atChapterEdge(direction)) {
           // A chapter view shows the next chapter from its start, or the previous one
-          // from its end.
-          this.shownChapter = (this.shownChapter ?? 0) + (direction === "advance" ? 1 : -1);
+          // from its end, once its sections have loaded.
+          const chapter = (this.shownChapter ?? 0) + (direction === "advance" ? 1 : -1);
+          if (this.sectionsLoading && !this.chapterLoaded(chapter)) {
+            await this.sectionsLoaded();
+            if (this.disposed) return;
+          }
+          this.shownChapter = chapter;
           this.applyChapterBounds();
           this.resyncSectionExtents();
           this.scrollToChapterEdge(direction === "advance" ? "start" : "end");
@@ -5004,6 +5188,11 @@ class EpubRenderer implements ReaderRenderer {
 
 /** How long the Reader waits for EPUB.js to add or show continuous sections. */
 const SECTIONS_SETTLE_LIMIT_MS = 1500;
+/**
+ * How long the rest of a continuous book may go on loading, after it shows, without adding
+ * a section before the Reader stops waiting for it.
+ */
+const SECTIONS_LOAD_LIMIT_MS = 10_000;
 
 /** The first of the items a test holds for, given it holds for every item after one it holds for. */
 function firstIndex<T>(items: T[], test: (item: T) => boolean): number {
@@ -5018,13 +5207,16 @@ function firstIndex<T>(items: T[], test: (item: T) => boolean): number {
 }
 
 /** A promise's settlement, or the limit's end if it comes first. */
-async function settledWithin(task: Promise<unknown> | undefined): Promise<void> {
+async function settledWithin(
+  task: Promise<unknown> | undefined,
+  limit = SECTIONS_SETTLE_LIMIT_MS,
+): Promise<void> {
   if (!task) return;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
       task.catch(() => undefined),
-      new Promise((resolve) => (timer = setTimeout(resolve, SECTIONS_SETTLE_LIMIT_MS))),
+      new Promise((resolve) => (timer = setTimeout(resolve, limit))),
     ]);
   } finally {
     clearTimeout(timer);
