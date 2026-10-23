@@ -163,6 +163,8 @@ interface EpubPageContents {
   resizeCheck?(): void;
   /** The content width along a continuous vertical section's reading order. */
   textWidth?(): number;
+  /** The content height along a continuous horizontal section's reading order. */
+  textHeight?(): number;
   /** The writing mode of the section's root. */
   writingMode?(): string;
   columns?(
@@ -225,6 +227,8 @@ interface EpubManager {
   direction?(direction: string): void;
   /** Remove every displayed view, so the next display renders its section afresh. */
   clear?(): void;
+  /** Follow a window resize: clear the views, lay the pages out again, and report it. */
+  resize?(width?: number, height?: number, epubcfi?: string): void;
   /** Called by each section as it loads, before EPUB.js formats it with the layout. */
   updateAxis?(axis: string, forceUpdate?: boolean): void;
   /** The element the views are laid out in, which a continuous book scrolls. */
@@ -318,7 +322,14 @@ interface EpubView {
   width?(): number;
   expand?(force?: boolean): void;
   reframe?(width: number, height: number): void;
+  lockedWidth?: number;
   lockedHeight?: number;
+  /** The size EPUB.js last framed the view at, and whether it must frame it again. */
+  _width?: number;
+  _height?: number;
+  _needsReframe?: boolean;
+  /** The layout the view's section is formatted with. */
+  layout?: { name?: string };
   /** Where the view lies in the view manager's container. */
   offset?(): { left: number; top: number };
   /** Where a CFI or fragment lies in the view's section. */
@@ -347,6 +358,12 @@ const CONTINUOUS_PAGE = 0.9;
 const LOADED_SECTIONS_LIMIT = 400;
 /** How many sections on each side of those in view a long continuous book keeps loaded. */
 const LOADED_SECTIONS_REACH = 24;
+/**
+ * How many sections' views a continuous book groups together. Laying out the book after a
+ * section changes size lays out that section's group and the groups, so the cost of a
+ * section's layout grows with the book's length divided by this, plus this.
+ */
+const CONTINUOUS_VIEW_GROUP = 32;
 /** EPUB.js's padding on the left and right of a vertical page, in pixels. */
 const VERTICAL_PAGE_MARGIN = 20;
 /** The host's custom property for a continuous vertical book's left and right margin. */
@@ -581,6 +598,11 @@ class EpubRenderer implements ReaderRenderer {
   private clippedStarts = new WeakMap<Element, number>();
   /** Each section's shown extent along the reading order as last measured. */
   private sectionExtents = new WeakMap<Element, number>();
+  /** The views a continuous book lays out again, which fit their text once all are sized. */
+  private deferredExpansions?: Set<EpubView>;
+  /** A continuous book's reading area and its size, until it resizes. */
+  private areaSize?: { element: HTMLElement; clientWidth: number; clientHeight: number };
+  private areaObserver?: { element: HTMLElement; observer: ResizeObserver };
   /** Whether a continuous book has too many sections to keep them all loaded. */
   private limitsLoadedSections = false;
   /** Loaded sections whose content hooks have run, which a long book may release. */
@@ -632,6 +654,7 @@ class EpubRenderer implements ReaderRenderer {
     void this.refreshPageTurns();
   };
   private onResized = () => {
+    this.areaSize = undefined;
     this.invalidateSelection();
     // EPUB.js follows a window resize to its own location, a paragraph start that can
     // lie pages earlier. The book returns to its settled reading point once the host's
@@ -902,6 +925,12 @@ class EpubRenderer implements ReaderRenderer {
         manager: "continuous",
         flow: "scrolled",
         offset: Number.POSITIVE_INFINITY,
+        // Its images take the reading area's size limits (see sizeContinuousImages), so
+        // EPUB.js does not lay each section out to limit them to the section.
+        limitImages: false,
+        // A section that changes size lays out its group of views and the groups rather
+        // than every section of the book.
+        groupViews: CONTINUOUS_VIEW_GROUP,
       }),
     };
     // EPUB.js copies each option's descriptor, so it reads the gap afresh on every
@@ -937,7 +966,7 @@ class EpubRenderer implements ReaderRenderer {
     rendition.hooks?.content?.register(async (contents: EpubPageContents) => {
       if (this.disposed) return;
       if (!this.continuous && !this.fixedLayout) pageTextWidth(contents);
-      this.restyleIfStale(contents);
+      this.restyleIfStale(contents, false);
       await waitForReaderFonts(contents.document, this.sectionPresentation());
       if (!this.disposed) contents.resizeCheck?.();
     });
@@ -1805,8 +1834,16 @@ class EpubRenderer implements ReaderRenderer {
           await this.matchImageSpread(rendition);
           if (this.disposed) return;
         }
-        // EPUB.js would otherwise expand the view to the reflowed text a frame later.
-        for (const contents of displayed) contents.resizeCheck?.();
+        // EPUB.js would otherwise expand the view to the reflowed text a frame later. A
+        // continuous book's views are measured together.
+        if (this.continuous) {
+          const documents = new Set(displayed.map((contents) => contents.document));
+          this.expandViews(
+            this.manager()
+              ?.views?.all()
+              .filter((view) => view.contents && documents.has(view.contents.document)) ?? [],
+          );
+        } else for (const contents of displayed) contents.resizeCheck?.();
       }
       // The book already follows the host's new height, so its observer has nothing to do.
       if ((heightChanged || widthChanged || pagesChanged) && host)
@@ -1877,9 +1914,11 @@ class EpubRenderer implements ReaderRenderer {
    * EPUB.js serializes a section as it starts rendering a view, and a continuous book
    * renders views as it scrolls. A view serialized before a presentation change but
    * loaded after it would keep the old presentation, so it is styled again as it is
-   * rendered, and EPUB.js resizes it to its new text.
+   * rendered, and EPUB.js resizes it to its new text, unless the caller measures it next.
+   * Its images are sized again for the displayed document, whose side padding the
+   * section's own document lacks; only a changed presentation restyles it whole.
    */
-  private restyleIfStale(contents: EpubPageContents | undefined): void {
+  private restyleIfStale(contents: EpubPageContents | undefined, measure = true): void {
     const book = this.book;
     const root = contents?.document?.documentElement;
     if (!book || !contents || !root || this.disposed) return;
@@ -1893,8 +1932,9 @@ class EpubRenderer implements ReaderRenderer {
       "style[data-komori-page-image-fit]",
     )?.textContent;
     this.styleSectionDocument(contents.document, contents.sectionIndex);
+    const stale = root.getAttribute(PRESENTATION_ATTRIBUTE) !== presentationKey(shown);
     if (
-      root.getAttribute(PRESENTATION_ATTRIBUTE) === presentationKey(shown) &&
+      !stale &&
       previousImageRule ===
         contents.document.querySelector(`style[${CONTINUOUS_IMAGE_STYLE}]`)?.textContent &&
       previousPageRule ===
@@ -1903,8 +1943,8 @@ class EpubRenderer implements ReaderRenderer {
         contents.document.querySelector("style[data-komori-page-image-fit]")?.textContent
     )
       return;
-    this.restyleContents(book, contents, shown);
-    contents.resizeCheck?.();
+    if (stale) this.restyleContents(book, contents, shown);
+    if (measure) contents.resizeCheck?.();
   }
 
   /** Size a section's images and show VN's pointer for the current presentation. */
@@ -1913,9 +1953,36 @@ class EpubRenderer implements ReaderRenderer {
     applyVnCursor(document, this.vnView && !this.fixedLayout);
   }
 
+  /**
+   * A continuous book's reading area, its size read once until it resizes. Each section
+   * reads it as it is styled, and reading it just after another section was resized would
+   * lay the whole book out again.
+   */
+  private readingArea(element: HTMLElement): { clientWidth: number; clientHeight: number } {
+    if (this.areaSize?.element === element) return this.areaSize;
+    const measure = () =>
+      (this.areaSize = {
+        element,
+        clientWidth: element.clientWidth,
+        clientHeight: element.clientHeight,
+      });
+    if (typeof ResizeObserver === "undefined") return element;
+    if (this.areaObserver?.element !== element) {
+      this.areaObserver?.observer.disconnect();
+      // The observer reports a resize after layout, when reading the size costs nothing.
+      const observer = new ResizeObserver(() => {
+        if (this.areaSize?.element === element) measure();
+      });
+      observer.observe(element);
+      this.areaObserver = { element, observer };
+    }
+    return measure();
+  }
+
   /** A continuous section may be many screens tall, but its images fit one reading area. */
   private sizeContinuousImages(document: Document, index?: number): void {
-    const area = this.scrollContainer ?? this.manager()?.container ?? this.host;
+    const element = this.scrollContainer ?? this.manager()?.container ?? this.host;
+    const area = element && (this.continuous ? this.readingArea(element) : element);
     applyContinuousImageSizing(
       document,
       this.continuous && !this.fixedLayout ? area?.clientWidth : undefined,
@@ -2011,6 +2078,7 @@ class EpubRenderer implements ReaderRenderer {
   private applyHostInset(): boolean {
     const style = this.host?.style;
     if (!style) return false;
+    this.areaSize = undefined;
     const margin = this.presentation.sideMargin ?? VERTICAL_PAGE_MARGIN;
     const inset = this.scrollsHorizontally() ? `${margin}px` : "";
     if (style.getPropertyValue(SIDE_INSET) === inset) return false;
@@ -2026,6 +2094,8 @@ class EpubRenderer implements ReaderRenderer {
   private applyHostHeight(): void {
     const style = this.host?.style;
     if (!style) return;
+    // The reading area is measured again after the host changes, before its observer reports it.
+    this.areaSize = undefined;
     const { maxHeight } = this.presentation;
     const width = this.presentation.maxWidth;
     const availableWidth =
@@ -2083,15 +2153,68 @@ class EpubRenderer implements ReaderRenderer {
    * Lay the pages out again at the host's size. EPUB.js formats the displayed views at
    * the new size, but it keeps each view's fixed axis, such as a horizontal page's height,
    * at the size it was created with, rebuilding views only after a window resize. Size
-   * them to the new pages too, so a taller page is not cut off at its old height.
+   * them to the new pages too, so a taller page is not cut off at its old height. A
+   * continuous book's views fit their text once all are formatted and sized.
    */
   private layOutAgain(): void {
     const manager = this.manager();
-    manager?.updateLayout?.();
-    const { width, height } = manager?.viewSettings ?? {};
-    for (const view of manager?.views?.all() ?? []) {
-      if (typeof view.size === "function") view.size(width, height);
+    const deferred = new Set<EpubView>();
+    this.deferredExpansions = deferred;
+    try {
+      manager?.updateLayout?.();
+      this.areaSize = undefined;
+      const { width, height } = manager?.viewSettings ?? {};
+      for (const view of manager?.views?.all() ?? []) {
+        if (typeof view.size === "function") view.size(width, height);
+      }
+    } finally {
+      this.deferredExpansions = undefined;
     }
+    this.expandViews(deferred);
+  }
+
+  /**
+   * Fit continuous views to their text, measuring every one before resizing any: each
+   * measurement made after another view was resized lays the whole book out again.
+   */
+  private expandViews(views: Iterable<EpubView>): void {
+    const fits = Array.from(views, (view) => ({ view, size: this.fittedSize(view) }));
+    for (const { view, size } of fits) {
+      if (!size) {
+        view.expand?.();
+        continue;
+      }
+      // EPUB.js frames a view again when its size changed. Vertical text is compared with
+      // its frame's own size, as Komori's expansion of it does.
+      const frame = view.settings?.axis === "horizontal" ? view.iframe?.style : undefined;
+      const width = frame ? parseFloat(frame.width) : view._width;
+      const height = frame ? parseFloat(frame.height) : view._height;
+      if (view._needsReframe || size.width !== width || size.height !== height)
+        view.reframe?.(size.width, size.height);
+    }
+  }
+
+  /**
+   * The size a loaded continuous view expands to: its text's extent along the reading
+   * order and its locked size across it. A fixed-layout page, or a view without its text,
+   * is left to EPUB.js.
+   */
+  private fittedSize(view: EpubView): { width: number; height: number } | undefined {
+    const contents = view.contents;
+    if (!this.continuous || !view.iframe || !contents || view.layout?.name === "pre-paginated")
+      return undefined;
+    if (view.settings?.axis === "horizontal") {
+      const height = view.lockedHeight;
+      if (this.fixedLayout || !this.scrollsHorizontally() || !contents.textWidth) return undefined;
+      if (height === undefined || !Number.isFinite(height) || height <= 0) return undefined;
+      // textWidth() rounds to the nearest pixel. Reserve its fractional remainder so the
+      // last line is not clipped by the iframe's edge.
+      const width = Math.ceil(contents.textWidth() + 0.5);
+      return Number.isFinite(width) && width >= 0 ? { width, height } : undefined;
+    }
+    const width = view.lockedWidth;
+    if (width === undefined || !contents.textHeight) return undefined;
+    return { width, height: contents.textHeight() };
   }
 
   /** Show a section afresh, such as in another axis, then the page of a reading point. */
@@ -2870,36 +2993,26 @@ class EpubRenderer implements ReaderRenderer {
         if (expand)
           view.expand = (force) => {
             if (expanding) return;
-            const height = view.lockedHeight;
-            if (
-              !this.fixedLayout &&
-              this.scrollsHorizontally() &&
-              view.settings?.axis === "horizontal" &&
-              view.iframe &&
-              view.contents?.textWidth &&
-              view.reframe &&
-              height !== undefined &&
-              Number.isFinite(height) &&
-              height > 0
-            ) {
-              // textWidth() rounds to the nearest pixel. Reserve its fractional
-              // remainder so the last line is not clipped by the iframe's edge.
-              const width = Math.ceil(view.contents.textWidth() + 0.5);
-              if (Number.isFinite(width) && width >= 0) {
-                expanding = true;
-                try {
-                  if (
-                    parseFloat(view.iframe.style.width) !== width ||
-                    parseFloat(view.iframe.style.height) !== height
-                  )
-                    view.reframe(width, height);
-                } finally {
-                  expanding = false;
-                }
-                return;
-              }
+            // A view laid out again with the others fits its text once all are sized.
+            if (this.deferredExpansions) {
+              this.deferredExpansions.add(view);
+              return;
             }
-            expand(force);
+            const size = view.settings?.axis === "horizontal" ? this.fittedSize(view) : undefined;
+            if (!size || !view.iframe || !view.reframe) {
+              expand(force);
+              return;
+            }
+            expanding = true;
+            try {
+              if (
+                parseFloat(view.iframe.style.width) !== size.width ||
+                parseFloat(view.iframe.style.height) !== size.height
+              )
+                view.reframe(size.width, size.height);
+            } finally {
+              expanding = false;
+            }
           };
         // A chapter view shows no section outside its chapter, even for a moment.
         if (this.chapterView) this.clipView(view);
@@ -2983,6 +3096,7 @@ class EpubRenderer implements ReaderRenderer {
     }
     this.limitsLoadedSections = this.linearSections > LOADED_SECTIONS_LIMIT;
     if (this.limitsLoadedSections) this.followLoadedSections(manager, container);
+    else this.followAllSections(manager);
     this.scrollContainer = container;
     container.addEventListener("scroll", this.onScroll, { passive: true });
   }
@@ -3017,6 +3131,47 @@ class EpubRenderer implements ReaderRenderer {
     manager.counter = () => undefined;
     this.sectionSizes = observer;
     return observer;
+  }
+
+  /**
+   * Load and show every section of a continuous book, as all lie within EPUB.js's unbounded
+   * offset. EPUB.js would confirm that by measuring each section at every step of the book's
+   * layout. A window resize lays the loaded sections out again where they are.
+   */
+  private followAllSections(manager: EpubManager): void {
+    // EPUB.js answers a window resize by clearing every section and laying the whole book
+    // out again from its location. With every section loaded, the views stay, and are laid
+    // out again in place as the host's size is followed, as when the Reader's own layout
+    // changes the host. A book still opening is laid out again by EPUB.js.
+    const resize = manager.resize?.bind(manager);
+    if (resize)
+      manager.resize = (...args) => {
+        if (!this.ready) {
+          resize(...args);
+          return;
+        }
+        const { clear, updateLayout } = manager;
+        manager.clear = () => undefined;
+        manager.updateLayout = () => undefined;
+        try {
+          resize(...args);
+        } finally {
+          manager.clear = clear;
+          manager.updateLayout = updateLayout;
+        }
+      };
+    if (!manager.update) return;
+    manager.update = () =>
+      Promise.all(
+        (manager.views?.all() ?? []).map((view) =>
+          view.displayed
+            ? view.show?.()
+            : view.display(manager.request).then(
+                () => view.show?.(),
+                () => view.hide?.(),
+              ),
+        ),
+      );
   }
 
   /**
@@ -3150,6 +3305,9 @@ class EpubRenderer implements ReaderRenderer {
     this.scrollContainer = undefined;
     this.scrollExtent?.disconnect();
     this.scrollExtent = undefined;
+    this.areaObserver?.observer.disconnect();
+    this.areaObserver = undefined;
+    this.areaSize = undefined;
     clearTimeout(this.scrollTimer);
     this.scrollTimer = undefined;
     this.notifyScroll();
@@ -4623,30 +4781,37 @@ class EpubRenderer implements ReaderRenderer {
     }
     // A section rendered only now can hold the shown chapter's start or end.
     if (this.chapterView) this.applyChapterBounds();
-    this.registerContentDocuments();
+    this.registerContentDocuments(view?.contents);
   };
 
-  private registerContentDocuments() {
+  /**
+   * Follow the displayed section documents: styled, watched and painted as they arrive,
+   * and released once discarded. When one section has just rendered, only it is new.
+   */
+  private registerContentDocuments(rendered?: EpubPageContents) {
     if (this.disposed || !this.rendition) return;
     const displayed = this.rendition.getContents() as unknown as EpubPageContents[];
+    const documents = displayed.map((contents) => contents.document);
+    const shown = new Set(documents);
     for (const [document, pending] of this.notePaint) {
-      if (displayed.some((contents) => contents.document === document)) continue;
+      if (shown.has(document)) continue;
       pending.active = false;
       pending.clear();
       this.notePaint.delete(document);
     }
     for (const [document, clear] of this.selectionPaint) {
-      if (displayed.some((contents) => contents.document === document)) continue;
+      if (shown.has(document)) continue;
       clear();
       this.selectionPaint.delete(document);
     }
-    for (const contents of displayed) {
+    const arrived = rendered ? displayed.filter((contents) => contents === rendered) : displayed;
+    for (const contents of arrived) {
       this.blurDocument(contents.document, contents.sectionIndex ?? -1);
       this.furiganaDocument(contents.document, contents.sectionIndex ?? -1);
     }
-    this.imageBlur.watchDocuments(displayed.map((contents) => contents.document));
-    this.furigana.watchDocuments(displayed.map((contents) => contents.document));
-    for (const contents of displayed) {
+    this.imageBlur.watchDocuments(documents);
+    this.furigana.watchDocuments(documents);
+    for (const contents of arrived) {
       if (!contents.document) continue;
       this.watchSelection(contents.document);
       if (!this.selectionPaint.has(contents.document))
@@ -6169,6 +6334,23 @@ function applyVnCursor(document: Document, shown: boolean): void {
 }
 
 /**
+ * An element's left and right padding together, in pixels. Its resolved value lays out the
+ * section, and in a continuous book every view before it, even when it is fixed; its
+ * computed value, read through the typed object model, needs no layout, so the resolved
+ * value is read only when that one is relative.
+ */
+function sidePadding(element: HTMLElement): number {
+  const typed = element.computedStyleMap?.();
+  const sides = ["padding-left", "padding-right"].map((property) => {
+    const value = typed?.get(property) as Partial<CSSUnitValue> | undefined;
+    return value?.unit === "px" && typeof value.value === "number" ? value.value : undefined;
+  });
+  if (sides[0] !== undefined && sides[1] !== undefined) return sides[0] + sides[1];
+  const style = element.ownerDocument.defaultView?.getComputedStyle(element);
+  return (parseFloat(style?.paddingLeft ?? "") || 0) + (parseFloat(style?.paddingRight ?? "") || 0);
+}
+
+/**
  * Keep intrinsic image proportions while limiting their box to the scrollable area, inside
  * the body's side padding, which holds horizontal text's margin.
  */
@@ -6182,13 +6364,7 @@ function applyContinuousImageSizing(
     style?.remove();
     return;
   }
-  const body = document.body && document.defaultView?.getComputedStyle(document.body);
-  const inner = Math.max(
-    1,
-    width -
-      (parseFloat(body?.paddingLeft ?? "") || 0) -
-      (parseFloat(body?.paddingRight ?? "") || 0),
-  );
+  const inner = Math.max(1, width - (document.body ? sidePadding(document.body) : 0));
   const rule =
     `:root body img, :root body svg { max-width: ${inner}px !important; ` +
     `max-height: ${height}px !important; object-fit: contain !important; }`;

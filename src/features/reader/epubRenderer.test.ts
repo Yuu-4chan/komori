@@ -1387,11 +1387,15 @@ describe("EPUB.js renderer adapter", () => {
     ).toBe("ready");
     expect(book.renderTo).toHaveBeenCalledWith(
       expect.any(HTMLElement),
-      // An unbounded offset has EPUB.js lay out and keep every linear section.
+      // An unbounded offset has EPUB.js lay out and keep every linear section. Images take
+      // the reading area's size limits, which need no section measured, and the views are
+      // grouped, so a section's layout does not lay out every view.
       expect.objectContaining({
         manager: "continuous",
         flow: "scrolled",
         offset: Number.POSITIVE_INFINITY,
+        limitImages: false,
+        groupViews: 32,
       }),
     );
     const guarded = rendition.manager as typeof rendition.manager & {
@@ -1733,7 +1737,12 @@ describe("EPUB.js renderer adapter", () => {
     });
     const update = vi.fn(async () => undefined);
     const display = vi.fn(async () => undefined);
-    Object.assign(rendition.manager, {
+    const manager = rendition.manager as typeof rendition.manager & {
+      resize(): void;
+      clear(): void;
+      updateLayout(): void;
+    };
+    Object.assign(manager, {
       container,
       settings: { axis: "vertical", direction: "ltr" },
       views: {
@@ -1743,6 +1752,11 @@ describe("EPUB.js renderer adapter", () => {
       },
       update,
       display,
+      // EPUB.js follows a window resize by clearing every view and laying the pages out again.
+      resize: vi.fn(() => {
+        manager.clear();
+        manager.updateLayout();
+      }),
     });
     const renderer = epubRendererFactory(id)();
     await renderer.mount(
@@ -1763,6 +1777,9 @@ describe("EPUB.js renderer adapter", () => {
       manager: rendition.manager as unknown as {
         update(): Promise<unknown>;
         display(section: unknown, target?: string): Promise<unknown>;
+        resize(): void;
+        clear: ReturnType<typeof vi.fn<() => void>>;
+        updateLayout: ReturnType<typeof vi.fn<() => void>>;
       },
       update,
       display,
@@ -1819,6 +1836,11 @@ describe("EPUB.js renderer adapter", () => {
       book.container.scrollTop = 40_000;
       await book.manager.update();
       expect(book.loaded()).toEqual([...sectionRange(276, 324), ...sectionRange(376, 428)]);
+
+      // A window resize lays the whole book out again, measuring the released sections too.
+      book.manager.resize();
+      expect(book.manager.clear).toHaveBeenCalled();
+      expect(book.manager.updateLayout).toHaveBeenCalled();
     } finally {
       book.dispose();
     }
@@ -1830,11 +1852,137 @@ describe("EPUB.js renderer adapter", () => {
       book.container.scrollTop = 20_000;
       book.rendered(0, 399);
       expect(book.loaded()).toEqual(sectionRange(0, 399));
+      // Every section lies within EPUB.js's unbounded offset: an update loads and shows each
+      // without measuring them.
+      book.views[5].displayed = false;
+      vi.mocked(book.views[200].element.getBoundingClientRect).mockClear();
       await book.manager.update();
-      expect(book.update).toHaveBeenCalled();
+      expect(book.update).not.toHaveBeenCalled();
+      expect(book.views[5].display).toHaveBeenCalled();
+      expect(book.views[5].show).toHaveBeenCalled();
+      expect(book.views[200].show).toHaveBeenCalled();
+      expect(book.views[200].element.getBoundingClientRect).not.toHaveBeenCalled();
+      expect(book.loaded()).toEqual(sectionRange(0, 399));
+
+      // A window resize keeps every view, laid out again as the host's size is followed.
+      book.manager.clear.mockClear();
+      book.manager.updateLayout.mockClear();
+      book.manager.resize();
+      expect(book.manager.clear).not.toHaveBeenCalled();
+      expect(book.manager.updateLayout).not.toHaveBeenCalled();
+      book.manager.clear();
+      expect(book.manager.clear).toHaveBeenCalledOnce();
     } finally {
       book.dispose();
     }
+  });
+
+  it("fits a continuous book's views to their text only once every view is laid out again", async () => {
+    const { rendition } = mockBook();
+    const steps: string[] = [];
+    // Each measurement after another view was resized would lay the whole book out again.
+    const fresh = [100, 300].map((height, index) => {
+      const view = {
+        element: document.createElement("div"),
+        iframe: document.createElement("iframe"),
+        section: { index, prev: () => null, next: () => null },
+        settings: { axis: "vertical" },
+        lockedWidth: 600,
+        _width: 600,
+        _height: 100,
+        contents: {
+          document: document.implementation.createHTMLDocument(),
+          sectionIndex: index,
+          textHeight: () => {
+            steps.push(`measure ${index}`);
+            return height;
+          },
+        },
+        display: vi.fn(async () => undefined),
+        ownExpand: vi.fn(),
+        expand: (): void => view.ownExpand(),
+        // EPUB.js expands a view to its text as it locks the view's size.
+        size: vi.fn(() => {
+          steps.push(`size ${index}`);
+          view.expand();
+        }),
+        reframe: vi.fn((_width: number, frameHeight: number) => {
+          steps.push(`frame ${index}`);
+          view._height = frameHeight;
+        }),
+      };
+      return view;
+    });
+    const created: typeof fresh = [];
+    Object.assign(rendition.manager, {
+      container: document.createElement("div"),
+      settings: { axis: "vertical", direction: "ltr" },
+      views: { all: () => created, displayed: () => created, remove: vi.fn() },
+      viewSettings: { width: 600, height: 500 },
+      createView: () => fresh[created.length],
+    });
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 16, viewMode: "continuous" },
+    );
+    const manager = rendition.manager as unknown as { createView(): (typeof fresh)[number] };
+    created.push(manager.createView());
+    created.push(manager.createView());
+    rendition.getContents.mockReturnValue(created.map((view) => view.contents) as never);
+
+    await renderer.setPresentation?.({ fontSize: 16, viewMode: "continuous", sideMargin: 40 });
+    // Every view is sized, then every one measured, then the changed one framed again.
+    expect(steps.slice(0, 5)).toEqual(["size 0", "size 1", "measure 0", "measure 1", "frame 1"]);
+    expect(fresh[1].reframe).toHaveBeenCalledWith(600, 300);
+    expect(fresh[0].reframe).not.toHaveBeenCalled();
+    expect(fresh[0].ownExpand).not.toHaveBeenCalled();
+    renderer.dispose();
+  });
+
+  it("registers only the section a continuous book has just rendered", async () => {
+    const { rendition } = mockBook(
+      ["one", "two", "three"].map((name) => section(`Text/${name}.xhtml`, name)),
+    );
+    Object.assign(rendition.manager, {
+      container: document.createElement("div"),
+      settings: { axis: "vertical", direction: "ltr" },
+      views: { all: () => [], displayed: () => [], remove: vi.fn() },
+    });
+    const onContentDocument = vi.fn();
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      onContentDocument,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 16, viewMode: "continuous" },
+    );
+    const rendered = rendition.on.mock.calls.find(([name]) => name === "rendered")?.[1] as (
+      section: unknown,
+      view: unknown,
+    ) => void;
+    const contents = [0, 1, 2].map((index) => ({
+      document: document.implementation.createHTMLDocument(),
+      sectionIndex: index,
+      cfiFromRange: vi.fn(),
+    }));
+    for (const [index, item] of contents.entries()) {
+      rendition.getContents.mockReturnValue(contents.slice(0, index + 1) as never);
+      rendered({ index }, { contents: item });
+    }
+    // Each document arrives once, not again as every later section renders.
+    expect(onContentDocument.mock.calls).toEqual(contents.map((item) => [item.document]));
+    renderer.dispose();
   });
 
   it.each(["continuous", "semi-continuous"] as const)(
@@ -2028,18 +2176,25 @@ describe("EPUB.js renderer adapter", () => {
         }) as DOMRect,
     );
     const shown = { document: target.document, sectionIndex: 1, cfiFromRange: vi.fn() };
-    const update = vi.fn(() => {
-      if (container.scrollTop >= 200) rendition.getContents.mockReturnValue([shown] as never);
-    });
+    const view = {
+      element: targetElement,
+      section: { index: 1, prev: () => null, next: () => null },
+      displayed: false,
+      display: vi.fn(async () => {
+        view.displayed = true;
+        rendition.getContents.mockReturnValue([shown] as never);
+      }),
+      show: vi.fn(),
+    };
     Object.assign(rendition.manager, {
       container,
       settings: { axis: "vertical", direction: "ltr" },
       views: {
-        all: () => [{ element: targetElement, section: { index: 1 } }],
-        displayed: () => [],
+        all: () => [view],
+        displayed: () => (view.displayed ? [view] : []),
         remove: vi.fn(),
       },
-      update,
+      update: vi.fn(),
     });
     const renderer = epubRendererFactory(id)();
     const saved = positionBinding(Promise.resolve({ spineIndex: 1, progress: 0.3 }));
@@ -2061,7 +2216,8 @@ describe("EPUB.js renderer adapter", () => {
     // Every section stays laid out, so the jump only scrolls to its target.
     expect(rendition.manager.clear).not.toHaveBeenCalled();
     expect(container.scrollTop).toBe(200);
-    expect(update).toHaveBeenCalled();
+    // Every section lies within EPUB.js's unbounded offset, so its update loads each.
+    expect(view.display).toHaveBeenCalled();
     renderer.dispose();
   });
 
@@ -2990,6 +3146,72 @@ describe("EPUB.js renderer adapter", () => {
       }
     } finally {
       for (const frame of frames) frame.defaultView?.frameElement?.remove();
+    }
+  });
+
+  it("reads a continuous section's side padding without laying the book out", async () => {
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    const page = frame.contentDocument!;
+    page.body.innerHTML = '<p><img src="plate.png" width="2048" height="1453"></p><p>Text</p>';
+    // The resolved padding would lay out every view before the section; its computed value
+    // needs no layout.
+    const view = frame.contentWindow!;
+    const getComputedStyle = view.getComputedStyle.bind(view);
+    const resolved: string[] = [];
+    view.getComputedStyle = (element, pseudo) => {
+      const style = getComputedStyle(element, pseudo);
+      if (element !== page.body) return style;
+      return new Proxy(style, {
+        get: (target, property) => {
+          if (typeof property === "string" && /^padding/i.test(property)) resolved.push(property);
+          const value: unknown = Reflect.get(target, property);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+    };
+    Object.assign(page.body, {
+      computedStyleMap: () => ({ get: () => ({ value: 70, unit: "px" }) }),
+    });
+    const item = Object.assign(section("Text/0.xhtml", ""), { index: 0, document: page });
+    const { book, rendition } = mockBook([item]);
+    const container = document.createElement("div");
+    const manager = rendition.manager;
+    manager.settings.axis = "vertical";
+    Object.defineProperties(container, {
+      clientWidth: { get: () => 840 },
+      clientHeight: { get: () => 788 },
+    });
+    Object.assign(manager, {
+      container,
+      views: { all: () => [], displayed: () => [], remove: vi.fn() },
+    });
+    Object.assign(rendition, { destroy: vi.fn() });
+    rendition.display.mockImplementation(async () => {
+      for (const [hook] of book.spine.hooks.content.register.mock.calls)
+        await (hook as (document: Document, section: unknown) => unknown)(page, item);
+    });
+    try {
+      const renderer = epubRendererFactory(id)();
+      expect(
+        await renderer.mount(
+          document.createElement("div"),
+          new AbortController().signal,
+          vi.fn(),
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { fontSize: 16, viewMode: "continuous", writingMode: "horizontal" },
+        ),
+      ).toBe("ready");
+      expect(page.querySelector("style[data-komori-continuous-images]")?.textContent).toContain(
+        "max-width: 700px !important; max-height: 788px !important",
+      );
+      expect(resolved).toEqual([]);
+      renderer.dispose();
+    } finally {
+      frame.remove();
     }
   });
 
