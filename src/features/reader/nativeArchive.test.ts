@@ -29,6 +29,8 @@ function bundle(...entries: (string | number)[]) {
   return new Uint8Array(bytes);
 }
 
+type Fetch = (url: string, init?: RequestInit) => Promise<ReturnType<typeof reply>>;
+
 /** The entry numbers a bundle request names. */
 function numbers(init: RequestInit | undefined) {
   const view = new DataView(init!.body as ArrayBuffer);
@@ -39,7 +41,7 @@ describe("native EPUB archive", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("reads entries as JSZip returns them", async () => {
-    const fetch = vi.fn(async (_: string) => reply("\uFEFFé"));
+    const fetch = vi.fn<Fetch>(async () => reply("\uFEFFé"));
     vi.stubGlobal("fetch", fetch);
     const zip = new NativeZip(url, new AbortController().signal, [
       ["a.xhtml", 5],
@@ -95,7 +97,7 @@ describe("native EPUB archive", () => {
   });
 
   it("reads a text entry once within a budget, and other reads each time", async () => {
-    const fetch = vi.fn(async (_: string) => reply("text"));
+    const fetch = vi.fn<Fetch>(async () => reply("text"));
     vi.stubGlobal("fetch", fetch);
     const zip = new NativeZip(url, new AbortController().signal, [
       ["book.opf", 4],
@@ -190,7 +192,9 @@ describe("native EPUB archive", () => {
   });
 
   it("takes the place of the JSZip EPUB.js builds as it unarchives", async () => {
-    const jszip = { loadAsync: vi.fn(async (_: unknown) => undefined) };
+    const jszip = {
+      loadAsync: vi.fn<(data: unknown) => Promise<undefined>>(async () => undefined),
+    };
     const book = {
       archive: undefined as { zip?: unknown } | undefined,
       unarchive(input: unknown) {
@@ -208,7 +212,7 @@ describe("native EPUB archive", () => {
       0x4b,
       0x05,
       0x06,
-      ...new Array<number>(18).fill(0),
+      ...new Uint8Array(18),
     ]);
     await expect(book.unarchive(new ArrayBuffer(8))).rejects.toThrow(InvalidEpubDocument);
   });

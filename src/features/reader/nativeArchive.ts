@@ -16,7 +16,7 @@ const BUNDLE_ENTRIES = 1_000;
 /** Bytes of text entries read one at a time that a book's session keeps. */
 const KEPT_TEXT_BYTES = 16 * 1024 * 1024;
 /** An empty ZIP: its end-of-central-directory record alone. */
-const EMPTY_ZIP = new Uint8Array([0x50, 0x4b, 0x05, 0x06, ...new Array<number>(18).fill(0)]);
+const EMPTY_ZIP = new Uint8Array([0x50, 0x4b, 0x05, 0x06, ...new Uint8Array(18)]);
 
 export interface NativeEntry {
   readonly name: string;
