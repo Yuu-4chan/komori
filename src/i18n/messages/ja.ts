@@ -124,6 +124,9 @@ export const ja: MessageCatalog = {
   "discord.showChapterProgress": "章の進み具合",
   "discord.showReadingSpeed": "読書速度",
   "discord.showReadingSpeedHint": "読書統計がオンのとき、1分読んだ後に表示されます。",
+  "discord.showBrowsing": "Komoriのページ",
+  "discord.showBrowsingHint":
+    "読書画面以外の本棚・辞書・統計・設定。5分間操作しないと「退席中」になります。",
   "updates.title": "アップデート",
   "updates.check": "アップデートを確認",
   "updates.checking": "確認中…",

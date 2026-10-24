@@ -302,7 +302,8 @@ function BookCard({ identity }: { identity: ReaderIdentity }) {
         </div>
       )}
       <div className="reader-sidebar__book">
-        <h2>
+        {/* The title stays selectable, so it can be copied to search for or share the book. */}
+        <h2 className={book ? "reader-sidebar__book-title" : undefined}>
           {book?.title ??
             t(
               book

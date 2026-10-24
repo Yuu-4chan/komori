@@ -3,7 +3,12 @@ import { useEffect, useRef } from "react";
 import { useI18n } from "../../i18n/i18n";
 import type { ReaderBookProgress } from "../reader/renderer";
 import { formatReadingSpeed, type ReadingSpeed } from "../statistics/readingSession";
-import { reportDiscordReading, type DiscordReading } from "./discordApi";
+import {
+  reportDiscordBrowsing,
+  reportDiscordReading,
+  type DiscordPage,
+  type DiscordReading,
+} from "./discordApi";
 
 /** How often the open book is reported again, so the speed stays current. */
 export const discordRefreshMs = 15_000;
@@ -53,4 +58,44 @@ export function useDiscordPresence(
       reportDiscordReading(null);
     };
   }, [id]);
+}
+
+/** What counts as using a page: a press, a key or a wheel turn anywhere in the window. */
+const useEvents = ["pointerdown", "keydown", "wheel"] as const;
+
+/**
+ * Reports the page open outside the Reader to the Discord status: when it opens, again at most
+ * every 15 s while the reader uses it, and no page once it closes. Native code decides what
+ * Discord shows and when it is Idle.
+ */
+export function useDiscordBrowsing(page: DiscordPage | null) {
+  const activity = useRef(0);
+  const reported = useRef(0);
+
+  useEffect(() => {
+    const used = () => {
+      activity.current += 1;
+    };
+    for (const type of useEvents)
+      document.addEventListener(type, used, { capture: true, passive: true });
+    return () => {
+      for (const type of useEvents) document.removeEventListener(type, used, { capture: true });
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!page) return;
+    const report = () => {
+      reported.current = activity.current;
+      reportDiscordBrowsing({ page, activity: activity.current });
+    };
+    report();
+    const timer = setInterval(() => {
+      if (activity.current !== reported.current) report();
+    }, discordRefreshMs);
+    return () => {
+      clearInterval(timer);
+      reportDiscordBrowsing(null);
+    };
+  }, [page]);
 }

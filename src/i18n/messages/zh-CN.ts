@@ -120,6 +120,8 @@ export const zhCN: MessageCatalog = {
   "discord.showChapterProgress": "章节进度",
   "discord.showReadingSpeed": "阅读速度",
   "discord.showReadingSpeedHint": "在阅读统计开启时，阅读一分钟后显示。",
+  "discord.showBrowsing": "Komori页面",
+  "discord.showBrowsingHint": "阅读器以外的书架、词典、统计和设置。5分钟未操作后显示为闲置。",
   "updates.title": "更新",
   "updates.check": "检查更新",
   "updates.checking": "正在检查…",

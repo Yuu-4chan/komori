@@ -125,6 +125,9 @@ export const ptBR: MessageCatalog = {
   "discord.showReadingSpeed": "Velocidade de leitura",
   "discord.showReadingSpeedHint":
     "Mostrada com as estatísticas de leitura ativadas, após um minuto de leitura.",
+  "discord.showBrowsing": "Páginas do Komori",
+  "discord.showBrowsingHint":
+    "Biblioteca, Dicionário, Estatísticas e Configurações, fora do Leitor. Após 5 minutos sem uso, mostra Ausente.",
   "updates.title": "Atualizações",
   "updates.check": "Procurar atualizações",
   "updates.checking": "Procurando…",

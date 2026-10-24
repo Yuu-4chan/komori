@@ -16,11 +16,12 @@ const parts = [
   "showBookProgress",
   "showChapterProgress",
   "showReadingSpeed",
+  "showBrowsing",
 ] as const;
 
 /**
- * Settings > Discord: whether Discord shows what the Reader is reading, and which parts. Each
- * choice waits for native confirmation.
+ * Settings > Discord: whether Discord shows what the Reader is reading, which parts, and the page
+ * in use outside the Reader. Each choice waits for native confirmation.
  */
 export function DiscordSettings() {
   const [preferences, setPreferences] = useState<DiscordPreferences>(defaultDiscordPreferences);
@@ -88,8 +89,15 @@ export function DiscordSettings() {
           <ToggleSetting
             key={key}
             label={t(`discord.${key}`)}
-            // The speed comes from reading statistics, so it needs a word on when it shows.
-            description={key === "showReadingSpeed" ? t("discord.showReadingSpeedHint") : undefined}
+            // The speed comes from reading statistics, so it needs a word on when it shows; the
+            // pages need a word on which they are.
+            description={
+              key === "showReadingSpeed"
+                ? t("discord.showReadingSpeedHint")
+                : key === "showBrowsing"
+                  ? t("discord.showBrowsingHint")
+                  : undefined
+            }
             checked={preferences[key]}
             disabled={!loaded || busy || !preferences.enabled}
             onChange={(value) => void change(key, value)}

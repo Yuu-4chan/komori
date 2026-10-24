@@ -167,6 +167,7 @@ pub fn run() {
             discord_presence::get_discord_preferences,
             discord_presence::save_discord_preferences,
             discord_presence::set_discord_activity,
+            discord_presence::set_discord_browsing,
             window_lifecycle::finish_window_close,
             backup::get_backup_settings,
             backup::save_backup_settings,

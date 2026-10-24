@@ -133,6 +133,9 @@ export const en = {
   "discord.showReadingSpeed": "Reading speed",
   "discord.showReadingSpeedHint":
     "Shown while reading statistics are on, after a minute of reading.",
+  "discord.showBrowsing": "Komori pages",
+  "discord.showBrowsingHint":
+    "Library, Dictionary, Statistics and Settings, outside the Reader. After 5 minutes without using them, it shows Idle.",
   "updates.title": "Updates",
   "updates.check": "Check for updates",
   "updates.checking": "Checking…",
