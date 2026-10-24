@@ -2,6 +2,15 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.3.0
+
+- Discord status can show the Komori page you are using outside the Reader: Browsing the library, Using the dictionary, Viewing statistics or Changing settings. It shows Idle after 5 minutes without using the page. Turn it off with Komori pages in Settings > Discord.
+- The numbers and symbol rows that separate the parts of a chapter, such as a lone 7, ００１, －Ⅱ－ or ◇◆◇, are centered and slightly enlarged like chapter titles. A number in the text, such as a countdown or a reply number, keeps its place.
+- Chapter titles are centered and enlarged in more books, including those whose contents point to an empty line before the title and those that start a chapter with its title as plain text.
+- A title that a book indents with wide spaces is centered on its own text instead of sitting off center.
+- The book title on the Reader sidebar can be selected and copied.
+- While the rest of a long book is still loading, the Reader saves the place you are reading instead of one section earlier.
+
 ## 1.2.1
 
 - In Continuous, Semi-continuous and VN view a book shows where you were reading in about a third of a second, and the rest of the book loads behind it. A book with 2,000 sections that took 40 seconds to open shows in under 2 seconds. Until the rest has loaded, jumps and layout changes wait for it, and Continuous view shows no scrollbar.
