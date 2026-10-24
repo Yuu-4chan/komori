@@ -18,7 +18,7 @@ vi.mock("./discordApi", async (original) => ({
   saveDiscordPreferences: vi.fn(),
 }));
 
-const parts = ["Book title", "Book progress", "Chapter progress", "Reading speed"];
+const parts = ["Book title", "Book progress", "Chapter progress", "Reading speed", "Komori pages"];
 
 describe("Discord settings", () => {
   beforeEach(() => {
@@ -63,6 +63,7 @@ describe("Discord settings", () => {
       ["showBookProgress", "Book progress"],
       ["showChapterProgress", "Chapter progress"],
       ["showReadingSpeed", "Reading speed"],
+      ["showBrowsing", "Komori pages"],
     ] as const) {
       const toggle = screen.getByRole("button", { name: label });
       await waitFor(() => expect(toggle).toBeEnabled());
@@ -73,6 +74,9 @@ describe("Discord settings", () => {
     }
     expect(screen.getByRole("button", { name: "Reading speed" })).toHaveAccessibleDescription(
       "Shown while reading statistics are on, after a minute of reading.",
+    );
+    expect(screen.getByRole("button", { name: "Komori pages" })).toHaveAccessibleDescription(
+      "Library, Dictionary, Statistics and Settings, outside the Reader. After 5 minutes without using them, it shows Idle.",
     );
 
     view.unmount();

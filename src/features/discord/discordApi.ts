@@ -7,6 +7,7 @@ export interface DiscordPreferences {
   showBookProgress: boolean;
   showChapterProgress: boolean;
   showReadingSpeed: boolean;
+  showBrowsing: boolean;
 }
 export const defaultDiscordPreferences: DiscordPreferences = {
   enabled: false,
@@ -14,6 +15,7 @@ export const defaultDiscordPreferences: DiscordPreferences = {
   showBookProgress: true,
   showChapterProgress: true,
   showReadingSpeed: true,
+  showBrowsing: true,
 };
 
 /**
@@ -27,6 +29,18 @@ export interface DiscordReading {
   chapterProgress: string | null;
   readingSpeed: string | null;
   position: number;
+}
+
+/** A page outside the Reader. */
+export type DiscordPage = "library" | "dictionary" | "statistics" | "settings";
+
+/**
+ * The page open outside the Reader. Native code shows it while that choice is on, and Idle once
+ * `activity`, a count of the reader's actions on it, has not changed for 5 minutes.
+ */
+export interface DiscordBrowsing {
+  page: DiscordPage;
+  activity: number;
 }
 
 export async function getDiscordPreferences(): Promise<DiscordPreferences> {
@@ -49,4 +63,9 @@ export async function saveDiscordPreferences(
 export function reportDiscordReading(reading: DiscordReading | null): void {
   if (!isTauri()) return;
   void invoke("set_discord_activity", { reading }).catch(() => {});
+}
+/** Reports the page open outside the Reader, or none; a status that cannot be reported is not retried. */
+export function reportDiscordBrowsing(browsing: DiscordBrowsing | null): void {
+  if (!isTauri()) return;
+  void invoke("set_discord_browsing", { browsing }).catch(() => {});
 }

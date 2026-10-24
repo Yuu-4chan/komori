@@ -69,6 +69,7 @@ describe("native text selection", () => {
         ".lookup-entry",
         ".dictionary-result-card",
         ".reader-note-passage",
+        ".reader-sidebar__book-title",
         ".library-folders strong",
         '[role="alert"]',
       ]),

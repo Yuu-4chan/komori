@@ -118,7 +118,7 @@ Each dictionary definition has its own numbered source header and collapse contr
 - **Do** keep independent application and Reader theme roles.
 - **Do** show untracked time/streak and unavailable metadata honestly.
 - **Do** preserve visible focus, native window controls, source labels, and collapsible definitions.
-- **Do** keep interface text (labels, headings, rows, cards) out of drag selection, as a native app does; text fields, dictionary entries and the popup, notes, book folder paths and error messages stay selectable for copying.
+- **Do** keep interface text (labels, headings, rows, cards) out of drag selection, as a native app does; text fields, dictionary entries and the popup, notes, the Reader sidebar's book title, book folder paths and error messages stay selectable for copying.
 
 ### Don't:
 

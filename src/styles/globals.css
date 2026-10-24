@@ -59,7 +59,8 @@ img {
 
 /* As in a native app, dragging over labels, headings, rows and cards selects nothing; what is
    meant to be copied stays selectable: text fields, dictionary entries (the Reader popup's
-   too), notes, book folder paths and error messages. Book text is in its own documents. */
+   too), notes, the Reader sidebar's book title, book folder paths and error messages. Book
+   text is in its own documents. */
 body {
   user-select: none;
 }
@@ -70,6 +71,7 @@ textarea,
 .lookup-entry,
 .dictionary-result-card,
 .reader-note-passage,
+.reader-sidebar__book-title,
 .library-folders strong,
 [role="alert"] {
   user-select: text;

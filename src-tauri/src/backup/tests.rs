@@ -154,6 +154,7 @@ fn discord_choices_round_trip_and_older_backups_preserve_them() {
         show_book_progress: true,
         show_chapter_progress: false,
         show_reading_speed: true,
+        show_browsing: false,
     };
     crate::discord_presence::save_to(&connection, choices).unwrap();
     let backup = collect(&mut connection, START).unwrap();
@@ -168,6 +169,25 @@ fn discord_choices_round_trip_and_older_backups_preserve_them() {
     assert_eq!(
         crate::discord_presence::load(&fixture.database).unwrap(),
         choices
+    );
+    // A backup from before the pages' choice shows them.
+    let mut older = serde_json::to_value(&backup).unwrap();
+    older["preferences"]["discord"]
+        .as_object_mut()
+        .unwrap()
+        .remove("showBrowsing");
+    restore(
+        &fixture.database,
+        &serde_json::from_value(older).unwrap(),
+        START + 3,
+    )
+    .unwrap();
+    assert_eq!(
+        crate::discord_presence::load(&fixture.database).unwrap(),
+        crate::discord_presence::Preferences {
+            show_browsing: true,
+            ..choices
+        }
     );
     let mut value = serde_json::to_value(&backup).unwrap();
     value["preferences"]["discord"]["enabled"] = serde_json::json!("yes");

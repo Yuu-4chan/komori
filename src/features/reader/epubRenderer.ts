@@ -474,8 +474,8 @@ class EpubRenderer implements ReaderRenderer {
   private imageSpreads = new Map<number, number>();
   /** Sections of text that follow a lone image page on its spread. */
   private textPartners = new Set<number>();
-  /** The anchors of contents entries in each spine section, "" for its start. */
-  private headingTargets = new Map<unknown, Set<string>>();
+  /** The anchors of contents entries in each spine section, "" for its start, with their labels. */
+  private headingTargets = new Map<unknown, Map<string, string[]>>();
   /** Each heading image's content shift, measured once from the archive by path. */
   private inkShifts = new Map<string, Promise<InkShift | undefined>>();
   /** The contents entry of the last successful jump, current until the next settled turn. */
@@ -793,11 +793,14 @@ class EpubRenderer implements ReaderRenderer {
       };
       collectLabels(contents);
       if (signal.aborted || this.disposed) return "error";
-      for (const destination of this.destinations.values()) {
+      for (const [entryId, destination] of this.destinations) {
         const target = book.spine.get(destination);
         if (!target) continue;
-        if (!this.headingTargets.has(target)) this.headingTargets.set(target, new Set());
-        this.headingTargets.get(target)?.add(destination.split("#")[1] ?? "");
+        const anchors = this.headingTargets.get(target) ?? new Map<string, string[]>();
+        this.headingTargets.set(target, anchors);
+        const fragment = destination.split("#")[1] ?? "";
+        const label = this.searchLabels.get(entryId);
+        anchors.set(fragment, [...(anchors.get(fragment) ?? []), ...(label ? [label] : [])]);
       }
       this.blurBoundary = this.destinations.size
         ? await spineTocBoundary(book, navigation)
@@ -6702,12 +6705,14 @@ function applyImageCentering(document: Document, center: boolean): void {
   (document.head ?? document.documentElement).append(style);
 }
 
-/** Marks a chapter heading, and each block around it holding nothing else. */
+/** Marks a chapter heading or section break, and each block around it holding nothing else. */
 const HEADING = "data-komori-heading";
 /** Marks the style element centering chapter headings. */
 const CENTER_HEADINGS_STYLE = "data-komori-center-headings";
 /** Marks a heading image whose drawn content is moved to the center of its box. */
 const INK_CENTERED = "data-komori-ink-centered";
+/** Marks a text heading whose ideographic spaces at either end would push it off center. */
+const HEADING_LEAD = "data-komori-heading-lead";
 const HEADING_ELEMENTS = "h1, h2, h3, h4, h5, h6";
 const HEADING_BLOCKS = `${BLOCK_ELEMENTS}, ${HEADING_ELEMENTS}`;
 /** More characters than a chapter title holds, so a targeted passage of text is not centered. */
@@ -6715,43 +6720,44 @@ const HEADING_LENGTH_LIMIT = 100;
 // Two ID-like selectors outrank the book's own rules, including the indentation Komori
 // repeats from them, whatever their order.
 const OUTRANK = ":not(#komori-heading):not(#komori-heading)";
+/** What may decorate a section number: －３－, 《２》, #1. */
+const NUMBER_DECORATION = "[-－―—‐─~〜～#＃§・.．*＊()（）[\\]［］〈〉《》【】〔〕]{0,2}";
+/**
+ * A section number, as Japanese books number the parts of a chapter: 7, ７, 001, 三, Ⅱ, IV, 第2節,
+ * decorated or not.
+ */
+const SECTION_NUMBER = new RegExp(
+  `^${NUMBER_DECORATION}第?(?:[0-9０-９]{1,3}|[〇一二三四五六七八九十百]{1,4}|[Ⅰ-Ⅻ]|[IVX]{1,5})` +
+    `[節話]?${NUMBER_DECORATION}$`,
+  "u",
+);
+/** A scene break drawn in symbols: ◇, ＊＊＊, ◆◇◆, †. */
+const SECTION_ORNAMENT = /^[◆◇◈＊*☆★●○◎■□▲△▼▽♦♢※†‡✿❀✽✻❖⁂]{1,9}$/u;
+/** Where a number or symbol in a cell or list item is data, not a section break. */
+const TABULAR = "table, ul, ol, dl";
 
 /**
  * Centers each chapter heading of a section along the inline axis: the block a contents
- * entry's anchor begins, or, for an entry opening the section, its first h1-h6 when
- * no text comes before it. The heading and the blocks around it holding nothing else
- * center their lines and lose their inline indentation, margins, and padding, and its
- * images take auto inline margins. Sizes and block spacing stay the book's. A block too
- * long for a title is left alone. Returns the headings' images.
+ * entry's anchor begins, or, for an entry opening the section, its first h1-h6 when no text
+ * comes before it, or its first text when that reads as the entry's label. Each section break
+ * standing alone between a chapter's parts, a number or a row of symbols, is centered the same
+ * way. The heading and the blocks around it holding nothing else center their lines and lose
+ * their inline indentation, margins, and padding, and its images take auto inline margins.
+ * Sizes and block spacing stay the book's. A block too long for a title is left alone. Returns
+ * the headings' images.
  */
 function applyHeadingCentering(
   document: Document,
-  fragments: ReadonlySet<string> | undefined,
+  anchors: ReadonlyMap<string, readonly string[]> | undefined,
 ): Element[] {
   const body = document.body;
-  if (!body || !fragments?.size) return [];
+  if (!body) return [];
   if (!document.querySelector(`style[${CENTER_HEADINGS_STYLE}]`)) {
-    for (const fragment of fragments) {
-      const heading = headingAt(document, body, fragment);
-      if (!heading) continue;
-      heading.setAttribute(HEADING, "");
-      // Only the text title scales, once; authored child hierarchy remains relative.
-      if (heading.textContent?.trim()) heading.setAttribute("data-komori-text-heading", "");
-      let outermost = heading;
-      for (
-        let wrapper = heading.parentElement;
-        wrapper &&
-        wrapper !== body &&
-        wrapper.matches(BLOCK_ELEMENTS) &&
-        holdsOnly(wrapper, heading);
-        wrapper = wrapper.parentElement
-      ) {
-        wrapper.setAttribute(HEADING, "");
-        outermost = wrapper;
-      }
-      if (!heading.textContent?.trim() && heading.querySelector("img"))
-        outermost.setAttribute(IMAGE_HEADING, "");
+    for (const [fragment, labels] of anchors ?? []) {
+      const heading = headingAt(document, body, fragment, labels);
+      if (heading) markHeading(heading, body);
     }
+    for (const marker of sectionBreaks(body)) markHeading(marker, body);
     if (!document.querySelector(`[${HEADING}]`)) return [];
     const style = document.createElementNS(XHTML_NAMESPACE, "style");
     style.setAttribute(CENTER_HEADINGS_STYLE, "");
@@ -6759,6 +6765,8 @@ function applyHeadingCentering(
       `:root body [${HEADING}]${OUTRANK} { text-align: center !important; ` +
       "text-align-last: auto !important; text-indent: 0 !important; " +
       "margin-inline: auto !important; padding-inline: 0 !important; } " +
+      `:root body [${HEADING}][${HEADING_LEAD}]${OUTRANK} ` +
+      "{ text-indent: var(--komori-heading-lead) !important; } " +
       `:root body [${HEADING}] img${OUTRANK}, :root body [${HEADING}] svg${OUTRANK} ` +
       "{ margin-inline: auto !important; } " +
       ":root body [data-komori-text-heading] { zoom: 1.1; } " +
@@ -6768,13 +6776,82 @@ function applyHeadingCentering(
   return Array.from(document.querySelectorAll(`[${HEADING}] img`));
 }
 
-/** The chapter heading a contents anchor begins, or a section's first heading without one. */
-function headingAt(document: Document, body: HTMLElement, fragment: string): Element | null {
+/** Marks a heading and each block around it that holds nothing else. */
+function markHeading(heading: Element, body: HTMLElement): void {
+  heading.setAttribute(HEADING, "");
+  // Only the text title scales, once; authored child hierarchy remains relative.
+  if (heading.textContent?.trim()) {
+    heading.setAttribute("data-komori-text-heading", "");
+    centerSpacedLine(heading);
+  }
+  let outermost = heading;
+  for (
+    let wrapper = heading.parentElement;
+    wrapper && wrapper !== body && wrapper.matches(BLOCK_ELEMENTS) && holdsOnly(wrapper, heading);
+    wrapper = wrapper.parentElement
+  ) {
+    wrapper.setAttribute(HEADING, "");
+    outermost = wrapper;
+  }
+  if (!heading.textContent?.trim() && heading.querySelector("img"))
+    outermost.setAttribute(IMAGE_HEADING, "");
+}
+
+/**
+ * Japanese books often place a heading with ideographic spaces before it (`　　　　　７`), which
+ * do not collapse and would push a centered line off center. A first-line indentation of the
+ * spaces after it less those before it centers the rest; spaces after a line break are left.
+ */
+function centerSpacedLine(heading: Element): void {
+  // A book's element belongs to its own frame, so it is not this window's HTMLElement.
+  const style = (heading as HTMLElement).style as CSSStyleDeclaration | undefined;
+  if (!style || heading.querySelector(HEADING_BLOCKS)) return;
+  const text = readingFreeText(heading).replace(/^[^\S　]+|[^\S　]+$/g, "");
+  const count = (spaces: string | undefined) => (spaces ?? "").replace(/[^　]/g, "").length;
+  const before = count(text.match(/^\s+/)?.[0]);
+  const after = heading.querySelector("br") ? 0 : count(text.match(/\s+$/)?.[0]);
+  if (before === after || before + after === text.length) return;
+  heading.setAttribute(HEADING_LEAD, "");
+  style.setProperty("--komori-heading-lead", `${after - before}em`);
+}
+
+/** An element's text without ruby readings. */
+function readingFreeText(element: Element): string {
+  const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let text = "";
+  for (let node = walker.nextNode(); node; node = walker.nextNode())
+    if (!node.parentElement?.closest("rt, rp")) text += (node as Text).data;
+  return text;
+}
+
+/** Text compared as a contents label: full-width forms unified, readings and spaces gone. */
+const plainLabel = (text: string) => text.normalize("NFKC").replace(/\s+/g, "");
+
+/** Whether a block's text reads as one of an entry's labels, or as part of one. */
+function namesEntry(element: Element, labels: readonly string[]): boolean {
+  const text = plainLabel(readingFreeText(element));
+  return (
+    !!text &&
+    labels.some((label) => {
+      const name = plainLabel(label);
+      return !!name && (name.includes(text) || text.includes(name));
+    })
+  );
+}
+
+/**
+ * The chapter heading a contents anchor begins, or, for an entry opening the section, the
+ * section's first heading, or its first text block when that reads as the entry's label.
+ */
+function headingAt(
+  document: Document,
+  body: HTMLElement,
+  fragment: string,
+  labels: readonly string[],
+): Element | null {
   let heading: Element | null;
-  let target: Element | null;
-  if (!fragment) {
-    heading = target = body.querySelector(HEADING_ELEMENTS);
-  } else {
+  let target: Element | null = null;
+  if (fragment) {
     let id = fragment;
     try {
       id = decodeURIComponent(fragment);
@@ -6783,27 +6860,98 @@ function headingAt(document: Document, body: HTMLElement, fragment: string): Ele
     }
     target = document.getElementById(id);
     if (!target || !body.contains(target)) return null;
+  }
+  // An anchor on the body opens the section as an entry without one does.
+  const opening = !target || target === body;
+  if (opening) {
+    const first = Array.from(body.querySelectorAll(HEADING_ELEMENTS)).find(hasContent);
+    heading = target = first && !textBefore(body, first) ? first : firstTextBlock(body, labels);
+  } else {
+    target = target as Element;
     heading = target.matches(HEADING_BLOCKS) ? target : null;
-    // An empty anchor just before a heading, as converters leave, marks that heading.
-    if (!heading && !hasContent(target)) {
+    // An empty anchor just before a heading, as converters leave, marks that heading: any
+    // element, or an empty block (`<h4 id="toc"></h4><p>Prologue</p>`) when the heading
+    // reads as the entry's label.
+    if (!hasContent(target)) {
       const next = nextContent(target);
-      if (next?.matches(HEADING_BLOCKS)) heading = target = next;
+      if (next?.matches(HEADING_BLOCKS) && (!heading || namesEntry(next, labels)))
+        heading = target = next;
     }
     heading ??= target.parentElement?.closest(HEADING_BLOCKS) ?? null;
   }
   if (!heading || !target || heading === body || !body.contains(heading)) return null;
   if (!hasContent(heading)) return null;
   // No text comes before the anchor in its heading, or before a section's first heading.
-  const scope = fragment ? heading : body;
-  if (scope !== target) {
-    const before = document.createRange();
-    before.setStart(scope, 0);
-    before.setEndBefore(target);
-    if (before.toString().trim()) return null;
-  }
+  if (textBefore(opening ? body : heading, target)) return null;
   return (heading.textContent ?? "").replace(/\s+/g, "").length <= HEADING_LENGTH_LIMIT
     ? heading
     : null;
+}
+
+/** Whether text comes before an element within another holding it. */
+function textBefore(scope: Element, target: Element): boolean {
+  if (scope === target) return false;
+  const before = target.ownerDocument.createRange();
+  before.setStart(scope, 0);
+  before.setEndBefore(target);
+  return !!before.toString().trim();
+}
+
+/** The block of a section's first text, when that text reads as one of the entry's labels. */
+function firstTextBlock(body: HTMLElement, labels: readonly string[]): Element | null {
+  if (!labels.length) return null;
+  const walker = body.ownerDocument.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!(node as Text).data.trim()) continue;
+    const block = node.parentElement?.closest(HEADING_BLOCKS);
+    return block && block !== body && namesEntry(block, labels) ? block : null;
+  }
+  return null;
+}
+
+/**
+ * The section breaks of a section: a block holding only a row of symbols, or only a number
+ * that begins a part of the chapter (an h1-h6, or a block with nothing but blank lines or a
+ * heading before it), outside tables and lists and not already a heading.
+ */
+function sectionBreaks(body: HTMLElement): Element[] {
+  return Array.from(body.querySelectorAll(HEADING_BLOCKS)).filter((block) => {
+    if (
+      (block.textContent?.length ?? 0) > 64 ||
+      block.closest(`[${HEADING}], ${TABULAR}`) ||
+      block.querySelector(`${HEADING_BLOCKS}, img, svg, a[href], [${HEADING}]`)
+    )
+      return false;
+    const text = readingFreeText(block).replace(/\s+/g, "");
+    if (!text) return false;
+    if (SECTION_ORNAMENT.test(text)) return true;
+    if (!SECTION_NUMBER.test(text)) return false;
+    if (block.matches(HEADING_ELEMENTS)) return true;
+    let holder = block;
+    while (
+      holder.parentElement &&
+      holder.parentElement !== body &&
+      holder.parentElement.matches(BLOCK_ELEMENTS) &&
+      holdsOnly(holder.parentElement, block)
+    )
+      holder = holder.parentElement;
+    return blankBefore(holder);
+  });
+}
+
+/** Whether nothing but blank blocks or a heading comes just before an element in its parent. */
+function blankBefore(element: Element): boolean {
+  for (let node = element.previousSibling; node; node = node.previousSibling) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if ((node as Text).data.trim()) return false;
+      continue;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+    const sibling = node as Element;
+    if (hasContent(sibling)) return sibling.hasAttribute(HEADING);
+    return true;
+  }
+  return true;
 }
 
 /** Whether an element holds text or an image. */

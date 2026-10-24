@@ -29,7 +29,7 @@ back. The search stays in the top bar even in an empty Library.
 ## Reader
 
 - **Sidebar.** Round Back, Appearance and Pin buttons; the book's card (cover, title,
-  author, series when it has one); floating tiles for Images, Bookmarks, Notes and Search
+  author, series when it has one), whose title can be selected and copied; floating tiles for Images, Bookmarks, Notes and Search
   under it; the chapters under a `Chapters` label as a scrolling timeline (read, current, unread) with each entry's
   start; at the bottom, the current chapter with its read percentage and the book's
   `Ch.` (or `Wo.`) position with a progress bar. Pinned or floating, it is the same
@@ -78,7 +78,8 @@ back. The search stays in the top bar even in an empty Library.
   section and text fraction, never invented pages.
 - **Book content.** Character images follow the text size; standalone images and
   covers center within their page, and wide spreads show whole within the margins;
-  chapter titles enlarge slightly; damaged EPUBs show the Reader error surface
+  chapter titles and the section breaks between a chapter's parts (a lone number or
+  row of symbols such as ◇) center and enlarge slightly; damaged EPUBs show the Reader error surface
   recommending another copy or an EPUB editor and relinking.
 
 ## Lookup popup
@@ -161,7 +162,9 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   interrupted requests. Duplicate scope initially covers the entire collection.
 - **Discord.** Discord status (off by default): shows the open book in Discord with its
   title, book progress as a percentage, chapter progress and reading speed, each of
-  which can be hidden, and Idle after 5 minutes without reading or with no book open.
+  which can be hidden; outside the Reader, Komori pages (on by default) shows the page in
+  use: Browsing the library, Using the dictionary, Viewing statistics or Changing settings;
+  and Idle after 5 minutes without reading or using the page, or with nothing to show.
 
 The application and Reader themes default to Hojicha. The Library initially sorts
 by Title and shows Series, Language, Last read and Unique kanji. Reader popup mouse

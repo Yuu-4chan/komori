@@ -121,6 +121,9 @@ export const ko: MessageCatalog = {
   "discord.showChapterProgress": "장 진행률",
   "discord.showReadingSpeed": "독서 속도",
   "discord.showReadingSpeedHint": "독서 통계가 켜져 있을 때 1분 동안 읽은 뒤 표시됩니다.",
+  "discord.showBrowsing": "Komori 페이지",
+  "discord.showBrowsingHint":
+    "뷰어 밖의 서재, 사전, 통계, 설정. 5분 동안 사용하지 않으면 자리 비움으로 표시됩니다.",
   "updates.title": "업데이트",
   "updates.check": "업데이트 확인",
   "updates.checking": "확인 중…",

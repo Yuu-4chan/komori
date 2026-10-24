@@ -10045,6 +10045,9 @@ describe("EPUB.js renderer adapter", () => {
           `:root body [data-komori-heading]${outrank} { text-align: center !important; ` +
             "text-align-last: auto !important; text-indent: 0 !important; " +
             "margin-inline: auto !important; padding-inline: 0 !important; } " +
+            // Ideographic spaces around a heading's line are taken back by its indentation.
+            `:root body [data-komori-heading][data-komori-heading-lead]${outrank} ` +
+            "{ text-indent: var(--komori-heading-lead) !important; } " +
             `:root body [data-komori-heading] img${outrank}, ` +
             `:root body [data-komori-heading] svg${outrank} { margin-inline: auto !important; } ` +
             ":root body [data-komori-text-heading] { zoom: 1.1; } " +
@@ -10109,6 +10112,122 @@ describe("EPUB.js renderer adapter", () => {
       expect(centerHeadingStyles(late.document)).toEqual([]);
       renderer.dispose();
     });
+
+    it("centers the headings converters and publishers leave without an anchored heading", async () => {
+      const sections = [
+        // An empty block anchors the title after it, as Shogakukan's books do.
+        section(
+          "Text/one.xhtml",
+          "",
+          true,
+          '<div class="main"><p><br/></p><h4 id="n1"></h4>' +
+            '<p id="one"> <a href="toc.xhtml"><span class="bold">第一章 つかの間の<ruby>日常<rt>にちじょう</rt></ruby></span></a></p>' +
+            "<p><br/></p><p>本文。</p></div>",
+        ),
+        // An empty heading before the real one, as calibre leaves.
+        section(
+          "Text/two.xhtml",
+          "",
+          true,
+          '<h1 id="calibre_pb_0"></h1><h2 id="two"> プロローグ 鏡の国</h2><p>本文。</p>',
+        ),
+        // The anchor is on the body.
+        section("Text/three.xhtml", "", true, '<div><h2 id="three">第二章</h2></div><p>本文。</p>'),
+        // A page whose first text is its title, without h1-h6.
+        section(
+          "Text/four.xhtml",
+          "",
+          true,
+          '<p id="four">あとがき</p><p>ここまでお付き合い頂きありがとうございます。</p>',
+        ),
+        // A first text that is not the entry's title, and an empty anchor before another
+        // entry's text.
+        section(
+          "Text/five.xhtml",
+          "",
+          true,
+          '<p id="title">本のタイトル</p><p id="toc-9"><br/></p><p id="notice">本編読了後にお楽しみ下さい。</p>',
+        ),
+      ];
+      const { book } = mockBook(sections, [
+        { label: "第一章 つかの間の日常", href: "Text/one.xhtml#n1" },
+        { label: "プロローグ　鏡の国", href: "Text/two.xhtml" },
+        { label: "第二章", href: "Text/three.xhtml#body" },
+        { label: "あとがき", href: "Text/four.xhtml" },
+        { label: "奥付", href: "Text/five.xhtml" },
+        { label: "電子書籍特典", href: "Text/five.xhtml#toc-9" },
+      ]);
+      sections[2].document.body.id = "body";
+      const renderer = epubRendererFactory(id)();
+      await renderer.mount(document.createElement("div"), new AbortController().signal, vi.fn());
+      for (const item of sections) await runHooks(book, item.document, item);
+      expect(headings(sections[0].document)).toEqual(["one"]);
+      expect(headings(sections[1].document)).toEqual(["two"]);
+      expect(headings(sections[2].document)).toEqual(["", "three"]);
+      expect(headings(sections[3].document)).toEqual(["four"]);
+      expect(headings(sections[4].document)).toEqual([]);
+      renderer.dispose();
+    });
+
+    it.each(["horizontal", "vertical"] as const)(
+      "centers the section breaks between a chapter's parts in %s text",
+      async (writingMode) => {
+        const markup =
+          '<p id="prose">言った。</p><p><br/></p>' +
+          // A number in an indenting wrapper, after ideographic spaces.
+          '<div class="h-indent-5em" id="seven-wrap"><p id="seven">　　　　　７</p></div><p><br/></p>' +
+          "<p>本文。</p>" +
+          // Numbered headings, ornaments between paragraphs, and decorated numbers.
+          '<h3 id="part"><span class="tcy">0</span><span class="tcy">0</span><span class="tcy">1</span></h3>' +
+          '<p>本文。</p><p id="ornament"> ◇◆◇</p><p>本文。</p>' +
+          '<p><br/></p><p id="decorated">－Ⅱ－</p><p>本文。</p><p><br/></p><p id="kanji-after-blank">三</p>' +
+          // Kept: a number after text, a reply number, a contents link, a table cell, a
+          // lyric, and a number after another entry's heading text.
+          '<p id="code">22S0916E</p><p id="countdown">１</p><p id="reply">＞＞８</p>' +
+          '<p id="link"><a href="part2.xhtml">Ⅰ</a></p>' +
+          '<table><tr><td id="cell">１</td><td>Level</td></tr></table>' +
+          '<p id="lyric">～♪～♪</p>';
+        const one = section("Text/one.xhtml", "", true, markup);
+        // No contents entry begins in this section.
+        const { book } = mockBook([one], [{ label: "Other", href: "Text/other.xhtml" }]);
+        const renderer = epubRendererFactory(id)();
+        await renderer.mount(
+          document.createElement("div"),
+          new AbortController().signal,
+          vi.fn(),
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { fontSize: 16, writingMode },
+        );
+        await runHooks(book, one.document, one);
+        const doc = one.document;
+        expect(headings(doc)).toEqual([
+          "seven-wrap",
+          "seven",
+          "part",
+          "ornament",
+          "decorated",
+          "kanji-after-blank",
+        ]);
+        expect(
+          [...doc.querySelectorAll("[data-komori-text-heading]")].map((element) => element.id),
+        ).toEqual(["seven", "part", "ornament", "decorated", "kanji-after-blank"]);
+        // The five leading ideographic spaces are taken back so the number itself centers.
+        const seven = doc.getElementById("seven")!;
+        expect(seven.hasAttribute("data-komori-heading-lead")).toBe(true);
+        expect(seven.style.getPropertyValue("--komori-heading-lead")).toBe("-5em");
+        expect(doc.getElementById("ornament")!.hasAttribute("data-komori-heading-lead")).toBe(
+          false,
+        );
+        expect(centerHeadingStyles(doc)).toHaveLength(1);
+        expect(doc.body.textContent).toBe(
+          new DOMParser().parseFromString(markup, "text/html").body.textContent,
+        );
+        renderer.dispose();
+      },
+    );
 
     it("keeps heading centering out of the book's indentation rules", async () => {
       const one = section("Text/one.xhtml", "", true, headingMarkup);
