@@ -6798,16 +6798,17 @@ function markHeading(heading: Element, body: HTMLElement): void {
 }
 
 /**
- * Japanese books often place a heading with ideographic spaces before it (`　　　　　７`), which
- * do not collapse and would push a centered line off center. A first-line indentation of the
- * spaces after it less those before it centers the rest; spaces after a line break are left.
+ * Japanese books often place a heading with ideographic spaces (U+3000) before it, such as five
+ * before `７`, which do not collapse and would push a centered line off center. A first-line
+ * indentation of the spaces after it less those before it centers the rest; spaces after a line
+ * break are left.
  */
 function centerSpacedLine(heading: Element): void {
   // A book's element belongs to its own frame, so it is not this window's HTMLElement.
   const style = (heading as HTMLElement).style as CSSStyleDeclaration | undefined;
   if (!style || heading.querySelector(HEADING_BLOCKS)) return;
-  const text = readingFreeText(heading).replace(/^[^\S　]+|[^\S　]+$/g, "");
-  const count = (spaces: string | undefined) => (spaces ?? "").replace(/[^　]/g, "").length;
+  const text = readingFreeText(heading).replace(/^[^\S\u3000]+|[^\S\u3000]+$/g, "");
+  const count = (spaces: string | undefined) => (spaces ?? "").replace(/[^\u3000]/g, "").length;
   const before = count(text.match(/^\s+/)?.[0]);
   const after = heading.querySelector("br") ? 0 : count(text.match(/\s+$/)?.[0]);
   if (before === after || before + after === text.length) return;
