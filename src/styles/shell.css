@@ -176,6 +176,14 @@
   border-color: var(--border-medium);
 }
 
+/* Settings, while open, takes the accent tint the dock gives its current page. */
+.app-topbar__button--active,
+.app-topbar__button--active:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent-base) 40%, transparent);
+}
+
 .app-topbar__button:focus-visible,
 .app-topbar__brand:focus-visible {
   outline: var(--focus-ring);

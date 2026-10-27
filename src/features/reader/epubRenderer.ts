@@ -97,8 +97,11 @@ import {
   noteHighlightResolver,
   paintLookupMatch,
   paintNoteHighlights,
+  paintSearchMatch,
   paintSelection,
+  SEARCH_MARKS,
   SELECTION_MARKS,
+  textRanges,
 } from "./noteHighlights";
 import { isThemeColor } from "./readerThemes";
 import type {
@@ -112,11 +115,12 @@ import type {
   ReaderPageTurnAvailability,
   ReaderPositionBinding,
   ReaderPresentation,
+  ReaderRect,
   ReaderRenderer,
   ReaderRendererFactory,
   ReaderSelection,
 } from "./renderer";
-import { watchTextSelection, type SelectionWatch } from "./textSelection";
+import { readerRangeRect, watchTextSelection, type SelectionWatch } from "./textSelection";
 import { defaultLookupTriggers, type LookupTriggerPreferences } from "./lookupTriggers";
 import {
   SEARCH_LIMIT,
@@ -363,6 +367,8 @@ const SVG_DRAWING =
 const SCROLL_SETTLE_MS = 250;
 /** The share of the reading area a page turn scrolls a continuous book by. */
 const CONTINUOUS_PAGE = 0.9;
+/** How long a search jump's match stays marked, fading out over its last second. */
+const SEARCH_MATCH_MS = 3500;
 /**
  * The most linear sections a continuous book keeps loaded. Each section is a frame, and
  * WebView2 loads no more than 1000 frames in a page, so a longer book keeps only the
@@ -1115,24 +1121,35 @@ class EpubRenderer implements ReaderRenderer {
             element,
             signal,
           });
+          // The chapter is the last contents entry at or before the image: one in its own
+          // section whose anchor precedes it, else the last in the nearest earlier section.
           let label = i18n().t("reader.section", { number: spineIndex + 1 });
+          let labelSection = -1;
           for (const [entryId, destination] of this.destinations) {
-            if (book.spine.get(destination) === sections[spineIndex]) {
+            const index = sections.indexOf(
+              book.spine.get(destination) as (typeof sections)[number],
+            );
+            if (index < 0 || index > spineIndex || index < labelSection) continue;
+            if (index === spineIndex) {
               const fragment = destination.split("#")[1];
               let anchor: Element | null = null;
               try {
                 if (fragment) anchor = document.getElementById(decodeURIComponent(fragment));
               } catch {
-                /* An invalid authored fragment keeps the section label. */
+                /* An invalid authored fragment keeps the earlier label. */
               }
               if (
-                !fragment ||
-                (anchor &&
+                fragment &&
+                !(
+                  anchor &&
                   (anchor === element ||
-                    !!(anchor.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING)))
+                    !!(anchor.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING))
+                )
               )
-                label = this.searchLabels.get(entryId) ?? label;
+                continue;
             }
+            label = this.searchLabels.get(entryId) ?? label;
+            labelSection = index;
           }
           result.items.push({ id, alt: imageAlt(element), label, section: spineIndex + 1 });
         }
@@ -1458,7 +1475,37 @@ class EpubRenderer implements ReaderRenderer {
     }
   }
 
+  locatorOffset(locator: ReaderLocator): { current: number; total: number } | undefined {
+    const counts = this.progressCounts;
+    if (!counts) return undefined;
+    const current = fractionOffset(counts, locator.spineIndex, locator.progress);
+    return current === undefined ? undefined : { current, total: counts.total };
+  }
+
   private searchLabels = new Map<string, string>();
+  private searchMatch?: { range: Range; clear: () => void; timer: ReturnType<typeof setTimeout> };
+
+  /** Mark a search jump's match on its page for a moment, so the eye finds it there. */
+  private markSearchMatch(document: Document, range: Range): void {
+    this.clearSearchMatch();
+    const clear = paintSearchMatch(document, textRanges(range), SEARCH_MATCH_MS);
+    const timer = setTimeout(() => this.clearSearchMatch(), SEARCH_MATCH_MS);
+    this.searchMatch = { range, clear, timer };
+  }
+
+  private clearSearchMatch(): void {
+    if (!this.searchMatch) return;
+    clearTimeout(this.searchMatch.timer);
+    this.searchMatch.clear();
+    this.searchMatch = undefined;
+  }
+
+  searchMatchRect(): ReaderRect | null {
+    const range = this.searchMatch?.range;
+    const frame = range?.startContainer.ownerDocument?.defaultView?.frameElement;
+    if (!range || !frame?.isConnected) return null;
+    return readerRangeRect(range, frame, this.host);
+  }
 
   async goToSearchResult(id: string, signal: AbortSignal): Promise<boolean> {
     if (this.sectionsLoading) await this.sectionsLoaded();
@@ -1519,7 +1566,14 @@ class EpubRenderer implements ReaderRenderer {
       await this.refreshPageTurns();
       if (!valid()) return false;
       await this.publishLocation(undefined, valid);
-      return valid();
+      if (!valid()) return false;
+      const last = mapped?.point(destination.offset + destination.text.length - 1);
+      if (last) {
+        const match = point.cloneRange();
+        match.setEnd(last.startContainer, last.startOffset + 1);
+        this.markSearchMatch(contents.document, match);
+      }
+      return true;
     } catch {
       return false;
     } finally {
@@ -1576,8 +1630,18 @@ class EpubRenderer implements ReaderRenderer {
       !point.locator.sectionKey
     )
       return null;
-    const text = [...section.text];
-    const start = Math.floor(point.locator.progress * text.length);
+    // The excerpt starts at the page's first displayed character, else at the text fraction.
+    const pageStart = point.pageStart;
+    const shown =
+      pageStart?.spineIndex === point.locator.spineIndex
+        ? readableText(pageStart.document)
+            .slice(readableText(pageStart.document, pageStart).length)
+            .replace(/\s+/gu, " ")
+            .replace(/\p{Cc}/gu, "")
+            .trim()
+        : "";
+    const text = [...(shown || section.text)];
+    const start = shown ? 0 : Math.floor(point.locator.progress * text.length);
     return {
       locator: {
         ...point.locator,
@@ -2143,6 +2207,8 @@ class EpubRenderer implements ReaderRenderer {
     this.areaSize = undefined;
     const { maxHeight } = this.presentation;
     const width = this.presentation.maxWidth;
+    // Each page is its text and its margins.
+    const gap = 2 * (this.presentation.sideMargin ?? 20);
     const availableWidth =
       this.host?.parentElement?.clientWidth || this.manager()?._stageSize?.width || 800;
     const spreadMinimum = this.manager()?.layout?._minSpreadWidth ?? 800;
@@ -2151,11 +2217,11 @@ class EpubRenderer implements ReaderRenderer {
       this.displayedMode() !== "vertical" &&
       this.presentation.pageLayout === "double" &&
       availableWidth >= spreadMinimum &&
-      (width === undefined || (width + 40) * 2 >= spreadMinimum)
+      (width === undefined || (width + gap) * 2 >= spreadMinimum)
         ? 2
         : 1;
     if (width === undefined) style.removeProperty("--reader-max-width");
-    else style.setProperty("--reader-max-width", `${(width + 40) * pages}px`);
+    else style.setProperty("--reader-max-width", `${(width + gap) * pages}px`);
     const height = maxHeight === undefined ? "" : `${maxHeight}px`;
     if (style.getPropertyValue(MAX_HEIGHT) === height) return;
     if (height) style.setProperty(MAX_HEIGHT, height);
@@ -4059,7 +4125,70 @@ class EpubRenderer implements ReaderRenderer {
         : index === start.spineIndex
           ? (this.presentation.fontSize ?? readerFontSize.default) * 2
           : 0,
+      across: this.vnAcross(view, start, end),
     };
+  }
+
+  /**
+   * How far a VN group narrower than the reading area moves across the reading order so
+   * that it shows centered there too: horizontally in horizontal text, vertically in
+   * vertical text. Its lines keep their authored alignment to one another, and a group as
+   * wide as the area barely moves. Zero outside VN or before the section is rendered.
+   */
+  private vnAcross(view: EpubView, start: ChapterStart, end: ChapterStart | undefined): number {
+    const document = view.contents?.document;
+    const frame = document?.defaultView?.frameElement;
+    const container = this.manager()?.container;
+    if (
+      !this.vnView ||
+      start.blockIndex === undefined ||
+      start.spineIndex !== view.section.index ||
+      !document ||
+      !frame ||
+      !container
+    )
+      return 0;
+    const blocks = this.blocks(document);
+    const last =
+      end?.spineIndex === start.spineIndex && end.blockIndex !== undefined
+        ? end.blockIndex
+        : blocks.length;
+    const across = this.acrossSpan();
+    const range = document.createRange();
+    let low = Infinity;
+    let high = -Infinity;
+    for (const block of blocks.slice(start.blockIndex, last)) {
+      range.selectNodeContents(block.element);
+      for (const box of range.getClientRects()) {
+        if (!box.width && !box.height) continue;
+        const [boxStart, boxEnd] = across(box);
+        low = Math.min(low, boxStart);
+        high = Math.max(high, boxEnd);
+      }
+    }
+    if (!(high > low)) return 0;
+    // Where the frame starts before the move already made, so measuring again keeps it.
+    const frameStart = across(frame.getBoundingClientRect())[0] - this.acrossMove(view.element);
+    const [areaStart, areaEnd] = across(container.getBoundingClientRect());
+    const move = Math.round((areaStart + areaEnd) / 2 - frameStart - (low + high) / 2);
+    return Math.abs(move) < 2 ? 0 : move;
+  }
+
+  /** A box's extent across the reading order: horizontal for horizontal text. */
+  private acrossSpan(): BlockSpan {
+    return this.manager()?.settings?.axis === "horizontal"
+      ? (rect) => [rect.top, rect.bottom]
+      : (rect) => [rect.left, rect.right];
+  }
+
+  /** The style property a VN group moves across the reading order with. */
+  private acrossProperty(): "margin-top" | "margin-left" {
+    return this.manager()?.settings?.axis === "horizontal" ? "margin-top" : "margin-left";
+  }
+
+  /** How far a section was moved across the reading order to center its VN group. */
+  private acrossMove(element: HTMLElement): number {
+    return parseFloat(element.style.getPropertyValue(this.acrossProperty())) || 0;
   }
 
   /**
@@ -4162,6 +4291,7 @@ class EpubRenderer implements ReaderRenderer {
             : `inset(${clip.from}px 0px 0px 0px)`,
         );
       if (Number.isFinite(clip.to)) values.set(extent, `${clip.to}px`);
+      if (clip.across) values.set(this.acrossProperty(), `${clip.across}px`);
     }
     for (const property of CHAPTER_CLIP_PROPERTIES) {
       const value = values.get(property) ?? "";
@@ -4271,7 +4401,8 @@ class EpubRenderer implements ReaderRenderer {
   /**
    * The gap EPUB.js leaves between horizontal columns, half of it on each outer side, so
    * every page has the chosen margin on its left and right, including both pages of a
-   * spread. Undefined keeps EPUB.js's automatic gap, a twelfth of the width. Vertical
+   * spread. Without a chosen margin, a maximum text width keeps 20px on each side, and
+   * otherwise EPUB.js's automatic gap, a twelfth of the width, applies. Vertical
    * sections keep it too, because their gap is the space above and below each page;
    * their left and right margins are styled in each section instead. Many vertical
    * books say so only in their CSS, so the axis is the one EPUB.js found for the
@@ -4279,11 +4410,10 @@ class EpubRenderer implements ReaderRenderer {
    * half of it keeps text.
    */
   private pageGap(): number | undefined {
-    if (this.presentation.maxWidth !== undefined && this.manager()?.settings?.axis !== "vertical")
-      return 40;
     const margin = this.presentation.sideMargin;
     const manager = this.manager();
-    if (margin === undefined || manager?.settings?.axis === "vertical") return undefined;
+    if (manager?.settings?.axis === "vertical") return undefined;
+    if (margin === undefined) return this.presentation.maxWidth === undefined ? undefined : 40;
     const width = manager?._stageSize?.width ?? this.host?.clientWidth ?? 0;
     const layout = manager?.layout;
     const pages = layout?._spread && width >= (layout._minSpreadWidth ?? 800) ? 2 : 1;
@@ -5135,6 +5265,7 @@ class EpubRenderer implements ReaderRenderer {
   dispose(): void {
     if (this.disposed) return;
     this.highlightPointerMatch(null);
+    this.clearSearchMatch();
     this.clearNoteHighlights();
     this.noteHighlights = [];
     for (const clear of this.selectionPaint.values()) clear();
@@ -5271,9 +5402,10 @@ function sliceAnchor(start: ChapterStart, document: Document, blocks?: VnBlock[]
 
 /**
  * How a section shows in a chapter view: not at all, or from a distance along the reading
- * order to another, which is infinite for its end, with chapter clearance or VN centering.
+ * order to another, which is infinite for its end, with chapter clearance or VN centering
+ * along the reading order (`lead`) and across it (`across`).
  */
-type ChapterClip = "collapsed" | { from: number; to: number; lead: number };
+type ChapterClip = "collapsed" | { from: number; to: number; lead: number; across: number };
 
 /** The style properties a chapter view collapses and clips sections with. */
 const CHAPTER_CLIP_PROPERTIES = [
@@ -6564,6 +6696,7 @@ function colorRules(
       ":root ::selection { background-color: transparent !important; }",
       `:root [${SELECTION_MARKS}] span { background-color: ${selection} !important; }`,
       `:root [${LOOKUP_MARKS}] span { background-color: ${selection} !important; }`,
+      `:root [${SEARCH_MARKS}] span { background-color: ${selection} !important; }`,
     );
   if (highlight !== undefined)
     rules.push(

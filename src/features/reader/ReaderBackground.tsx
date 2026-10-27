@@ -49,20 +49,25 @@ export function ReaderBackgroundControls() {
             </Button>
           </div>
         </div>
-        <ToggleSetting
-          label={t("background.blur")}
-          checked={readerBackgroundBlur}
-          onChange={setReaderBackgroundBlur}
-        />
-        <Stepper
-          label={t("background.blurLevel")}
-          value={readerBackgroundBlurLevel}
-          min={backgroundBlurLevel.min}
-          max={backgroundBlurLevel.max}
-          step={backgroundBlurLevel.step}
-          unit={t("unit.px")}
-          onChange={setReaderBackgroundBlurLevel}
-        />
+        {/* The blur and its level show only for an image to blur. */}
+        {state.image && (
+          <ToggleSetting
+            label={t("background.blur")}
+            checked={readerBackgroundBlur}
+            onChange={setReaderBackgroundBlur}
+          />
+        )}
+        {state.image && readerBackgroundBlur && (
+          <Stepper
+            label={t("background.blurLevel")}
+            value={readerBackgroundBlurLevel}
+            min={backgroundBlurLevel.min}
+            max={backgroundBlurLevel.max}
+            step={backgroundBlurLevel.step}
+            unit={t("unit.px")}
+            onChange={setReaderBackgroundBlurLevel}
+          />
+        )}
       </div>
       <p className="reader-appearance-card__hint" role="status">
         {!isTauri()

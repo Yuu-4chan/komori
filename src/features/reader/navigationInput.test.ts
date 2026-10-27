@@ -5,7 +5,7 @@ import {
   arrowScrollDistance,
   revealsVnText,
   arrowTurn,
-  scrollArrow,
+  pageKey,
   isWheelStep,
   normalizeWheelStep,
   WheelStepCounter,
@@ -63,14 +63,24 @@ describe("Reader input", () => {
     expect(arrowTurn("ArrowLeft", "ArrowRight")).toBe("retreat");
     expect(arrowTurn("ArrowLeft", "ArrowLeft")).toBe("advance");
     expect(arrowTurn("ArrowRight", "ArrowLeft")).toBe("retreat");
+    // Down reads on and Up goes back in either page direction.
+    expect(arrowTurn("ArrowDown", "ArrowLeft")).toBe("advance");
+    expect(arrowTurn("ArrowUp", "ArrowLeft")).toBe("retreat");
+    expect(arrowTurn("ArrowDown", "ArrowRight")).toBe("advance");
     expect(arrowTurn("PageDown", "ArrowRight")).toBeNull();
   });
 
-  it("maps continuous arrows and moves one tenth of the reading area", () => {
-    expect(scrollArrow("ArrowDown", "ArrowLeft")).toBe("advance");
-    expect(scrollArrow("ArrowUp", "ArrowLeft")).toBe("retreat");
-    expect(scrollArrow("ArrowLeft", "ArrowLeft")).toBe("advance");
-    expect(scrollArrow("ArrowRight", "ArrowLeft")).toBe("retreat");
+  it("turns a whole page with Page Down, Page Up, Space and Shift+Space", () => {
+    expect(pageKey("PageDown", false)).toBe("advance");
+    expect(pageKey(" ", false)).toBe("advance");
+    expect(pageKey("PageUp", false)).toBe("retreat");
+    expect(pageKey(" ", true)).toBe("retreat");
+    expect(pageKey("PageDown", true)).toBeNull();
+    expect(pageKey("ArrowDown", false)).toBeNull();
+    expect(pageKey("Home", false)).toBeNull();
+  });
+
+  it("moves one tenth of the reading area for each continuous arrow", () => {
     expect(arrowScrollDistance(900)).toBe(90);
     expect(arrowScrollDistance(200)).toBe(40);
   });

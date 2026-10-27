@@ -714,9 +714,11 @@ fn usually_kana(group: &mut TermGroup, limits: GlossaryLimits) -> Result<bool, S
     Ok(false)
 }
 
-/// Stable tiers retain native source/score/row and candidate order within each tier, for the
-/// groups from `first` on. A kanji query keeps its original ranking. For inflections compare the
-/// dictionary form.
+/// A kana query's groups from `first` on list the most frequent first: by their best rank in the
+/// rank-based frequency dictionaries, groups without one after those with one, so よむ lists 読む
+/// before a rare kana-written entry. Equal ranks keep stable tiers, which retain native
+/// source/score/row and candidate order within each tier. A kanji query keeps its original
+/// ranking. For inflections compare the dictionary form.
 fn rank_kana_groups(
     query: &str,
     groups: &mut Vec<TermGroup>,
@@ -741,12 +743,25 @@ fn rank_kana_groups(
             } else {
                 2
             };
-            Ok((tier, group))
+            Ok((best_rank(&group).unwrap_or(f64::INFINITY), tier, group))
         })
         .collect::<Result<Vec<_>, String>>()?;
-    ranked.sort_by_key(|(tier, _)| *tier);
-    groups.extend(ranked.into_iter().map(|(_, group)| group));
+    ranked.sort_by(|(rank, tier, _), (other_rank, other_tier, _)| {
+        rank.total_cmp(other_rank).then(tier.cmp(other_tier))
+    });
+    groups.extend(ranked.into_iter().map(|(_, _, group)| group));
     Ok(())
+}
+
+/// A group's best (lowest) rank in the rank-based frequency dictionaries that list it.
+fn best_rank(group: &TermGroup) -> Option<f64> {
+    group
+        .frequencies
+        .iter()
+        .filter(|frequency| frequency.frequency_mode.as_deref() == Some("rank-based"))
+        .filter_map(|frequency| frequency_number(&frequency.data))
+        .filter(|rank| *rank > 0.0)
+        .min_by(f64::total_cmp)
 }
 
 /// Looks up the trimmed query exactly, or, when no enabled dictionary has a term whose
@@ -2627,6 +2642,81 @@ mod tests {
         assert!(!kana_marker(&serde_json::json!([
             "uk: word usually written using kana alone"
         ])));
+    }
+
+    /// With rank-based frequencies, a kana query lists the most frequent word first, even one
+    /// written in kanji before a rarer kana-written entry; occurrence counts never rank, and
+    /// groups without a rank keep their tiers after the ranked ones.
+    #[test]
+    fn kana_ranking_lists_the_most_frequent_word_first() {
+        let directory = tempdir().unwrap();
+        let words = fixture_with(
+            directory.path(),
+            "words.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Words","revision":"1","format":3}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["よむ","よむ","","",0,["to count (dialect)"],1,""],
+                        ["余無","よむ","","",0,["unranked"],2,""],
+                        ["詠む","よむ","","v5",0,["to compose"],3,""],
+                        ["読む","よむ","","v5",0,["to read"],4,""]]"#,
+                ),
+            ],
+        );
+        let ranks = fixture_with(
+            directory.path(),
+            "ranks.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Ranks","revision":"1","format":3,"frequencyMode":"rank-based"}"#,
+                ),
+                (
+                    "term_meta_bank_1.json",
+                    r#"[["読む","freq",{"reading":"よむ","frequency":{"value":312}}],
+                        ["詠む","freq",9800],
+                        ["よむ","freq",21000]]"#,
+                ),
+            ],
+        );
+        let counts = fixture_with(
+            directory.path(),
+            "counts.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Counts","revision":"1","format":3}"#,
+                ),
+                ("term_meta_bank_1.json", r#"[["余無","freq",1]]"#),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        for path in [&words, &ranks, &counts] {
+            assert_eq!(import_one(&mut connection, path).0, ImportStatus::Imported);
+        }
+        let expressions = |groups: Vec<TermGroup>| {
+            groups
+                .into_iter()
+                .map(|group| group.expression)
+                .collect::<Vec<_>>()
+        };
+        let expected = ["読む", "詠む", "よむ", "余無"];
+        assert_eq!(
+            expressions(lookup_from_store(&connection, "よむ").unwrap()),
+            expected
+        );
+        assert_eq!(
+            expressions(
+                lookup_longest_start_with_sources(&connection, "よむ", &SourcePolicy::default())
+                    .unwrap()
+                    .groups
+            ),
+            expected
+        );
     }
 
     /// Small budgets stand in for the real ones. A group of 1,000 rows is refused whole, never

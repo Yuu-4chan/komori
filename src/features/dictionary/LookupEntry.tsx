@@ -19,8 +19,10 @@ import {
 } from "./DictionaryResults";
 import { GlossaryText } from "./GlossaryText";
 
-// Frequency chips shown before "+N more", so a long list does not push definitions away.
+// Frequency chips and headword tags shown before "+N more", so a long list does not push
+// definitions away.
 const shownFrequencies = 6;
+const shownTagCount = 4;
 
 /**
  * One headword in the Reader's lookup popup and on the Dictionary page: the large headword with its reading (beside it, or
@@ -127,7 +129,7 @@ function LookupEntryContent({
                 size={16}
               />
             )}
-            <TagList tags={tags} />
+            <TagList limit={shownTagCount} tags={tags} />
           </div>
           <div className="lookup-entry__actions">
             {showOpenAction && (

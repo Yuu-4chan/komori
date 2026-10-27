@@ -19,6 +19,7 @@ import type {
   ReaderBookmarkLocator,
   ReaderBookmarkPlace,
   ReaderContentsEntry,
+  ReaderLocator,
   ReaderPageTurnAvailability,
   ReaderPositionBinding,
   ReaderPositionStore,
@@ -191,6 +192,16 @@ export function useReaderRenderer(
     presentation: ReaderPresentation;
   } | null>(null);
 
+  /** Where the last search jump's match shows, while it is still marked. */
+  const searchMatchRect = useCallback(() => {
+    const active = activeRef.current;
+    return active?.ready ? (active.renderer.searchMatchRect?.() ?? null) : null;
+  }, []);
+  /** A saved place's book offset, once the book is counted. */
+  const locatorOffset = useCallback((locator: ReaderLocator) => {
+    const active = activeRef.current;
+    return active?.ready ? active.renderer.locatorOffset?.(locator) : undefined;
+  }, []);
   const highlightPointerMatch = useCallback((scanId: number | null, length?: number) => {
     const active = activeRef.current;
     if (active?.ready) active.renderer.highlightPointerMatch?.(scanId, length);
@@ -793,6 +804,8 @@ export function useReaderRenderer(
     hostRef,
     revealVnText: () => activeRef.current?.renderer.revealVnText?.(),
     highlightPointerMatch,
+    searchMatchRect,
+    locatorOffset,
     setNoteHighlights,
     status: visible.status,
     pageTurns: visible.availability,

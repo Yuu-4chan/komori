@@ -259,7 +259,9 @@ describe("formatDurationSeconds", () => {
 describe("formatDuration", () => {
   it("shows minutes, then hours with padded minutes", () => {
     expect(formatDuration(0)).toBe("0m");
-    expect(formatDuration(59_999)).toBe("0m");
+    expect(formatDuration(1)).toBe("<1m");
+    expect(formatDuration(59_999)).toBe("<1m");
+    expect(formatDuration(60_000)).toBe("1m");
     expect(formatDuration(45 * 60_000)).toBe("45m");
     expect(formatDuration(125 * 60_000)).toBe("2h 05m");
     expect(formatDuration(-5)).toBe("0m");

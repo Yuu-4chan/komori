@@ -396,12 +396,16 @@ describe("real lookup preview", () => {
         .getAllByRole("option")
         .map((option) => option.textContent),
     ).toEqual(["Standard", "Dictionary"]);
+    // The hint describes the chosen style.
+    expect(screen.getByText(/^Standard shows each entry in full/)).toBeInTheDocument();
     const hidden = ["Add to Anki action", "Voice action", "Show pitch", "Show frequency"];
     for (const name of hidden) expect(screen.getByRole("button", { name })).toBeEnabled();
     expect(screen.getByLabelText("Reading position")).toBeEnabled();
     expect(preview.querySelector(".lookup-entry")).not.toBeNull();
 
     fireEvent.change(style, { target: { value: "dictionary" } });
+    expect(screen.getByText(/^Dictionary shows only each headword/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Standard shows each entry in full/)).not.toBeInTheDocument();
     expect(preview).toHaveClass("reader-lookup--dictionary");
     expect(preview.querySelector(".dictionary-entry")).not.toBeNull();
     expect(preview.querySelector(".lookup-entry")).toBeNull();

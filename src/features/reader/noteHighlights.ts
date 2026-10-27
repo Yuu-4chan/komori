@@ -65,6 +65,8 @@ export const NOTE_MARKS = "data-komori-note-marks";
 export const SELECTION_MARKS = "data-komori-selection-marks";
 /** The layer that paints a pointer lookup's matched text as the selection is painted. */
 export const LOOKUP_MARKS = "data-komori-lookup-marks";
+/** The layer that marks a search jump's match for a moment, as the selection is painted. */
+export const SEARCH_MARKS = "data-komori-search-marks";
 /** Each saved-passage mark names its note. */
 const NOTE_ID = "data-note-id";
 const XHTML = "http://www.w3.org/1999/xhtml";
@@ -384,4 +386,29 @@ export function paintSelection(document: Document): () => void {
 export function paintLookupMatch(document: Document, ranges: Range[]): () => void {
   if (!ranges.length) return () => {};
   return paintMarks(document, LOOKUP_MARKS, "Highlight", -1, () => [{ ranges }]).clear;
+}
+
+/**
+ * Mark a search jump's match as the selection is painted, fading out over its last
+ * second, so the eye finds the place on the page it jumped to.
+ */
+export function paintSearchMatch(
+  document: Document,
+  ranges: Range[],
+  duration: number,
+): () => void {
+  if (!ranges.length) return () => {};
+  const fade = document.createElementNS(XHTML, "style");
+  fade.setAttribute(`${SEARCH_MARKS}-fade`, "");
+  fade.textContent =
+    `@keyframes komori-search-fade { 0%, ${Math.round(100 - 100_000 / Math.max(duration, 1000))}% ` +
+    `{ opacity: 1; } 100% { opacity: 0; } }
+` +
+    `:root [${SEARCH_MARKS}] { animation: komori-search-fade ${duration}ms ease-in forwards; }`;
+  (document.head ?? document.documentElement)?.append(fade);
+  const painter = paintMarks(document, SEARCH_MARKS, "Highlight", -1, () => [{ ranges }]);
+  return () => {
+    painter.clear();
+    fade.remove();
+  };
 }

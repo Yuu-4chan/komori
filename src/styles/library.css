@@ -487,6 +487,16 @@
   transition: opacity var(--duration-fast) var(--ease-out);
 }
 
+/* Over a cover, an unchecked box gets a solid backing and a dark ring so it shows on bright and
+   dark covers alike. */
+.library-book__selection .selection-box:not([data-checked="true"]) {
+  background: var(--surface-raised);
+  border-color: var(--text-secondary);
+  box-shadow:
+    0 0 0 1px rgba(10, 12, 22, 0.32),
+    0 1px 4px rgba(10, 12, 22, 0.35);
+}
+
 .library-book:hover .library-book__selection,
 .library-book:has(.library-book__open:focus-visible) .library-book__selection,
 .library-book__selection:focus-within,

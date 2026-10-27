@@ -175,7 +175,6 @@ export function ReaderSearchPanel({
           >
             <span className="reader-search-result__topline">
               <strong>{result.label}</strong>
-              <span>{t("reader.section", { number: result.section })}</span>
             </span>
             <p id={`reader-search-excerpt-${index}`}>
               {result.before}

@@ -15,6 +15,7 @@ import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { Select } from "../../components/ui/Select";
 import { searchEscape } from "../../components/ui/searchEscape";
 import { noteBodyValid, noteTextLimit, type ReaderNote } from "./notes";
+import type { ReaderLocator } from "./renderer";
 import type { useNotes } from "./useNotes";
 
 export interface ReaderNotesPanelProps {
@@ -24,6 +25,8 @@ export interface ReaderNotesPanelProps {
   onJump: (note: ReaderNote, settled: (success: boolean) => void) => boolean;
   /** A note to bring into view and focus, such as one clicked in the book. */
   focus?: { id: string };
+  /** Where a saved place lies: its chapter and how far into the book. */
+  place: (locator: ReaderLocator) => string;
 }
 
 export function NoteEditor({
@@ -84,6 +87,7 @@ export function ReaderNotesPanel({
   navigationBusy,
   onJump,
   focus,
+  place,
 }: ReaderNotesPanelProps) {
   const [editing, setEditing] = useState<ReaderNote | null>(null);
   const [unavailable, setUnavailable] = useState<string | null>(null);
@@ -201,10 +205,7 @@ export function ReaderNotesPanel({
                 ) : (
                   <strong className="reader-note-passage">{note.passage}</strong>
                 )}
-                <em>
-                  {t("reader.section", { number: note.locator.spineIndex + 1 })} ·{" "}
-                  {Math.round(note.locator.progress * 100)}%
-                </em>
+                <em>{place(note.locator)}</em>
               </span>
             </button>
             {unavailable === note.id && (

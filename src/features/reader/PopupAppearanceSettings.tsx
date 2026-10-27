@@ -16,6 +16,7 @@ import {
 import { readingPositions } from "./lookupTriggers";
 import { FontPicker } from "./ReaderFontControls";
 import { popupPaletteFields, popupThemes } from "./popupThemes";
+import { resolveReaderTheme } from "./readerThemes";
 
 /**
  * Everything that shapes how the lookup popup looks, in Settings > Reader popup: its palette and
@@ -42,7 +43,10 @@ export function PopupAppearanceSettings() {
     readerPopupFont,
     setReaderPopupFont,
     readerPopupStyle,
+    readerTheme,
+    readerCustomThemes,
   } = useAppearance();
+  const page = resolveReaderTheme(readerTheme, readerCustomThemes);
   const dictionaryStyle = readerPopupStyle === "dictionary";
   const { t } = useI18n();
   return (
@@ -76,7 +80,12 @@ export function PopupAppearanceSettings() {
                       background: readerPopupCustomPalette.background,
                       borderColor: readerPopupCustomPalette.border,
                     }
-                  : undefined
+                  : id === "reader"
+                    ? {
+                        background: `radial-gradient(circle at 78% 22%, ${page.highlight}, transparent 18%), ${page.background}`,
+                        borderColor: page.footerText,
+                      }
+                    : undefined
               }
             />
             <strong>{t(label)}</strong>

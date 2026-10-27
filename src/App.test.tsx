@@ -733,13 +733,13 @@ describe("Komori foundation", () => {
   });
 
   it("defaults legacy popup themes and filters invalid choices independently", () => {
-    expect(defaultAppearance.readerPopupTheme).toBe("application");
+    expect(defaultAppearance.readerPopupTheme).toBe("reader");
     for (const theme of [null, 1, true, "", "Night", "Custom", "unknown", { background: "red" }]) {
       expect(
         normalizeAppearancePreferences({ readerPopupTheme: theme, readerPopupWidth: 640 }),
       ).toEqual({ readerPopupWidth: 640 });
     }
-    for (const theme of ["application", "classic", "paper", "night", "custom"]) {
+    for (const theme of ["reader", "application", "classic", "paper", "night", "custom"]) {
       expect(normalizeAppearancePreferences({ readerPopupTheme: theme })).toEqual({
         readerPopupTheme: theme,
       });
@@ -773,11 +773,13 @@ describe("Komori foundation", () => {
     expect(screen.getByRole("heading", { name: "Backup" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reclaim space" })).not.toBeInTheDocument();
     expect(within(dock).getByRole("link", { name: "Library" })).not.toHaveAttribute("aria-current");
-    // Like the search, Settings and Add books belong to the Library's top bar.
-    expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
+    // Settings stays on every page's top bar, marked while open; Add books is the Library's.
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
     expect(screen.queryByRole("button", { name: "Add books" })).not.toBeInTheDocument();
     await user.click(within(dock).getByRole("link", { name: "Dictionary" }));
-    expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Settings" })).not.toHaveAttribute("aria-current");
+    await user.click(within(dock).getByRole("link", { name: "Statistics" }));
+    expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
     await user.click(within(dock).getByRole("link", { name: "Library" }));
     expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add books" })).toBeEnabled();

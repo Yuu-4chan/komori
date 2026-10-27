@@ -52,6 +52,7 @@ import {
   normalizeMaxHeight,
   normalizeParagraphIndent,
   normalizeParagraphMargin,
+  normalizeSideMargin,
   normalizeMaxWidth,
   isPageLayout,
   isVnParagraphs,
@@ -238,6 +239,9 @@ interface AppearanceContextValue
   /** The space before and after the Reader's paragraphs in CSS pixels. */
   readerParagraphMargin: number;
   setReaderParagraphMargin: (margin: number) => void;
+  /** The space left and right of each Reader page's text in CSS pixels. */
+  readerPageMargin: number;
+  setReaderPageMargin: (margin: number) => void;
   /** Maximum Reader text width per page in CSS pixels. */
   readerMaxWidth: number;
   setReaderMaxWidth: (margin: number) => void;
@@ -465,6 +469,7 @@ export function AppearanceProvider({
     readerAsianFontWeight,
     readerParagraphIndent,
     readerParagraphMargin,
+    readerPageMargin,
     readerMaxWidth,
     readerMaxHeight,
     readerWritingMode,
@@ -717,6 +722,9 @@ export function AppearanceProvider({
       readerParagraphMargin,
       setReaderParagraphMargin: (margin: number) =>
         update({ readerParagraphMargin: normalizeParagraphMargin(margin) }),
+      readerPageMargin,
+      setReaderPageMargin: (margin: number) =>
+        update({ readerPageMargin: normalizeSideMargin(margin) }),
       readerMaxWidth,
       setReaderMaxWidth: (margin: number) => update({ readerMaxWidth: normalizeMaxWidth(margin) }),
       readerMaxHeight,
@@ -870,6 +878,7 @@ export function AppearanceProvider({
       readerAsianFontWeight,
       readerParagraphIndent,
       readerParagraphMargin,
+      readerPageMargin,
       readerMaxWidth,
       readerMaxHeight,
       readerWritingMode,

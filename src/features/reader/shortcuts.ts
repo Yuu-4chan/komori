@@ -50,7 +50,7 @@ export const commandShortcuts = [
     key: "g",
     modifier: "none",
     binding: "G",
-    action: "Open image gallery",
+    action: "Open or close the image gallery",
   },
   {
     id: "bookmark",
@@ -67,8 +67,8 @@ export const commandShortcuts = [
     key: "n",
     modifier: "none",
     binding: "N",
-    action: "Create a note from selected book text",
-    availability: "Select 1–4,096 characters in a ready book",
+    action: "Create a note from selected text, or open or close notes",
+    availability: "Book ready; a note takes 1–4,096 selected characters",
   },
   {
     id: "sidebar",
@@ -76,7 +76,7 @@ export const commandShortcuts = [
     key: "s",
     modifier: "none",
     binding: "S",
-    action: "Toggle sidebar",
+    action: "Show the contents, or hide or show the sidebar",
   },
   {
     id: "appearance",
@@ -84,7 +84,7 @@ export const commandShortcuts = [
     key: "a",
     modifier: "none",
     binding: "A",
-    action: "Open Appearance",
+    action: "Open or close Appearance",
   },
   {
     id: "find",
@@ -100,7 +100,7 @@ export const commandShortcuts = [
     key: "b",
     modifier: "ctrl",
     binding: "Ctrl+B",
-    action: "Open all bookmarks",
+    action: "Open or close all bookmarks",
   },
   {
     id: "last-bookmark",

@@ -1,7 +1,8 @@
 import type { CSSProperties } from "react";
+import type { ReaderThemeColors } from "./readerThemes";
 
 /** Keep the IDs in step with native appearance validation. */
-export type ReaderPopupTheme = "application" | "classic" | "paper" | "night" | "custom";
+export type ReaderPopupTheme = "reader" | "application" | "classic" | "paper" | "night" | "custom";
 
 export interface ReaderPopupPalette {
   background: string;
@@ -29,6 +30,7 @@ export function normalizePopupPalette(value: unknown): ReaderPopupPalette | unde
 }
 
 export const popupThemes = [
+  { id: "reader", label: "popupTheme.reader", description: "popupTheme.readerHint" },
   {
     id: "application",
     label: "popupTheme.application",
@@ -164,6 +166,24 @@ function customPaletteStyle(palette: ReaderPopupPalette): CSSProperties {
   return { ...tokens, colorScheme: anchor === "#ffffff" ? "dark" : "light" } as CSSProperties;
 }
 
+/**
+ * The reader theme's page as a popup palette: its background and text, its highlight as the
+ * accent, and the text faintly over the page for tags and borders.
+ */
+export function readerThemePalette({
+  background,
+  text,
+  highlight,
+}: ReaderThemeColors): ReaderPopupPalette {
+  return {
+    background,
+    text,
+    accent: highlight,
+    border: mixColor(background, text, 0.2),
+    tag: mixColor(background, text, 0.08),
+  };
+}
+
 function readableSurface(tag: string, background: string, anchor: string): string {
   for (let step = 0; step <= 100; step++) {
     const candidate = mixColor(tag, background, step / 100);
@@ -172,14 +192,17 @@ function readableSurface(tag: string, background: string, anchor: string): strin
   return background;
 }
 
-/** Scoped to a popup or its preview. Application inherits the existing tokens unchanged.
- * Set derived tokens here too: inherited root tokens have already resolved their variables.
+/** Scoped to a popup or its preview. Application inherits the existing tokens unchanged, and
+ * Reader theme follows the colors of the page being read (`reader`), as Application does without
+ * them. Set derived tokens here too: inherited root tokens have already resolved their variables.
  */
 export function popupThemeStyle(
   theme: ReaderPopupTheme,
   custom: ReaderPopupPalette = defaultPopupPalette,
+  reader?: ReaderThemeColors,
 ): CSSProperties {
-  if (theme === "application") return {};
+  if (theme === "application" || (theme === "reader" && !reader)) return {};
+  if (theme === "reader") return customPaletteStyle(readerThemePalette(reader!));
   if (theme === "custom") return customPaletteStyle(custom);
   const { background, text, accent, border, tag } = palettes[theme];
   const dark = theme === "night";

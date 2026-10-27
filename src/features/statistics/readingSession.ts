@@ -249,11 +249,13 @@ export class ReadingSessionTracker {
   }
 }
 
-/** Formats a duration as Statistics shows it: `45m`, `2h 05m`, `0m`. */
+/** Formats a duration as Statistics shows it: `45m`, `2h 05m`, `<1m` under a minute, `0m` for none. */
 export function formatDuration(ms: number): string {
   const minutes = Math.floor(Math.max(0, ms) / 60000);
   const hours = Math.floor(minutes / 60);
   const { t } = i18n();
+  // Reading under a minute still shows, rather than as no reading at all.
+  if (minutes === 0 && ms > 0) return t("duration.underMinute");
   if (hours === 0) return t("duration.minutes", { minutes: String(minutes) });
   return t("duration.hoursMinutes", {
     hours: String(hours),

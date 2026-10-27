@@ -121,7 +121,14 @@ const READER_PRESET_THEMES: [&str; 15] = [
 ];
 /// Reader popup colors, independent of application/book themes. Keep in step with
 /// `src/features/reader/popupThemes.ts`.
-const READER_POPUP_THEMES: [&str; 5] = ["application", "classic", "paper", "night", "custom"];
+const READER_POPUP_THEMES: [&str; 6] = [
+    "reader",
+    "application",
+    "classic",
+    "paper",
+    "night",
+    "custom",
+];
 
 /// One structured custom popup palette, never CSS.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -363,6 +370,9 @@ pub struct AppearancePreferences {
     reader_word_spacing: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_side_margin: Option<i64>,
+    /// The space left and right of each page's text, in CSS pixels.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_page_margin: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_max_width: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -702,6 +712,7 @@ impl AppearancePreferences {
                 .reader_paragraph_margin
                 .is_none_or(valid_paragraph_margin)
             && self.reader_side_margin.is_none_or(valid_side_margin)
+            && self.reader_page_margin.is_none_or(valid_side_margin)
             && self
                 .reader_letter_spacing
                 .is_none_or(|spacing| READER_LETTER_SPACINGS.contains(&spacing))
@@ -886,6 +897,8 @@ impl AppearancePreferences {
             } else {
                 number("readerSideMargin").filter(|margin| valid_side_margin(*margin))
             },
+            reader_page_margin: number("readerPageMargin")
+                .filter(|margin| valid_side_margin(*margin)),
             reader_max_width: number("readerMaxWidth").filter(|width| valid_max_height(*width)),
             reader_page_layout: text("readerPageLayout")
                 .filter(|layout| ["single", "double"].contains(layout))
@@ -1117,6 +1130,7 @@ mod tests {
         for layout in ["single", "double"] {
             let chosen = super::AppearancePreferences {
                 reader_page_layout: Some(layout.into()),
+                reader_page_margin: Some(400),
                 reader_max_width: Some(7680),
                 reader_max_height: Some(4320),
                 ..Default::default()
@@ -1125,6 +1139,8 @@ mod tests {
             assert_eq!(super::load(&database).unwrap(), chosen);
             for (name, value) in [
                 ("readerPageLayout", serde_json::json!("auto")),
+                ("readerPageMargin", serde_json::json!(42)),
+                ("readerPageMargin", serde_json::json!(404)),
                 ("readerMaxWidth", serde_json::json!(90)),
                 ("readerMaxWidth", serde_json::json!(1_000_010)),
                 ("readerMaxHeight", serde_json::json!(4325)),
@@ -1137,8 +1153,10 @@ mod tests {
             }
         }
         let loaded = super::AppearancePreferences::from_stored(&serde_json::json!({
-            "readerMaxWidth": 7680, "readerMaxHeight": 4325, "readerPageLayout": "single"
+            "readerMaxWidth": 7680, "readerMaxHeight": 4325, "readerPageLayout": "single",
+            "readerPageMargin": 0
         }));
+        assert_eq!(loaded.reader_page_margin, Some(0));
         assert_eq!(loaded.reader_max_width, Some(7680));
         assert_eq!(loaded.reader_max_height, None);
         assert_eq!(loaded.reader_page_layout.as_deref(), Some("single"));
@@ -1517,6 +1535,7 @@ mod tests {
             reader_letter_spacing: None,
             reader_word_spacing: None,
             reader_side_margin: None,
+            reader_page_margin: None,
             reader_max_width: None,
             reader_page_layout: None,
             reader_max_height: None,

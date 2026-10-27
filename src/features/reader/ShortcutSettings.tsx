@@ -115,6 +115,18 @@ export function ShortcutSettings() {
     },
     {
       context: "Reader",
+      binding: t("shortcuts.keyPageKeys"),
+      action: t("shortcuts.pageBackForward"),
+      availability: t("shortcuts.pageBackForward.availability"),
+    },
+    {
+      context: "Reader",
+      binding: t("shortcuts.keyHomeEnd"),
+      action: t("shortcuts.chapterStartNext"),
+      availability: t("shortcuts.chapterStartNext.availability"),
+    },
+    {
+      context: "Reader",
       binding: t("shortcuts.keyWheel"),
       action: t("shortcuts.wheel"),
       availability: t("shortcuts.wheel.availability"),

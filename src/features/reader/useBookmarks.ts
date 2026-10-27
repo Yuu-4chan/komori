@@ -87,21 +87,18 @@ export function useBookmarks(store?: BookmarkStore) {
       const result = await action(store, () => current.active);
       if (!current.active) return false;
       const notice = i18n().t(result.notice);
+      // Feedback, such as the Reader's floating notice, is the only notice of its action.
       feedback?.(notice);
       setState((state) => ({
         ...state,
         items: result.items ?? state.items,
-        notice,
+        notice: feedback ? "" : notice,
       }));
       return true;
     } catch (error) {
-      if (current.active)
-        feedback?.(error instanceof Error ? error.message : i18n().t("bookmarks.saveFailed"));
-      if (current.active)
-        setState((state) => ({
-          ...state,
-          error: error instanceof Error ? error.message : i18n().t("bookmarks.saveFailed"),
-        }));
+      const message = error instanceof Error ? error.message : i18n().t("bookmarks.saveFailed");
+      if (current.active && feedback) feedback(message);
+      else if (current.active) setState((state) => ({ ...state, error: message }));
       return false;
     } finally {
       current.busy = false;

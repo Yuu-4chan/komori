@@ -390,6 +390,19 @@ muted and outlined so they do not read as its reading. A
   font-size: var(--font-size-1);
 }
 /* A tag whose definition has a known category takes that category's color. */
+.dictionary-result-card__more-tags {
+  padding: 0.12rem 0.5rem;
+  color: var(--accent-ink);
+  background: transparent;
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-1);
+  font-weight: 650;
+  cursor: pointer;
+}
+.dictionary-result-card__more-tags:hover {
+  background: var(--accent-faint);
+}
 .dictionary-result-card__tags span[data-category] {
   color: color-mix(in srgb, var(--tag-color) var(--tag-ink-share), var(--tag-ink-toward));
   background: color-mix(in srgb, var(--tag-color) var(--tag-tint-share), var(--surface-card));

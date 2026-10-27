@@ -382,6 +382,20 @@ describe("Statistics", () => {
     expect(screen.queryByRole("region", { name: /volume/i })).not.toBeInTheDocument();
   });
 
+  it("leaves out the word cards when no book is counted in words", async () => {
+    vi.mocked(listLibrary).mockResolvedValue(books.slice(0, 1));
+    vi.mocked(listReadingSessions).mockResolvedValue([
+      session(JA, new Date(2026, 9, 14, 9), 60, 18_000),
+    ]);
+    renderPage();
+    const metrics = await screen.findByRole("region", { name: "Reading activity" });
+    expect(within(metrics).getByText("Characters read")).toBeInTheDocument();
+    expect(within(metrics).queryByText("Words read")).not.toBeInTheDocument();
+    const overview = screen.getByRole("region", { name: "Library overview" });
+    expect(within(overview).getByText("CJK characters")).toBeInTheDocument();
+    expect(within(overview).queryByText("Words counted")).not.toBeInTheDocument();
+  });
+
   it("shows a calendar day's reading and books, and other months", async () => {
     renderPage();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

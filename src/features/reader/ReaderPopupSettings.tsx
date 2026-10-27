@@ -81,7 +81,9 @@ export function ReaderPopupSettings({
               }))}
               onChange={setReaderPopupStyle}
             />
-            <p className="settings-field__hint">{t("popupSettings.styleHint")}</p>
+            <p className="settings-field__hint">
+              {t(`popupSettings.styleHint.${readerPopupStyle}`)}
+            </p>
           </div>
           <ToggleSetting
             label={t("popupSettings.names")}

@@ -1222,6 +1222,12 @@ describe("Library page", () => {
       // A CJK book not yet opened shows the characters Komori counted, as books in progress do.
       expect(screen.getByText(`0 / ${(1500).toLocaleString()} characters`)).toBeInTheDocument();
       expect(screen.queryByText("Not started")).not.toBeInTheDocument();
+      // Searching counts only the books it shows.
+      fireEvent.keyDown(document.body, { key: "f", ctrlKey: true });
+      const search = await screen.findByRole("searchbox", { name: "Search books" });
+      fireEvent.change(search, { target: { value: "Unread" } });
+      expect(await within(library).findByText("1 of 4 books")).toBeInTheDocument();
+      expect(within(library).getByText("1.5K characters")).toBeInTheDocument();
     });
 
     it("steps Continue reading aside while selecting in the library", async () => {

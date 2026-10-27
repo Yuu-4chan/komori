@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { TermGroup, TermMatch } from "./dictionaryApi";
@@ -96,6 +96,29 @@ describe("LookupEntry", () => {
       expect(screen.getByText("壊 could not be shown.")).toBeInTheDocument();
       unmount();
     }
+  });
+
+  it("shows four headword tags before +N more, so the definitions stay in view", () => {
+    const names = ["n", "vs", "uk", "P", "news", "ichi", "spec"];
+    const tagged = group("本", [{ ...good.terms[0], tags: names.map((name) => ({ name })) }]);
+    render(
+      <LookupEntry
+        canPlayAudio={false}
+        group={tagged}
+        onSearchTerm={() => {}}
+        showDictionaryNames
+        showFrequency
+        showPitch
+        showVoiceAction={false}
+        start={null}
+      />,
+    );
+    const shown = () => names.filter((name) => screen.queryByText(name, { exact: true }));
+    expect(shown()).toEqual(["n", "vs", "uk", "P"]);
+    fireEvent.click(screen.getByRole("button", { name: "+3 more" }));
+    expect(shown()).toEqual(names);
+    fireEvent.click(screen.getByRole("button", { name: "Show fewer" }));
+    expect(shown()).toEqual(["n", "vs", "uk", "P"]);
   });
 });
 

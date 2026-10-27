@@ -20,6 +20,7 @@ import {
   readerMaxHeight,
   readerParagraphIndent,
   readerParagraphMargin,
+  readerSideMargin,
   readerWordSpacing,
   readerMaxWidth,
   type ReaderBlurMode,
@@ -50,6 +51,9 @@ export interface ReaderAppearancePanelProps extends ReaderThemeSectionProps {
   /** The space before and after each paragraph in pixels. */
   paragraphMargin: number;
   onParagraphMarginChange: (paragraphMargin: number) => void;
+  /** The space left and right of each page's text in pixels. */
+  pageMargin: number;
+  onPageMarginChange: (pageMargin: number) => void;
   /** Maximum text width per page in CSS pixels. */
   maxWidth: number;
   monitor: { width: number; height: number } | null;
@@ -127,6 +131,8 @@ export function ReaderAppearancePanel({
   onParagraphIndentChange,
   paragraphMargin,
   onParagraphMarginChange,
+  pageMargin,
+  onPageMarginChange,
   maxWidth,
   onMaxWidthChange,
   monitor,
@@ -257,12 +263,16 @@ export function ReaderAppearancePanel({
               onChange={onPageLayoutChange}
             />
           )}
-          <ChoiceField
-            label={t("appearancePanel.textOrientation")}
-            value={textOrientation}
-            options={translated(textOrientationOptions)}
-            onChange={onTextOrientationChange}
-          />
+          {/* Only what applies shows: orientation for vertical text, the wheel step for the
+              views it scrolls, blur choices with their blur. */}
+          {writingMode === "vertical" && (
+            <ChoiceField
+              label={t("appearancePanel.textOrientation")}
+              value={textOrientation}
+              options={translated(textOrientationOptions)}
+              onChange={onTextOrientationChange}
+            />
+          )}
           <Stepper
             label={t("appearancePanel.paragraphMargin")}
             value={paragraphMargin}
@@ -271,6 +281,15 @@ export function ReaderAppearancePanel({
             step={readerParagraphMargin.step}
             unit={t("unit.px")}
             onChange={onParagraphMarginChange}
+          />
+          <Stepper
+            label={t("appearancePanel.pageMargin")}
+            value={pageMargin}
+            min={readerSideMargin.min}
+            max={readerSideMargin.max}
+            step={readerSideMargin.step}
+            unit={t("unit.px")}
+            onChange={onPageMarginChange}
           />
           <Stepper
             label={t("appearancePanel.maxWidth")}
@@ -290,15 +309,17 @@ export function ReaderAppearancePanel({
             unit={t("unit.px")}
             onChange={onMaxHeightChange}
           />
-          <Stepper
-            label={t("appearancePanel.wheelStep")}
-            value={wheelStep}
-            min={readerWheelStep.min}
-            max={readerWheelStep.max}
-            step={readerWheelStep.step}
-            unit={t("unit.px")}
-            onChange={onWheelStepChange}
-          />
+          {(viewMode === "continuous" || viewMode === "semi-continuous") && (
+            <Stepper
+              label={t("appearancePanel.wheelStep")}
+              value={wheelStep}
+              min={readerWheelStep.min}
+              max={readerWheelStep.max}
+              step={readerWheelStep.step}
+              unit={t("unit.px")}
+              onChange={onWheelStepChange}
+            />
+          )}
           {viewMode === "vn" && (
             <>
               <Stepper
@@ -408,15 +429,17 @@ export function ReaderAppearancePanel({
             checked={blurImage}
             onChange={onBlurImageChange}
           />
-          <ChoiceField
-            label={t("appearancePanel.blurMode")}
-            value={blurMode}
-            options={[
-              { value: "all", label: t("appearancePanel.blurAll") },
-              { value: "after-toc", label: t("appearancePanel.blurAfterToc") },
-            ]}
-            onChange={onBlurModeChange}
-          />
+          {blurImage && (
+            <ChoiceField
+              label={t("appearancePanel.blurMode")}
+              value={blurMode}
+              options={[
+                { value: "all", label: t("appearancePanel.blurAll") },
+                { value: "after-toc", label: t("appearancePanel.blurAfterToc") },
+              ]}
+              onChange={onBlurModeChange}
+            />
+          )}
         </div>
         {blurImage &&
           imageBlurBoundary &&

@@ -5,6 +5,7 @@ import {
   matchesLookupShortcut,
   lookupTextAllowed,
   triggerEnabled,
+  type LookupTrigger,
   type LookupTriggerPreferences,
 } from "./lookupTriggers";
 import { noteAtPoint } from "./noteHighlights";
@@ -70,13 +71,7 @@ export function watchTextSelection(
     reported = bounds;
     if (!triggerEnabled(settings, origin) || !lookupTextAllowed(settings, text)) return false;
     selectionOwned = true;
-    report({
-      origin,
-      text,
-      sentence: sentenceAt(range),
-      rect: selectionRect(range, document.defaultView?.frameElement, readingArea()),
-      writingMode: writingModeAt(range.startContainer),
-    });
+    report(rangeReport(range, text, origin, readingArea()));
     return true;
   };
   // Rebinding after a settings change must not turn an unchanged selection into a new
@@ -153,6 +148,44 @@ export function watchTextSelection(
   );
 }
 
+/** A selected range as the Reader's lookup report. */
+function rangeReport(
+  range: Range,
+  text: string,
+  origin: LookupTrigger,
+  readingArea: HTMLElement | undefined,
+): ReaderSelection {
+  return {
+    origin,
+    text,
+    sentence: sentenceAt(range),
+    rect: readerRangeRect(
+      range,
+      range.startContainer.ownerDocument?.defaultView?.frameElement,
+      readingArea,
+    ),
+    writingMode: writingModeAt(range.startContainer),
+  };
+}
+
+/**
+ * A book document's current selection as a lookup report, as the context menu's Look up asks
+ * for it, or null when nothing readable is selected.
+ */
+export function selectionLookup(
+  document: Document,
+  readingArea: HTMLElement | undefined,
+  origin: LookupTrigger,
+): ReaderSelection | null {
+  const selection = document.getSelection();
+  const range =
+    selection && selection.rangeCount > 0 && !selection.isCollapsed
+      ? selection.getRangeAt(0)
+      : null;
+  const text = range ? selectedText(range) : "";
+  return range && text.trim() ? rangeReport(range, text, origin, readingArea) : null;
+}
+
 /** Modifier scans use detached ranges only; they never change the browser selection. */
 function watchPointerScan(
   document: Document,
@@ -197,7 +230,7 @@ function watchPointerScan(
       ...(onPointerScan ? { scanId: onPointerScan(ranges) } : {}),
       text,
       sentence: sentenceAt(range),
-      rect: selectionRect(range, document.defaultView?.frameElement, readingArea()),
+      rect: readerRangeRect(range, document.defaultView?.frameElement, readingArea()),
       writingMode: writingModeAt(range.startContainer),
     });
     return true;
@@ -380,7 +413,10 @@ function watchPointerScan(
   );
 }
 
-/** A caret is the nearest insertion point; either adjacent character may contain the point. */
+/**
+ * A caret is the nearest insertion point; either adjacent character may contain the point.
+ * Whitespace and punctuation start no lookup, so a scan over 、 or 。 finds nothing.
+ */
 export function characterAtPoint(document: Document, x: number, y: number): Range | null {
   const pointDocument = document as Document & {
     caretRangeFromPoint?: (x: number, y: number) => Range | null;
@@ -398,7 +434,7 @@ export function characterAtPoint(document: Document, x: number, y: number): Rang
   for (const index of [start, previous]) {
     if (index < 0 || index >= data.length) continue;
     const character = String.fromCodePoint(data.codePointAt(index)!);
-    if (!character.trim()) continue;
+    if (!character.trim() || /\p{P}/u.test(character)) continue;
     const range = document.createRange();
     range.setStart(node, index);
     range.setEnd(node, index + character.length);
@@ -557,7 +593,7 @@ function selectedText(range: Range): string {
  * Where a range shows in the top window: the union of its boxes clipped to the reading area,
  * or of all of them when none is within it, such as a selection on a page turned away.
  */
-function selectionRect(
+export function readerRangeRect(
   range: Range,
   frame: Element | null | undefined,
   readingArea: HTMLElement | undefined,

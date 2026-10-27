@@ -111,12 +111,17 @@ describe("Reader background appearance", () => {
     );
     await screen.findByText("Reader ready");
     await user.click(screen.getByRole("button", { name: "Reader appearance" }));
+    // With no image there is nothing to blur.
+    expect(screen.queryByRole("button", { name: "Blur background" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Choose background image" }));
     expect(api.choose).toHaveBeenCalledOnce();
     let img = container.querySelector<HTMLImageElement>(".reader-background img")!;
     expect(img.src).toBe(image.url);
     fireEvent.load(img);
     expect(img.parentElement).toHaveAttribute("data-ready", "true");
+    expect(
+      screen.queryByRole("textbox", { name: "Background blur level" }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Blur background" }));
     await waitFor(() =>
       expect(save.mock.lastCall?.[0]).toMatchObject({ readerBackgroundBlur: true }),

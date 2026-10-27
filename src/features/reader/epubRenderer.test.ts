@@ -628,6 +628,16 @@ describe("EPUB.js renderer adapter", () => {
     // Vertical text has no double pages.
     expect(columns).toHaveBeenCalledWith(1066, 780, 740, 40, "ltr");
     expect(book.renderTo).toHaveBeenCalledOnce();
+    // A chosen page margin is each page's side space, the column gap holding two of them,
+    // and widens the pages' cap by it.
+    await renderer.setPresentation!({
+      fontSize: 17,
+      maxWidth: 600,
+      pageLayout: "double",
+      sideMargin: 60,
+    });
+    expect(host.style.getPropertyValue("--reader-max-width")).toBe("1440px");
+    expect((book.renderTo.mock.calls as unknown[][])[0][1]).toMatchObject({ gap: 120 });
     renderer.dispose();
     expect(host.style.getPropertyValue("--reader-max-width")).toBe("");
   });
@@ -1070,13 +1080,44 @@ describe("EPUB.js renderer adapter", () => {
       section: 1,
     });
     expect(images.items[1].section).toBe(1);
-    expect(images.items[2].section).toBe(3);
+    // A section without its own contents entry takes the chapter before it.
+    expect(images.items[2]).toMatchObject({ label: "Opening", section: 3 });
     expect(JSON.stringify(images)).not.toMatch(/private|xhtml|\.png|epubcfi/);
     expect(display).toHaveBeenCalledTimes(calls);
     expect(book.archive.request).not.toHaveBeenCalledWith(
       expect.stringContaining("Images"),
       "blob",
     );
+    renderer.dispose();
+  });
+
+  it("labels each image with the last contents entry at or before it", async () => {
+    const sections = [
+      section("cover.xhtml", "", true, '<img src="cover.png">'),
+      section("one.xhtml", "", true, '<p>Text</p><img src="one.png">'),
+      section("plate.xhtml", "", true, '<img src="plate.png">'),
+      section(
+        "two.xhtml",
+        "",
+        true,
+        '<img src="before.png"><h2 id="two">Two</h2><img src="after.png">',
+      ),
+    ];
+    const { book } = mockBook(sections, [
+      { label: "One", href: "one.xhtml" },
+      { label: "Two", href: "two.xhtml#two" },
+    ]);
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(document.createElement("div"), new AbortController().signal, vi.fn());
+    const images = await renderer.listImages!(new AbortController().signal);
+    expect(images.items.map((item) => item.label)).toEqual([
+      "Section 1",
+      "One",
+      "One",
+      "One",
+      "Two",
+    ]);
+    expect(book.load).toHaveBeenCalled();
     renderer.dispose();
   });
 
@@ -3870,18 +3911,31 @@ describe("EPUB.js renderer adapter", () => {
           set: (value: number) => horizontal && place(-value),
         },
       });
-      const box = (start: number, extent: number) =>
+      // A section moved across the reading order (to center a VN group) moves its box too.
+      const box = (start: number, extent: number, across = 0) =>
         (horizontal
-          ? { top: 0, bottom: 100, left: 100 - start - extent, right: 100 - start }
-          : { top: start, bottom: start + extent, left: 0, right: 100 }) as DOMRect;
+          ? {
+              top: across,
+              bottom: 100 + across,
+              left: 100 - start - extent,
+              right: 100 - start,
+            }
+          : {
+              top: start,
+              bottom: start + extent,
+              left: across,
+              right: 100 + across,
+            }) as DOMRect;
+      const moved = (element: HTMLElement) =>
+        style(element, horizontal ? "margin-top" : "margin-left");
       vi.spyOn(container, "getBoundingClientRect").mockImplementation(() => box(0, 100));
       views.forEach(({ view, iframe }, index) => {
         vi.spyOn(view.element, "getBoundingClientRect").mockImplementation(() => {
           const { start, shown } = layout(offset)[index];
-          return box(start, shown);
+          return box(start, shown, moved(view.element));
         });
         vi.spyOn(iframe, "getBoundingClientRect").mockImplementation(() =>
-          box(layout(offset)[index].start, view.size),
+          box(layout(offset)[index].start, view.size, moved(view.element)),
         );
       });
       const shown = views.map(({ view }) => view);
@@ -3944,9 +3998,19 @@ describe("EPUB.js renderer adapter", () => {
         // Each group shows centered along the reading order: 40px of a 100px area.
         expect(extents(book)).toEqual([40, 0]);
         expect(lead()).toBe("30px");
+        // And across it: its 10px-wide lines move 45px to the middle of the area's 100px,
+        // and stay there when measured again.
+        const across = (index = 0) =>
+          book.views[index].element.style.getPropertyValue(
+            axis === "horizontal" ? "margin-top" : "margin-left",
+          );
+        expect(across()).toBe("45px");
+        await renderer.setPresentation?.({ ...presentation, vnTextSpeed: 80 });
+        expect(across()).toBe("45px");
         await renderer.advancePage();
         // The 40px before it are clipped, and 30px lead it to the middle.
         expect(lead()).toBe("-10px");
+        expect(across()).toBe("45px");
         expect(book.views[0].element.style.getPropertyValue("clip-path")).toBe(
           axis === "horizontal" ? "inset(0px 40px 0px 0px)" : "inset(40px 0px 0px 0px)",
         );
@@ -3997,6 +4061,8 @@ describe("EPUB.js renderer adapter", () => {
       await renderer.setPresentation?.({ ...presentation, viewMode: "continuous" });
       expect(extents(book)).toEqual([160]);
       expect(book.views[0].element.style.getPropertyValue("margin-top")).toBe("");
+      // Only VN centers a group across the reading order.
+      expect(book.views[0].element.style.getPropertyValue("margin-left")).toBe("");
       await renderer.setPresentation?.(presentation);
       expect(extents(book)).toEqual([120]);
       expect(book.views[0].element.style.getPropertyValue("margin-top")).toBe("-30px");
@@ -6309,6 +6375,27 @@ describe("EPUB.js renderer adapter", () => {
     adapter.dispose();
     expect(await adapter.captureNote!()).toBeNull();
     iframe.remove();
+  });
+
+  it("starts a bookmark's excerpt at the page's first displayed character", async () => {
+    vi.stubGlobal("crypto", webcrypto);
+    const { rendition } = mockBook([section("Text/one.xhtml", "x".repeat(100))]);
+    // The archive's text differs from the displayed one, so a text fraction would land elsewhere.
+    const shown = "前のページの終わり。\n\n   次のページの始まり。";
+    mockSectionText(rendition, 0, shown, shown.indexOf("次"));
+    rendition.currentLocation.mockReturnValue({
+      start: {
+        index: 0,
+        href: "Text/one.xhtml",
+        cfi: "epubcfi(page-start)",
+        displayed: { page: 2, total: 2 },
+      },
+      end: { index: 0, displayed: { page: 2, total: 2 } },
+    } as never);
+    const adapter = epubRendererFactory(id)();
+    await adapter.mount(document.createElement("div"), new AbortController().signal, vi.fn());
+    expect((await adapter.captureBookmark!())?.excerpt).toBe("次のページの始まり。");
+    adapter.dispose();
   });
 
   it("captures the actual place and resolves bookmarks across reopen, rejecting changed content before display", async () => {
@@ -9582,6 +9669,8 @@ describe("EPUB.js renderer adapter", () => {
           ":root ::selection { background-color: transparent !important; }",
           ":root [data-komori-selection-marks] span { background-color: #3e4e6e !important; }",
           ":root [data-komori-lookup-marks] span { background-color: #3e4e6e !important; }",
+          // A search jump's match paints as selected text does, for a moment.
+          ":root [data-komori-search-marks] span { background-color: #3e4e6e !important; }",
           ":root [data-komori-note-marks] span { background-color: #475b82 !important; }",
           "}",
         ].join("\n"),

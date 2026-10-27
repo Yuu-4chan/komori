@@ -121,8 +121,8 @@ export function isParagraphMargin(value: unknown): value is number {
   );
 }
 
-/** Reader side margin choices: the empty space on the left and right of each page, in CSS pixels. */
-const readerSideMargin = { min: 0, max: 400, step: 4, default: 40 } as const;
+/** Reader page margin choices: the empty space on the left and right of each page, in CSS pixels. */
+export const readerSideMargin = { min: 0, max: 400, step: 4, default: 40 } as const;
 
 /** A supported side margin: a whole step within range, or the default for anything else. */
 export function normalizeSideMargin(value: unknown): number {
@@ -132,7 +132,7 @@ export function normalizeSideMargin(value: unknown): number {
 }
 
 /** Whether a value is already a supported side margin. */
-function isSideMargin(value: unknown): value is number {
+export function isSideMargin(value: unknown): value is number {
   return (
     Number.isInteger(value) &&
     (value as number) >= readerSideMargin.min &&

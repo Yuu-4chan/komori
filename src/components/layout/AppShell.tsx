@@ -24,7 +24,7 @@ const discordPages: Record<string, DiscordPage> = {
 
 /**
  * The application frame. Its top bar is the window's title bar: it drags the window, holds the
- * brand, the Library's search with Settings and Add books beside it (on the Library only), and
+ * brand, the page's search, Settings (marked while open) and, on the Library, Add books, and
  * the window controls, and its controls float over the page once it scrolls. Below it the page
  * scrolls, and a floating dock of destinations sits at the bottom, the current one larger.
  */
@@ -102,27 +102,27 @@ export function AppShell() {
           </NavLink>
           <div className="app-topbar__center">
             <div className="app-topbar__search" ref={setSearchSlot} />
+            <NavLink
+              aria-label={t("shell.settings")}
+              className={({ isActive }) =>
+                isActive ? "app-topbar__button app-topbar__button--active" : "app-topbar__button"
+              }
+              title={t("shell.settings")}
+              to="/settings"
+            >
+              <GearSixIcon aria-hidden="true" weight="duotone" />
+            </NavLink>
             {onLibrary ? (
-              <>
-                <NavLink
-                  aria-label={t("shell.settings")}
-                  className="app-topbar__button"
-                  title={t("shell.settings")}
-                  to="/settings"
-                >
-                  <GearSixIcon aria-hidden="true" weight="duotone" />
-                </NavLink>
-                <button
-                  aria-label={imports.busy ? imports.label : t("shell.addBooks")}
-                  className="app-topbar__button"
-                  disabled={imports.busy}
-                  onClick={() => void imports.run()}
-                  title={imports.busy ? imports.label : t("shell.addBooks")}
-                  type="button"
-                >
-                  <PlusIcon aria-hidden="true" weight="bold" />
-                </button>
-              </>
+              <button
+                aria-label={imports.busy ? imports.label : t("shell.addBooks")}
+                className="app-topbar__button"
+                disabled={imports.busy}
+                onClick={() => void imports.run()}
+                title={imports.busy ? imports.label : t("shell.addBooks")}
+                type="button"
+              >
+                <PlusIcon aria-hidden="true" weight="bold" />
+              </button>
             ) : null}
           </div>
           <WindowControls className="app-topbar__window" />

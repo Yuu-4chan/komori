@@ -106,7 +106,7 @@ describe("Reader notes through real actions", () => {
     await waitFor(() => expect(reader.setNoteHighlights).toHaveBeenLastCalledWith([]));
     expect(reader.mount).toHaveBeenCalledOnce();
   });
-  it("offers Copy, Add note and Highlight for selected book text, and image actions on an image", async () => {
+  it("offers Look up, Copy, Add note and Highlight for selected book text, and image actions on an image", async () => {
     const reader = adapter();
     const notes = store();
     const frame = document.createElement("iframe");
@@ -145,7 +145,7 @@ describe("Reader notes through real actions", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual(["Copy", "Add note", "Highlight"]);
+    ).toEqual(["Look up", "Copy", "Add note", "Highlight"]);
     await user.click(within(menu).getByRole("menuitem", { name: "Highlight" }));
     // A highlight is the passage saved without a note, marked in the book at once.
     await waitFor(() => expect(notes.create).toHaveBeenCalledWith(place, ""));
@@ -374,8 +374,9 @@ describe("Reader notes through real actions", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Notes (0)" })).toBeInTheDocument(),
     );
+    // With nothing selected, N opens the notes instead of a new one.
     fireEvent.keyDown(screen.getByRole("main"), { key: "n" });
-    expect(await screen.findByText(/Select 1–4,096 characters/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Notes" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     let finish!: (value: typeof place) => void;
     vi.mocked(first.captureNote!).mockImplementationOnce(
