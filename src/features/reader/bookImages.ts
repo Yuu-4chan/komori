@@ -56,6 +56,65 @@ export function rasterType(bytes: Uint8Array): string | undefined {
   return undefined;
 }
 
+/** A raster file no larger than this is read while listing, to tell a spacer by its size. */
+export const SPACER_BYTES = 4096;
+
+/** A raster's pixel size from its header, for the formats `rasterType` knows but AVIF. */
+export function rasterDimensions(bytes: Uint8Array): { width: number; height: number } | undefined {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const size = (width: number, height: number) =>
+    width > 0 && height > 0 ? { width, height } : undefined;
+  try {
+    switch (rasterType(bytes)) {
+      case "image/png":
+        return size(view.getUint32(16), view.getUint32(20));
+      case "image/gif":
+        return size(view.getUint16(6, true), view.getUint16(8, true));
+      case "image/bmp":
+        return size(Math.abs(view.getInt32(18, true)), Math.abs(view.getInt32(22, true)));
+      case "image/webp": {
+        const chunk = String.fromCharCode(...bytes.slice(12, 16));
+        if (chunk === "VP8X")
+          return size(
+            (view.getUint32(24, true) & 0xffffff) + 1,
+            (view.getUint32(27, true) & 0xffffff) + 1,
+          );
+        if (chunk === "VP8L") {
+          const bits = view.getUint32(21, true);
+          return size((bits & 0x3fff) + 1, ((bits >> 14) & 0x3fff) + 1);
+        }
+        if (chunk === "VP8 ")
+          return size(view.getUint16(26, true) & 0x3fff, view.getUint16(28, true) & 0x3fff);
+        return undefined;
+      }
+      case "image/jpeg":
+        // The first start-of-frame marker holds the size; other segments are skipped.
+        for (let offset = 2; offset + 9 < bytes.length;) {
+          if (bytes[offset] !== 0xff) return undefined;
+          const marker = bytes[offset + 1];
+          if (marker === 0xff) {
+            offset += 1;
+            continue;
+          }
+          if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker))
+            return size(view.getUint16(offset + 7), view.getUint16(offset + 5));
+          offset += 2 + view.getUint16(offset + 2);
+        }
+        return undefined;
+      default:
+        return undefined;
+    }
+  } catch {
+    return undefined;
+  }
+}
+
+/** A picture of a few pixels, as books hold space or draw a line with, is no illustration. */
+export function isSpacerRaster(bytes: Uint8Array): boolean {
+  const size = rasterDimensions(bytes);
+  return !!size && Math.min(size.width, size.height) <= 4;
+}
+
 /** Rebuild a drawing from an inert SVG subset. No authored CSS or active content survives. */
 export async function inertSvg(
   source: Element,
@@ -161,6 +220,18 @@ export async function inertSvg(
   const root = await copy(source, 0);
   if (!root || root.localName !== "svg") throw Error("Drawing unavailable");
   root.setAttribute("xmlns", SVG_NS);
+  // Out of its page, a drawing sized in percentages (as Calibre's cover pages are) has no
+  // size of its own and draws at the browser's 300 × 150, stretched by
+  // preserveAspectRatio="none": size it by its viewBox.
+  const box = (root.getAttribute("viewBox") ?? "")
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  const relative = (name: string) => !/^\s*[\d.]+[a-z]*\s*$/i.test(root.getAttribute(name) ?? "");
+  if (box.length === 4 && box[2] > 0 && box[3] > 0 && (relative("width") || relative("height"))) {
+    root.setAttribute("width", String(box[2]));
+    root.setAttribute("height", String(box[3]));
+  }
   return new Blob([new XMLSerializer().serializeToString(root)], { type: "image/svg+xml" });
 }
 

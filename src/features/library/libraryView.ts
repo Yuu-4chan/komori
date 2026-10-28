@@ -273,10 +273,9 @@ function groupRank(
 }
 
 /**
- * Books under headings: by series (each in series order, then the chosen order) or by
- * language. Named groups follow the chosen sort and direction (see `groupRank`), then
- * their names; books without one come last. `none` is one untitled section in the chosen
- * order.
+ * Books under headings, by series or by language, each group's books in the order they came
+ * in (the chosen sort). Named groups follow the chosen sort and direction (see `groupRank`),
+ * then their names; books without one come last. `none` is one untitled section.
  */
 export function groupBooks(
   books: readonly LibraryBook[],
@@ -321,27 +320,7 @@ export function groupBooks(
           ? -1
           : compare(first, second) || collator.compare(title(first), title(second)),
     )
-    .map((key) => {
-      const members = sections.get(key) ?? [];
-      return {
-        key: `${group}:${key}`,
-        title: title(key),
-        books: group === "series" && key !== NO_GROUP ? inSeriesOrder(members) : members,
-      };
-    });
-}
-
-/** Numbered books first in their order; the rest keep the order they came in. */
-function inSeriesOrder(books: LibraryBook[]): LibraryBook[] {
-  return books
-    .map((book, position) => ({ book, position }))
-    .sort((first, second) => {
-      const [a, b] = [first.book.seriesIndex ?? null, second.book.seriesIndex ?? null];
-      if (a !== null && b !== null && a !== b) return a - b;
-      if ((a === null) !== (b === null)) return a === null ? 1 : -1;
-      return first.position - second.position;
-    })
-    .map(({ book }) => book);
+    .map((key) => ({ key: `${group}:${key}`, title: title(key), books: sections.get(key) ?? [] }));
 }
 
 /** The grouping a section key such as `series:Accel World` belongs to, if any. */

@@ -234,11 +234,10 @@ describe("language names", () => {
     expect(order("progress")).toEqual(["series:Gamma", "series:Alpha", "series:Beta", "series:"]);
     expect(order("characters")).toEqual(["series:Beta", "series:Alpha", "series:Gamma", "series:"]);
     expect(order("words")).toEqual(["series:Alpha", "series:Beta", "series:Gamma", "series:"]);
-    // A series keeps its volumes in order whatever the sort.
-    expect(groupBooks(books, "series", "recent", true)[1]?.books.map((item) => item.id)).toEqual([
-      "g1",
-      "g2",
-    ]);
+    // A group's books keep the chosen order, whatever their series numbers.
+    expect(
+      groupBooks([books[3], books[2]], "series", "title")[0]?.books.map((item) => item.id),
+    ).toEqual(["g2", "g1"]);
   });
 });
 

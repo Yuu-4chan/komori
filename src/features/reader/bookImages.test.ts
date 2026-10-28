@@ -6,6 +6,8 @@ import {
   imageAlt,
   imageSize,
   inertSvg,
+  isSpacerRaster,
+  rasterDimensions,
   rasterType,
   renderBookImage,
 } from "./bookImages";
@@ -64,6 +66,65 @@ describe("book image safety and bounds", () => {
       [1.5, 20],
     ])
       expect(() => imageSize(w, h, "viewer")).toThrow();
+  });
+  it("reads raster sizes from their headers and tells spacers from pictures", () => {
+    const bytes = (...parts: number[][]) => new Uint8Array(parts.flat());
+    const be32 = (value: number) => [
+      value >>> 24,
+      (value >> 16) & 255,
+      (value >> 8) & 255,
+      value & 255,
+    ];
+    const le16 = (value: number) => [value & 255, value >> 8];
+    const ascii = (text: string) => [...text].map((character) => character.charCodeAt(0));
+    const png = (width: number, height: number) =>
+      bytes(
+        [137, ...ascii("PNG"), 13, 10, 26, 10, 0, 0, 0, 13],
+        ascii("IHDR"),
+        be32(width),
+        be32(height),
+      );
+    const gif = (width: number, height: number) =>
+      bytes(ascii("GIF89a"), le16(width), le16(height));
+    // A JPEG with an APP0 segment before its baseline start-of-frame.
+    const jpeg = (width: number, height: number) =>
+      bytes(
+        [255, 216, 255, 224, 0, 4, 0, 0, 255, 192, 0, 11, 8],
+        [height >> 8, height & 255],
+        [width >> 8, width & 255],
+        [1, 1, 17, 0],
+      );
+    expect(rasterDimensions(png(961, 1356))).toEqual({ width: 961, height: 1356 });
+    expect(rasterDimensions(gif(16, 24))).toEqual({ width: 16, height: 24 });
+    expect(rasterDimensions(jpeg(831, 1173))).toEqual({ width: 831, height: 1173 });
+    expect(rasterDimensions(new TextEncoder().encode("<svg/>"))).toBeUndefined();
+    expect(rasterDimensions(bytes([255, 216, 255]))).toBeUndefined();
+    expect(isSpacerRaster(jpeg(1, 1))).toBe(true);
+    expect(isSpacerRaster(gif(600, 2))).toBe(true);
+    expect(isSpacerRaster(png(16, 16))).toBe(false);
+    expect(isSpacerRaster(new Uint8Array(4))).toBe(false);
+  });
+  it("sizes a drawing set in percentages by its viewBox, keeping absolute sizes", async () => {
+    const rebuilt = async (attributes: string) => {
+      const source = new DOMParser().parseFromString(
+        `<svg xmlns="http://www.w3.org/2000/svg" ${attributes} preserveAspectRatio="none"><image width="831" height="1173" href="cover.jpeg"/></svg>`,
+        "image/svg+xml",
+      ).documentElement;
+      const text = await (await inertSvg(source, async () => "data:image/jpeg;base64,aA==")).text();
+      const root = text.slice(0, text.indexOf(">"));
+      return ["width", "height"].map((name) => root.match(` ${name}="([^"]*)"`)?.[1] ?? null);
+    };
+    // Calibre's cover page.
+    expect(await rebuilt('width="100%" height="100%" viewBox="0 0 831 1173"')).toEqual([
+      "831",
+      "1173",
+    ]);
+    expect(await rebuilt('viewBox="0,0,600,800"')).toEqual(["600", "800"]);
+    expect(await rebuilt('width="300px" height="400px" viewBox="0 0 831 1173"')).toEqual([
+      "300px",
+      "400px",
+    ]);
+    expect(await rebuilt('width="100%" height="100%"')).toEqual(["100%", "100%"]);
   });
   it("rebuilds SVG drawings without scripts, remote uses, CSS or active attributes", async () => {
     const source = new DOMParser().parseFromString(

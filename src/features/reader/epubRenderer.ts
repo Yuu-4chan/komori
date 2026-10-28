@@ -82,9 +82,11 @@ import {
   imageElements,
   imageAlt,
   imageArchivePath,
+  isSpacerRaster,
   rasterType,
   inertSvg,
   renderBookImage,
+  SPACER_BYTES,
 } from "./bookImages";
 import type { ReaderImages, ReaderImageResource, ReaderScrollMetrics } from "./renderer";
 import { normalizeReaderLocator } from "./readingPosition";
@@ -1064,16 +1066,35 @@ class EpubRenderer implements ReaderRenderer {
   private imageReads = 0;
 
   /** Check the declared entry size before reading image or section payloads. */
-  private checkImageEntry(path: string, limit: number) {
+  /** An archive entry's size before decompression: null when missing, undefined when unknown. */
+  private imageEntrySize(path: string): number | null | undefined {
     const zip = (
       this.book?.archive as unknown as {
         zip?: { file(path: string): { _data?: { uncompressedSize?: number } } | null };
       }
     )?.zip;
-    if (!zip) return;
+    if (!zip) return undefined;
     const entry = zip.file(decodeURIComponent(path.replace(/^\//, "")));
-    if (!entry || (entry._data?.uncompressedSize ?? 0) > limit)
-      throw Error("Image entry unavailable");
+    return entry ? (entry._data?.uncompressedSize ?? 0) : null;
+  }
+
+  private checkImageEntry(path: string, limit: number) {
+    const size = this.imageEntrySize(path);
+    if (size === null || (size ?? 0) > limit) throw Error("Image entry unavailable");
+  }
+
+  /** Whether an `img` shows a spacer: a small raster file of a few pixels. */
+  private async spacerImage(element: Element, base: string): Promise<boolean> {
+    if (element.localName !== "img") return false;
+    const path = imageArchivePath(element.getAttribute("src") ?? "", base);
+    const size = path && this.imageEntrySize(path);
+    if (!path || typeof size !== "number" || size > SPACER_BYTES) return false;
+    try {
+      const blob = await this.book?.archive.request(path, "blob");
+      return blob instanceof Blob && isSpacerRaster(new Uint8Array(await blob.arrayBuffer()));
+    } catch {
+      return false;
+    }
   }
 
   async listImages(signal: AbortSignal): Promise<ReaderImages> {
@@ -1089,6 +1110,8 @@ class EpubRenderer implements ReaderRenderer {
     const sections: Array<{ linear?: boolean; url?: string }> = [];
     book.spine.each((section: (typeof sections)[number]) => sections.push(section));
     const result: ReaderImages = { items: [], truncated: false, failedSections: 0 };
+    // Books repeat one spacer on every page: read each small file once.
+    const spacers = new Map<string, Promise<boolean>>();
     let bytes = 0;
     for (const [spineIndex, section] of sections.entries()) {
       check();
@@ -1112,6 +1135,14 @@ class EpubRenderer implements ReaderRenderer {
             result.truncated = true;
             this.imageCatalog = result;
             return result;
+          }
+          if (element.localName === "img") {
+            const key = imageArchivePath(element.getAttribute("src") ?? "", section.url) ?? "";
+            let spacer = spacers.get(key);
+            if (!spacer) spacers.set(key, (spacer = this.spacerImage(element, section.url)));
+            const skip = await spacer;
+            check();
+            if (skip) continue;
           }
           const id = `image-${revision}-${result.items.length}`;
           this.imageDestinations.set(id, {

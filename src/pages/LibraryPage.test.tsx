@@ -1548,7 +1548,7 @@ describe("Library page", () => {
         expect(screen.queryByText("Not in the catalog yet")).not.toBeInTheDocument();
       });
 
-      it("groups by series in series order or by language, books without one last", async () => {
+      it("groups by series or by language in the chosen order, books without one last", async () => {
         const user = userEvent.setup();
         await showLibrary(user);
         expect(screen.getByRole("button", { name: "No grouping" })).toBeInTheDocument();
@@ -1573,9 +1573,9 @@ describe("Library page", () => {
           "Plain Book",
         ]);
 
-        // Within a series the series order holds even when the sort is reversed.
+        // A series's books follow the sort and its direction too.
         await user.click(screen.getByRole("button", { name: "Reverse sort direction" }));
-        expect(libraryTitles().slice(0, 2)).toEqual(["Cat Tales 1", "Cat Tales 2"]);
+        expect(libraryTitles().slice(0, 2)).toEqual(["Cat Tales 2", "Cat Tales 1"]);
 
         // Groups follow the sort and its direction: Title reversed, from Z.
         await user.click(screen.getByRole("button", { name: /^(Group by|No grouping)/ }));

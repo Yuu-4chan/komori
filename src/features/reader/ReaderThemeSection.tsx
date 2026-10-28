@@ -106,14 +106,14 @@ export function ReaderThemeSection({
       </div>
       {custom && (
         <div className="reader-custom-theme" key={custom.id}>
-          <TextField
-            label={t("readerTheme.name")}
-            value={custom.name}
-            maxLength={readerThemeNameMaxLength}
-            accepts={isThemeName}
-            onChange={(name) => onCustomThemeChange(custom.id, { name })}
-          />
           <div className="reader-custom-theme-grid">
+            <TextField
+              label={t("readerTheme.name")}
+              value={custom.name}
+              maxLength={readerThemeNameMaxLength}
+              accepts={isThemeName}
+              onChange={(name) => onCustomThemeChange(custom.id, { name })}
+            />
             {colorFields.map(({ key, label }) => (
               <ColorField
                 key={key}
