@@ -131,10 +131,13 @@ and duplicate EPUBs retain the ordinary already-imported result.
 
 Native title cleaning (`src-tauri/src/title_cleaning.rs`) embeds two lists.
 `title-cleaning-words.txt` holds store, edition, bonus and sales words (Japanese and
-English); a bracket pair holding nothing but listed words goes with its brackets. Its
-pairs are 【】, [] and ［］, () and （）, ｟｠, 〈〉 (U+3008 and U+2329 forms), ⟨⟩, <> and ＜＞,
-《》, ≪≫ and «»,
-〖〗, 〔〕, 〘〙, and {} and ｛｝; quotes such as 「」 and 『』 are not brackets. The
+English); a bracket pair holding nothing but listed words goes with its brackets. A
+bracket kind opens with any of its forms and closes with any of them, half-width or
+full-width as the Japanese IME types them, so (電子版), （電子版） and a mixed （電子版) all
+go: round () （）, square [] ［］, curly {} ｛｝, angle <> ＜＞ 〈〉 (U+3008 and U+2329 forms)
+⟨⟩, double angle 《》 ≪≫ «», and 【】, 〖〗, 〔〕, 〘〙 and ｟｠ each on their own. Kinds never
+mix, so （電子版] stays, and an inner pair of the same kind is met on its own. Quotes such
+as 「」 and 『』 are not brackets. The
 words are compared folding full-width letters, digits and punctuation to half-width,
 dropping spaces and ignoring case; words may follow one another directly or after
 ・ / + & , 、, and 付き, 付 or つき may follow a word, so 【BOOK☆WALKER限定 特典付き】

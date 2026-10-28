@@ -13,29 +13,24 @@ const WORDS: &str = include_str!("../../docs/title-cleaning-words.txt");
 const REVISION: i64 = 2;
 const REVISION_RECORD: &str = "title-cleaning";
 
-/// Bracket pairs that can hold listed words, in their half-width, full-width and other forms
-/// (`[` and `［`, `<`, `＜`, `〈` and `⟨`, `《` and `≪`). Quotes such as 「」 and 『』 are not
+/// Bracket kinds that can hold listed words. A kind opens with any of its forms and closes
+/// with any of them, half-width, full-width (as the Japanese IME types them) or other, so
+/// `(電子版)`, `（電子版）` and a mixed `（電子版)` all match. Quotes such as 「」 and 『』 are not
 /// among them: titles quote their own words in them.
-const BRACKETS: &[(char, char)] = &[
-    ('【', '】'),
-    ('[', ']'),
-    ('［', '］'),
-    ('(', ')'),
-    ('（', '）'),
-    ('｟', '｠'),
-    ('〈', '〉'),
-    ('\u{2329}', '\u{232A}'),
-    ('⟨', '⟩'),
-    ('<', '>'),
-    ('＜', '＞'),
-    ('《', '》'),
-    ('≪', '≫'),
-    ('«', '»'),
-    ('〖', '〗'),
-    ('〔', '〕'),
-    ('〘', '〙'),
-    ('{', '}'),
-    ('｛', '｝'),
+const BRACKETS: &[(&[char], &[char])] = &[
+    (&['(', '（'], &[')', '）']),
+    (&['[', '［'], &[']', '］']),
+    (&['{', '｛'], &['}', '｝']),
+    (
+        &['<', '＜', '〈', '\u{2329}', '⟨'],
+        &['>', '＞', '〉', '\u{232A}', '⟩'],
+    ),
+    (&['《', '≪', '«'], &['》', '≫', '»']),
+    (&['【'], &['】']),
+    (&['〖'], &['〗']),
+    (&['〔'], &['〕']),
+    (&['〘'], &['〙']),
+    (&['｟'], &['｠']),
 ];
 
 /// What may follow a listed word: `特典` + `付き`.
@@ -134,16 +129,21 @@ fn listed_words(content: &str) -> bool {
 /// The byte range of the first bracket pair holding only listed words, brackets included.
 fn bracketed_words(title: &str) -> Option<(usize, usize)> {
     for (start, open) in title.char_indices() {
-        let Some(&(_, close)) = BRACKETS.iter().find(|(candidate, _)| *candidate == open) else {
+        let Some(&(openers, closers)) =
+            BRACKETS.iter().find(|(openers, _)| openers.contains(&open))
+        else {
             continue;
         };
         let inside = start + open.len_utf8();
-        let Some(length) = title[inside..].find(close) else {
+        let Some((length, close)) = title[inside..]
+            .char_indices()
+            .find(|(_, candidate)| closers.contains(candidate))
+        else {
             continue;
         };
         let content = &title[inside..inside + length];
-        // An inner pair of the same kind is met on its own.
-        if !content.contains(open) && listed_words(content) {
+        // An inner pair of the same kind, in any of its forms, is met on its own.
+        if !content.contains(openers) && listed_words(content) {
             return Some((start, inside + length + close.len_utf8()));
         }
     }
@@ -281,12 +281,17 @@ mod tests {
                 Some(ending) => format!("レーベル{ending}"),
                 None => line.to_owned(),
             };
-            for (open, close) in BRACKETS {
-                assert_eq!(
-                    clean(&format!("題名 2 {open}{content}{close}")).as_deref(),
-                    Some("題名 2"),
-                    "{open}{content}{close}"
-                );
+            // Every opening form with every closing form of its kind: `(…)`, `（…）`, `（…)`.
+            for (openers, closers) in BRACKETS {
+                for open in *openers {
+                    for close in *closers {
+                        assert_eq!(
+                            clean(&format!("題名 2 {open}{content}{close}")).as_deref(),
+                            Some("題名 2"),
+                            "{open}{content}{close}"
+                        );
+                    }
+                }
             }
         }
     }
@@ -304,6 +309,11 @@ mod tests {
             "題名【電子版あとがき付】",
             "題名 ≪Collector’s Edition≫",
             "題名 «Yen Press»",
+            "題名（電子版)",
+            "題名(ＨＪ文庫）",
+            "題名［Kindle版]",
+            "題名＜限定版>",
+            "題名 《特典付き≫",
         ] {
             assert_eq!(clean(title).as_deref(), Some("題名"), "{title}");
         }
@@ -344,6 +354,9 @@ mod tests {
             "(題名を長く書いたとても長い名前の文庫)",
             "Title (Graphic Novel)",
             "題名【レンタル】",
+            // Kinds do not mix: a round bracket never closes a square or lenticular one.
+            "題名（電子版]",
+            "題名【電子版)",
         ] {
             assert_eq!(clean(title).as_deref(), Some(title), "{title}");
         }
@@ -373,6 +386,8 @@ mod tests {
         assert_eq!(clean("\t\n\u{3000}"), None);
         assert_eq!(clean("【電子版】"), None);
         assert_eq!(clean("題名(GA【電子版】文庫)"), Some("題名".into()));
+        // An inner pair of the same kind, in either width, is met on its own.
+        assert_eq!(clean("(題名（電子版)) 2"), Some("(題名) 2".into()));
     }
 
     #[test]
