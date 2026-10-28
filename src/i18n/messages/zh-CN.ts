@@ -1359,6 +1359,7 @@ export const zhCN: MessageCatalog = {
   "readerTheme.newSuffix": "：新主题",
   "readerTheme.name": "主题名称",
   "readerTheme.delete": "删除主题",
+  "readerTheme.actions": "{name}的操作",
   "fonts.loadFailed": "无法加载已下载的字体。请重试。",
   "fonts.desktopOnly": "下载字体需要桌面应用。",
   "fonts.downloadFailed": "下载失败。请检查网络连接后重试。",

@@ -920,10 +920,6 @@
   grid-template-columns: 2.25rem minmax(0, 1fr);
 }
 
-.reader-custom-theme__delete.button {
-  align-self: flex-end;
-}
-
 .reader-reading-area {
   /* A light scheme keeps the book's iframe transparent over the page in the dark theme
      and in dark Reader themes. */

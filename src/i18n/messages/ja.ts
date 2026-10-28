@@ -1445,6 +1445,7 @@ export const ja: MessageCatalog = {
   "readerTheme.newSuffix": "：新しいテーマ",
   "readerTheme.name": "テーマ名",
   "readerTheme.delete": "テーマを削除",
+  "readerTheme.actions": "{name}の操作",
   "fonts.loadFailed": "ダウンロードしたフォントを読み込めませんでした。再試行してください。",
   "fonts.desktopOnly": "フォントのダウンロードにはデスクトップアプリが必要です。",
   "fonts.downloadFailed": "ダウンロードに失敗しました。接続を確認して再試行してください。",

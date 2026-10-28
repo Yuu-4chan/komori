@@ -17,7 +17,7 @@ three, while the Reader keeps it for bookmarks.
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;
 grid/list, search, status filters, Cards details, sort and direction, which order groups too; grouping by series
-or language as carousels with See all pages, which a card's series or language chip opens too; Series from titles in Settings > General, off
+or language as carousels with See all pages, which keep a saved sort of their own and which a card's series or language chip opens too; Series from titles in Settings > General, off
 by default, puts numbered volumes sharing a title (`Title 01`, `Title 02`) in a series when
 the books name none; Mark as completed from a card's menu or the selection; per-card selection boxes
 (Continue reading stays while selecting) with bulk removal,
@@ -202,7 +202,7 @@ Application themes: Light, Dark, Sakura, Matcha, Hojicha, Midnight, Ember, Fores
 custom theme (Light/Dark base, Background, Surface, Text, Accent). Reader themes are
 separate: Paper, Sepia, Night, Sakura, Matcha, Hojicha, Solarized, Nord, Gruvbox, Rosé
 Pine, Tokyo Night and Catppuccin Latte, Frappé, Macchiato and Mocha, plus named custom
-themes. Custom Reader themes are structured values, never arbitrary CSS.
+themes, each deleted from its swatch's context menu. Custom Reader themes are structured values, never arbitrary CSS.
 
 ## Responsive targets
 
