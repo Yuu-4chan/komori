@@ -856,6 +856,8 @@ export const zhCN: MessageCatalog = {
   "library.removeDialogTitle": "要从Komori中移除这本书吗？",
   "library.markingUnread": "正在标记为未读…",
   "library.markUnread": "标记为未读",
+  "library.markCompleted": "标记为已读完",
+  "library.completeFailed": "无法标记为已读完：{error}",
   "library.unreadDescription":
     "Komori会忘记你在这本书中的位置和进度，使其从头打开，统计中也不再将其算作读完。已记录的阅读时间会保留。",
   "library.unreadTitle": "要将这本书标记为未读吗？",

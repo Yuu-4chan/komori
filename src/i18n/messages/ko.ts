@@ -918,6 +918,8 @@ export const ko: MessageCatalog = {
   "library.removeDialogTitle": "이 책을 Komori에서 제거할까요?",
   "library.markingUnread": "읽지 않음으로 표시하는 중…",
   "library.markUnread": "읽지 않음으로 표시",
+  "library.markCompleted": "다 읽음으로 표시",
+  "library.completeFailed": "다 읽음으로 표시하지 못했습니다: {error}",
   "library.unreadDescription":
     "이 책의 위치와 진행률을 지워 처음부터 열리게 하고, 통계에서도 다 읽은 책으로 세지 않습니다. 이미 기록된 읽은 시간은 남습니다.",
   "library.unreadTitle": "이 책을 읽지 않음으로 표시할까요?",

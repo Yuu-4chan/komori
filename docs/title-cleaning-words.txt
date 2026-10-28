@@ -1,0 +1,244 @@
+# Store, edition, bonus and sales words removed from book titles with the brackets around them,
+# when the brackets hold nothing but these words: 【電子版】, (Kindle版), ［特典付き］ and
+# 【BOOK☆WALKER限定 特典付き】 go, while ＜キャバルリィ＞, （上） and 【朗報】 stay, and so does
+# a word outside brackets, as in ゲーマーズ！. Full-width and half-width letters, digits and
+# spaces count as the same, and so do upper and lower case. A line starting with * names an
+# ending: brackets holding a label that ends with it, such as (HJ文庫) or (カドカワBOOKS), go too.
+
+# Stores
+BOOK☆WALKER
+BOOKWALKER
+ブックウォーカー
+Kindle
+Amazon Kindle
+Kindle版
+Amazon.co.jp
+Amazon
+楽天Kobo
+Rakuten Kobo
+Kobo
+楽天ブックス
+ebookjapan
+イーブックジャパン
+コミックシーモア
+シーモア
+BookLive!
+BookLive
+ブックライブ
+honto
+DMMブックス
+DMM Books
+Renta!
+Renta
+レンタ
+ピッコマ
+LINEマンガ
+マンガBANG!
+めちゃコミック
+まんが王
+Reader Store
+どこでも読書
+紀伊國屋書店
+紀伊國屋ウェブストア
+丸善ジュンク堂書店
+アニメイト
+animate
+ゲーマーズ
+とらのあな
+メロンブックス
+TSUTAYA
+楽天市場
+Yahoo!ショッピング
+セブンネットショッピング
+ヨドバシ.com
+Google Play
+Apple Books
+Nook
+
+# Editions
+通常版
+通常盤
+特装版
+特別版
+限定版
+初回限定版
+初回生産限定版
+初回限定特装版
+完全限定版
+豪華版
+豪華特装版
+完全版
+愛蔵版
+新装版
+改訂版
+増補版
+新版
+文庫
+文庫版
+電子
+電子版
+電子書籍版
+電子書籍
+電子コミック
+電子書籍限定
+電子限定版
+電子限定特装版
+電子特装版
+電子特別版
+電子豪華版
+紙版
+単行本
+コミックス版
+合本版
+分冊版
+廉価版
+復刻版
+新訂版
+決定版
+保存版
+普及版
+上製版
+並製版
+カラーイラスト版
+初版
+第1版
+第1刷
+
+# Bonuses
+特典
+特典付き
+特典付属
+特典付き限定版
+小冊子付き
+小冊子付き特装版
+イラスト特典付
+SS
+SS付き
+描き下ろし付き
+店舗特典
+書店特典
+購入特典
+限定特典
+電子限定特典
+電子書店限定特典
+電子版限定特典
+電子書店共通特典
+購入者特典
+予約特典
+先着特典
+全巻購入特典
+有償特典
+特典あり
+特典なし
+あとがき
+
+# Limited releases
+限定
+店舗限定
+書店限定
+店舗限定版
+書店限定版
+法人限定
+通販限定
+オンライン限定
+電子限定
+配信限定
+BOOK☆WALKER限定
+Kindle限定
+アニメイト限定
+ゲーマーズ限定
+とらのあな限定
+メロンブックス限定
+
+# Extras
+描き下ろし
+描き下ろし漫画
+描き下ろしイラスト
+描き下ろしSS
+書き下ろし
+書き下ろしSS
+特典ペーパー
+イラストカード
+ポストカード
+クリアファイル付き
+アクリルスタンド付き
+
+# Sales
+販売中
+発売中
+好評発売中
+先行販売
+先行配信
+独占配信
+独占販売
+期間限定
+数量限定
+予約受付中
+予約限定
+販売元
+発売元
+発行元
+配信元
+電子配信
+店頭販売
+オンライン販売
+再販
+重版
+絶版
+
+# English
+Light Novel
+Light Novels
+LN
+Web Novel
+Novel
+Manga
+J-Novel Club
+J-Novel
+J-Novel Heart
+JNC
+Kindle Edition
+eBook
+E-book
+Digital
+Digital Edition
+English
+English Edition
+Premium Edition
+Deluxe Edition
+Special Edition
+Limited Edition
+Collector's Edition
+Collectors Edition
+Omnibus
+Omnibus Edition
+Complete Edition
+Illustrated
+Illustrated Edition
+Unabridged
+Bonus Short Story
+With Bonus Short Story
+Yen Press
+Yen On
+Seven Seas
+Seven Seas Entertainment
+Cross Infinite World
+Kodansha
+VIZ Media
+Tokyopop
+One Peace Books
+Hanashi Media
+Tentai Books
+Sol Press
+
+# Label endings
+*文庫
+*新書
+*ノベル
+*ノベルス
+*ノベルズ
+*ブックス
+*コミックス
+*新文芸
+*BOOKS
+*NOVELS

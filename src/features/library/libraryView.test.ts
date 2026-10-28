@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { LibraryBook } from "./libraryApi";
 import {
+  type LibrarySort,
   groupBooks,
   languageName,
   lastReadLabel,
@@ -190,6 +191,53 @@ describe("language names", () => {
       ["Chinese Simplified", 2],
       ["Chinese Traditional", 1],
       ["Japanese", 2],
+    ]);
+  });
+
+  it("orders groups as the sort orders books, books without a group last", () => {
+    const books = [
+      book("a1", {
+        series: "Alpha",
+        importedAt: "2026-09-01T00:00:00Z",
+        lastReadAt: "2026-10-01T00:00:00Z",
+        progress: characters(40, 100),
+        characters: 100,
+      }),
+      book("b1", { series: "Beta", importedAt: "2026-09-05T00:00:00Z", characters: 500 }),
+      book("g1", {
+        series: "Gamma",
+        seriesIndex: 1,
+        importedAt: "2026-09-03T00:00:00Z",
+        lastReadAt: "2026-10-05T00:00:00Z",
+        progress: characters(100, 100),
+      }),
+      book("g2", { series: "Gamma", seriesIndex: 2, characters: 50 }),
+      book("n1", { lastReadAt: "2026-10-10T00:00:00Z", progress: characters(90, 100) }),
+    ];
+    const order = (sort: LibrarySort, reversed = false) =>
+      groupBooks(books, "series", sort, reversed).map((section) => section.key);
+    expect(order("title")).toEqual(["series:Alpha", "series:Beta", "series:Gamma", "series:"]);
+    expect(order("title", true)).toEqual([
+      "series:Gamma",
+      "series:Beta",
+      "series:Alpha",
+      "series:",
+    ]);
+    expect(order("recent")).toEqual(["series:Gamma", "series:Alpha", "series:Beta", "series:"]);
+    expect(order("recent", true)).toEqual([
+      "series:Alpha",
+      "series:Gamma",
+      "series:Beta",
+      "series:",
+    ]);
+    expect(order("added")).toEqual(["series:Beta", "series:Gamma", "series:Alpha", "series:"]);
+    expect(order("progress")).toEqual(["series:Gamma", "series:Alpha", "series:Beta", "series:"]);
+    expect(order("characters")).toEqual(["series:Beta", "series:Alpha", "series:Gamma", "series:"]);
+    expect(order("words")).toEqual(["series:Alpha", "series:Beta", "series:Gamma", "series:"]);
+    // A series keeps its volumes in order whatever the sort.
+    expect(groupBooks(books, "series", "recent", true)[1]?.books.map((item) => item.id)).toEqual([
+      "g1",
+      "g2",
     ]);
   });
 });

@@ -986,6 +986,8 @@ export const ptBR: MessageCatalog = {
   "library.removeDialogTitle": "Remover este livro do Komori?",
   "library.markingUnread": "Marcando como não lido…",
   "library.markUnread": "Marcar como não lido",
+  "library.markCompleted": "Marcar como concluído",
+  "library.completeFailed": "Não foi possível marcar os livros como concluídos: {error}",
   "library.unreadDescription":
     "O Komori esquece onde você está neste livro e o progresso dele, então ele abre no início, e as Estatísticas deixam de contá-lo como concluído. O tempo de leitura já registrado continua.",
   "library.unreadTitle": "Marcar este livro como não lido?",

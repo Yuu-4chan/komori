@@ -527,6 +527,7 @@ pub(crate) fn open_catalog(path: &Path) -> Result<Connection, String> {
     crate::library_folders::create_tables(&connection)?;
     crate::reader_notes::create_tables(&connection)?;
     crate::reader_background::create_table(&connection)?;
+    crate::title_cleaning::refresh_catalog(&connection)?;
     Ok(connection)
 }
 
@@ -1635,7 +1636,7 @@ pub(crate) mod tests {
             .unwrap();
         for (name, title) in [
             ("only-tags", Some("【電子版】(GA文庫) ")),
-            ("unrelated", Some("題名  (別の文庫)！")),
+            ("unrelated", Some("題名  (別の本)！")),
             ("missing-title", None),
         ] {
             connection

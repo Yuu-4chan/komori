@@ -2,6 +2,7 @@ import { useI18n } from "../../i18n/i18n";
 import {
   ArrowCounterClockwiseIcon,
   BookOpenIcon,
+  CheckCircleIcon,
   ClockCounterClockwiseIcon,
   DotsThreeIcon,
   LinkSimpleIcon,
@@ -22,6 +23,7 @@ import { BookCover } from "./BookCover";
 import { useCardTabStop } from "./cardRoving";
 import type { LibraryBook } from "./libraryApi";
 import {
+  canMarkCompleted,
   languageName,
   lastReadLabel,
   progressLabel,
@@ -54,6 +56,8 @@ interface LibraryBookCardProps {
   onRemove: (book: LibraryBook) => void;
   /** Asks to reset an opened book's progress and position. */
   onMarkUnread?: (book: LibraryBook) => void;
+  /** Moves an unfinished book's progress to its end. */
+  onMarkCompleted?: (book: LibraryBook) => void;
   relinkDisabled: boolean;
   relinking: boolean;
   onSelect: (id: string, gesture: SelectGesture) => void;
@@ -105,6 +109,7 @@ export const LibraryBookCard = memo(function LibraryBookCard({
   onRelink,
   onRemove,
   onMarkUnread,
+  onMarkCompleted,
   relinkDisabled,
   relinking,
   onSelect,
@@ -334,6 +339,16 @@ export const LibraryBookCard = memo(function LibraryBookCard({
               disabled: relinkDisabled || busy,
               onSelect: () => onRelink(book),
             },
+            ...(onMarkCompleted && canMarkCompleted(book)
+              ? [
+                  {
+                    label: t("library.markCompleted"),
+                    icon: <CheckCircleIcon aria-hidden="true" />,
+                    disabled: busy,
+                    onSelect: () => onMarkCompleted(book),
+                  },
+                ]
+              : []),
             ...(onMarkUnread && (book.progress || book.lastReadAt)
               ? [
                   {
