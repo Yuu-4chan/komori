@@ -144,6 +144,9 @@ export const ja: MessageCatalog = {
   "autoscroll.hint": "クリックかEscで止まります。",
   "librarySettings.cardSize": "表紙の大きさ",
   "librarySettings.cardSizeHint": "本の表紙の最小の幅。",
+  "librarySettings.seriesFromTitles": "タイトルからシリーズ",
+  "librarySettings.seriesFromTitlesHint":
+    "シリーズのない本は、「タイトル01」と「タイトル02」のように番号だけが違う巻でシリーズになります。",
   "unit.px": "px",
   "operation.busy": "別の処理を実行中です。終わってからもう一度お試しください。",
   "operation.failed":
@@ -923,6 +926,8 @@ export const ja: MessageCatalog = {
   "library.removeDialogTitle": "この本をKomoriから削除しますか？",
   "library.markingUnread": "未読にしています…",
   "library.markUnread": "未読にする",
+  "library.markCompleted": "読了にする",
+  "library.completeFailed": "読了にできませんでした：{error}",
   "library.unreadDescription":
     "この本の読書位置と進み具合を消去して最初から開くようにし、統計でも読了として数えなくなります。記録済みの読書時間は残ります。",
   "library.unreadTitle": "この本を未読にしますか？",

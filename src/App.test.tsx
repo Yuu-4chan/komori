@@ -822,7 +822,7 @@ describe("Komori foundation", () => {
     expect(screen.getByRole("textbox", { name: "Popup width" })).toHaveValue("800");
   });
 
-  it("saves the Library card size in Settings and sizes the Library's grid with it", async () => {
+  it("saves the Library card size and series from titles in Settings and sizes the grid", async () => {
     const user = userEvent.setup();
     const save = vi.fn(async () => {});
     render(
@@ -843,6 +843,16 @@ describe("Komori foundation", () => {
     await user.clear(size);
     await user.type(size, "999{Enter}");
     expect(size).toHaveValue("480");
+    // Series from titles stays off until chosen.
+    const titles = screen.getByRole("button", { name: "Series from titles" });
+    expect(titles).toHaveAttribute("aria-pressed", "false");
+    await user.click(titles);
+    await waitFor(() =>
+      expect(save).toHaveBeenLastCalledWith(
+        expect.objectContaining({ libraryCardSize: 480, librarySeriesFromTitles: true }),
+      ),
+    );
+    expect(titles).toHaveAttribute("aria-pressed", "true");
     await user.click(screen.getByRole("link", { name: "Library" }));
     expect(
       (document.querySelector(".page--library") as HTMLElement).style.getPropertyValue(
@@ -853,6 +863,8 @@ describe("Komori foundation", () => {
     expect(normalizeAppearancePreferences({ libraryCardSize: 90 })).toEqual({});
     expect(normalizeAppearancePreferences({ librarySort: "pages" })).toEqual({});
     expect(defaultAppearance.libraryCardSize).toBe(180);
+    expect(normalizeAppearancePreferences({ librarySeriesFromTitles: "on" })).toEqual({});
+    expect(defaultAppearance.librarySeriesFromTitles).toBe(false);
   });
 
   it("defaults missing popup sizes and drops invalid saved dimensions independently", () => {

@@ -11,13 +11,14 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use uuid::Uuid;
 
 use crate::{
-    book_details,
+    appearance_preferences, book_details,
     bulk_progress::{
         compaction_needed, reclaim, BatchProgress, RemovalBatch, COMPACTION_MINIMUM_FREE,
     },
     covers,
     dictionary::store::CompactionResult,
     epub,
+    title_series::{self, TitledBook},
 };
 
 const SCHEMA_VERSION: i64 = 7;
@@ -48,7 +49,8 @@ pub struct LibraryBook {
     last_read_at: Option<String>,
     /// The book's shown language tag (`ja`, `zh-Hant`, `en`), when known.
     language: Option<String>,
-    /// The series set by hand, or else the book's own.
+    /// The series set by hand, or else the book's own, or else (when the Library names series
+    /// from titles) one its title shares with other volumes.
     series: Option<String>,
     series_index: Option<f64>,
     /// Whether the series (or having none) was set by hand.
@@ -525,6 +527,7 @@ pub(crate) fn open_catalog(path: &Path) -> Result<Connection, String> {
     crate::library_folders::create_tables(&connection)?;
     crate::reader_notes::create_tables(&connection)?;
     crate::reader_background::create_table(&connection)?;
+    crate::title_cleaning::refresh_catalog(&connection)?;
     Ok(connection)
 }
 
@@ -558,7 +561,27 @@ pub(crate) fn list_from_catalog(connection: &Connection) -> Result<Vec<LibraryBo
     let rows = statement
         .query_map([], library_book_from_row)
         .map_err(storage_error)?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(storage_error)
+    let mut books = rows.collect::<Result<Vec<_>, _>>().map_err(storage_error)?;
+    if appearance_preferences::series_from_titles(connection) {
+        let named = title_series::series_from_titles(
+            &books
+                .iter()
+                .map(|book| TitledBook {
+                    title: book.title.as_deref(),
+                    series: book.series.as_deref(),
+                    series_index: book.series_index,
+                    series_manual: book.series_manual,
+                })
+                .collect::<Vec<_>>(),
+        );
+        for (book, named) in books.iter_mut().zip(named) {
+            if let Some((series, index)) = named {
+                book.series = Some(series);
+                book.series_index = Some(index);
+            }
+        }
+    }
+    Ok(books)
 }
 
 fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<LibraryBook>, String> {
@@ -566,14 +589,76 @@ fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<Lib
     if Uuid::parse_str(id).is_err() {
         return Ok(None);
     }
-    connection
+    let mut book = connection
         .query_row(
             &format!("SELECT {BOOK_COLUMNS} FROM {BOOK_SOURCE} WHERE books.id = ?1"),
             [id],
             library_book_from_row,
         )
         .optional()
-        .map_err(storage_error)
+        .map_err(storage_error)?;
+    if let Some(book) = book
+        .as_mut()
+        .filter(|book| book.series.is_none() && !book.series_manual)
+    {
+        if appearance_preferences::series_from_titles(connection) {
+            if let Some((series, index)) = series_from_catalog_titles(connection, id)? {
+                book.series = Some(series);
+                book.series_index = Some(index);
+            }
+        }
+    }
+    Ok(book)
+}
+
+/// The series one book's title names among every title in the catalog, read without the
+/// rest of each book so the Reader opens as quickly as before.
+fn series_from_catalog_titles(
+    connection: &Connection,
+    id: &str,
+) -> Result<Option<(String, f64)>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT books.id, books.title,
+                    CASE WHEN manual.book_id IS NULL THEN details.series
+                         ELSE manual.series END,
+                    CASE WHEN manual.book_id IS NULL THEN details.series_index
+                         ELSE manual.series_index END,
+                    manual.book_id IS NOT NULL
+             FROM books
+             LEFT JOIN book_details AS details ON details.book_id = books.id
+             LEFT JOIN book_series AS manual ON manual.book_id = books.id
+             ORDER BY books.imported_at DESC, books.id DESC",
+        )
+        .map_err(storage_error)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, Option<String>>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, Option<f64>>(3)?,
+                row.get::<_, bool>(4)?,
+            ))
+        })
+        .map_err(storage_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(storage_error)?;
+    let Some(position) = rows.iter().position(|(book, ..)| book == id) else {
+        return Ok(None);
+    };
+    let books: Vec<TitledBook<'_>> = rows
+        .iter()
+        .map(
+            |(_, title, series, series_index, series_manual)| TitledBook {
+                title: title.as_deref(),
+                series: series.as_deref(),
+                series_index: *series_index,
+                series_manual: *series_manual,
+            },
+        )
+        .collect();
+    Ok(title_series::series_from_titles(&books).swap_remove(position))
 }
 
 fn library_book_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LibraryBook> {
@@ -1551,7 +1636,7 @@ pub(crate) mod tests {
             .unwrap();
         for (name, title) in [
             ("only-tags", Some("【電子版】(GA文庫) ")),
-            ("unrelated", Some("題名  (別の文庫)！")),
+            ("unrelated", Some("題名  (別の本)！")),
             ("missing-title", None),
         ] {
             connection
@@ -2180,6 +2265,99 @@ pub(crate) mod tests {
         std::fs::remove_file(&source).unwrap();
         let missing = get_book_from_catalog(&connection, &id).unwrap().unwrap();
         assert_eq!(missing.availability, "missing");
+    }
+
+    #[test]
+    fn series_from_titles_names_volumes_only_when_chosen_and_after_series_set_by_hand() {
+        let directory = tempdir().unwrap();
+        let titles = [
+            "Cat Tales 01",
+            "Cat Tales 02",
+            "Cat Tales 03",
+            "Cat Tales 04",
+            "Lone Book 01",
+        ];
+        let sources: Vec<PathBuf> = titles
+            .iter()
+            .enumerate()
+            .map(|(index, title)| {
+                let source = directory.path().join(format!("{index}.epub"));
+                fixture(&source, Some(title), None, false);
+                source
+            })
+            .collect();
+        let mut connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        import_paths(&mut connection, &sources);
+        let shown = |connection: &Connection| -> BTreeMap<String, (Option<String>, Option<f64>)> {
+            list_from_catalog(connection)
+                .unwrap()
+                .into_iter()
+                .map(|book| (book.title.unwrap(), (book.series, book.series_index)))
+                .collect()
+        };
+        let id_of = |title: &str| {
+            list_from_catalog(&connection)
+                .unwrap()
+                .into_iter()
+                .find(|book| book.title.as_deref() == Some(title))
+                .unwrap()
+                .id
+        };
+        let (second, third, fourth) = (
+            id_of("Cat Tales 02"),
+            id_of("Cat Tales 03"),
+            id_of("Cat Tales 04"),
+        );
+        // Off by default.
+        assert!(shown(&connection)
+            .values()
+            .all(|(series, _)| series.is_none()));
+
+        // No series by hand for one volume, and the series by hand for another.
+        connection
+            .execute(
+                "INSERT INTO book_series (book_id, series, series_index)
+                 VALUES (?1, NULL, NULL), (?2, 'Cat Tales', 9)",
+                params![third, fourth],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO preferences (name, value) VALUES ('appearance', ?1)",
+                [r#"{"librarySeriesFromTitles":true}"#],
+            )
+            .unwrap();
+        let cat_tales = |index| (Some("Cat Tales".to_owned()), Some(index));
+        assert_eq!(
+            shown(&connection).into_values().collect::<Vec<_>>(),
+            vec![
+                cat_tales(1.0),
+                cat_tales(2.0),
+                (None, None),
+                cat_tales(9.0),
+                (None, None)
+            ]
+        );
+        // The Reader's lookup of one book agrees with the Library.
+        let book = get_book_from_catalog(&connection, &second)
+            .unwrap()
+            .unwrap();
+        assert_eq!((book.series, book.series_index), cat_tales(2.0));
+        assert!(!book.series_manual);
+        let book = get_book_from_catalog(&connection, &third).unwrap().unwrap();
+        assert_eq!(book.series, None);
+
+        connection
+            .execute(
+                "UPDATE preferences SET value = ?1",
+                [r#"{"librarySeriesFromTitles":false}"#],
+            )
+            .unwrap();
+        assert_eq!(shown(&connection)["Cat Tales 01"], (None, None));
+        let book = get_book_from_catalog(&connection, &second)
+            .unwrap()
+            .unwrap();
+        assert_eq!(book.series, None);
     }
 
     #[test]

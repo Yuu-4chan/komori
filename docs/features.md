@@ -16,11 +16,17 @@ three, while the Reader keeps it for bookmarks.
 ## Library
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;
-grid/list, search, status filters, Cards details, sort and direction; grouping by series
-or language as carousels with See all pages; per-card selection boxes with bulk removal,
+grid/list, search, status filters, Cards details, sort and direction, which order groups too; grouping by series
+or language as carousels with See all pages, which a card's series or language chip opens too; Series from titles in Settings > General, off
+by default, puts numbered volumes sharing a title (`Title 01`, `Title 02`) in a series when
+the books name none; Mark as completed from a card's menu or the selection; per-card selection boxes
+(Continue reading stays while selecting) with bulk removal,
 relink and import with native progress. Drop EPUB files from Windows Explorer anywhere
 on the Library to add them; a drag overlay shows the accepted file type or a busy
 operation, and imports report progress and per-file outcomes. Authors show in full, wrapping long names.
+Titles drop store, edition and bonus tags in brackets, such as 【電子版】, (Kindle版), (HJ文庫) or
+(Light Novel), in full- or half-width brackets (even mixed, as in （電子版)), keeping a title's own
+bracketed words such as （上）.
 Words take the place of characters for western books everywhere (sort, summary, cards,
 Statistics). Book folders and the card size are in Settings > General; removing a folder
 forgets the books it met that are no longer in the Library, so adding it again brings them
@@ -171,7 +177,7 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   and Idle after 5 minutes without reading or using the page, or with nothing to show.
 
 The application and Reader themes default to Hojicha. The Library initially sorts
-by Title and shows Series, Language, Last read and Unique kanji. Reader popup mouse
+by Title and shows Series, Language, Last read and Unique kanji, without series from titles. Reader popup mouse
 selection defaults off, with 0 ms scan delay, 5 results and 5 child popup levels.
 The Reader shows its clock and book position/percentage, with chapter
 position/percentage off.

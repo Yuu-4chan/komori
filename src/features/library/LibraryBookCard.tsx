@@ -2,6 +2,7 @@ import { useI18n } from "../../i18n/i18n";
 import {
   ArrowCounterClockwiseIcon,
   BookOpenIcon,
+  CheckCircleIcon,
   ClockCounterClockwiseIcon,
   DotsThreeIcon,
   LinkSimpleIcon,
@@ -10,8 +11,16 @@ import {
   TrashIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { memo, useCallback, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  memo,
+  useCallback,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -22,12 +31,15 @@ import { BookCover } from "./BookCover";
 import { useCardTabStop } from "./cardRoving";
 import type { LibraryBook } from "./libraryApi";
 import {
+  canMarkCompleted,
+  groupPageLink,
   languageName,
   lastReadLabel,
   progressLabel,
   progressPercent,
   readingStatus,
   readTotalLabel,
+  shownLanguage,
   type LibraryView,
 } from "./libraryView";
 
@@ -54,6 +66,8 @@ interface LibraryBookCardProps {
   onRemove: (book: LibraryBook) => void;
   /** Asks to reset an opened book's progress and position. */
   onMarkUnread?: (book: LibraryBook) => void;
+  /** Moves an unfinished book's progress to its end. */
+  onMarkCompleted?: (book: LibraryBook) => void;
   relinkDisabled: boolean;
   relinking: boolean;
   onSelect: (id: string, gesture: SelectGesture) => void;
@@ -105,6 +119,7 @@ export const LibraryBookCard = memo(function LibraryBookCard({
   onRelink,
   onRemove,
   onMarkUnread,
+  onMarkCompleted,
   relinkDisabled,
   relinking,
   onSelect,
@@ -112,6 +127,8 @@ export const LibraryBookCard = memo(function LibraryBookCard({
   selectionMode,
 }: LibraryBookCardProps) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const page = params.get("group");
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const { t, number } = useI18n();
 
@@ -174,6 +191,28 @@ export const LibraryBookCard = memo(function LibraryBookCard({
     if (!event.ctrlKey && !event.metaKey && !event.shiftKey) return;
     event.preventDefault();
     onSelect(book.id, event.shiftKey ? "range" : "toggle");
+  }
+
+  // A series or language chip opens its group's page, except on that page or while selecting,
+  // when a click selects the card as anywhere else on it.
+  function groupChip(key: string, title: string, children: ReactNode) {
+    if (selectionMode || key === page)
+      return (
+        <span className="library-book__chip" title={title}>
+          {children}
+        </span>
+      );
+    return (
+      <Link
+        className="library-book__chip library-book__chip--link"
+        onClick={selectFromLink}
+        tabIndex={-1}
+        title={title}
+        to={groupPageLink(key)}
+      >
+        {children}
+      </Link>
+    );
   }
 
   function toggleActions(event: MouseEvent<HTMLButtonElement>) {
@@ -255,21 +294,26 @@ export const LibraryBookCard = memo(function LibraryBookCard({
         </div>
         {hasChips ? (
           <div className="library-book__chips">
-            {series ? (
-              <span className="library-book__chip" title={t("libraryCard.seriesTitle", { series })}>
-                <StackIcon aria-hidden="true" />
-                <span className="library-book__chip-text">{series}</span>
-              </span>
-            ) : null}
-            {language ? (
-              <span
-                className="library-book__chip"
-                title={t("libraryCard.languageTitle", { language })}
-              >
-                <TranslateIcon aria-hidden="true" />
-                {language}
-              </span>
-            ) : null}
+            {series
+              ? groupChip(
+                  `series:${series}`,
+                  t("libraryCard.seriesTitle", { series }),
+                  <>
+                    <StackIcon aria-hidden="true" />
+                    <span className="library-book__chip-text">{series}</span>
+                  </>,
+                )
+              : null}
+            {language && book.language
+              ? groupChip(
+                  `language:${shownLanguage(book.language)}`,
+                  t("libraryCard.languageTitle", { language }),
+                  <>
+                    <TranslateIcon aria-hidden="true" />
+                    {language}
+                  </>,
+                )
+              : null}
             {kanji !== null ? (
               <span
                 className="library-book__chip"
@@ -334,6 +378,16 @@ export const LibraryBookCard = memo(function LibraryBookCard({
               disabled: relinkDisabled || busy,
               onSelect: () => onRelink(book),
             },
+            ...(onMarkCompleted && canMarkCompleted(book)
+              ? [
+                  {
+                    label: t("library.markCompleted"),
+                    icon: <CheckCircleIcon aria-hidden="true" />,
+                    disabled: busy,
+                    onSelect: () => onMarkCompleted(book),
+                  },
+                ]
+              : []),
             ...(onMarkUnread && (book.progress || book.lastReadAt)
               ? [
                   {

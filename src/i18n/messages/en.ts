@@ -153,6 +153,9 @@ export const en = {
   "autoscroll.hint": "Click or press Escape to stop.",
   "librarySettings.cardSize": "Card size",
   "librarySettings.cardSizeHint": "The narrowest a book card may be.",
+  "librarySettings.seriesFromTitles": "Series from titles",
+  "librarySettings.seriesFromTitlesHint":
+    "Numbered volumes sharing a title, like “Title 01” and “Title 02”, form a series when the books name none.",
   "unit.px": "px",
 
   // Bulk operations
@@ -998,6 +1001,8 @@ export const en = {
   "library.removeDialogTitle": "Remove this book from Komori?",
   "library.markingUnread": "Marking as unread…",
   "library.markUnread": "Mark as unread",
+  "library.markCompleted": "Mark as completed",
+  "library.completeFailed": "Could not mark as completed: {error}",
   "library.unreadDescription":
     "Komori forgets where you are in this book and its progress, so it opens at the start, and Statistics no longer counts it as finished. Reading time already recorded stays.",
   "library.unreadTitle": "Mark this book as unread?",

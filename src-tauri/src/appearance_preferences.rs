@@ -335,6 +335,8 @@ pub struct AppearancePreferences {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     library_card_size: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    library_series_from_titles: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     accent_color: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_wheel_step: Option<i64>,
@@ -843,6 +845,7 @@ impl AppearancePreferences {
             library_group: choice("libraryGroup", &LIBRARY_GROUPS),
             library_card_size: number("libraryCardSize")
                 .filter(|size| valid_library_card_size(*size)),
+            library_series_from_titles: flag("librarySeriesFromTitles"),
             accent_color: text("accentColor")
                 .filter(|color| valid_accent(color))
                 .map(str::to_owned),
@@ -1030,6 +1033,14 @@ pub(crate) fn app_icon(database: &Path) -> Option<String> {
     load(database)
         .ok()
         .and_then(|preferences| preferences.app_icon)
+}
+
+/// Whether the Library gives books without a series one from their titles; off unless chosen.
+pub(crate) fn series_from_titles(connection: &Connection) -> bool {
+    load_from(connection)
+        .ok()
+        .and_then(|preferences| preferences.library_series_from_titles)
+        .unwrap_or(false)
 }
 
 fn load(database: &Path) -> Result<AppearancePreferences, String> {
@@ -1517,6 +1528,7 @@ mod tests {
             library_card_kanji: None,
             library_group: None,
             library_card_size: None,
+            library_series_from_titles: None,
             accent_color: Some(accent.into()),
             reader_wheel_step: Some(wheel_step),
             middle_click_autoscroll: None,
@@ -3045,6 +3057,7 @@ mod tests {
             library_card_kanji: Some(false),
             library_group: Some("series".into()),
             library_card_size: Some(240),
+            library_series_from_titles: Some(true),
             ..preferences("custom", "#2f8f83", 200, 20)
         };
         assert!(save_to(&connection, &chosen).unwrap());
@@ -3126,7 +3139,8 @@ mod tests {
                         "libraryCardLastRead": false,
                         "libraryCardKanji": true,
                         "libraryGroup": "publisher",
-                        "libraryCardSize": 135
+                        "libraryCardSize": 135,
+                        "librarySeriesFromTitles": "on"
                     })
                     .to_string(),
                     RECORD_NAME
@@ -3144,6 +3158,8 @@ mod tests {
         assert_eq!(loaded.library_card_kanji, Some(true));
         assert_eq!(loaded.library_group, None);
         assert_eq!(loaded.library_card_size, None);
+        assert_eq!(loaded.library_series_from_titles, None);
+        assert!(!series_from_titles(&connection));
         // The retired Pages sort loads as no saved sort.
         let stored = serde_json::json!({ "librarySort": "pages", "libraryCardSize": 300 });
         let kept = AppearancePreferences::from_stored(&stored);

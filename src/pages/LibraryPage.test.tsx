@@ -11,6 +11,7 @@ import {
   postLibraryFiles,
   listLibrary,
   markBookUnread,
+  markBooksCompleted,
   relinkBook,
   removeBook,
   removeBooks,
@@ -41,6 +42,7 @@ vi.mock("../features/library/libraryApi", () => ({
   listLibrary: vi.fn(),
   relinkBook: vi.fn(),
   markBookUnread: vi.fn(),
+  markBooksCompleted: vi.fn(),
   removeBook: vi.fn(),
   removeBooks: vi.fn(),
   setBookSeries: vi.fn(),
@@ -292,9 +294,11 @@ describe("Library page", () => {
         }
       }
       await userEvent.click(screen.getAllByRole("checkbox", { name: "Select A Quiet Book" })[0]);
-      expect(screen.getByRole("checkbox", { name: "Select A Quiet Book" })).toBeChecked();
-      expect(screen.queryByRole("region", { name: "Continue reading" })).not.toBeInTheDocument();
-      expect(screen.getByText(author)).toBeInTheDocument();
+      // Continue reading stays while selecting, its card chosen with the Library's.
+      for (const box of screen.getAllByRole("checkbox", { name: "Select A Quiet Book" }))
+        expect(box).toBeChecked();
+      expect(screen.getByRole("region", { name: "Continue reading" })).toBeInTheDocument();
+      expect(screen.getAllByText(author)).toHaveLength(2);
     } finally {
       style.remove();
     }
@@ -1230,21 +1234,79 @@ describe("Library page", () => {
       expect(within(library).getByText("1.5K characters")).toBeInTheDocument();
     });
 
-    it("steps Continue reading aside while selecting in the library", async () => {
+    it("keeps Continue reading while selecting, so chosen books stay where they are", async () => {
       const user = userEvent.setup();
-      listMock.mockResolvedValueOnce(shelfBooks);
+      const second = {
+        ...shelfBooks[0],
+        id: "second",
+        title: "Second Book",
+        lastReadAt: "2026-09-26T00:00:00Z",
+      };
+      listMock.mockResolvedValueOnce([...shelfBooks, second]);
       renderPage(
         <MemoryRouter>
           <LibraryPage />
         </MemoryRouter>,
       );
       await screen.findAllByRole("heading", { name: "Halfway Book" });
-      const library = screen.getByRole("region", { name: "Library" });
-      await user.click(within(library).getByRole("checkbox", { name: "Select Unread Book" }));
-      expect(screen.queryByRole("region", { name: "Continue reading" })).not.toBeInTheDocument();
-      expect(screen.getAllByRole("checkbox")).toHaveLength(3);
+      const shelf = screen.getByRole("region", { name: "Continue reading" });
+      await user.click(within(shelf).getByRole("checkbox", { name: "Select Halfway Book" }));
+      // The shelf stays, and a book chosen there is chosen below too.
+      expect(screen.getByRole("region", { name: "Continue reading" })).toBe(shelf);
+      expect(screen.getAllByRole("checkbox", { name: "Select Halfway Book" })).toHaveLength(2);
+      for (const box of screen.getAllByRole("checkbox", { name: "Select Halfway Book" }))
+        expect(box).toBeChecked();
+      // Shift+click ranges over the shelf's own books.
+      await user.keyboard("{Shift>}");
+      await user.click(within(shelf).getByRole("checkbox", { name: "Select Second Book" }));
+      await user.keyboard("{/Shift}");
+      expect(screen.getByText("2 books selected")).toBeInTheDocument();
+      expect(screen.getByRole("checkbox", { name: "Select Unread Book" })).not.toBeChecked();
       await user.click(screen.getByRole("button", { name: "Done selecting" }));
       expect(screen.getByRole("region", { name: "Continue reading" })).toBeInTheDocument();
+    });
+
+    it("marks books completed from a card's menu or the selection", async () => {
+      const user = userEvent.setup();
+      const completed = (book: (typeof shelfBooks)[number], total: number) => ({
+        ...book,
+        progress: { unit: "characters" as const, current: total, total },
+      });
+      listMock
+        .mockResolvedValueOnce(shelfBooks)
+        .mockResolvedValueOnce([completed(shelfBooks[0], 2_000), ...shelfBooks.slice(1)])
+        .mockResolvedValueOnce([
+          completed(shelfBooks[0], 2_000),
+          shelfBooks[1],
+          completed(shelfBooks[2], 1_500),
+        ]);
+      vi.mocked(markBooksCompleted)
+        .mockResolvedValueOnce(["reading"])
+        .mockResolvedValueOnce(["unread"]);
+      renderPage(
+        <MemoryRouter>
+          <LibraryPage />
+        </MemoryRouter>,
+      );
+      await screen.findAllByRole("heading", { name: "Halfway Book" });
+      // A finished book has nothing to complete.
+      await user.click(screen.getByRole("button", { name: "More actions for Finished Book" }));
+      expect(screen.queryByRole("menuitem", { name: "Mark as completed" })).not.toBeInTheDocument();
+      await user.keyboard("{Escape}");
+      await user.click(screen.getAllByRole("button", { name: "More actions for Halfway Book" })[0]);
+      await user.click(screen.getByRole("menuitem", { name: "Mark as completed" }));
+      await waitFor(() => expect(markBooksCompleted).toHaveBeenCalledWith(["reading"]));
+      // Finished, it leaves Continue reading.
+      await waitFor(() =>
+        expect(screen.queryByRole("region", { name: "Continue reading" })).not.toBeInTheDocument(),
+      );
+      await user.click(screen.getByRole("checkbox", { name: "Select Unread Book" }));
+      await user.click(screen.getByRole("button", { name: "Mark as completed" }));
+      await waitFor(() => expect(markBooksCompleted).toHaveBeenLastCalledWith(["unread"]));
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: "Done selecting" })).not.toBeInTheDocument(),
+      );
+      expect(screen.getAllByText("Completed")).toHaveLength(3);
     });
 
     it("shows Continue reading inside the Library, under its heading, until searching or filtering", async () => {
@@ -1515,8 +1577,15 @@ describe("Library page", () => {
         await user.click(screen.getByRole("button", { name: "Reverse sort direction" }));
         expect(libraryTitles().slice(0, 2)).toEqual(["Cat Tales 1", "Cat Tales 2"]);
 
+        // Groups follow the sort and its direction: Title reversed, from Z.
         await user.click(screen.getByRole("button", { name: /^(Group by|No grouping)/ }));
         await user.click(screen.getByRole("menuitemradio", { name: /Language/ }));
+        expect(groups()).toEqual([
+          "Japanese2 books · 220K characters",
+          "English1 book",
+          "Unknown language1 book",
+        ]);
+        await user.click(screen.getByRole("button", { name: "Use normal sort direction" }));
         expect(groups()).toEqual([
           "English1 book",
           "Japanese2 books · 220K characters",
@@ -1574,6 +1643,60 @@ describe("Library page", () => {
         expect(screen.getByRole("link", { name: "See all of Cat Tales" })).toBeInTheDocument();
       });
 
+      it("opens a card's series or language from its chip, which selects while selecting", async () => {
+        const user = userEvent.setup();
+        listMock.mockResolvedValue(detailed);
+        renderPage(
+          <MemoryRouter initialEntries={["/library"]}>
+            <Routes>
+              <Route path="/library" element={<LibraryPage />} />
+            </Routes>
+          </MemoryRouter>,
+        );
+        await screen.findByRole("heading", { name: "Cat Tales 1" });
+        const card = (title: string) =>
+          within(screen.getByRole("heading", { name: title }).closest("article")!);
+        expect(card("Cat Tales 1").getByRole("link", { name: "Cat Tales" })).toHaveAttribute(
+          "href",
+          "/library?group=series%3ACat%20Tales",
+        );
+        expect(card("Cat Tales 1").getByRole("link", { name: "Japanese" })).toHaveAttribute(
+          "href",
+          "/library?group=language%3Aja",
+        );
+        // Unique kanji only shows.
+        expect(
+          card("Cat Tales 1").getByTitle(`${(1700).toLocaleString()} unique kanji`).closest("a"),
+        ).toBeNull();
+
+        await user.click(card("Cat Tales 1").getByRole("link", { name: "Cat Tales" }));
+        const series = await screen.findByRole("region", { name: "Cat Tales" });
+        expect(within(series).getAllByRole("article")).toHaveLength(2);
+        // On its own page the series chip only shows; the language chip still opens.
+        expect(within(series).queryByRole("link", { name: "Cat Tales" })).toBeNull();
+        await user.click(card("Cat Tales 2").getByRole("link", { name: "Japanese" }));
+        const japanese = await screen.findByRole("region", { name: "Japanese" });
+        expect(
+          within(japanese)
+            .getAllByRole("article")
+            .map((article) => within(article).getByRole("heading").textContent)
+            .sort(),
+        ).toEqual(["Cat Tales 1", "Cat Tales 2"]);
+        expect(within(japanese).queryByRole("link", { name: "Japanese" })).toBeNull();
+
+        // Ctrl+click on a chip selects its book, and while selecting a chip click selects.
+        await user.click(screen.getByRole("link", { name: "Library" }));
+        await screen.findByRole("region", { name: "Library" });
+        await user.keyboard("{Control>}");
+        await user.click(card("Cat Tales 1").getByRole("link", { name: "Cat Tales" }));
+        await user.keyboard("{/Control}");
+        expect(screen.getByText("1 book selected")).toBeInTheDocument();
+        expect(card("Cat Tales 2").queryByRole("link", { name: "Japanese" })).toBeNull();
+        await user.click(card("Cat Tales 2").getByTitle("Language: Japanese"));
+        expect(screen.getByText("2 books selected")).toBeInTheDocument();
+        expect(screen.getByRole("region", { name: "Library" })).toBeInTheDocument();
+      });
+
       it("makes the books one Tab stop that the arrows move through, with Space and Shift+F10", async () => {
         const user = userEvent.setup();
         await showLibrary(user);
@@ -1622,7 +1745,7 @@ describe("Library page", () => {
         const articles = () => screen.getAllByRole("article");
         // Ctrl+click on a book starts selecting instead of opening it.
         await user.keyboard("{Control>}");
-        await user.click(within(articles()[0]).getByRole("link"));
+        await user.click(within(articles()[0]).getByRole("link", { name: /^Open / }));
         await user.keyboard("{/Control}");
         expect(screen.getByText("1 book selected")).toBeInTheDocument();
 

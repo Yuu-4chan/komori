@@ -30,6 +30,7 @@ mod reading_position;
 mod reading_sessions;
 mod startup;
 mod title_cleaning;
+mod title_series;
 mod updates;
 mod window_lifecycle;
 mod window_size;
@@ -143,6 +144,7 @@ pub fn run() {
             reading_position::get_reading_position,
             reading_position::save_reading_position,
             reading_position::save_book_progress,
+            reading_position::mark_books_completed,
             reading_sessions::save_reading_session,
             reading_sessions::list_reading_sessions,
             reading_sessions::edit_daily_activity,

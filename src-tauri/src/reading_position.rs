@@ -103,6 +103,57 @@ pub(crate) fn save_progress_to(
         .map_err(storage_error)
 }
 
+/// Marks catalog books completed: each one's progress moves to its end, in the units the Reader
+/// last counted or, for a book never opened, those Komori counted at import. Books Komori has
+/// not counted and unknown IDs are left alone. Returns the IDs marked.
+#[tauri::command]
+pub async fn mark_books_completed(
+    catalog: State<'_, CatalogState>,
+    ids: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let database = catalog.database.clone();
+    tauri::async_runtime::spawn_blocking(move || mark_completed(&open_catalog(&database)?, &ids))
+        .await
+        .map_err(|error| format!("Book progress task failed: {error}"))?
+}
+
+/// Progress already saved keeps its time, so the book still shows when it was last read.
+pub(crate) fn mark_completed(
+    connection: &Connection,
+    ids: &[String],
+) -> Result<Vec<String>, String> {
+    let transaction = connection.unchecked_transaction().map_err(storage_error)?;
+    let mut marked = Vec::new();
+    for id in ids {
+        if Uuid::parse_str(id).is_err() {
+            continue;
+        }
+        let written = transaction
+            .execute(
+                "INSERT INTO book_progress (book_id, unit, current_units, total_units)
+                 SELECT id, unit, units, units FROM (
+                   SELECT books.id AS id,
+                          coalesce(progress.unit, CASE WHEN details.characters > 0
+                                                       THEN 'characters' ELSE 'words' END) AS unit,
+                          coalesce(progress.total_units, nullif(details.characters, 0),
+                                   nullif(details.words, 0)) AS units
+                     FROM books
+                     LEFT JOIN book_progress AS progress ON progress.book_id = books.id
+                     LEFT JOIN book_details AS details ON details.book_id = books.id
+                    WHERE books.id = ?1)
+                  WHERE units > 0
+                 ON CONFLICT(book_id) DO UPDATE SET current_units = excluded.total_units",
+                [id],
+            )
+            .map_err(storage_error)?;
+        if written == 1 {
+            marked.push(id.clone());
+        }
+    }
+    transaction.commit().map_err(storage_error)?;
+    Ok(marked)
+}
+
 fn load(database: &Path, id: &str) -> Result<Option<ReadingPosition>, String> {
     if Uuid::parse_str(id).is_err() {
         return Ok(None);
@@ -288,6 +339,81 @@ mod tests {
             .query_row("SELECT count(*) FROM book_progress", [], |row| row.get(0))
             .unwrap();
         assert_eq!(remaining, 0);
+    }
+
+    #[test]
+    fn marks_books_completed_in_the_units_last_counted_or_counted_at_import() {
+        const WORDS: &str = "33333333-3333-4333-8333-333333333333";
+        const UNCOUNTED: &str = "44444444-4444-4444-8444-444444444444";
+        let directory = tempdir().unwrap();
+        let database = directory.path().join("library.sqlite3");
+        catalog_with_book(&database);
+        let connection = open_catalog(&database).unwrap();
+        for (id, path) in [
+            (WORDS, "C:/private/b.epub"),
+            (UNCOUNTED, "C:/private/c.epub"),
+        ] {
+            connection
+                .execute(
+                    "INSERT INTO books (id, source_path, file_name) VALUES (?1, ?2, 'x.epub')",
+                    [id, path],
+                )
+                .unwrap();
+        }
+        connection
+            .execute(
+                "INSERT INTO book_details (book_id, details_version, characters, words)
+                 VALUES (?1, 1, 900, NULL), (?2, 1, NULL, 250), (?3, 1, 0, NULL)",
+                [ID, WORDS, UNCOUNTED],
+            )
+            .unwrap();
+        // The Reader's count wins over the import's, and the time last read stays.
+        assert!(save_progress_to(&connection, ID, &progress("characters", 120, 480)).unwrap());
+        connection
+            .execute(
+                "UPDATE book_progress SET updated_at = '2026-01-02T03:04:05.000Z'",
+                [],
+            )
+            .unwrap();
+        let ids = [
+            ID,
+            WORDS,
+            UNCOUNTED,
+            "22222222-2222-4222-8222-222222222222",
+            "../library.sqlite3",
+        ]
+        .map(String::from);
+        assert_eq!(
+            mark_completed(&connection, &ids).unwrap(),
+            [ID, WORDS].map(String::from)
+        );
+        let stored: Vec<(String, String, i64, i64)> = connection
+            .prepare(
+                "SELECT book_id, unit, current_units, total_units FROM book_progress
+                  ORDER BY book_id",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(
+            stored,
+            [
+                (ID.into(), "characters".into(), 480, 480),
+                (WORDS.into(), "words".into(), 250, 250)
+            ]
+        );
+        let kept: String = connection
+            .query_row(
+                "SELECT updated_at FROM book_progress WHERE book_id = ?1",
+                [ID],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(kept, "2026-01-02T03:04:05.000Z");
     }
 
     #[test]

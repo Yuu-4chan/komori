@@ -82,6 +82,12 @@ export async function markBookUnread(id: string): Promise<boolean> {
   return invoke<boolean>("mark_book_unread", { id });
 }
 
+/** Moves each book's progress to its end, returning the IDs marked; uncounted books stay. */
+export async function markBooksCompleted(ids: string[]): Promise<string[]> {
+  requireDesktop();
+  return invoke<string[]>("mark_books_completed", { ids });
+}
+
 /** Resolves one catalog record by ID without loading or checking the whole Library. */
 export async function getLibraryBook(id: string): Promise<LibraryBook | null> {
   requireDesktop();

@@ -145,6 +145,9 @@ export const ptBR: MessageCatalog = {
   "autoscroll.hint": "Clique ou pressione Esc para parar.",
   "librarySettings.cardSize": "Tamanho das capas",
   "librarySettings.cardSizeHint": "A largura mínima da capa de um livro.",
+  "librarySettings.seriesFromTitles": "Séries pelos títulos",
+  "librarySettings.seriesFromTitlesHint":
+    "Volumes numerados com o mesmo título, como “Título 01” e “Título 02”, formam uma série quando os livros não indicam nenhuma.",
   "unit.px": "px",
   "operation.busy": "Outra operação ainda está em andamento. Tente novamente quando ela terminar.",
   "operation.failed":
@@ -983,6 +986,8 @@ export const ptBR: MessageCatalog = {
   "library.removeDialogTitle": "Remover este livro do Komori?",
   "library.markingUnread": "Marcando como não lido…",
   "library.markUnread": "Marcar como não lido",
+  "library.markCompleted": "Marcar como concluído",
+  "library.completeFailed": "Não foi possível marcar os livros como concluídos: {error}",
   "library.unreadDescription":
     "O Komori esquece onde você está neste livro e o progresso dele, então ele abre no início, e as Estatísticas deixam de contá-lo como concluído. O tempo de leitura já registrado continua.",
   "library.unreadTitle": "Marcar este livro como não lido?",

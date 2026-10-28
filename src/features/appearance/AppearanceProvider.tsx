@@ -131,6 +131,8 @@ export interface LibraryDisplay {
   cardLastRead: boolean;
   /** The narrowest a grid card may be, in px. */
   cardSize: number;
+  /** Whether books without a series take one from numbered titles they share. */
+  seriesFromTitles: boolean;
 }
 
 interface AppearanceContextValue
@@ -453,6 +455,7 @@ export function AppearanceProvider({
     libraryCardKanji,
     libraryGroup,
     libraryCardSize,
+    librarySeriesFromTitles,
     readerWheelStep,
     middleClickAutoscroll,
     readerChapterWheelThreshold,
@@ -643,6 +646,7 @@ export function AppearanceProvider({
         cardKanji: libraryCardKanji,
         cardLastRead: libraryCardLastRead,
         cardSize: libraryCardSize,
+        seriesFromTitles: librarySeriesFromTitles,
       },
       updateLibrary: (patch: Partial<LibraryDisplay>) =>
         update({
@@ -656,6 +660,9 @@ export function AppearanceProvider({
           ...(patch.cardLanguage !== undefined && { libraryCardLanguage: patch.cardLanguage }),
           ...(patch.cardLastRead !== undefined && { libraryCardLastRead: patch.cardLastRead }),
           ...(isLibraryCardSize(patch.cardSize) && { libraryCardSize: patch.cardSize }),
+          ...(typeof patch.seriesFromTitles === "boolean" && {
+            librarySeriesFromTitles: patch.seriesFromTitles,
+          }),
         }),
       readerWheelStep,
       setReaderWheelStep: (step: number) => update({ readerWheelStep: normalizeWheelStep(step) }),

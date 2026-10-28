@@ -46,7 +46,9 @@ import { isLibraryReturn, libraryCache, type ScrollPlace } from "../features/lib
 import { SeriesDialog, type SeriesChoice } from "../features/library/SeriesDialog";
 import {
   bookTitle,
+  canMarkCompleted,
   groupBooks,
+  groupPageLink,
   matchesQuery,
   hasReadingProgress,
   readingStatus,
@@ -61,6 +63,7 @@ import {
   onLibraryDetailsUpdated,
   relinkBook,
   markBookUnread,
+  markBooksCompleted,
   removeBook,
   removeBooks,
   resetBookSeries,
@@ -89,9 +92,7 @@ interface RelinkNoticeState {
   message: string;
 }
 
-/** `/library?group=<section key>` is one group's own page, opened from its See all. */
-const groupPageLink = (section: Pick<LibrarySection, "key">) =>
-  `/library?group=${encodeURIComponent(section.key)}`;
+const sectionPageLink = (section: Pick<LibrarySection, "key">) => groupPageLink(section.key);
 
 export function LibraryPage() {
   const [params] = useSearchParams();
@@ -123,7 +124,7 @@ function LibraryContent({ group }: { group: string | null }) {
   );
   const savePlace = useCallback((place: ScrollPlace) => libraryCache.setPlace(page, place), [page]);
   useEffect(() => {
-    libraryCache.setLastPage(onGroupPage ? groupPageLink({ key: page }) : "/library");
+    libraryCache.setLastPage(onGroupPage ? groupPageLink(page) : "/library");
   }, [onGroupPage, page]);
   const imports = useLibraryImport();
   const operation = useBulkOperation("library");
@@ -140,6 +141,8 @@ function LibraryContent({ group }: { group: string | null }) {
   const [unreadTarget, setUnreadTarget] = useState<LibraryBook | null>(null);
   const [markingUnread, setMarkingUnread] = useState(false);
   const [unreadError, setUnreadError] = useState<string | null>(null);
+  const [completing, setCompleting] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false);
@@ -217,14 +220,25 @@ function LibraryContent({ group }: { group: string | null }) {
         ? groupSection
           ? [{ key: groupSection.key, title: null, books: groupSection.books }]
           : []
-        : groupBooks(shownBooks, display.group),
-    [display.group, groupSection, onGroupPage, shownBooks, language],
+        : groupBooks(shownBooks, display.group, display.sort, display.sortReversed),
+    [
+      display.group,
+      display.sort,
+      display.sortReversed,
+      groupSection,
+      onGroupPage,
+      shownBooks,
+      language,
+    ],
   );
   const sectionBooks = useMemo(() => sections.flatMap((section) => section.books), [sections]);
   // The books in the order they are shown, which Shift+click ranges and series numbers follow.
   const orderedIds = useMemo(() => sectionBooks.map((book) => book.id), [sectionBooks]);
   const orderedIdsRef = useRef(orderedIds);
   orderedIdsRef.current = orderedIds;
+  // Continue reading stays while selecting; Shift+click there ranges over its own books.
+  const readingIdsRef = useRef<string[]>([]);
+  readingIdsRef.current = readingBooks.map((book) => book.id);
   const anchorRef = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -279,13 +293,12 @@ function LibraryContent({ group }: { group: string | null }) {
   // A plain or Ctrl/Cmd+click flips one book and becomes the anchor; Shift+click adds every
   // book shown between the anchor and this one. Either starts selecting.
   const selectBook = useCallback(
-    (id: string, gesture: SelectGesture) => {
+    (id: string, gesture: SelectGesture, ids: readonly string[] = orderedIdsRef.current) => {
       if (operation?.active) return;
       if (!selecting) {
         setBulkFailures([]);
         enterSelection();
       }
-      const ids = orderedIdsRef.current;
       const from = anchorRef.current ? ids.indexOf(anchorRef.current) : -1;
       const to = ids.indexOf(id);
       if (gesture === "range" && from >= 0 && to >= 0) {
@@ -296,6 +309,10 @@ function LibraryContent({ group }: { group: string | null }) {
       anchorRef.current = id;
     },
     [addToSelection, enterSelection, selecting, toggleSelected, operation?.active],
+  );
+  const selectShelfBook = useCallback(
+    (id: string, gesture: SelectGesture) => selectBook(id, gesture, readingIdsRef.current),
+    [selectBook],
   );
 
   const dialogOpen = bulkRemoveOpen || removeTarget !== null || unreadTarget !== null || seriesOpen;
@@ -462,6 +479,29 @@ function LibraryContent({ group }: { group: string | null }) {
     }
   }
 
+  // Marking completed asks nothing: the saved position stays, so reading on undoes it.
+  const markCompleted = useCallback(
+    async (ids: string[]) => {
+      setCompleting(true);
+      setCompleteError(null);
+      try {
+        await markBooksCompleted(ids);
+        await refresh();
+        return true;
+      } catch (error) {
+        setCompleteError(errorMessage(error));
+        return false;
+      } finally {
+        setCompleting(false);
+      }
+    },
+    [refresh],
+  );
+  const requestCompleted = useCallback(
+    (book: LibraryBook) => void markCompleted([book.id]),
+    [markCompleted],
+  );
+
   function cancelSelection() {
     selection.cancel();
     setBulkFailures([]);
@@ -474,6 +514,12 @@ function LibraryContent({ group }: { group: string | null }) {
         (a, b) => a.localeCompare(b),
       ),
     [library.books],
+  );
+  // Whether any chosen book can be marked completed.
+  const canComplete = useMemo(
+    () =>
+      library.books.some((book) => selection.selectedIds.has(book.id) && canMarkCompleted(book)),
+    [library.books, selection.selectedIds],
   );
   // The series every chosen book shares or, without one, the name their titles begin with.
   const sharedSeries = useMemo(() => {
@@ -551,7 +597,7 @@ function LibraryContent({ group }: { group: string | null }) {
   }
 
   const card = useCallback(
-    (book: LibraryBook, view: LibraryView) => (
+    (book: LibraryBook, view: LibraryView, onSelect: typeof selectBook) => (
       <LibraryBookCard
         busy={Boolean(operation?.active)}
         key={book.id}
@@ -561,9 +607,10 @@ function LibraryContent({ group }: { group: string | null }) {
         onRelink={relink}
         onRemove={requestRemoval}
         onMarkUnread={requestUnread}
+        onMarkCompleted={requestCompleted}
         relinkDisabled={relinkingId !== null || Boolean(operation?.active)}
         relinking={relinkingId === book.id}
-        onSelect={selectBook}
+        onSelect={onSelect}
         selected={selection.isSelected(book.id)}
         selectionMode={selection.active}
       />
@@ -574,29 +621,32 @@ function LibraryContent({ group }: { group: string | null }) {
       relinkingId,
       requestRemoval,
       requestUnread,
-      selectBook,
+      requestCompleted,
       selection.active,
       selection.isSelected,
       operation?.active,
     ],
   );
   const renderBook = useCallback(
-    (book: LibraryBook) => card(book, display.view),
-    [card, display.view],
+    (book: LibraryBook) => card(book, display.view, selectBook),
+    [card, display.view, selectBook],
   );
   // Books in progress always show as grid cards.
-  const renderShelfBook = useCallback((book: LibraryBook) => card(book, "grid"), [card]);
+  const renderShelfBook = useCallback(
+    (book: LibraryBook) => card(book, "grid", selectShelfBook),
+    [card, selectShelfBook],
+  );
 
   // The search stays in the top bar even when the Library is empty.
   const search = <LibrarySearch onQueryChange={setQuery} query={query} />;
   const ready = library.status === "ready";
   const hasBooks = ready && library.books.length > 0;
-  // Books in progress head the whole Library's books; selecting, searching, or filtering works
-  // on the books below, so they step aside then, and a group's page has none.
+  // Books in progress head the whole Library's books, and stay while selecting so a book chosen
+  // there or below keeps its place; searching or filtering works on the books below, so they
+  // step aside then, and a group's page has none.
   const showShelf =
     hasBooks &&
     readingBooks.length > 0 &&
-    !selection.active &&
     !onGroupPage &&
     query.trim() === "" &&
     display.filter === "all";
@@ -636,6 +686,12 @@ function LibraryContent({ group }: { group: string | null }) {
         </div>
       ) : null}
       {imports.result ? <ImportNotice result={imports.result} onClose={imports.dismiss} /> : null}
+      {completeError ? (
+        <div className="library-notice" role="alert">
+          <span>{t("library.completeFailed", { error: failureText(completeError, t) })}</span>
+          <NoticeClose onClose={() => setCompleteError(null)} />
+        </div>
+      ) : null}
       {relinkNotice ? <RelinkNotice notice={relinkNotice} /> : null}
       {bulkFailures.length > 0 ? (
         <div className="library-notice library-notice--error" role="alert">
@@ -736,7 +792,7 @@ function LibraryContent({ group }: { group: string | null }) {
         ) : null}
         {ready && sectionBooks.length > 0 ? (
           <LibraryCollection
-            groupLink={onGroupPage ? undefined : groupPageLink}
+            groupLink={onGroupPage ? undefined : sectionPageLink}
             sections={sections}
             onRowOffset={libraryCache.setRowOffset}
             onScroll={savePlace}
@@ -791,6 +847,19 @@ function LibraryContent({ group }: { group: string | null }) {
               >
                 <StackIcon aria-hidden="true" size={16} />
                 {t("library.series")}
+              </button>
+              <button
+                className="library-selection-bar__button"
+                disabled={!canComplete || completing || Boolean(operation?.active)}
+                onClick={() =>
+                  void markCompleted([...selection.selectedIds]).then(
+                    (marked) => marked && cancelSelection(),
+                  )
+                }
+                type="button"
+              >
+                <CheckCircleIcon aria-hidden="true" size={16} />
+                {t("library.markCompleted")}
               </button>
               <button
                 className="library-selection-bar__button library-selection-bar__button--danger"

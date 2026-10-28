@@ -70,6 +70,14 @@ export function hasReadingProgress(book: LibraryBook): boolean {
   return fraction !== null && fraction > 0 && fraction < 1;
 }
 
+/** Not finished yet, with a count to finish it in: the Reader's, or Komori's from import. */
+export function canMarkCompleted(book: LibraryBook): boolean {
+  return (
+    readingStatus(book) !== "completed" &&
+    ((book.progress?.total ?? 0) > 0 || (book.characters ?? 0) > 0 || (book.words ?? 0) > 0)
+  );
+}
+
 /** A whole percentage that only shows 100 when the book is finished. */
 export function progressPercent(book: LibraryBook): number {
   const fraction = bookFraction(book) ?? 0;
@@ -225,11 +233,57 @@ export interface LibrarySection {
 const NO_GROUP = "";
 
 /**
- * Books under headings: by series (each in series order, then the chosen order) or by
- * language, named groups alphabetically and books without one last. `none` is one untitled
- * section in the chosen order.
+ * What a group is ordered by under a sort, larger first: its latest opening (with its latest
+ * import breaking ties) or import, its books' mean progress, or the characters or words of all
+ * its books. Unranked groups (never opened, none opened, or none counted) follow the rest in
+ * either direction. Title orders groups by name instead.
  */
-export function groupBooks(books: readonly LibraryBook[], group: LibraryGroup): LibrarySection[] {
+function groupRank(
+  books: readonly LibraryBook[],
+  sort: Exclude<LibrarySort, "title">,
+): { ranked: boolean; value: number; tie: number } {
+  const latest = (field: "lastReadAt" | "importedAt") =>
+    books.reduce((most, book) => Math.max(most, time(book[field])), 0);
+  switch (sort) {
+    case "recent": {
+      const read = latest("lastReadAt");
+      return { ranked: read > 0, value: read, tie: latest("importedAt") };
+    }
+    case "added":
+      return { ranked: true, value: latest("importedAt"), tie: 0 };
+    case "progress": {
+      const fractions = books.map(bookFraction);
+      const total = fractions.reduce<number>((sum, fraction) => sum + (fraction ?? 0), 0);
+      return {
+        ranked: fractions.some((fraction) => fraction !== null),
+        value: total / books.length,
+        tie: 0,
+      };
+    }
+    case "characters":
+    case "words": {
+      const counts = books.flatMap((book) => (typeof book[sort] === "number" ? [book[sort]] : []));
+      return {
+        ranked: counts.length > 0,
+        value: counts.reduce((sum, count) => sum + count, 0),
+        tie: 0,
+      };
+    }
+  }
+}
+
+/**
+ * Books under headings: by series (each in series order, then the chosen order) or by
+ * language. Named groups follow the chosen sort and direction (see `groupRank`), then
+ * their names; books without one come last. `none` is one untitled section in the chosen
+ * order.
+ */
+export function groupBooks(
+  books: readonly LibraryBook[],
+  group: LibraryGroup,
+  sort: LibrarySort = "title",
+  reversed = false,
+): LibrarySection[] {
   if (group === "none") return [{ key: "all", title: null, books: [...books] }];
   const sections = new Map<string, LibraryBook[]>();
   for (const book of books) {
@@ -247,19 +301,34 @@ export function groupBooks(books: readonly LibraryBook[], group: LibraryGroup): 
       : group === "series"
         ? key
         : languageName(key);
-  return [...sections.entries()]
-    .sort(([first], [second]) =>
+  const direction = reversed ? -1 : 1;
+  const rank = new Map(
+    sort === "title"
+      ? []
+      : [...sections].map(([key, members]) => [key, groupRank(members, sort)] as const),
+  );
+  const compare = (first: string, second: string): number => {
+    const [a, b] = [rank.get(first), rank.get(second)];
+    if (!a || !b) return direction * collator.compare(title(first), title(second));
+    if (a.ranked !== b.ranked) return a.ranked ? -1 : 1;
+    return direction * (b.value - a.value || b.tie - a.tie);
+  };
+  return [...sections.keys()]
+    .sort((first, second) =>
       first === NO_GROUP
         ? 1
         : second === NO_GROUP
           ? -1
-          : collator.compare(title(first), title(second)),
+          : compare(first, second) || collator.compare(title(first), title(second)),
     )
-    .map(([key, members]) => ({
-      key: `${group}:${key}`,
-      title: title(key),
-      books: group === "series" && key !== NO_GROUP ? inSeriesOrder(members) : members,
-    }));
+    .map((key) => {
+      const members = sections.get(key) ?? [];
+      return {
+        key: `${group}:${key}`,
+        title: title(key),
+        books: group === "series" && key !== NO_GROUP ? inSeriesOrder(members) : members,
+      };
+    });
 }
 
 /** Numbered books first in their order; the rest keep the order they came in. */
@@ -279,6 +348,11 @@ function inSeriesOrder(books: LibraryBook[]): LibraryBook[] {
 export function sectionGroup(key: string): Exclude<LibraryGroup, "none"> | null {
   const group = key.slice(0, key.indexOf(":"));
   return group === "series" || group === "language" ? group : null;
+}
+
+/** `/library?group=<section key>` is one group's own page, opened from its See all or a card's chip. */
+export function groupPageLink(key: string): string {
+  return `/library?group=${encodeURIComponent(key)}`;
 }
 
 /** The words a series name can end in before a volume's number: `Vol. 2`, `Ep.05`, `第3巻`. */

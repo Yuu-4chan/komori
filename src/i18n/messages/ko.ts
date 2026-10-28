@@ -141,6 +141,9 @@ export const ko: MessageCatalog = {
   "autoscroll.hint": "클릭하거나 Esc를 누르면 멈춥니다.",
   "librarySettings.cardSize": "표지 크기",
   "librarySettings.cardSizeHint": "책 표지의 최소 너비입니다.",
+  "librarySettings.seriesFromTitles": "제목으로 시리즈",
+  "librarySettings.seriesFromTitlesHint":
+    "시리즈가 없는 책은 “제목 01”, “제목 02”처럼 번호만 다른 권끼리 시리즈가 됩니다.",
   "unit.px": "px",
   "operation.busy": "다른 작업이 아직 진행 중입니다. 끝난 뒤 다시 시도하세요.",
   "operation.failed":
@@ -915,6 +918,8 @@ export const ko: MessageCatalog = {
   "library.removeDialogTitle": "이 책을 Komori에서 제거할까요?",
   "library.markingUnread": "읽지 않음으로 표시하는 중…",
   "library.markUnread": "읽지 않음으로 표시",
+  "library.markCompleted": "다 읽음으로 표시",
+  "library.completeFailed": "다 읽음으로 표시하지 못했습니다: {error}",
   "library.unreadDescription":
     "이 책의 위치와 진행률을 지워 처음부터 열리게 하고, 통계에서도 다 읽은 책으로 세지 않습니다. 이미 기록된 읽은 시간은 남습니다.",
   "library.unreadTitle": "이 책을 읽지 않음으로 표시할까요?",
