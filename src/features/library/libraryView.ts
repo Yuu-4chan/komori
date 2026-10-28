@@ -350,6 +350,11 @@ export function sectionGroup(key: string): Exclude<LibraryGroup, "none"> | null 
   return group === "series" || group === "language" ? group : null;
 }
 
+/** `/library?group=<section key>` is one group's own page, opened from its See all or a card's chip. */
+export function groupPageLink(key: string): string {
+  return `/library?group=${encodeURIComponent(key)}`;
+}
+
 /** The words a series name can end in before a volume's number: `Vol. 2`, `Ep.05`, `第3巻`. */
 const VOLUME_WORD =
   /(?:(?<![\p{L}\p{N}])(?:vol(?:ume)?|ep(?:isode)?|book|part|tome|tomo|livro|parte)|第)$/iu;

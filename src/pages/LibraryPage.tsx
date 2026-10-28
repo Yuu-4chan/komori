@@ -48,6 +48,7 @@ import {
   bookTitle,
   canMarkCompleted,
   groupBooks,
+  groupPageLink,
   matchesQuery,
   hasReadingProgress,
   readingStatus,
@@ -91,9 +92,7 @@ interface RelinkNoticeState {
   message: string;
 }
 
-/** `/library?group=<section key>` is one group's own page, opened from its See all. */
-const groupPageLink = (section: Pick<LibrarySection, "key">) =>
-  `/library?group=${encodeURIComponent(section.key)}`;
+const sectionPageLink = (section: Pick<LibrarySection, "key">) => groupPageLink(section.key);
 
 export function LibraryPage() {
   const [params] = useSearchParams();
@@ -125,7 +124,7 @@ function LibraryContent({ group }: { group: string | null }) {
   );
   const savePlace = useCallback((place: ScrollPlace) => libraryCache.setPlace(page, place), [page]);
   useEffect(() => {
-    libraryCache.setLastPage(onGroupPage ? groupPageLink({ key: page }) : "/library");
+    libraryCache.setLastPage(onGroupPage ? groupPageLink(page) : "/library");
   }, [onGroupPage, page]);
   const imports = useLibraryImport();
   const operation = useBulkOperation("library");
@@ -793,7 +792,7 @@ function LibraryContent({ group }: { group: string | null }) {
         ) : null}
         {ready && sectionBooks.length > 0 ? (
           <LibraryCollection
-            groupLink={onGroupPage ? undefined : groupPageLink}
+            groupLink={onGroupPage ? undefined : sectionPageLink}
             sections={sections}
             onRowOffset={libraryCache.setRowOffset}
             onScroll={savePlace}

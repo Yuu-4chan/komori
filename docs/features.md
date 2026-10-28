@@ -17,7 +17,7 @@ three, while the Reader keeps it for bookmarks.
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;
 grid/list, search, status filters, Cards details, sort and direction, which order groups too; grouping by series
-or language as carousels with See all pages; Series from titles in Settings > General, off
+or language as carousels with See all pages, which a card's series or language chip opens too; Series from titles in Settings > General, off
 by default, puts numbered volumes sharing a title (`Title 01`, `Title 02`) in a series when
 the books name none; Mark as completed from a card's menu or the selection; per-card selection boxes
 (Continue reading stays while selecting) with bulk removal,

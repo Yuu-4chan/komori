@@ -1643,6 +1643,60 @@ describe("Library page", () => {
         expect(screen.getByRole("link", { name: "See all of Cat Tales" })).toBeInTheDocument();
       });
 
+      it("opens a card's series or language from its chip, which selects while selecting", async () => {
+        const user = userEvent.setup();
+        listMock.mockResolvedValue(detailed);
+        renderPage(
+          <MemoryRouter initialEntries={["/library"]}>
+            <Routes>
+              <Route path="/library" element={<LibraryPage />} />
+            </Routes>
+          </MemoryRouter>,
+        );
+        await screen.findByRole("heading", { name: "Cat Tales 1" });
+        const card = (title: string) =>
+          within(screen.getByRole("heading", { name: title }).closest("article")!);
+        expect(card("Cat Tales 1").getByRole("link", { name: "Cat Tales" })).toHaveAttribute(
+          "href",
+          "/library?group=series%3ACat%20Tales",
+        );
+        expect(card("Cat Tales 1").getByRole("link", { name: "Japanese" })).toHaveAttribute(
+          "href",
+          "/library?group=language%3Aja",
+        );
+        // Unique kanji only shows.
+        expect(
+          card("Cat Tales 1").getByTitle(`${(1700).toLocaleString()} unique kanji`).closest("a"),
+        ).toBeNull();
+
+        await user.click(card("Cat Tales 1").getByRole("link", { name: "Cat Tales" }));
+        const series = await screen.findByRole("region", { name: "Cat Tales" });
+        expect(within(series).getAllByRole("article")).toHaveLength(2);
+        // On its own page the series chip only shows; the language chip still opens.
+        expect(within(series).queryByRole("link", { name: "Cat Tales" })).toBeNull();
+        await user.click(card("Cat Tales 2").getByRole("link", { name: "Japanese" }));
+        const japanese = await screen.findByRole("region", { name: "Japanese" });
+        expect(
+          within(japanese)
+            .getAllByRole("article")
+            .map((article) => within(article).getByRole("heading").textContent)
+            .sort(),
+        ).toEqual(["Cat Tales 1", "Cat Tales 2"]);
+        expect(within(japanese).queryByRole("link", { name: "Japanese" })).toBeNull();
+
+        // Ctrl+click on a chip selects its book, and while selecting a chip click selects.
+        await user.click(screen.getByRole("link", { name: "Library" }));
+        await screen.findByRole("region", { name: "Library" });
+        await user.keyboard("{Control>}");
+        await user.click(card("Cat Tales 1").getByRole("link", { name: "Cat Tales" }));
+        await user.keyboard("{/Control}");
+        expect(screen.getByText("1 book selected")).toBeInTheDocument();
+        expect(card("Cat Tales 2").queryByRole("link", { name: "Japanese" })).toBeNull();
+        await user.click(card("Cat Tales 2").getByTitle("Language: Japanese"));
+        expect(screen.getByText("2 books selected")).toBeInTheDocument();
+        expect(screen.getByRole("region", { name: "Library" })).toBeInTheDocument();
+      });
+
       it("makes the books one Tab stop that the arrows move through, with Space and Shift+F10", async () => {
         const user = userEvent.setup();
         await showLibrary(user);
@@ -1691,7 +1745,7 @@ describe("Library page", () => {
         const articles = () => screen.getAllByRole("article");
         // Ctrl+click on a book starts selecting instead of opening it.
         await user.keyboard("{Control>}");
-        await user.click(within(articles()[0]).getByRole("link"));
+        await user.click(within(articles()[0]).getByRole("link", { name: /^Open / }));
         await user.keyboard("{/Control}");
         expect(screen.getByText("1 book selected")).toBeInTheDocument();
 
