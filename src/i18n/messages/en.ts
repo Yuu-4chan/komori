@@ -153,6 +153,9 @@ export const en = {
   "autoscroll.hint": "Click or press Escape to stop.",
   "librarySettings.cardSize": "Card size",
   "librarySettings.cardSizeHint": "The narrowest a book card may be.",
+  "librarySettings.seriesFromTitles": "Series from titles",
+  "librarySettings.seriesFromTitlesHint":
+    "Numbered volumes sharing a title, like “Title 01” and “Title 02”, form a series when the books name none.",
   "unit.px": "px",
 
   // Bulk operations

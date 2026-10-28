@@ -141,6 +141,9 @@ export const ko: MessageCatalog = {
   "autoscroll.hint": "클릭하거나 Esc를 누르면 멈춥니다.",
   "librarySettings.cardSize": "표지 크기",
   "librarySettings.cardSizeHint": "책 표지의 최소 너비입니다.",
+  "librarySettings.seriesFromTitles": "제목으로 시리즈",
+  "librarySettings.seriesFromTitlesHint":
+    "시리즈가 없는 책은 “제목 01”, “제목 02”처럼 번호만 다른 권끼리 시리즈가 됩니다.",
   "unit.px": "px",
   "operation.busy": "다른 작업이 아직 진행 중입니다. 끝난 뒤 다시 시도하세요.",
   "operation.failed":

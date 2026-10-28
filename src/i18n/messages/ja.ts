@@ -144,6 +144,9 @@ export const ja: MessageCatalog = {
   "autoscroll.hint": "クリックかEscで止まります。",
   "librarySettings.cardSize": "表紙の大きさ",
   "librarySettings.cardSizeHint": "本の表紙の最小の幅。",
+  "librarySettings.seriesFromTitles": "タイトルからシリーズ",
+  "librarySettings.seriesFromTitlesHint":
+    "シリーズのない本は、「タイトル01」と「タイトル02」のように番号だけが違う巻でシリーズになります。",
   "unit.px": "px",
   "operation.busy": "別の処理を実行中です。終わってからもう一度お試しください。",
   "operation.failed":

@@ -138,6 +138,9 @@ export const zhCN: MessageCatalog = {
   "autoscroll.hint": "单击或按Esc停止。",
   "librarySettings.cardSize": "封面大小",
   "librarySettings.cardSizeHint": "图书封面的最小宽度。",
+  "librarySettings.seriesFromTitles": "从标题识别系列",
+  "librarySettings.seriesFromTitlesHint":
+    "没有系列的书中，像“标题01”和“标题02”这样只有编号不同的各卷会组成一个系列。",
   "unit.px": "px",
   "operation.busy": "另一项操作仍在进行中。请在其完成后重试。",
   "operation.failed": "Komori无法完成此操作。请检查当前列表后再重试。",

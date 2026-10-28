@@ -199,6 +199,8 @@ export interface AppearancePreferences
   libraryGroup: LibraryGroup;
   /** The narrowest a Library grid card may be, in px. */
   libraryCardSize: number;
+  /** Whether books without a series take one from numbered titles they share; off by default. */
+  librarySeriesFromTitles: boolean;
   /** How far one mouse wheel step scrolls a continuous book, in CSS pixels. */
   readerWheelStep: number;
   middleClickAutoscroll: boolean;
@@ -299,6 +301,7 @@ export const defaultAppearance: AppearancePreferences = {
   libraryCardKanji: true,
   libraryGroup: "none",
   libraryCardSize: libraryCardSize.default,
+  librarySeriesFromTitles: false,
   readerWheelStep: readerWheelStep.default,
   middleClickAutoscroll: true,
   readerChapterWheelThreshold: readerChapterWheelThreshold.default,
@@ -392,6 +395,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     libraryCardKanji,
     libraryGroup,
     libraryCardSize: savedCardSize,
+    librarySeriesFromTitles,
     readerWheelStep,
     middleClickAutoscroll,
     readerChapterWheelThreshold,
@@ -499,6 +503,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(typeof libraryCardKanji === "boolean" && { libraryCardKanji }),
     ...(isLibraryGroup(libraryGroup) && { libraryGroup }),
     ...(isLibraryCardSize(savedCardSize) && { libraryCardSize: savedCardSize }),
+    ...(typeof librarySeriesFromTitles === "boolean" && { librarySeriesFromTitles }),
     ...(isWheelStep(readerWheelStep) && { readerWheelStep }),
     ...(typeof middleClickAutoscroll === "boolean" && { middleClickAutoscroll }),
     ...(isChapterWheelThreshold(readerChapterWheelThreshold) && { readerChapterWheelThreshold }),

@@ -30,6 +30,7 @@ mod reading_position;
 mod reading_sessions;
 mod startup;
 mod title_cleaning;
+mod title_series;
 mod updates;
 mod window_lifecycle;
 mod window_size;

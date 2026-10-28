@@ -17,7 +17,9 @@ three, while the Reader keeps it for bookmarks.
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;
 grid/list, search, status filters, Cards details, sort and direction; grouping by series
-or language as carousels with See all pages; per-card selection boxes with bulk removal,
+or language as carousels with See all pages; Series from titles in Settings > General, off
+by default, puts numbered volumes sharing a title (`Title 01`, `Title 02`) in a series when
+the books name none; per-card selection boxes with bulk removal,
 relink and import with native progress. Drop EPUB files from Windows Explorer anywhere
 on the Library to add them; a drag overlay shows the accepted file type or a busy
 operation, and imports report progress and per-file outcomes. Authors show in full, wrapping long names.
@@ -171,7 +173,7 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   and Idle after 5 minutes without reading or using the page, or with nothing to show.
 
 The application and Reader themes default to Hojicha. The Library initially sorts
-by Title and shows Series, Language, Last read and Unique kanji. Reader popup mouse
+by Title and shows Series, Language, Last read and Unique kanji, without series from titles. Reader popup mouse
 selection defaults off, with 0 ms scan delay, 5 results and 5 child popup levels.
 The Reader shows its clock and book position/percentage, with chapter
 position/percentage off.

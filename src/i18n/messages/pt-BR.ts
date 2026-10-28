@@ -145,6 +145,9 @@ export const ptBR: MessageCatalog = {
   "autoscroll.hint": "Clique ou pressione Esc para parar.",
   "librarySettings.cardSize": "Tamanho das capas",
   "librarySettings.cardSizeHint": "A largura mínima da capa de um livro.",
+  "librarySettings.seriesFromTitles": "Séries pelos títulos",
+  "librarySettings.seriesFromTitlesHint":
+    "Volumes numerados com o mesmo título, como “Título 01” e “Título 02”, formam uma série quando os livros não indicam nenhuma.",
   "unit.px": "px",
   "operation.busy": "Outra operação ainda está em andamento. Tente novamente quando ela terminar.",
   "operation.failed":
