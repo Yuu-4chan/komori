@@ -2,6 +2,30 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.4.0
+
+- An image opened from the Reader sidebar's Images panel shows behind the sidebar, which stays open over it, so another image can be chosen without closing the viewer. Images opened from the book still fill the window.
+- A, G, Ctrl+B and N open Appearance, Images, Bookmarks and Notes and, pressed again, return to the contents. S shows the contents from any panel and, on the contents, hides or shows the sidebar.
+- Page Down and Space turn a whole page forward, and Page Up and Shift+Space back, in every view. The Up and Down arrows read back and on, and Home and End go to the start of the chapter and to the next chapter.
+- A search result marks its match for a few seconds and offers a way back to where you were. A floating sidebar moves aside when the match is under it.
+- Bookmarks, notes, search results and images show their chapter instead of a section number.
+- Page margin in the Reader's Appearance sets the space at the outer edges of the text, 40 px by default.
+- VN view centers each group of lines in the reading area, and a click reads on.
+- Appearance hides settings that would change nothing in the current view, such as Text orientation for horizontal text and Wheel step for turning pages.
+- The book title, author and series on the Reader sidebar can be selected by dragging from anywhere around them. A right-click offers Copy, and selects the line under the pointer when nothing is selected.
+- Selected text is marked strongly enough in the accent color to see on any background.
+- Escape closes an open menu without also hiding the sidebar behind it.
+- Right-clicking selected book text offers Look up.
+- The lookup popup has a Reader theme that follows the page's colors, used by new installs. A short entry makes the popup shorter instead of leaving empty space.
+- Holding Shift over punctuation no longer opens the popup.
+- A lookup in kana lists the most frequent word first, so よむ shows 読む first.
+- Popup entries show four tags and frequencies, then a count of the rest. Settings > Reader popup describes the chosen Popup style.
+- Settings is on the top bar of every page.
+- Adding a bookmark shows one notice instead of two.
+- The Library summary counts the books shown, such as `3 of 9 books` while searching or filtering. Selection boxes show on any cover.
+- Series… suggests the series the chosen books share, or the name their titles begin with.
+- Statistics shows `<1m` for reading under a minute, and word counts only when the Library has books counted in words.
+
 ## 1.3.0
 
 - Discord status can show the Komori page you are using outside the Reader: Browsing the library, Using the dictionary, Viewing statistics or Changing settings. It shows Idle after 5 minutes without using the page. Turn it off with Komori pages in Settings > Discord.
