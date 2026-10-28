@@ -2,6 +2,14 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.6.0
+
+- A group's own page keeps a sort of its own, saved apart from the Library's, so each can have its preferred order. Grouped, the Library's sort orders the groups and each carousel shows its books in the group page's order.
+- Books in a group follow the chosen sort and its direction, even when their series numbers were set by hand in separate batches.
+- A custom Reader theme is deleted by right-clicking its swatch, or with Shift+F10 or the menu key on it, and choosing Delete theme.
+- The custom theme editor's name row lines up with its color rows.
+- Covers drawn as SVG images show at their own size in the Images panel and the image viewer instead of stretched, and tiny spacer images no longer show as blank tiles.
+
 ## 1.5.0
 
 - Series from titles in Settings > General, off by default, puts numbered volumes that share a title, such as `Title 01` and `Title 02`, in one series when the books name none. Series read from a book or set by hand come first.
