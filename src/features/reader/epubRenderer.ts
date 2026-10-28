@@ -4374,6 +4374,8 @@ class EpubRenderer implements ReaderRenderer {
           fontWeight: undefined,
           paragraphIndent: undefined,
           paragraphMargin: undefined,
+          // A fixed page keeps its own geometry: a margin would pad and shift its scaled page.
+          sideMargin: undefined,
           letterSpacing: undefined,
           wordSpacing: undefined,
           writingMode: undefined,

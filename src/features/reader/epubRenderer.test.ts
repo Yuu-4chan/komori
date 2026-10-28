@@ -7873,6 +7873,29 @@ describe("EPUB.js renderer adapter", () => {
       renderer.dispose();
     });
 
+    it("keeps a fixed-layout page's own geometry without the page margin", async () => {
+      const { book, display } = mockBook();
+      Object.assign(book, { package: { ...book.package, metadata: { layout: "pre-paginated" } } });
+      const renderer = epubRendererFactory(id)();
+      await renderer.mount(
+        document.createElement("div"),
+        new AbortController().signal,
+        vi.fn(),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { fontSize: 16, sideMargin: 40 },
+      );
+      const styled = document.implementation.createHTMLDocument();
+      await fontSizeHook(book)(styled);
+      expect(styled.querySelector("style[data-komori-side-margin]")).toBeNull();
+      display.mockClear();
+      await renderer.setPresentation?.({ fontSize: 16, sideMargin: 80 });
+      expect(display).not.toHaveBeenCalled();
+      renderer.dispose();
+    });
+
     it("sizes each section in pixels before layout, including at the default size", async () => {
       const { book } = mockBook();
       const renderer = epubRendererFactory(id)();
