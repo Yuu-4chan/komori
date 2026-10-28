@@ -1374,6 +1374,19 @@ describe("Reader shell", () => {
     // A series is a group: its name only, never a number.
     expect(within(sidebar).getByText("星降る町の手紙", { selector: "p" })).toBeInTheDocument();
     expect(sidebar).not.toHaveTextContent("· 2");
+    // A right press selects the line under it for the Copy menu and keeps a selection made in
+    // the block wherever it lands; a left press starts a new selection.
+    const title = within(sidebar).getByRole("heading", { name: "星降る町の手紙" });
+    const author = within(sidebar).getByText("森川 遥");
+    const selection = document.getSelection()!;
+    selection.removeAllRanges();
+    expect(fireEvent.mouseDown(author, { button: 2 })).toBe(false);
+    expect(selection.toString()).toBe("森川 遥");
+    selection.selectAllChildren(title);
+    expect(fireEvent.mouseDown(author, { button: 2 })).toBe(false);
+    expect(selection.toString()).toBe("星降る町の手紙");
+    fireEvent.mouseDown(title, { button: 0 });
+    expect(selection.isCollapsed).toBe(true);
     // No progress until the book is counted.
     expect(within(sidebar).queryByRole("progressbar")).not.toBeInTheDocument();
     act(() =>

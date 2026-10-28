@@ -79,7 +79,7 @@ textarea,
 
 ::selection {
   color: var(--text-primary);
-  background: var(--accent-soft);
+  background: var(--text-selection);
 }
 
 ::-webkit-scrollbar {

@@ -309,7 +309,7 @@ function BookCard({ identity }: { identity: ReaderIdentity }) {
         className={
           book ? "reader-sidebar__book reader-sidebar__book--open" : "reader-sidebar__book"
         }
-        onMouseDown={book ? freshSelection : undefined}
+        onMouseDown={book ? bookTextPress : undefined}
         onDragStart={book ? (event) => event.preventDefault() : undefined}
       >
         <h2>
@@ -339,10 +339,24 @@ function BookCard({ identity }: { identity: ReaderIdentity }) {
 /**
  * A press in selected text starts a new selection, as a press anywhere else does, instead of
  * dragging the selected text away. Shift still extends it and a second click still picks a word.
+ * A right press keeps a selection made in the block for its Copy menu, wherever it lands; with
+ * none, it selects the line under the pointer, so the menu offers that line.
  */
-function freshSelection(event: MouseEvent) {
+function bookTextPress(event: MouseEvent) {
+  const block = event.currentTarget;
+  const selection = block.ownerDocument.getSelection();
+  if (event.button === 2) {
+    if (selection && !selection.isCollapsed && block.contains(selection.anchorNode)) {
+      event.preventDefault();
+      return;
+    }
+    const line = event.target instanceof Element ? event.target.closest("h2, p") : null;
+    if (!selection || !line || !block.contains(line)) return;
+    event.preventDefault();
+    selection.selectAllChildren(line);
+    return;
+  }
   if (event.button !== 0 || event.shiftKey || event.detail > 1) return;
-  const selection = event.currentTarget.ownerDocument.getSelection();
   if (selection && !selection.isCollapsed) selection.removeAllRanges();
 }
 

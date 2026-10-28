@@ -1751,8 +1751,9 @@ export function ReaderShell({
           } as CSSProperties
         }
       >
-        {/* In the space kept free above the book's pages, in the Reader theme's colors. */}
-        <WindowControls className="reader-window-controls" />
+        {/* In the space kept free above the book's pages, in the Reader theme's colors;
+            a docked image viewer covers the book and shows its own. */}
+        {!dockedViewer && <WindowControls className="reader-window-controls" />}
         <ReaderViewport
           hostRef={hostRef}
           viewportRef={viewportRef}

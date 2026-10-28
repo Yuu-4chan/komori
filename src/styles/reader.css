@@ -2103,11 +2103,11 @@
   display: grid;
   place-items: center;
 }
-/* Opened from the sidebar's images: beside the sidebar, which stays open, not modal. */
+/* Opened from the sidebar's images: not modal, filling the window behind the floating
+   sidebar, which stays open, with the image centered in the space beside it. */
 .reader-image-viewer--docked {
-  z-index: 6;
-  left: calc(min(var(--reader-sidebar-width), 100% - 28px) + 28px);
-  width: auto;
+  z-index: 4;
+  padding-left: calc(min(var(--reader-sidebar-width), 100% - 28px) + 28px + var(--space-4));
 }
 .reader-image-viewer::backdrop {
   background: rgba(9, 14, 24, 0.6);
