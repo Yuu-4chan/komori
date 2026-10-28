@@ -1574,8 +1574,16 @@ describe("Library page", () => {
           "Plain Book",
         ]);
 
-        // A series's books follow the sort and its direction too.
+        // The Library's sort orders only the groups; a carousel's books keep the group
+        // pages' own sort, so they show as See all does and change with it.
         await user.click(screen.getByRole("button", { name: "Reverse sort direction" }));
+        expect(libraryTitles().slice(0, 2)).toEqual(["Cat Tales 1", "Cat Tales 2"]);
+        await user.click(screen.getByRole("link", { name: "See all of Cat Tales" }));
+        await screen.findByRole("region", { name: "Cat Tales" });
+        expect(screen.getByRole("button", { name: "Reverse sort direction" })).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Reverse sort direction" }));
+        await user.click(screen.getByRole("link", { name: "Library" }));
+        await screen.findByRole("region", { name: "Library" });
         expect(libraryTitles().slice(0, 2)).toEqual(["Cat Tales 2", "Cat Tales 1"]);
 
         // Groups follow the sort and its direction: Title reversed, from Z.

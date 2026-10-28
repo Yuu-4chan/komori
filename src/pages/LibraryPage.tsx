@@ -209,6 +209,11 @@ function LibraryContent({ group }: { group: string | null }) {
     () => sortBooks(library.books.filter(hasReadingProgress), "recent", false),
     [library.books],
   );
+  // Grouped, the Library's sort orders the groups, and each carousel's books follow the
+  // group pages' sort, as See all shows them.
+  const grouped = !onGroupPage && display.group !== "none";
+  const bookSort = grouped ? savedDisplay.groupSort : display.sort;
+  const bookSortReversed = grouped ? savedDisplay.groupSortReversed : display.sortReversed;
   const shownBooks = useMemo(
     () =>
       sortBooks(
@@ -217,10 +222,10 @@ function LibraryContent({ group }: { group: string | null }) {
             matchesQuery(book, query) &&
             (display.filter === "all" || readingStatus(book) === display.filter),
         ),
-        display.sort,
-        display.sortReversed,
+        bookSort,
+        bookSortReversed,
       ),
-    [library.books, query, display.filter, display.sort, display.sortReversed],
+    [library.books, query, display.filter, bookSort, bookSortReversed],
   );
   // A group's page shows only that group's books, in the order its carousel shows them.
   const groupSection = useMemo(
