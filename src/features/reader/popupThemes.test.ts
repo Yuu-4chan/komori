@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { defaultPopupPalette, popupThemeStyle } from "./popupThemes";
+import { readerPresetThemes } from "./readerThemes";
 
 /** Resolve the literal colors and bounded sRGB mixes used by popup tokens. */
 function color(value: string): number[] {
@@ -95,5 +96,23 @@ describe("popup preset readability", () => {
 
   it("keeps Application's existing inherited palette", () => {
     expect(popupThemeStyle("application")).toEqual({});
+  });
+
+  it.each(readerPresetThemes.map((theme) => [theme.id, theme] as const))(
+    "follows the %s reader theme's page, readably",
+    (_id, page) => {
+      const tokens = popupThemeStyle("reader", undefined, page) as Record<string, string>;
+      expect(tokens["--surface-card"]).toBe(page.background);
+      expect(tokens["--accent-base"]).toBe(page.highlight);
+      const dark = luminance(color(page.background)) < 0.2;
+      expect(tokens.colorScheme).toBe(dark ? "dark" : "light");
+      for (const foreground of ["--text-primary", "--text-secondary", "--accent-ink"])
+        for (const surface of ["--surface-card", "--popup-tag"])
+          expect(contrast(tokens[foreground], tokens[surface])).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it("inherits the application palette while no reader theme is known", () => {
+    expect(popupThemeStyle("reader")).toEqual({});
   });
 });

@@ -11,6 +11,7 @@ import {
   readingStatus,
   readTotalLabel,
   sectionGroup,
+  seriesFromTitles,
   shownLanguage,
   sortBooks,
 } from "./libraryView";
@@ -190,5 +191,36 @@ describe("language names", () => {
       ["Chinese Traditional", 1],
       ["Japanese", 2],
     ]);
+  });
+});
+
+describe("series from titles", () => {
+  it("names the series titles begin with, without volume numbers and words", () => {
+    expect(seriesFromTitles(["Cat Tales 1", "Cat Tales 2"])).toBe("Cat Tales");
+    expect(seriesFromTitles(["幼女戦記07", "幼女戦記08"])).toBe("幼女戦記");
+    expect(seriesFromTitles(["Foo Vol. 1", "Foo Vol. 2", "Foo Vol. 3"])).toBe("Foo");
+    expect(seriesFromTitles(["作品 第1巻", "作品 第2巻"])).toBe("作品");
+    expect(seriesFromTitles(["Re:Zero - 01", "Re:Zero - 02"])).toBe("Re:Zero");
+    expect(seriesFromTitles(["Saga (Light Novel) 1", "Saga (Light Novel) 2"])).toBe(
+      "Saga (Light Novel)",
+    );
+    // A dash closing one earlier in the name stays.
+    expect(
+      seriesFromTitles([
+        "86─エイティシックス─Ep.06─明けねばこそ夜は永く─",
+        "86─エイティシックス─Alter.01─死神ときどき青春─",
+        "86─エイティシックス─Ep.05─死よ、驕るなかれ─",
+      ]),
+    ).toBe("86─エイティシックス─");
+    expect(
+      seriesFromTitles(["86─エイティシックス─Ep.06─明けねば─", "86─エイティシックス─Ep.05─死よ─"]),
+    ).toBe("86─エイティシックス─");
+  });
+
+  it("names nothing for one title, titles sharing no name, or within a word", () => {
+    expect(seriesFromTitles(["Cat Tales 1"])).toBe("");
+    expect(seriesFromTitles(["Plain Book", "English Book"])).toBe("");
+    expect(seriesFromTitles(["1", "2"])).toBe("");
+    expect(seriesFromTitles(["Cat Tales", "Cat Tails"])).toBe("Cat");
   });
 });

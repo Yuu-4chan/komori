@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/Button";
 import { IconButton } from "../../components/ui/IconButton";
 import { TextField } from "../../components/ui/TextField";
 import type { ReaderBookmark } from "./bookmarks";
+import type { ReaderLocator } from "./renderer";
 import type { useBookmarks } from "./useBookmarks";
 
 export interface ReaderBookmarksPanelProps {
@@ -15,6 +16,8 @@ export interface ReaderBookmarksPanelProps {
   navigationBusy: boolean;
   onCreate: (label: string) => Promise<boolean>;
   onJump: (bookmark: ReaderBookmark, settled: (success: boolean) => void) => boolean;
+  /** Where a saved place lies: its chapter and how far into the book. */
+  place: (locator: ReaderLocator) => string;
 }
 
 export function ReaderBookmarksPanel({
@@ -23,6 +26,7 @@ export function ReaderBookmarksPanel({
   navigationBusy,
   onCreate,
   onJump,
+  place,
 }: ReaderBookmarksPanelProps) {
   const [label, setLabel] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
@@ -102,10 +106,7 @@ export function ReaderBookmarksPanel({
                 <span className="reader-bookmarks__copy">
                   <strong>{name}</strong>
                   {bookmark.excerpt && <small>{bookmark.excerpt}</small>}
-                  <em>
-                    {t("reader.section", { number: bookmark.locator.spineIndex + 1 })} ·{" "}
-                    {Math.round(bookmark.locator.progress * 100)}%
-                  </em>
+                  <em>{place(bookmark.locator)}</em>
                 </span>
               </button>
               {unavailable.has(bookmark.id) && (

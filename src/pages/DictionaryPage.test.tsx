@@ -170,6 +170,13 @@ function stubWordAudio() {
   vi.mocked(getWordAudio).mockResolvedValue(new Blob(["ID3"], { type: "audio/mpeg" }));
 }
 
+// Every header tag of a result card, including those waiting behind "+N more".
+async function allTags(user: ReturnType<typeof userEvent.setup>, card: HTMLElement) {
+  const more = within(card).queryByRole("button", { name: /^\+\d+ more$/ });
+  if (more) await user.click(more);
+  return [...card.querySelectorAll(".dictionary-result-card__tags > span")];
+}
+
 describe("Dictionary page", () => {
   it("manual English search is independent of the CJK-only Reader preference", async () => {
     render(
@@ -332,7 +339,13 @@ describe("Dictionary page", () => {
     await user.type(screen.getByRole("textbox", { name: "Dictionary search" }), "読む");
     await user.click(screen.getByRole("button", { name: /^Search$/ }));
     const card = await screen.findByRole("article");
-    const tags = [...card.querySelectorAll(".dictionary-result-card__tags > span")];
+    // Four tags show, and the rest wait behind "+N more".
+    expect(card.querySelectorAll(".dictionary-result-card__tags > span")).toHaveLength(4);
+    expect(within(card).getByRole("button", { name: "+2 more" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    const tags = await allTags(user, card);
     expect(
       tags.map((tag) => [tag.textContent, tag.getAttribute("title"), tag.getAttribute("class")]),
     ).toEqual([
@@ -361,7 +374,7 @@ describe("Dictionary page", () => {
     await user.type(screen.getByRole("textbox", { name: "Dictionary search" }), "読む");
     await user.click(screen.getByRole("button", { name: /^Search$/ }));
     const card = await screen.findByRole("article");
-    const tags = [...card.querySelectorAll(".dictionary-result-card__tags > span")];
+    const tags = await allTags(user, card);
     expect(tags.map((tag) => tag.textContent)).toEqual(["v5", "popular"]);
     for (const tag of tags) {
       expect(tag).not.toHaveAttribute("title");
@@ -396,7 +409,7 @@ describe("Dictionary page", () => {
     await user.type(screen.getByRole("textbox", { name: "Dictionary search" }), "開ける");
     await user.click(screen.getByRole("button", { name: /^Search$/ }));
     const card = await screen.findByRole("article");
-    const tags = [...card.querySelectorAll(".dictionary-result-card__tags > span")];
+    const tags = await allTags(user, card);
     expect(tags.map((tag) => tag.textContent)).toEqual(["v1"]);
   });
 
@@ -439,7 +452,7 @@ describe("Dictionary page", () => {
     await user.type(screen.getByRole("textbox", { name: "Dictionary search" }), "読む");
     await user.click(screen.getByRole("button", { name: /^Search$/ }));
     const card = await screen.findByRole("article");
-    const tags = [...card.querySelectorAll(".dictionary-result-card__tags > span")];
+    const tags = await allTags(user, card);
     expect(
       tags.map((tag) => [
         tag.textContent,
@@ -509,7 +522,7 @@ describe("Dictionary page", () => {
     await user.type(screen.getByRole("textbox", { name: "Dictionary search" }), "読む");
     await user.click(screen.getByRole("button", { name: /^Search$/ }));
     const card = await screen.findByRole("article");
-    const tags = [...card.querySelectorAll(".dictionary-result-card__tags > span")];
+    const tags = await allTags(user, card);
     expect(
       tags.map((tag) => [
         tag.textContent,
@@ -557,7 +570,7 @@ describe("Dictionary page", () => {
     await user.type(screen.getByRole("textbox", { name: "Dictionary search" }), "読む");
     await user.click(screen.getByRole("button", { name: /^Search$/ }));
     const card = await screen.findByRole("article");
-    const tags = [...card.querySelectorAll(".dictionary-result-card__tags > span")];
+    const tags = await allTags(user, card);
     expect(tags.map((tag) => tag.textContent)).toEqual(["v5", "common", "popular", "ichi"]);
   });
 

@@ -68,6 +68,7 @@ import {
   isMaxHeight,
   isParagraphIndent,
   isParagraphMargin,
+  isSideMargin,
   isMaxWidth,
   isPageLayout,
   legacyTextWidth,
@@ -92,6 +93,7 @@ import {
   readerParagraphIndent,
   readerParagraphMargin,
   readerMaxWidth,
+  readerSideMargin,
   readerWordSpacing,
   type ReaderTextOrientation,
   type ReaderViewMode,
@@ -221,6 +223,8 @@ export interface AppearancePreferences
   readerParagraphIndent: number;
   /** The space before and after the Reader's paragraphs in CSS pixels. */
   readerParagraphMargin: number;
+  /** The space left and right of each Reader page's text in CSS pixels. */
+  readerPageMargin: number;
   /** Maximum Reader text width per page in CSS pixels. */
   readerMaxWidth: number;
   /** The tallest the Reader's reading area may be, in CSS pixels. */
@@ -275,7 +279,7 @@ export const defaultAppearance: AppearancePreferences = {
   readerPopupRadius: lookupPopupRadius.default,
   readerPopupFontSize: lookupPopupFontSize.default,
   readerPopupLineHeight: lookupPopupLineHeight.default,
-  readerPopupTheme: "application",
+  readerPopupTheme: "reader",
   readerPopupWidth: lookupPopupSize.width,
   readerPopupHeight: lookupPopupSize.height,
   readerPopupStyle: "standard",
@@ -311,6 +315,7 @@ export const defaultAppearance: AppearancePreferences = {
   readerAsianFontWeight: readerFontWeight.default,
   readerParagraphIndent: readerParagraphIndent.default,
   readerParagraphMargin: readerParagraphMargin.default,
+  readerPageMargin: readerSideMargin.default,
   readerMaxWidth: readerMaxWidth.default,
   readerMaxHeight: readerMaxHeight.default,
   readerWritingMode: defaultWritingMode,
@@ -403,6 +408,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     readerAsianFontWeight,
     readerParagraphIndent,
     readerParagraphMargin,
+    readerPageMargin,
     readerMaxWidth,
     readerMaxHeight,
     readerWritingMode,
@@ -523,6 +529,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
         : {}),
     ...(isParagraphIndent(readerParagraphIndent) && { readerParagraphIndent }),
     ...(isParagraphMargin(readerParagraphMargin) && { readerParagraphMargin }),
+    ...(isSideMargin(readerPageMargin) && { readerPageMargin }),
     ...(isMaxWidth(readerMaxWidth)
       ? { readerMaxWidth }
       : migratedWidth !== undefined

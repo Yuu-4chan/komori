@@ -314,12 +314,25 @@ export function HeadwordKanji({
   );
 }
 
-// Tags as pills: a noted tag explains itself in a tooltip, and a colored category tints it.
-export function TagList({ onClick, tags }: { onClick?: () => void; tags: ShownTag[] }) {
+// Tags as pills: a noted tag explains itself in a tooltip, and a colored category tints it. With a
+// limit, the tags past it wait behind "+N more", so a long list does not push definitions away.
+export function TagList({
+  limit = Infinity,
+  onClick,
+  tags,
+}: {
+  limit?: number;
+  onClick?: () => void;
+  tags: ShownTag[];
+}) {
+  const { t } = useI18n();
+  const [all, setAll] = useState(false);
   if (tags.length === 0) return null;
+  const folds = tags.length > limit;
+  const hidden = folds && !all ? tags.length - limit : 0;
   return (
     <span className="dictionary-result-card__tags">
-      {tags.map(({ name, category, notes }) =>
+      {tags.slice(0, tags.length - hidden).map(({ name, category, notes }) =>
         notes ? (
           <span
             aria-description={notes}
@@ -337,6 +350,16 @@ export function TagList({ onClick, tags }: { onClick?: () => void; tags: ShownTa
           </span>
         ),
       )}
+      {folds ? (
+        <button
+          aria-expanded={all}
+          className="dictionary-result-card__more-tags"
+          onClick={() => setAll((current) => !current)}
+          type="button"
+        >
+          {all ? t("lookupEntry.fewer") : t("lookupEntry.more", { count: hidden })}
+        </button>
+      ) : null}
     </span>
   );
 }

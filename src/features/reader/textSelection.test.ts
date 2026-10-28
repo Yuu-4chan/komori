@@ -353,6 +353,21 @@ describe("Reader lookup gesture precedence and cancellation", () => {
     view.cleanup();
   });
 
+  it("never starts a scan on punctuation, as on whitespace", () => {
+    const view = book();
+    const mark = view.doc.createTextNode("。");
+    view.doc.querySelector("p")!.append(mark);
+    view.hit(mark);
+    view.pointer("pointermove", { shiftKey: true });
+    expect(view.report).not.toHaveBeenCalled();
+    view.hit();
+    view.pointer("pointermove", { shiftKey: true });
+    expect(view.report).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ origin: "shift", text: "書する。" }),
+    );
+    view.cleanup();
+  });
+
   it("Shift takes priority over hover and left click on the same gesture", () => {
     vi.useFakeTimers();
     const view = book({ readerPopupClickLookup: true, readerPopupHoverLookup: true });

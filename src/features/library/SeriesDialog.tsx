@@ -10,7 +10,7 @@ interface SeriesDialogProps {
   open: boolean;
   /** How many books the choice applies to. */
   count: number;
-  /** The series every chosen book already shares, to start from. */
+  /** The series every chosen book already shares, or the name their titles share, to start from. */
   initialName: string;
   /** Series names already in the Library, offered as the name is typed. */
   suggestions: readonly string[];

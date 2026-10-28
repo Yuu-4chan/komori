@@ -45,11 +45,13 @@ import { LibrarySearch, LibraryToolbar } from "../features/library/LibraryToolba
 import { isLibraryReturn, libraryCache, type ScrollPlace } from "../features/library/libraryCache";
 import { SeriesDialog, type SeriesChoice } from "../features/library/SeriesDialog";
 import {
+  bookTitle,
   groupBooks,
   matchesQuery,
   hasReadingProgress,
   readingStatus,
   sectionGroup,
+  seriesFromTitles,
   sortBooks,
   type LibrarySection,
   type LibraryView,
@@ -473,10 +475,13 @@ function LibraryContent({ group }: { group: string | null }) {
       ),
     [library.books],
   );
+  // The series every chosen book shares or, without one, the name their titles begin with.
   const sharedSeries = useMemo(() => {
     const chosen = library.books.filter((book) => selection.selectedIds.has(book.id));
     const first = chosen[0]?.series ?? "";
-    return chosen.every((book) => (book.series ?? "") === first) ? first : "";
+    return first && chosen.every((book) => book.series === first)
+      ? first
+      : seriesFromTitles(chosen.map(bookTitle));
   }, [library.books, selection.selectedIds]);
 
   async function saveSeries(choice: SeriesChoice) {
@@ -659,14 +664,12 @@ function LibraryContent({ group }: { group: string | null }) {
               <h2 id="library-collection-title" title={wholeGroup?.title ?? undefined}>
                 {wholeGroup?.title ?? t("library.groupNotFound")}
               </h2>
-              {wholeGroup ? (
-                <LibrarySummary books={wholeGroup.books} shown={sectionBooks.length} />
-              ) : null}
+              {wholeGroup ? <LibrarySummary books={wholeGroup.books} shown={sectionBooks} /> : null}
             </div>
           ) : (
             <div className="library-section-heading__title">
               <h2 id="library-collection-title">{t("shell.library")}</h2>
-              {hasBooks ? <LibrarySummary books={library.books} shown={shownBooks.length} /> : null}
+              {hasBooks ? <LibrarySummary books={library.books} shown={shownBooks} /> : null}
             </div>
           )}
           {library.status === "error" ? (

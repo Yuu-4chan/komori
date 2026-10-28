@@ -81,6 +81,10 @@ export interface ReaderRenderer {
   ): Promise<ReaderSearchResults>;
   /** Reject obsolete result IDs and stop pending resolution when its query is cancelled. */
   goToSearchResult?(id: string, signal: AbortSignal): Promise<boolean>;
+  /** Where the last search jump's match shows in the Reader window while it is marked. */
+  searchMatchRect?(): ReaderRect | null;
+  /** A saved place's book offset in the book's progress unit, once the book is counted. */
+  locatorOffset?(locator: ReaderLocator): { current: number; total: number } | undefined;
   /** Discover illustrated places in reading order; all resource destinations stay here. */
   listImages?(signal: AbortSignal): Promise<ReaderImages>;
   /** Resolve a displayed occurrence through original archive discovery. */

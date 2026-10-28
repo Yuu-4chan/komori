@@ -9,6 +9,8 @@
   --accent-hover: var(--accent-action-hover);
   --accent-soft: color-mix(in srgb, var(--accent-base) 14%, var(--surface-card));
   --accent-faint: color-mix(in srgb, var(--accent-base) 7%, var(--surface-card));
+  /* Selected text: translucent accent, strong enough to show on any surface. */
+  --text-selection: color-mix(in srgb, var(--accent-base) 34%, transparent);
 
   /* The application theme sets these from its colors (see appThemes.ts); these are Light's,
      for rendering before it applies. */

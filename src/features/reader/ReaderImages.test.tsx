@@ -144,11 +144,9 @@ describe("Reader images", () => {
     expect(await screen.findByRole("dialog", { name: "Book image viewer" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Close image viewer" })).toHaveFocus();
     expect(screen.getByRole("button", { name: "Previous image" })).toBeDisabled();
-    screen.getByRole("button", { name: "Zoom out" }).focus();
-    fireEvent.keyDown(document.activeElement!, { key: "Tab", shiftKey: true });
-    expect(screen.getByRole("button", { name: "Go to location" })).toHaveFocus();
-    fireEvent.keyDown(document.activeElement!, { key: "Tab" });
-    expect(screen.getByRole("button", { name: "Zoom out" })).toHaveFocus();
+    // From the sidebar's images the viewer is docked beside them: not modal, nor a focus trap.
+    expect(screen.getByRole("dialog")).not.toHaveAttribute("aria-modal");
+    expect(first).toHaveAttribute("aria-current", "true");
     await userEvent.keyboard("+");
     expect(screen.getByText("125%")).toBeInTheDocument();
     await userEvent.keyboard("r");
@@ -193,6 +191,15 @@ describe("Reader images", () => {
     const scroll = new WheelEvent("wheel", { deltaY: 100, bubbles: true, cancelable: true });
     fireEvent(pan, scroll);
     expect(scroll.defaultPrevented).toBe(false);
+    expect(screen.getByText(/Image 1 of 2/)).toBeInTheDocument();
+    // The sidebar's images stay beside the viewer: another shows in it at once, and becomes current.
+    const second = screen.getByRole("button", { name: "Open image 2: Real drawing" });
+    await userEvent.click(second);
+    expect(screen.getByText(/Image 2 of 2/)).toBeInTheDocument();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(second).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: "Close image viewer" })).toHaveFocus();
+    await userEvent.click(first);
     expect(screen.getByText(/Image 1 of 2/)).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -363,6 +370,14 @@ describe("Reader images", () => {
     await act(async () => finish({ items: images.items, index: 1 }));
     expect(await screen.findByText(/Image 2 of 2/)).toBeInTheDocument();
     expect(renderer.goToImage).not.toHaveBeenCalled();
+    // From the book the viewer is modal, and Tab stays within it.
+    expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "true");
+    expect(screen.getByRole("button", { name: "Close image viewer" })).toHaveFocus();
+    screen.getByRole("button", { name: "Zoom out" }).focus();
+    fireEvent.keyDown(document.activeElement!, { key: "Tab", shiftKey: true });
+    expect(screen.getByRole("button", { name: "Go to location" })).toHaveFocus();
+    fireEvent.keyDown(document.activeElement!, { key: "Tab" });
+    expect(screen.getByRole("button", { name: "Zoom out" })).toHaveFocus();
     await userEvent.click(screen.getByRole("button", { name: "Close image viewer" }));
     expect(vi.mocked(renderer.imageAt!).mock.calls[1][1].aborted).toBe(true);
     clickImage("img");

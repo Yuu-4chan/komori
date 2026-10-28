@@ -288,13 +288,20 @@ function horizontal(text: string, left = 100, top = 100): ReaderSelection {
   };
 }
 
+/**
+ * The box a lookup popup may fill. Its height is a maximum it shrinks within, and one placed
+ * above its selection is held by its bottom edge.
+ */
 function popupStyle() {
   const popup = screen.getByRole("dialog", { name: /^Lookup: / });
+  expect(popup.style.height).toBe("");
+  const bottom = /^calc\(100% - ([\d.]+)px\)$/.exec(popup.style.bottom)?.[1];
+  const height = popup.style.maxHeight;
   return {
     left: popup.style.left,
-    top: popup.style.top,
+    top: bottom ? `${Number(bottom) - parseFloat(height)}px` : popup.style.top,
     width: popup.style.width,
-    height: popup.style.height,
+    height,
   };
 }
 
@@ -367,6 +374,30 @@ describe("Reader lookup popup", () => {
     expect(screen.queryByRole("dialog", { name: "Lookup: English" })).toBeNull();
     expect(lookupMock).toHaveBeenCalledTimes(calls);
     expect(reader.mounted).toHaveBeenCalledOnce();
+  });
+
+  it("looks up selected book text from its text menu, with selection lookups off", async () => {
+    lookupMock.mockResolvedValue(dokusho);
+    const reader = await openReader(true, undefined, { readerPopupMouseSelection: false });
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    const book = iframe.contentDocument!;
+    book.body.innerHTML = "<p>読書</p>";
+    reader.publishDocument(book);
+    const text = book.querySelector("p")!;
+    book.getSelection()!.selectAllChildren(text);
+    act(
+      () =>
+        void text.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }),
+        ),
+    );
+    // A loaded test run can take longer than the default second to show them.
+    const menu = await screen.findByRole("menu", { name: "Text" }, { timeout: 5000 });
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Look up" }));
+    const popup = await screen.findByRole("dialog", { name: "Lookup: 読書" }, { timeout: 5000 });
+    await within(popup).findByText("reading books", undefined, { timeout: 5000 });
+    iframe.remove();
   });
 
   it("uses expression-line alignment for Above in both parent and child popups", async () => {
@@ -816,7 +847,7 @@ describe("Reader lookup popup", () => {
       expect(popup).toHaveStyle({
         borderRadius: `${radius ?? 18}px`,
         width: "800px",
-        height: "600px",
+        maxHeight: "600px",
       });
       expect(popup).toHaveAttribute("data-popup-theme", "paper");
       fireEvent.keyDown(document, { key: "Escape" });
@@ -829,6 +860,8 @@ describe("Reader lookup popup", () => {
     ["night", "#15192a", "#eef1ff", "#7b90ff", "#313753", "#222844"],
     ["custom", "#121826", "#eaf0ff", "#80a0ff", "#405070", "#253040"],
     ["application", "", "", "", "", ""],
+    // Reader theme follows the Sepia page, whatever the application theme.
+    ["reader", "#f4ecd8", "#5b4636", "#e7d1a8", "#d5cbb8", "#e8dfcb"],
   ] as const)(
     "scopes the %s palette to Reader results independently of book/application themes",
     async (theme, background, text, accent, border, tag) => {

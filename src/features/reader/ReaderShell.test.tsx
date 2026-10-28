@@ -503,7 +503,7 @@ describe("Reader shell", () => {
       scrollBy,
       dispose: vi.fn(),
     });
-    renderReader(factory);
+    renderReader(factory, false, { readerViewMode: "continuous" });
     await screen.findByText("Reader ready");
     const viewport = screen.getByRole("main");
     Object.defineProperty(viewport, "clientWidth", { configurable: true, value: 1000 });
@@ -1374,6 +1374,19 @@ describe("Reader shell", () => {
     // A series is a group: its name only, never a number.
     expect(within(sidebar).getByText("星降る町の手紙", { selector: "p" })).toBeInTheDocument();
     expect(sidebar).not.toHaveTextContent("· 2");
+    // A right press selects the line under it for the Copy menu and keeps a selection made in
+    // the block wherever it lands; a left press starts a new selection.
+    const title = within(sidebar).getByRole("heading", { name: "星降る町の手紙" });
+    const author = within(sidebar).getByText("森川 遥");
+    const selection = document.getSelection()!;
+    selection.removeAllRanges();
+    expect(fireEvent.mouseDown(author, { button: 2 })).toBe(false);
+    expect(selection.toString()).toBe("森川 遥");
+    selection.selectAllChildren(title);
+    expect(fireEvent.mouseDown(author, { button: 2 })).toBe(false);
+    expect(selection.toString()).toBe("星降る町の手紙");
+    fireEvent.mouseDown(title, { button: 0 });
+    expect(selection.isCollapsed).toBe(true);
     // No progress until the book is counted.
     expect(within(sidebar).queryByRole("progressbar")).not.toBeInTheDocument();
     act(() =>
@@ -1677,6 +1690,7 @@ describe("Reader shell", () => {
       fontWeight: 400,
       paragraphIndent: 1,
       paragraphMargin: 0,
+      sideMargin: 40,
       maxWidth: 4000,
       pageLayout: "double",
       maxHeight: 4000,
@@ -2048,15 +2062,18 @@ describe("Reader shell", () => {
         typographySteppers[4],
       );
 
-      const choices = ["View mode", "Writing mode", "Text orientation"].map((name) =>
+      const choices = ["View mode", "Writing mode"].map((name) =>
         within(pageFlow).getByRole("group", { name }),
       );
       const steppers = [
         "Paragraph margin",
+        "Page margin",
         "Maximum text width",
         "Reader max height",
-        "Wheel step",
       ].map((name) => within(pageFlow).getByRole("group", { name }));
+      // Paginated horizontal text has no use for the text orientation or the wheel step.
+      for (const name of ["Text orientation", "Wheel step"])
+        expect(within(pageFlow).queryByRole("group", { name })).toBeNull();
       for (const [before, after] of [...choices, ...steppers].map((group, index, all) => [
         group,
         all[index + 1],
@@ -2072,16 +2089,22 @@ describe("Reader shell", () => {
         "aria-pressed",
         "true",
       );
+      expect(steppers.map(shownValue)).toEqual(["0px", "40px", "4000px", "4000px"]);
+      await userEvent.click(within(choices[1]).getByRole("button", { name: "Vertical" }));
+      const orientation = within(pageFlow).getByRole("group", { name: "Text orientation" });
       expect(
-        within(choices[2])
+        within(orientation)
           .getAllByRole("button")
           .map((button) => button.textContent),
       ).toEqual(["Mixed", "Upright"]);
-      expect(within(choices[2]).getByRole("button", { name: "Mixed" })).toHaveAttribute(
+      expect(within(orientation).getByRole("button", { name: "Mixed" })).toHaveAttribute(
         "aria-pressed",
         "true",
       );
-      expect(steppers.map(shownValue)).toEqual(["0px", "4000px", "4000px", "100px"]);
+      await userEvent.click(within(choices[0]).getByRole("button", { name: "Continuous" }));
+      expect(within(pageFlow).getByRole("group", { name: "Wheel step" })).toHaveTextContent(
+        "100 px",
+      );
 
       // Text behavior follows Page flow with paragraph choices before Hide furigana.
       const textBehavior = screen.getByRole("region", { name: "Text behavior" });
@@ -2104,7 +2127,7 @@ describe("Reader shell", () => {
         within(images)
           .getAllByRole("button")
           .map((button) => button.textContent),
-      ).toEqual(["Blur image", "All", "After ToC"]);
+      ).toEqual(["Blur image"]);
       expect(within(images).getByRole("button", { name: "Blur image" })).toHaveAttribute(
         "aria-pressed",
         "false",
@@ -2186,8 +2209,10 @@ describe("Reader shell", () => {
         }),
       );
 
-      await user.click(screen.getByRole("button", { name: "Horizontal" }));
+      // The orientation shows only for vertical text.
       await user.click(screen.getByRole("button", { name: "Mixed" }));
+      await user.click(screen.getByRole("button", { name: "Horizontal" }));
+      expect(screen.queryByRole("button", { name: "Mixed" })).not.toBeInTheDocument();
       await user.click(hideFurigana);
       expect(hideFurigana).toHaveAttribute("aria-pressed", "false");
       expect(
@@ -2223,9 +2248,11 @@ describe("Reader shell", () => {
         }));
         await screen.findByText("Reader ready");
         await user.click(screen.getByRole("button", { name: "Reader appearance" }));
+        // The blur's scope shows only while images blur.
+        expect(screen.queryByRole("button", { name: "After ToC" })).not.toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Blur image" }));
         const mode = screen.getByRole("button", { name: "After ToC" });
         await user.click(mode);
-        await user.click(screen.getByRole("button", { name: "Blur image" }));
         await waitFor(() =>
           expect(setPresentation).toHaveBeenLastCalledWith({
             ...shown,
@@ -2461,6 +2488,7 @@ describe("Reader shell", () => {
           readerAsianFontWeight: 300,
           readerParagraphIndent: 0,
           readerParagraphMargin: 200,
+          readerPageMargin: 96,
           readerMaxWidth: 120,
           readerMaxHeight: 900,
           readerWritingMode: "vertical",
@@ -2496,6 +2524,7 @@ describe("Reader shell", () => {
           fontWeight: 300,
           paragraphIndent: 0,
           paragraphMargin: 200,
+          sideMargin: 96,
           maxWidth: 120,
           pageLayout: "double",
           maxHeight: 900,
@@ -2522,6 +2551,7 @@ describe("Reader shell", () => {
         "0 em",
       );
       expect(screen.getByRole("group", { name: "Paragraph margin" })).toHaveTextContent("200 px");
+      expect(screen.getByRole("group", { name: "Page margin" })).toHaveTextContent("96 px");
       expect(screen.getByRole("group", { name: "Maximum text width" })).toHaveTextContent("120 px");
       expect(screen.getByRole("group", { name: "Reader max height" })).toHaveTextContent("900 px");
       expect(screen.getByRole("button", { name: "Vertical" })).toHaveAttribute(

@@ -15,6 +15,7 @@ import {
   useRef,
   type CSSProperties,
   type FocusEvent,
+  type MouseEvent,
   type ReactNode,
   type Ref,
 } from "react";
@@ -122,7 +123,7 @@ export function ReaderSidebar({
   }, [view]);
   // The contents read as a timeline: every entry before the current one is read.
   const { readIds, lastId } = useMemo(() => {
-    const order = flatten(contents);
+    const order = flattenContents(contents);
     const current = currentEntryId ? order.findIndex((entry) => entry.id === currentEntryId) : -1;
     return {
       readIds: new Set(order.slice(0, Math.max(current, 0)).map((entry) => entry.id)),
@@ -131,7 +132,8 @@ export function ReaderSidebar({
   }, [contents, currentEntryId]);
   const chapterId = progress?.chapter.entryId ?? currentEntryId;
   const chapterLabel = useMemo(
-    () => (chapterId ? flatten(contents).find((entry) => entry.id === chapterId)?.label : null),
+    () =>
+      chapterId ? flattenContents(contents).find((entry) => entry.id === chapterId)?.label : null,
     [contents, chapterId],
   );
   const panelTitle = t(
@@ -301,9 +303,16 @@ function BookCard({ identity }: { identity: ReaderIdentity }) {
           <BookOpenTextIcon weight="duotone" />
         </div>
       )}
-      <div className="reader-sidebar__book">
-        {/* The title stays selectable, so it can be copied to search for or share the book. */}
-        <h2 className={book ? "reader-sidebar__book-title" : undefined}>
+      {/* The title, author and series stay selectable, so they can be copied to search for or
+          share the book; a drag from anywhere in the block, its margin included, selects. */}
+      <div
+        className={
+          book ? "reader-sidebar__book reader-sidebar__book--open" : "reader-sidebar__book"
+        }
+        onMouseDown={book ? bookTextPress : undefined}
+        onDragStart={book ? (event) => event.preventDefault() : undefined}
+      >
+        <h2>
           {book?.title ??
             t(
               book
@@ -325,6 +334,30 @@ function BookCard({ identity }: { identity: ReaderIdentity }) {
       </div>
     </div>
   );
+}
+
+/**
+ * A press in selected text starts a new selection, as a press anywhere else does, instead of
+ * dragging the selected text away. Shift still extends it and a second click still picks a word.
+ * A right press keeps a selection made in the block for its Copy menu, wherever it lands; with
+ * none, it selects the line under the pointer, so the menu offers that line.
+ */
+function bookTextPress(event: MouseEvent) {
+  const block = event.currentTarget;
+  const selection = block.ownerDocument.getSelection();
+  if (event.button === 2) {
+    if (selection && !selection.isCollapsed && block.contains(selection.anchorNode)) {
+      event.preventDefault();
+      return;
+    }
+    const line = event.target instanceof Element ? event.target.closest("h2, p") : null;
+    if (!selection || !line || !block.contains(line)) return;
+    event.preventDefault();
+    selection.selectAllChildren(line);
+    return;
+  }
+  if (event.button !== 0 || event.shiftKey || event.detail > 1) return;
+  if (selection && !selection.isCollapsed) selection.removeAllRanges();
 }
 
 /**
@@ -501,6 +534,7 @@ function contentsLocation(entry: ReaderContentsEntry): string {
   return `${number(current)} / ${number(total)} ${t(unit === "characters" ? "readerFooter.ch" : "readerFooter.wo")}`;
 }
 
-function flatten(entries: ReaderContentsEntry[]): ReaderContentsEntry[] {
-  return entries.flatMap((entry) => [entry, ...flatten(entry.children)]);
+/** Every contents entry in reading order, each before its children. */
+export function flattenContents(entries: ReaderContentsEntry[]): ReaderContentsEntry[] {
+  return entries.flatMap((entry) => [entry, ...flattenContents(entry.children)]);
 }

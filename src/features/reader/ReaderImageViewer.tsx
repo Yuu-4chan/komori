@@ -26,10 +26,19 @@ export interface ImageViewerSession {
   signal: AbortSignal;
 }
 
+/**
+ * The image viewer. Opened from a book's image it is modal over the whole window; opened
+ * from the sidebar's images it is docked beside the sidebar, which stays open, so another
+ * image there shows in it at once (`pick`).
+ */
 export function ReaderImageViewer({
   session,
   navigationBusy,
   fileName = "",
+  docked = false,
+  container,
+  pick,
+  onIndexChange,
   onJump,
   onClose,
   ...resources
@@ -38,6 +47,12 @@ export function ReaderImageViewer({
   /** The suggested name of a saved image, before its number. */
   fileName?: string;
   navigationBusy: boolean;
+  /** Beside the sidebar and not modal, rendered in `container`. */
+  docked?: boolean;
+  container?: Element | null;
+  /** Another of the session's images chosen while the viewer shows. */
+  pick?: { index: number };
+  onIndexChange?: (index: number) => void;
   onJump: (id: string, signal: AbortSignal, settled: (success: boolean) => void) => boolean;
   onClose: (jumped?: boolean) => void;
 }) {
@@ -109,7 +124,9 @@ export function ReaderImageViewer({
     controller.current = new AbortController();
     const dialog = dialogRef.current;
     returnFocus.current = document.activeElement as HTMLElement | null;
-    if (typeof dialog?.showModal === "function") dialog.showModal();
+    // Docked, the sidebar's images stay usable beside the viewer, which still takes the keys.
+    if (docked && typeof dialog?.show === "function") dialog.show();
+    else if (!docked && typeof dialog?.showModal === "function") dialog.showModal();
     else dialog?.setAttribute("open", "");
     dialog?.querySelector<HTMLButtonElement>("[data-viewer-close]")?.focus();
     const abort = () => controller.current.abort();
@@ -118,15 +135,17 @@ export function ReaderImageViewer({
     return () => {
       session.signal.removeEventListener("abort", abort);
       signal.abort();
+      // A docked viewer returns focus only when it had it, not when the reader moved on.
+      const focused = document.activeElement;
+      const held = !focused || focused === document.body || !!dialog?.contains(focused);
       if (dialog?.open && typeof dialog.close === "function") dialog.close();
-      if (!jumped.current && returnFocus.current?.isConnected)
+      if ((!docked || held) && !jumped.current && returnFocus.current?.isConnected)
         returnFocus.current.focus({ preventScroll: true });
     };
+    // The session alone decides how the viewer opens.
   }, [session]);
-  const step = (direction: number) => {
-    if (navigationBusy || index + direction < 0 || index + direction >= session.items.length)
-      return;
-    setIndex((current) => Math.max(0, Math.min(session.items.length - 1, current + direction)));
+  const show = (next: number) => {
+    setIndex(Math.max(0, Math.min(session.items.length - 1, next)));
     setZoom(1);
     setRotation(0);
     setJumpError(false);
@@ -136,6 +155,23 @@ export function ReaderImageViewer({
       stageRef.current.scrollTop = 0;
     }
   };
+  const step = (direction: number) => {
+    if (navigationBusy || index + direction < 0 || index + direction >= session.items.length)
+      return;
+    show(index + direction);
+  };
+  useEffect(() => {
+    if (!pick) return;
+    // Focus returns to the image last chosen in the sidebar.
+    const dialog = dialogRef.current;
+    const chosen = document.activeElement as HTMLElement | null;
+    if (chosen && chosen !== document.body && !dialog?.contains(chosen))
+      returnFocus.current = chosen;
+    show(pick.index);
+    dialog?.querySelector<HTMLButtonElement>("[data-viewer-close]")?.focus();
+    // Only a new pick shows another image.
+  }, [pick]);
+  useEffect(() => onIndexChange?.(index), [index, onIndexChange]);
   browse.current = step;
   const copyImage = () => {
     if (!resource) return;
@@ -167,9 +203,9 @@ export function ReaderImageViewer({
   return createPortal(
     <dialog
       ref={dialogRef}
-      className="reader-image-viewer"
+      className={docked ? "reader-image-viewer reader-image-viewer--docked" : "reader-image-viewer"}
       aria-label={t("viewer.label")}
-      aria-modal="true"
+      aria-modal={docked ? undefined : "true"}
       aria-describedby="reader-image-keys"
       onCancel={(event) => {
         event.preventDefault();
@@ -203,7 +239,7 @@ export function ReaderImageViewer({
           event.preventDefault();
           setZoom(1);
           setRotation(0);
-        } else if (event.key === "Tab") {
+        } else if (event.key === "Tab" && !docked) {
           const controls = Array.from(
             event.currentTarget.querySelectorAll<HTMLElement>("*"),
           ).filter((control) => control.tabIndex >= 0 && !(control as HTMLButtonElement).disabled);
@@ -380,6 +416,6 @@ export function ReaderImageViewer({
         </div>
       </div>
     </dialog>,
-    document.body,
+    (docked && container) || document.body,
   );
 }

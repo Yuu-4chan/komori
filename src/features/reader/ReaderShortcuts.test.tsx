@@ -105,6 +105,8 @@ describe("Reader command dispatch", () => {
     expect(
       await screen.findByText("Bookmark saved.", { selector: ".reader-floating-feedback" }),
     ).toBeInTheDocument();
+    // The floating notice is the only one; the open Bookmarks panel does not repeat it.
+    expect(screen.getAllByText("Bookmark saved.")).toHaveLength(1);
     vi.mocked(bookmarks.create).mockResolvedValueOnce({
       duplicate: true,
       bookmark: {
@@ -146,7 +148,8 @@ describe("Reader command dispatch", () => {
     expect(screen.getByLabelText("Reader sidebar")).toHaveClass("reader-sidebar--shown");
     fireEvent.keyDown(book.body, { key: "s" });
     expect(screen.getByLabelText("Reader sidebar")).toHaveClass("reader-sidebar--hidden");
-    // A toggles Appearance; S hides it and reopens on the reader controls.
+    // A toggles Appearance with the contents; S, like it, shows the contents from any other
+    // panel, and on the contents hides and shows the sidebar.
     fireEvent.keyDown(book.body, { key: "a" });
     expect(screen.getByLabelText("Reader sidebar")).toHaveClass("reader-sidebar--shown");
     expect(screen.getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
@@ -155,10 +158,29 @@ describe("Reader command dispatch", () => {
     expect(screen.getByLabelText("Reader sidebar")).toHaveClass("reader-sidebar--shown");
     fireEvent.keyDown(book.body, { key: "a" });
     fireEvent.keyDown(book.body, { key: "s" });
+    expect(screen.getByLabelText("Reader sidebar")).toHaveClass("reader-sidebar--shown");
+    expect(screen.queryByRole("heading", { name: "Appearance" })).not.toBeInTheDocument();
+    fireEvent.keyDown(book.body, { key: "s" });
+    expect(screen.getByLabelText("Reader sidebar")).toHaveClass("reader-sidebar--hidden");
+    // G, N with nothing selected, and Ctrl+B open their panels and, pressed again, return
+    // to the contents, the sidebar staying.
+    for (const [key, ctrlKey, heading] of [
+      ["g", false, "Images"],
+      ["n", false, "Notes"],
+      ["b", true, "Bookmarks"],
+    ] as const) {
+      fireEvent.keyDown(book.body, { key, ctrlKey });
+      expect(await screen.findByRole("heading", { name: heading })).toBeInTheDocument();
+      fireEvent.keyDown(book.body, { key, ctrlKey });
+      await waitFor(() =>
+        expect(screen.queryByRole("heading", { name: heading })).not.toBeInTheDocument(),
+      );
+      expect(screen.getByLabelText("Reader sidebar")).toHaveClass("reader-sidebar--shown");
+    }
+    fireEvent.keyDown(book.body, { key: "s" });
     expect(screen.getByLabelText("Reader sidebar")).toHaveClass("reader-sidebar--hidden");
     fireEvent.keyDown(book.body, { key: "s" });
     expect(screen.getByLabelText("Reader sidebar")).toHaveClass("reader-sidebar--shown");
-    expect(screen.queryByRole("heading", { name: "Appearance" })).not.toBeInTheDocument();
     fireEvent.keyDown(book.body, { key: "s" });
     vi.useFakeTimers();
     fireEvent.keyDown(target, { key: "Escape" });

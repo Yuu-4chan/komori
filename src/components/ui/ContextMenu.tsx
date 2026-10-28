@@ -38,13 +38,16 @@ export function ContextMenu({ items, label, onClose, position, container }: Cont
     function handlePointerDown(event: MouseEvent) {
       if (!menuRef.current?.contains(event.target as Node)) onClose();
     }
+    // The open menu owns Escape and the arrows: taken before any other key handler, Escape
+    // closes only the menu, never the surface behind it.
     function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape" && event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      event.stopPropagation();
       if (event.key === "Escape") {
         onClose();
         return;
       }
-      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-      event.preventDefault();
       const items = Array.from(
         menuRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [],
       );
@@ -58,11 +61,11 @@ export function ContextMenu({ items, label, onClose, position, container }: Cont
       onClose();
     }
     document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, true);
     window.addEventListener("blur", handleBlur);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown, true);
       window.removeEventListener("blur", handleBlur);
       returnFocusRef.current?.focus();
       returnFocusRef.current = null;

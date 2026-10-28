@@ -37,9 +37,10 @@ back. The search stays in the top bar even in an empty Library.
   and Search take the whole card under its round buttons, without the book's card, the
   tiles or the bottom progress, until Back returns to the chapters. Pinning keeps it visible and reserves
   reading space on roomy windows. Floating, it is hidden when a book opens until the
-  window's left edge, focus or S brings it. S toggles the
-  sidebar (reopening on its controls), A toggles Appearance, G opens Images, Ctrl+F Search, Ctrl+B Bookmarks and R
-  the last bookmark; a double Escape shows a floating return warning. After a jump to a
+  window's left edge, focus or S brings it. A, G, Ctrl+B and N (with no selection) open
+  Appearance, Images, Bookmarks and Notes and, pressed again, return to the chapters; S shows
+  the chapters from any panel and, on them, hides or shows the sidebar. Ctrl+F opens Search and R
+  goes to the last bookmark; a double Escape shows a floating return warning. After a jump to a
   far place from Images, Chapters or R, a small pill above the footer
   offers to return to the previous place or be dismissed.
 - **Appearance.** Rows without explanatory text: Theme (15 presets and up to 32 named
@@ -73,9 +74,12 @@ back. The search stays in the top bar even in an empty Library.
   text, editing, removal, note search and order; saved passages use the theme's
   Highlight color with a little room around the letters, show the hand on hover, and
   clicking one offers Open in notes or Delete. Right-clicking selected text
-  offers Copy, Add note and Highlight (a saved passage with no note); right-clicking a
-  book image, or the image viewer, offers Copy image and Save image. Locations use
-  section and text fraction, never invented pages.
+  offers Look up (the popup for the whole selection, whatever the lookup triggers, while the
+  popup is on), Copy, Add note and Highlight (a saved passage with no note); right-clicking a
+  book image, or the image viewer, offers Copy image and Save image. Bookmarks and notes
+  show their chapter and how far into the book they lie (until the book is counted, their
+  section and its text fraction); search results and images show their chapter, never
+  invented pages.
 - **Book content.** Character images follow the text size; standalone images and
   covers center within their page, and wide spreads show whole within the margins;
   chapter titles and the section breaks between a chapter's parts (a lone number or

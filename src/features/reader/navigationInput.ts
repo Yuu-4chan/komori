@@ -37,25 +37,31 @@ export function acceptsReaderInput(target: EventTarget | null, contentDocument =
   return true;
 }
 
-export function arrowTurn(
-  key: string,
-  forwardArrow: "ArrowLeft" | "ArrowRight",
-): TurnDirection | null {
-  if (key !== "ArrowLeft" && key !== "ArrowRight") return null;
-  return key === forwardArrow ? "advance" : "retreat";
-}
-
 /**
- * The reading direction of an arrow key in a continuously scrolling book: Down reads on
- * and Up back in either axis, and Left and Right follow the page direction.
+ * The reading direction of an arrow key, which turns a page or scrolls a continuous book:
+ * Left and Right follow the page direction, and Down reads on and Up goes back in either
+ * axis.
  */
-export function scrollArrow(
+export function arrowTurn(
   key: string,
   forwardArrow: "ArrowLeft" | "ArrowRight",
 ): TurnDirection | null {
   if (key === "ArrowDown") return "advance";
   if (key === "ArrowUp") return "retreat";
-  return arrowTurn(key, forwardArrow);
+  if (key !== "ArrowLeft" && key !== "ArrowRight") return null;
+  return key === forwardArrow ? "advance" : "retreat";
+}
+
+/**
+ * The reading direction of a page key, a whole page turn in every view: Page Down and
+ * Space read on, Page Up and Shift+Space go back.
+ */
+export function pageKey(key: string, shift: boolean): TurnDirection | null {
+  if (key === " ") return shift ? "retreat" : "advance";
+  if (shift) return null;
+  if (key === "PageDown") return "advance";
+  if (key === "PageUp") return "retreat";
+  return null;
 }
 
 /** How far one arrow key press scrolls: a tenth of the reading area, at least 40px. */

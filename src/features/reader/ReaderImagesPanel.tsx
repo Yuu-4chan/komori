@@ -1,4 +1,4 @@
-import { i18n, useI18n } from "../../i18n/i18n";
+import { useI18n } from "../../i18n/i18n";
 import { ReaderPanelHeading } from "./ReaderPanelHeading";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../../components/ui/Button";
@@ -23,6 +23,8 @@ export interface ReaderImagesPanelProps extends ImageResourceProps {
   session?: ReaderRendererFactory;
   listImages: (signal: AbortSignal) => Promise<ReaderImages>;
   onOpen: (items: ReaderImage[], index: number, signal: AbortSignal) => void;
+  /** The image the docked viewer shows, marked among the thumbnails. */
+  current?: number;
 }
 
 export function ReaderImagesPanel({
@@ -30,6 +32,7 @@ export function ReaderImagesPanel({
   session,
   listImages,
   onOpen,
+  current,
   ...resources
 }: ReaderImagesPanelProps) {
   const [result, setResult] = useState<ReaderImages | null>(null);
@@ -84,6 +87,7 @@ export function ReaderImagesPanel({
             key={item.id}
             item={item}
             index={index}
+            current={index === current}
             {...resources}
             onOpen={() => {
               const signal = request.current?.signal;
@@ -99,11 +103,21 @@ export function ReaderImagesPanel({
 function ImageCard({
   item,
   index,
+  current,
   onOpen,
   loadImage,
   releaseImage,
-}: ImageResourceProps & { item: ReaderImage; index: number; onOpen: () => void }) {
+}: ImageResourceProps & {
+  item: ReaderImage;
+  index: number;
+  current: boolean;
+  onOpen: () => void;
+}) {
   const ref = useRef<HTMLButtonElement>(null);
+  // The viewer's arrows keep the image it shows in view here.
+  useEffect(() => {
+    if (current) ref.current?.scrollIntoView?.({ block: "nearest" });
+  }, [current]);
   const { t } = useI18n();
   const [visible, setVisible] = useState(typeof IntersectionObserver === "undefined");
   const [retry, setRetry] = useState(0);
@@ -129,7 +143,8 @@ function ImageCard({
       <button
         ref={ref}
         type="button"
-        className="reader-image-card"
+        className={current ? "reader-image-card reader-image-card--current" : "reader-image-card"}
+        aria-current={current || undefined}
         aria-label={t("images.open", { index: index + 1, name: item.alt || item.label })}
         onClick={onOpen}
       >
@@ -151,9 +166,9 @@ function ImageCard({
   );
 }
 
+/** The image's chapter, or its section when no chapter precedes it. */
 export function imageCaption(item: ReaderImage): string {
-  const section = i18n().t("reader.section", { number: item.section });
-  return item.label === section ? section : `${item.label} · ${section}`;
+  return item.label;
 }
 
 export function useImageResource(

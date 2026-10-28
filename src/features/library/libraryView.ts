@@ -281,6 +281,48 @@ export function sectionGroup(key: string): Exclude<LibraryGroup, "none"> | null 
   return group === "series" || group === "language" ? group : null;
 }
 
+/** The words a series name can end in before a volume's number: `Vol. 2`, `Ep.05`, `第3巻`. */
+const VOLUME_WORD =
+  /(?:(?<![\p{L}\p{N}])(?:vol(?:ume)?|ep(?:isode)?|book|part|tome|tomo|livro|parte)|第)$/iu;
+
+/** A letter of a script that separates its words with spaces. */
+const SPACED_LETTER = /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}]/u;
+
+/**
+ * The series name several titles share, from how they begin: `Cat Tales 1` and `Cat Tales 2`
+ * give `Cat Tales`, and `86─エイティシックス─Ep.05─…` and `86─エイティシックス─Alter.01─…` give
+ * `86─エイティシックス─`. Volume numbers and words, separators and opening brackets before
+ * where the titles differ are left out, and so is a word they differ within; a closing
+ * bracket stays, as does a dash or symbol that closes one opening earlier in the name.
+ * Empty for fewer than two titles, or when they share no name.
+ */
+export function seriesFromTitles(titles: readonly string[]): string {
+  if (titles.length < 2) return "";
+  const [first, ...rest] = titles.map((title) => [...title.normalize("NFC").trim()]);
+  let length = first.length;
+  for (const title of rest) {
+    let index = 0;
+    while (index < length && index < title.length && title[index] === first[index]) index += 1;
+    length = index;
+  }
+  let stem = first.slice(0, length).join("");
+  const last = first[length - 1];
+  const midWord = [first, ...rest].some((title) => {
+    const next = title[length];
+    return next !== undefined && SPACED_LETTER.test(next);
+  });
+  if (last && SPACED_LETTER.test(last) && midWord) stem = stem.replace(/[\p{L}\p{M}]+$/u, "");
+  for (;;) {
+    let next = stem.replace(/[\s\p{N}\p{Po}\p{Ps}\p{Pi}\p{Pc}]+$/u, "").replace(VOLUME_WORD, "");
+    const end = [...next].at(-1);
+    if (end && /[\p{Pd}\p{S}]/u.test(end) && !next.slice(0, -end.length).includes(end))
+      next = next.slice(0, -end.length);
+    if (next === stem) break;
+    stem = next;
+  }
+  return /\p{L}/u.test(stem) ? stem : "";
+}
+
 /** Characters across every book Komori counted (Chinese, Japanese, and Korean books). */
 export function libraryCharacters(books: readonly LibraryBook[]): number {
   return books.reduce((sum, book) => sum + (book.characters ?? 0), 0);

@@ -471,7 +471,7 @@ describe("Appearance preferences", () => {
       readerPopupShowFrequency: true,
       readerPopupCustomPalette: defaultPopupPalette,
       readerPopupRadius: 18,
-      readerPopupTheme: "application",
+      readerPopupTheme: "reader",
       readerPopupWidth: 480,
       readerPopupHeight: 440,
       theme: "hojicha",
@@ -513,7 +513,7 @@ describe("Appearance preferences", () => {
       readerPopupShowFrequency: true,
       readerPopupCustomPalette: defaultPopupPalette,
       readerPopupRadius: 18,
-      readerPopupTheme: "application",
+      readerPopupTheme: "reader",
       readerPopupWidth: 480,
       readerPopupHeight: 440,
       theme: "dark",
@@ -1123,6 +1123,14 @@ describe("Appearance preferences", () => {
         readerParagraphMargin,
       });
     }
+    // The page margin is whole 4px steps from 0 to 400, and a malformed one is the default.
+    for (const readerPageMargin of [-4, 404, 42, 40.5, "40", null]) {
+      expect(normalizeAppearancePreferences({ readerPageMargin })).toEqual({});
+    }
+    for (const readerPageMargin of [0, 40, 400]) {
+      expect(normalizeAppearancePreferences({ readerPageMargin })).toEqual({ readerPageMargin });
+    }
+    expect(defaultAppearance.readerPageMargin).toBe(40);
     for (const readerMaxWidth of [-4, 404, 42, 40.5, "40", null]) {
       expect(normalizeAppearancePreferences({ readerMaxWidth })).toEqual({});
     }

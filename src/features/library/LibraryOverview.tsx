@@ -8,19 +8,25 @@ import { libraryCharacters, libraryWords } from "./libraryView";
 
 /**
  * The Library's one-line summary under its title: its books (or how many match while searching
- * or filtering), then how many characters the whole Library holds, across every Chinese,
+ * or filtering), then how many characters the books shown hold, across every Chinese,
  * Japanese, and Korean book Komori counted, and the words of every other book.
  */
-export function LibrarySummary({ books, shown }: { books: readonly LibraryBook[]; shown: number }) {
-  const characters = libraryCharacters(books);
-  const words = libraryWords(books);
+export function LibrarySummary({
+  books,
+  shown,
+}: {
+  books: readonly LibraryBook[];
+  shown: readonly LibraryBook[];
+}) {
+  const characters = libraryCharacters(shown);
+  const words = libraryWords(shown);
   const { t, tp } = useI18n();
   return (
     <p className="library-summary">
       <span>
-        {shown === books.length
+        {shown.length === books.length
           ? tp("librarySummary.books", books.length)
-          : tp("librarySummary.shownOf", books.length, { shown })}
+          : tp("librarySummary.shownOf", books.length, { shown: shown.length })}
       </span>
       {characters > 0 ? (
         <span title={t("librarySummary.charactersTitle", { count: characters })}>

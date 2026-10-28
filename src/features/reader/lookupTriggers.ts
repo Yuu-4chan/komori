@@ -43,7 +43,8 @@ export interface LookupTriggerPreferences {
   readerPopupReadingPosition: (typeof readingPositions)[number]["value"];
 }
 
-export type LookupTrigger = "pointer" | "keyboard" | "shift" | "shortcut" | "click" | "hover";
+export type LookupTrigger =
+  "pointer" | "keyboard" | "shift" | "shortcut" | "click" | "hover" | "menu";
 export const defaultLookupTriggers: LookupTriggerPreferences = {
   readerPopupEnabled: true,
   readerPopupMouseSelection: false,
@@ -109,6 +110,8 @@ export function triggerEnabled(
       return settings.readerPopupClickLookup;
     case "hover":
       return settings.readerPopupHoverLookup;
+    case "menu":
+      return true; // Asked for by name from the text menu.
   }
 }
 

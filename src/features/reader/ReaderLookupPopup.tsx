@@ -15,6 +15,7 @@ import {
 } from "../dictionary/DictionaryResults";
 import { useAppearance } from "../appearance/AppearanceProvider";
 import { popupThemeStyle } from "./popupThemes";
+import { resolveReaderTheme } from "./readerThemes";
 import { DictionaryLookupEntry, LookupEntry } from "../dictionary/LookupEntry";
 import { type ReaderCardContext } from "../anki/AnkiAction";
 import { lookupPopupFontSize, lookupQuery } from "./lookupPopup";
@@ -23,6 +24,16 @@ import { characterAtPoint, textFromCharacter } from "./textSelection";
 import type { ReaderRect } from "./renderer";
 import { activateExpression } from "./popupShortcuts";
 import { usePopupFont } from "./popupFont";
+
+/** The popup's box: the preview keeps the saved height, a lookup shrinks to its content. */
+function fitted(
+  { left, top, width, height, above }: ReaderLookupPopupProps["placement"],
+  preview?: boolean,
+): CSSProperties {
+  if (preview) return { left, top, width, height };
+  if (above) return { left, width, maxHeight: height, bottom: `calc(100% - ${top + height}px)` };
+  return { left, top, width, maxHeight: height };
+}
 
 type LookupState =
   | { status: "initial" }
@@ -40,8 +51,12 @@ interface ReaderLookupPopupProps {
   /** The trimmed text to look up. A new query needs a new popup (keyed by its selection). */
   query: string;
   readerContext?: ReaderCardContext;
-  /** Where the popup shows, in its container's CSS pixels. */
-  placement: { left: number; top: number; width: number; height: number };
+  /**
+   * Where the popup shows, in its container's CSS pixels. Outside the preview the height is a
+   * maximum: a short entry gets a shorter popup, kept against the selection, so one placed
+   * `above` it keeps its bottom edge.
+   */
+  placement: { left: number; top: number; width: number; height: number; above?: boolean };
   /** Successful longest matched start in Unicode characters; zero for failure/no match. */
   onMatch?: (length: number) => void;
   /** Search the Dictionary page, as a headword kanji or glossary term link does there. */
@@ -101,6 +116,8 @@ export function ReaderLookupPopup({
     readerPopupReadingPosition,
     readerPopupStyle,
     readerPopupFont,
+    readerTheme,
+    readerCustomThemes,
   } = appearance;
   const dictionaryStyle = readerPopupStyle === "dictionary";
   const font = usePopupFont(readerPopupFont);
@@ -194,8 +211,12 @@ export function ReaderLookupPopup({
       }}
       style={
         {
-          ...popupThemeStyle(readerPopupTheme, readerPopupCustomPalette),
-          ...placement,
+          ...popupThemeStyle(
+            readerPopupTheme,
+            readerPopupCustomPalette,
+            resolveReaderTheme(readerTheme, readerCustomThemes),
+          ),
+          ...fitted(placement, preview),
           borderRadius: `${readerPopupRadius}px`,
           "--scroll-radius": `${readerPopupRadius}px`,
           "--popup-zoom": readerPopupFontSize / lookupPopupFontSize.default,

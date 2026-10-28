@@ -203,6 +203,8 @@ export function StatisticsPage() {
 
   const { books } = loaded;
   const overview = libraryOverview(books, now);
+  // Words read shows while the Library has a book counted in words, or words were read.
+  const wordBased = overview.wordBooks > 0 || summary.words > 0;
   const breakdown = languageBreakdown(books);
   const streak = currentStreak(sessions, now);
   const best = bestStreakInMonth(sessions, now);
@@ -261,13 +263,15 @@ export function StatisticsPage() {
             tone="green"
             value={numbers.format(summary.characters)}
           />
-          <MetricCard
-            icon={<FileTextIcon />}
-            label={t("statistics.wordsRead")}
-            note={t("statistics.wordBooks")}
-            tone="gold"
-            value={numbers.format(summary.words)}
-          />
+          {wordBased ? (
+            <MetricCard
+              icon={<FileTextIcon />}
+              label={t("statistics.wordsRead")}
+              note={t("statistics.wordBooks")}
+              tone="gold"
+              value={numbers.format(summary.words)}
+            />
+          ) : null}
           <SpeedCard previous={previous} range={range} summary={summary} />
           <MetricCard
             icon={<CheckCircleIcon />}
@@ -372,14 +376,16 @@ export function StatisticsPage() {
             }
             value={numbers.format(overview.books)}
           />
-          <OverviewCard
-            icon={<FileTextIcon />}
-            label={t("statistics.wordsCounted")}
-            note={tp("statistics.wordBooksCounted", overview.wordBooks, {
-              counted: overview.countedWordBooks,
-            })}
-            value={formatCompact(overview.words)}
-          />
+          {overview.wordBooks > 0 ? (
+            <OverviewCard
+              icon={<FileTextIcon />}
+              label={t("statistics.wordsCounted")}
+              note={tp("statistics.wordBooksCounted", overview.wordBooks, {
+                counted: overview.countedWordBooks,
+              })}
+              value={formatCompact(overview.words)}
+            />
+          ) : null}
           <OverviewCard
             icon={<TextAaIcon />}
             label={t("statistics.cjkCharacters")}
