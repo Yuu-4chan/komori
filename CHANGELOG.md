@@ -2,6 +2,15 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.5.0
+
+- Series from titles in Settings > General, off by default, puts numbered volumes that share a title, such as `Title 01` and `Title 02`, in one series when the books name none. Series read from a book or set by hand come first.
+- Groups follow the chosen sort and its direction: by name, by the latest book opened or added, by progress, or by the characters or words they hold. A series keeps its volumes in order, and books without a series or language stay last.
+- Mark as completed, in a book's menu or for the selected books, moves their progress to the end.
+- Continue reading stays while selecting books, so a book chosen there or below keeps its place.
+- A book's series or language on its card opens every book of that series or language.
+- Titles drop store, edition and bonus tags in brackets, such as 【電子版】, (Kindle版), 【BOOK☆WALKER限定 特典付き】, (角川文庫) or (Light Novel), in full- or half-width brackets, even mixed as in （電子版). A title's own bracketed words, such as （上）, stay. Titles already in the Library are cleaned once when Komori starts.
+
 ## 1.4.0
 
 - An image opened from the Reader sidebar's Images panel shows behind the sidebar, which stays open over it, so another image can be chosen without closing the viewer. Images opened from the book still fill the window.
