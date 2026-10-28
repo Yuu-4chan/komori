@@ -1067,6 +1067,8 @@ describe("EPUB.js renderer adapter", () => {
       section("Text/many.xhtml", "", true, '<img src="image.png">'.repeat(501)),
     ];
     const { book, display } = mockBook(sections, [{ label: "Opening", href: "Text/one.xhtml" }]);
+    // Pictures too large to be spacers are never read while listing.
+    book.archive.zip.file.mockReturnValue({ _data: { uncompressedSize: 64 * 1024 } });
     const renderer = epubRendererFactory(id)();
     await renderer.mount(document.createElement("div"), new AbortController().signal, vi.fn());
     const calls = display.mock.calls.length;
@@ -1089,6 +1091,45 @@ describe("EPUB.js renderer adapter", () => {
       "blob",
     );
     renderer.dispose();
+  });
+
+  it("leaves out spacer pictures, reading each small file once", async () => {
+    const page = '<p><img src="spacer.jpeg"></p><img src="art.jpeg"><img src="mark.gif">';
+    const sections = [
+      section("one.xhtml", "", true, page),
+      section("two.xhtml", "", true, page.replace("art", "plate")),
+    ];
+    const { book } = mockBook(sections);
+    const files: Record<string, number[]> = {
+      // A 1 × 1 JPEG, as Calibre conversions put before each page's picture.
+      "spacer.jpeg": [255, 216, 255, 192, 0, 11, 8, 0, 1, 0, 1, 1, 1, 17, 0],
+      // A 16 × 16 GIF, small but a picture.
+      "mark.gif": [71, 73, 70, 56, 57, 97, 16, 0, 16, 0],
+    };
+    book.archive.zip.file.mockImplementation(((path: string) => ({
+      _data: { uncompressedSize: files[path]?.length ?? 100_000 },
+    })) as never);
+    book.archive.request.mockImplementation(async (url?: string) => {
+      const file = files[(url ?? "").replace(/^\//, "")];
+      if (file) return new NativeBlob([new Uint8Array(file)]) as never;
+      return sections.find((item) => item.url === url)?.document ?? null;
+    });
+    const renderer = epubRendererFactory(id)();
+    try {
+      await renderer.mount(document.createElement("div"), new AbortController().signal, vi.fn());
+      vi.stubGlobal("Blob", NativeBlob);
+      const images = await renderer.listImages!(new AbortController().signal);
+      expect(images.items.map((item) => item.section)).toEqual([1, 1, 2, 2]);
+      const reads = book.archive.request.mock.calls.map(([url]) => url);
+      expect(reads.filter((url) => /\.(jpeg|gif)$/.test(url ?? ""))).toEqual([
+        "/spacer.jpeg",
+        "/mark.gif",
+      ]);
+      expect(book.archive.request).not.toHaveBeenCalledWith(expect.stringContaining("art"), "blob");
+    } finally {
+      renderer.dispose();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("labels each image with the last contents entry at or before it", async () => {

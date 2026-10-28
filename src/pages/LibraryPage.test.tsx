@@ -20,6 +20,7 @@ import {
   setBookSeries,
 } from "../features/library/libraryApi";
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
+import type { AppearancePreferences } from "../features/appearance/appearancePreferences";
 import { I18nProvider } from "../i18n/i18n";
 import { libraryCache, libraryReturn } from "../features/library/libraryCache";
 import { LibraryPage } from "./LibraryPage";
@@ -1548,7 +1549,7 @@ describe("Library page", () => {
         expect(screen.queryByText("Not in the catalog yet")).not.toBeInTheDocument();
       });
 
-      it("groups by series in series order or by language, books without one last", async () => {
+      it("groups by series or by language in the chosen order, books without one last", async () => {
         const user = userEvent.setup();
         await showLibrary(user);
         expect(screen.getByRole("button", { name: "No grouping" })).toBeInTheDocument();
@@ -1573,9 +1574,17 @@ describe("Library page", () => {
           "Plain Book",
         ]);
 
-        // Within a series the series order holds even when the sort is reversed.
+        // The Library's sort orders only the groups; a carousel's books keep the group
+        // pages' own sort, so they show as See all does and change with it.
         await user.click(screen.getByRole("button", { name: "Reverse sort direction" }));
         expect(libraryTitles().slice(0, 2)).toEqual(["Cat Tales 1", "Cat Tales 2"]);
+        await user.click(screen.getByRole("link", { name: "See all of Cat Tales" }));
+        await screen.findByRole("region", { name: "Cat Tales" });
+        expect(screen.getByRole("button", { name: "Reverse sort direction" })).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Reverse sort direction" }));
+        await user.click(screen.getByRole("link", { name: "Library" }));
+        await screen.findByRole("region", { name: "Library" });
+        expect(libraryTitles().slice(0, 2)).toEqual(["Cat Tales 2", "Cat Tales 1"]);
 
         // Groups follow the sort and its direction: Title reversed, from Z.
         await user.click(screen.getByRole("button", { name: /^(Group by|No grouping)/ }));
@@ -1641,6 +1650,68 @@ describe("Library page", () => {
         await user.click(screen.getByRole("link", { name: "Library" }));
         expect(await screen.findByRole("region", { name: "Library" })).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "See all of Cat Tales" })).toBeInTheDocument();
+      });
+
+      it("keeps a sort of its own on group pages, saved apart from the Library's", async () => {
+        const user = userEvent.setup();
+        const saved: Partial<AppearancePreferences>[] = [];
+        listMock.mockResolvedValue(detailed);
+        render(
+          <AppearanceProvider
+            store={{
+              load: async () => ({ librarySort: "added" }),
+              save: async (preferences) => void saved.push(preferences),
+            }}
+          >
+            <MemoryRouter initialEntries={["/library"]}>
+              <Routes>
+                <Route path="/library" element={<LibraryPage />} />
+              </Routes>
+            </MemoryRouter>
+          </AppearanceProvider>,
+        );
+        const card = (title: string) =>
+          within(screen.getByRole("heading", { name: title }).closest("article")!);
+        await screen.findByRole("heading", { name: "Cat Tales 1" });
+        await screen.findByRole("button", { name: "Sort by Date added" });
+
+        // A group's page starts from its own default, and its changes stay there.
+        await user.click(card("Cat Tales 1").getByRole("link", { name: "Cat Tales" }));
+        const series = await screen.findByRole("region", { name: "Cat Tales" });
+        await user.click(screen.getByRole("button", { name: "Sort by Title" }));
+        await user.click(screen.getByRole("menuitemradio", { name: /Date added/ }));
+        await user.click(screen.getByRole("button", { name: "Reverse sort direction" }));
+        expect(screen.getByRole("button", { name: "Sort by Date added" })).toBeInTheDocument();
+        await waitFor(() =>
+          expect(saved.at(-1)).toMatchObject({
+            librarySort: "added",
+            librarySortReversed: false,
+            libraryGroupSort: "added",
+            libraryGroupSortReversed: true,
+          }),
+        );
+        expect(within(series).getAllByRole("article")).toHaveLength(2);
+
+        // The Library keeps its own sort, and changing it leaves the group's alone.
+        await user.click(screen.getByRole("link", { name: "Library" }));
+        await screen.findByRole("region", { name: "Library" });
+        expect(screen.getByRole("button", { name: "Sort by Date added" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Reverse sort direction" })).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Sort by Date added" }));
+        await user.click(screen.getByRole("menuitemradio", { name: /Title/ }));
+        await waitFor(() =>
+          expect(saved.at(-1)).toMatchObject({
+            librarySort: "title",
+            libraryGroupSort: "added",
+            libraryGroupSortReversed: true,
+          }),
+        );
+        await user.click(card("Cat Tales 1").getByRole("link", { name: "Cat Tales" }));
+        await screen.findByRole("region", { name: "Cat Tales" });
+        expect(screen.getByRole("button", { name: "Sort by Date added" })).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: "Use normal sort direction" }),
+        ).toBeInTheDocument();
       });
 
       it("opens a card's series or language from its chip, which selects while selecting", async () => {

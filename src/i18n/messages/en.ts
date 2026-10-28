@@ -1566,6 +1566,7 @@ export const en = {
   "readerTheme.newSuffix": ": new theme",
   "readerTheme.name": "Theme name",
   "readerTheme.delete": "Delete theme",
+  "readerTheme.actions": "Actions for {name}",
 
   // Fonts
   "fonts.loadFailed": "Could not load downloaded fonts. Retry.",

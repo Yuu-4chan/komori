@@ -2716,11 +2716,26 @@ describe("Reader shell", () => {
       await user.click(first);
       expect(within(theme).getByRole("textbox", { name: "Theme name" })).toHaveValue("Evening");
 
+      // The editor has no delete button: a custom swatch's context menu deletes its theme.
+      expect(within(theme).queryByRole("button", { name: "Delete theme" })).toBeNull();
+      // Presets keep the native behavior: no menu of their own.
+      await user.pointer({
+        keys: "[MouseRight]",
+        target: within(theme).getByRole("button", { name: "Sepia" }),
+      });
+      expect(screen.queryByRole("menu")).toBeNull();
+      // Shift+F10 opens the same menu from the keyboard; Escape closes it.
+      first.focus();
+      await user.keyboard("{Shift>}{F10}{/Shift}");
+      expect(screen.getByRole("menu", { name: "Actions for Evening" })).toBeInTheDocument();
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("menu")).toBeNull();
       // Deleting the chosen theme returns to Hojicha, with focus on it, and keeps the other.
-      await user.click(within(theme).getByRole("button", { name: "Delete theme" }));
+      await user.pointer({ keys: "[MouseRight]", target: first });
+      await user.click(screen.getByRole("menuitem", { name: "Delete theme" }));
       const hojicha = within(theme).getByRole("button", { name: "Hojicha" });
+      await waitFor(() => expect(hojicha).toHaveFocus());
       expect(hojicha).toHaveAttribute("aria-pressed", "true");
-      expect(hojicha).toHaveFocus();
       expect(within(theme).queryByRole("button", { name: "Evening" })).toBeNull();
       expect(second).toHaveAttribute("aria-pressed", "false");
       expect(readingAreaColors()).toEqual(["#ebdfcb", "#3e2f22", "#807262"]);

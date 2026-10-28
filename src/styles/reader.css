@@ -743,7 +743,7 @@
 
 .reader-appearance-rows > :is(.stepper-field, .select-field, .choice-field),
 .reader-appearance-rows > .reader-font-field > .select-field,
-.reader-custom-theme-grid > .color-field {
+.reader-custom-theme-grid > :is(.color-field, .text-field) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 11.5rem);
   align-items: center;
@@ -752,7 +752,7 @@
 
 .reader-appearance-rows :is(.stepper-field__label > span, .select-field__label > :is(label, span)),
 .reader-appearance-rows .choice-field__label,
-.reader-custom-theme-grid .color-field__label {
+.reader-custom-theme-grid :is(.color-field__label, .text-field__label) {
   color: var(--text-primary);
   font-size: var(--font-size-2);
   font-weight: 550;
@@ -765,7 +765,7 @@
 }
 
 .reader-appearance-rows :is(.stepper, .select-control select, .font-picker__input-control),
-.reader-custom-theme-grid :is(.color-field__swatch, .color-field__hex) {
+.reader-custom-theme-grid :is(.color-field__swatch, .color-field__hex, .text-field__input) {
   min-height: var(--control-height-row);
   height: var(--control-height-row);
 }
@@ -908,21 +908,16 @@
   flex-direction: column;
 }
 
-.reader-custom-theme-grid > .color-field {
+.reader-custom-theme-grid > * {
   padding: 0.45rem 0;
 }
 
-.reader-custom-theme-grid > .color-field + .color-field {
+.reader-custom-theme-grid > * + * {
   border-top: 1px solid var(--border-soft);
 }
 
 .reader-custom-theme-grid .color-field__row {
   grid-template-columns: 2.25rem minmax(0, 1fr);
-}
-
-.reader-custom-theme__delete.button {
-  align-self: flex-start;
-  min-height: 2.4rem;
 }
 
 .reader-reading-area {
@@ -2243,7 +2238,7 @@
 @container (max-width: 300px) {
   .reader-appearance-rows > :is(.stepper-field, .select-field, .choice-field),
   .reader-appearance-rows > .reader-font-field > .select-field,
-  .reader-custom-theme-grid > .color-field {
+  .reader-custom-theme-grid > :is(.color-field, .text-field) {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.35rem;
   }

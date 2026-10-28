@@ -1,9 +1,9 @@
 import { useI18n, type MessageKey } from "../../i18n/i18n";
 import { TrashIcon } from "@phosphor-icons/react";
-import { useRef } from "react";
+import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 
-import { Button } from "../../components/ui/Button";
 import { ColorField } from "../../components/ui/ColorField";
+import { ContextMenu } from "../../components/ui/ContextMenu";
 import { TextField } from "../../components/ui/TextField";
 import {
   isThemeName,
@@ -39,8 +39,8 @@ const colorFields: { key: keyof ReaderThemeColors; label: MessageKey }[] = [
 
 /**
  * The Theme section: its preset swatches, a swatch for each saved custom theme,
- * and the Custom swatch, which creates a new theme. The chosen custom theme is edited,
- * renamed, and deleted below them.
+ * and the Custom swatch, which creates a new theme. The chosen custom theme is edited and
+ * renamed below them; a custom swatch's context menu deletes its theme.
  */
 export function ReaderThemeSection({
   theme,
@@ -56,7 +56,16 @@ export function ReaderThemeSection({
     custom || readerPresetThemes.some((preset) => preset.id === theme) ? theme : defaultReaderTheme;
   const full = customThemes.length >= readerCustomThemeLimit;
   const defaultThemeRef = useRef<HTMLButtonElement>(null);
+  const [menu, setMenu] = useState<{ theme: ReaderCustomTheme; x: number; y: number } | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
   const { t } = useI18n();
+  // Shift+F10 or the context-menu key opens a custom swatch's menu under it.
+  const swatchKeyDown = (event: KeyboardEvent<HTMLButtonElement>, option: ReaderCustomTheme) => {
+    if (event.key !== "ContextMenu" && !(event.key === "F10" && event.shiftKey)) return;
+    event.preventDefault();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setMenu({ theme: option, x: bounds.left, y: bounds.bottom + 4 });
+  };
   return (
     <section className="reader-appearance-card" aria-labelledby="reader-appearance-theme">
       <h3 className="reader-appearance-card__title" id="reader-appearance-theme">
@@ -74,7 +83,14 @@ export function ReaderThemeSection({
                 : "reader-theme-swatch"
             }
             aria-pressed={option.id === chosen}
+            aria-keyshortcuts={"label" in option ? undefined : "Shift+F10"}
             onClick={() => onThemeChange(option.id)}
+            onContextMenu={(event) => {
+              if ("label" in option) return;
+              event.preventDefault();
+              setMenu({ theme: option, x: event.clientX, y: event.clientY });
+            }}
+            onKeyDown={"label" in option ? undefined : (event) => swatchKeyDown(event, option)}
           >
             <span
               className="reader-theme-swatch__preview"
@@ -106,14 +122,14 @@ export function ReaderThemeSection({
       </div>
       {custom && (
         <div className="reader-custom-theme" key={custom.id}>
-          <TextField
-            label={t("readerTheme.name")}
-            value={custom.name}
-            maxLength={readerThemeNameMaxLength}
-            accepts={isThemeName}
-            onChange={(name) => onCustomThemeChange(custom.id, { name })}
-          />
           <div className="reader-custom-theme-grid">
+            <TextField
+              label={t("readerTheme.name")}
+              value={custom.name}
+              maxLength={readerThemeNameMaxLength}
+              accepts={isThemeName}
+              onChange={(name) => onCustomThemeChange(custom.id, { name })}
+            />
             {colorFields.map(({ key, label }) => (
               <ColorField
                 key={key}
@@ -123,20 +139,30 @@ export function ReaderThemeSection({
               />
             ))}
           </div>
-          <Button
-            tone="secondary"
-            className="reader-custom-theme__delete"
-            icon={<TrashIcon aria-hidden="true" weight="bold" />}
-            onClick={() => {
-              onDeleteCustomTheme(custom.id);
-              // Focus follows the Reader's default theme after deletion.
-              defaultThemeRef.current?.focus();
-            }}
-          >
-            {t("readerTheme.delete")}
-          </Button>
         </div>
       )}
+      <ContextMenu
+        items={
+          menu
+            ? [
+                {
+                  label: t("readerTheme.delete"),
+                  icon: <TrashIcon aria-hidden="true" />,
+                  tone: "danger",
+                  onSelect: () => {
+                    onDeleteCustomTheme(menu.theme.id);
+                    // Focus follows the Reader's default theme after deletion, once the
+                    // menu has handed focus back to the removed swatch.
+                    requestAnimationFrame(() => defaultThemeRef.current?.focus());
+                  },
+                },
+              ]
+            : []
+        }
+        label={t("readerTheme.actions", { name: menu?.theme.name ?? "" })}
+        onClose={closeMenu}
+        position={menu && { x: menu.x, y: menu.y }}
+      />
     </section>
   );
 }

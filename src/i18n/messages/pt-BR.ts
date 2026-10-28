@@ -1528,6 +1528,7 @@ export const ptBR: MessageCatalog = {
   "readerTheme.newSuffix": ": novo tema",
   "readerTheme.name": "Nome do tema",
   "readerTheme.delete": "Excluir tema",
+  "readerTheme.actions": "Ações para {name}",
   "fonts.loadFailed": "Não foi possível carregar as fontes baixadas. Tente novamente.",
   "fonts.desktopOnly": "Baixar fontes requer o aplicativo para desktop.",
   "fonts.downloadFailed": "O download falhou. Confira sua conexão e tente novamente.",

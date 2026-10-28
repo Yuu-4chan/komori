@@ -123,6 +123,9 @@ export interface LibraryDisplay {
   view: LibraryView;
   sort: LibrarySort;
   sortReversed: boolean;
+  /** A group's own page sorts apart from the Library. */
+  groupSort: LibrarySort;
+  groupSortReversed: boolean;
   filter: LibraryFilter;
   group: LibraryGroup;
   cardSeries: boolean;
@@ -448,6 +451,8 @@ export function AppearanceProvider({
     libraryView,
     librarySort,
     librarySortReversed,
+    libraryGroupSort,
+    libraryGroupSortReversed,
     libraryFilter,
     libraryCardSeries,
     libraryCardLanguage,
@@ -639,6 +644,8 @@ export function AppearanceProvider({
         view: libraryView,
         sort: librarySort,
         sortReversed: librarySortReversed,
+        groupSort: libraryGroupSort,
+        groupSortReversed: libraryGroupSortReversed,
         filter: libraryFilter,
         group: libraryGroup,
         cardSeries: libraryCardSeries,
@@ -653,6 +660,10 @@ export function AppearanceProvider({
           ...(patch.view !== undefined && { libraryView: patch.view }),
           ...(patch.sort !== undefined && { librarySort: patch.sort }),
           ...(patch.sortReversed !== undefined && { librarySortReversed: patch.sortReversed }),
+          ...(patch.groupSort !== undefined && { libraryGroupSort: patch.groupSort }),
+          ...(patch.groupSortReversed !== undefined && {
+            libraryGroupSortReversed: patch.groupSortReversed,
+          }),
           ...(patch.filter !== undefined && { libraryFilter: patch.filter }),
           ...(patch.group !== undefined && { libraryGroup: patch.group }),
           ...(patch.cardKanji !== undefined && { libraryCardKanji: patch.cardKanji }),
@@ -865,6 +876,8 @@ export function AppearanceProvider({
       libraryView,
       librarySort,
       librarySortReversed,
+      libraryGroupSort,
+      libraryGroupSortReversed,
       libraryFilter,
       libraryCardSeries,
       libraryCardLanguage,

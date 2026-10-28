@@ -320,6 +320,11 @@ pub struct AppearancePreferences {
     library_sort: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     library_sort_reversed: Option<bool>,
+    /// A group's own page sorts apart from the Library.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    library_group_sort: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    library_group_sort_reversed: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     library_filter: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -655,6 +660,10 @@ impl AppearancePreferences {
                 .as_deref()
                 .is_none_or(|sort| LIBRARY_SORTS.contains(&sort))
             && self
+                .library_group_sort
+                .as_deref()
+                .is_none_or(|sort| LIBRARY_SORTS.contains(&sort))
+            && self
                 .statistics_session_start
                 .as_deref()
                 .is_none_or(|mode| SESSION_START_MODES.contains(&mode))
@@ -837,6 +846,8 @@ impl AppearancePreferences {
             library_view: choice("libraryView", &LIBRARY_VIEWS),
             library_sort: choice("librarySort", &LIBRARY_SORTS),
             library_sort_reversed: flag("librarySortReversed"),
+            library_group_sort: choice("libraryGroupSort", &LIBRARY_SORTS),
+            library_group_sort_reversed: flag("libraryGroupSortReversed"),
             library_filter: choice("libraryFilter", &LIBRARY_FILTERS),
             library_card_series: flag("libraryCardSeries"),
             library_card_language: flag("libraryCardLanguage"),
@@ -1521,6 +1532,8 @@ mod tests {
             library_view: None,
             library_sort: None,
             library_sort_reversed: None,
+            library_group_sort: None,
+            library_group_sort_reversed: None,
             library_filter: None,
             library_card_series: None,
             library_card_language: None,
@@ -3050,6 +3063,8 @@ mod tests {
             library_view: Some("list".into()),
             library_sort: Some("progress".into()),
             library_sort_reversed: Some(true),
+            library_group_sort: Some("added".into()),
+            library_group_sort_reversed: Some(false),
             library_filter: Some("reading".into()),
             library_card_series: Some(false),
             library_card_language: Some(true),
@@ -3134,6 +3149,8 @@ mod tests {
                         },
                         "libraryView": "list",
                         "librarySort": "author",
+                        "libraryGroupSort": "author",
+                        "libraryGroupSortReversed": "yes",
                         "libraryFilter": "completed",
                         "libraryCardSeries": "yes",
                         "libraryCardLastRead": false,
@@ -3152,6 +3169,8 @@ mod tests {
         assert_eq!(loaded.app_custom_theme, None);
         assert_eq!(loaded.library_view.as_deref(), Some("list"));
         assert_eq!(loaded.library_sort, None);
+        assert_eq!(loaded.library_group_sort, None);
+        assert_eq!(loaded.library_group_sort_reversed, None);
         assert_eq!(loaded.library_filter.as_deref(), Some("completed"));
         assert_eq!(loaded.library_card_series, None);
         assert_eq!(loaded.library_card_last_read, Some(false));

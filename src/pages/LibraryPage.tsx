@@ -25,7 +25,7 @@ import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { useShellSearchSlot } from "../components/layout/shellSlots";
 import { EmptyState } from "../components/ui/EmptyState";
 import { NoticeClose } from "../components/ui/NoticeClose";
-import { useAppearance } from "../features/appearance/AppearanceProvider";
+import { useAppearance, type LibraryDisplay } from "../features/appearance/AppearanceProvider";
 import {
   LibraryBookCard,
   type CardDetails,
@@ -151,7 +151,32 @@ function LibraryContent({ group }: { group: string | null }) {
   const [bulkFailures, setBulkFailures] = useState<BulkFailure[]>([]);
   const availableBookIds = useMemo(() => library.books.map((book) => book.id), [library.books]);
   const selection = useSelection(availableBookIds);
-  const { library: display, updateLibrary } = useAppearance();
+  const { library: savedDisplay, updateLibrary } = useAppearance();
+  // A group's own page keeps a sort of its own, so neither changes the other's.
+  const display = useMemo<LibraryDisplay>(
+    () =>
+      onGroupPage
+        ? {
+            ...savedDisplay,
+            sort: savedDisplay.groupSort,
+            sortReversed: savedDisplay.groupSortReversed,
+          }
+        : savedDisplay,
+    [onGroupPage, savedDisplay],
+  );
+  const updateDisplay = useCallback(
+    ({ sort, sortReversed, ...patch }: Partial<LibraryDisplay>) =>
+      updateLibrary(
+        onGroupPage
+          ? {
+              ...patch,
+              ...(sort !== undefined && { groupSort: sort }),
+              ...(sortReversed !== undefined && { groupSortReversed: sortReversed }),
+            }
+          : { ...patch, sort, sortReversed },
+      ),
+    [onGroupPage, updateLibrary],
+  );
   const [query, setQuery] = useState("");
   const searchSlot = useShellSearchSlot();
   const details: CardDetails = useMemo(
@@ -184,6 +209,11 @@ function LibraryContent({ group }: { group: string | null }) {
     () => sortBooks(library.books.filter(hasReadingProgress), "recent", false),
     [library.books],
   );
+  // Grouped, the Library's sort orders the groups, and each carousel's books follow the
+  // group pages' sort, as See all shows them.
+  const grouped = !onGroupPage && display.group !== "none";
+  const bookSort = grouped ? savedDisplay.groupSort : display.sort;
+  const bookSortReversed = grouped ? savedDisplay.groupSortReversed : display.sortReversed;
   const shownBooks = useMemo(
     () =>
       sortBooks(
@@ -192,10 +222,10 @@ function LibraryContent({ group }: { group: string | null }) {
             matchesQuery(book, query) &&
             (display.filter === "all" || readingStatus(book) === display.filter),
         ),
-        display.sort,
-        display.sortReversed,
+        bookSort,
+        bookSortReversed,
       ),
-    [library.books, query, display.filter, display.sort, display.sortReversed],
+    [library.books, query, display.filter, bookSort, bookSortReversed],
   );
   // A group's page shows only that group's books, in the order its carousel shows them.
   const groupSection = useMemo(
@@ -740,7 +770,7 @@ function LibraryContent({ group }: { group: string | null }) {
             <LibraryToolbar
               display={display}
               grouping={!onGroupPage}
-              onDisplayChange={updateLibrary}
+              onDisplayChange={updateDisplay}
             />
           ) : null}
         </div>

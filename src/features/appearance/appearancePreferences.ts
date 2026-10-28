@@ -187,6 +187,9 @@ export interface AppearancePreferences
   libraryView: LibraryView;
   librarySort: LibrarySort;
   librarySortReversed: boolean;
+  /** The sort of a group's own page, saved apart from the Library's. */
+  libraryGroupSort: LibrarySort;
+  libraryGroupSortReversed: boolean;
   /** The Library's reading-status filter. */
   libraryFilter: LibraryFilter;
   /** Optional details the Library's book cards show. */
@@ -294,6 +297,8 @@ export const defaultAppearance: AppearancePreferences = {
   libraryView: "grid",
   librarySort: "title",
   librarySortReversed: false,
+  libraryGroupSort: "title",
+  libraryGroupSortReversed: false,
   libraryFilter: "all",
   libraryCardSeries: true,
   libraryCardLanguage: true,
@@ -388,6 +393,8 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     libraryView,
     librarySort,
     librarySortReversed,
+    libraryGroupSort,
+    libraryGroupSortReversed,
     libraryFilter,
     libraryCardSeries,
     libraryCardLanguage,
@@ -496,6 +503,8 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(isLibraryView(libraryView) && { libraryView }),
     ...(isLibrarySort(librarySort) && { librarySort }),
     ...(typeof librarySortReversed === "boolean" && { librarySortReversed }),
+    ...(isLibrarySort(libraryGroupSort) && { libraryGroupSort }),
+    ...(typeof libraryGroupSortReversed === "boolean" && { libraryGroupSortReversed }),
     ...(isLibraryFilter(libraryFilter) && { libraryFilter }),
     ...(typeof libraryCardSeries === "boolean" && { libraryCardSeries }),
     ...(typeof libraryCardLanguage === "boolean" && { libraryCardLanguage }),

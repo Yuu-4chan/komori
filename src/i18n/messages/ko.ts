@@ -1432,6 +1432,7 @@ export const ko: MessageCatalog = {
   "readerTheme.newSuffix": ": 새 테마",
   "readerTheme.name": "테마 이름",
   "readerTheme.delete": "테마 삭제",
+  "readerTheme.actions": "{name} 작업",
   "fonts.loadFailed": "다운로드한 글꼴을 불러오지 못했습니다. 다시 시도하세요.",
   "fonts.desktopOnly": "글꼴 다운로드에는 데스크톱 앱이 필요합니다.",
   "fonts.downloadFailed": "다운로드에 실패했습니다. 연결을 확인하고 다시 시도하세요.",
