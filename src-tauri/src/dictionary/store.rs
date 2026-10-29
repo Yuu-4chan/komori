@@ -753,6 +753,18 @@ fn rank_kana_groups(
     Ok(())
 }
 
+/// A start's groups from `first` on list their first group with a rank in the rank-based
+/// frequency dictionaries first when the groups before it have none, so an exact or less inflected
+/// entry no frequency list knows (書いた in a learner's dictionary, an album called 見て) follows the
+/// dictionary form it would hide (書く, 見る). The others keep their order; without a ranked group
+/// nothing moves.
+fn lead_with_ranked_group(groups: &mut [TermGroup], first: usize) {
+    let start = &mut groups[first..];
+    if let Some(ranked) = start.iter().position(|group| best_rank(group).is_some()) {
+        start[..=ranked].rotate_right(1);
+    }
+}
+
 /// A group's best (lowest) rank in the rank-based frequency dictionaries that list it.
 fn best_rank(group: &TermGroup) -> Option<f64> {
     group
@@ -770,7 +782,9 @@ fn best_rank(group: &TermGroup) -> Option<f64> {
 /// first, is tried exactly and as an inflection of each dictionary form it may be (see
 /// `dictionary::deinflect`), whose terms must have rules naming that form's word class. The
 /// first start with any match wins and names the lookup's text; within the kana tiers its exact groups come first,
-/// then each matching form's groups in candidate order. Each shorter start that matches then
+/// then each matching form's groups in candidate order, except that the first group with a rank in
+/// the rank-based frequency dictionaries leads when the groups before it have none (書いた lists
+/// 書く first when only 書く is ranked). Each shorter start that matches then
 /// lists its groups in the same order, within `MAX_LISTED_STARTS` and `MAX_LISTED_GROUPS`. A
 /// group reached more than one way is listed once, the first way (so with its longest start).
 /// A `vs` candidate ending in する is followed by its nonempty stem as a form of its own,
@@ -945,7 +959,8 @@ fn frequency_number(data: &Value) -> Option<f64> {
 }
 
 /// Appends `start`'s unseen exact and inflected groups in candidate order, each naming `start`,
-/// then applies the stable kana tiers to that start before the caller enforces its limit.
+/// then applies the stable kana tiers to that start and leads it with its first ranked group (see
+/// `lead_with_ranked_group`) before the caller enforces its limit.
 fn add_start_groups(
     connection: &Connection,
     rules_probe: &mut rusqlite::Statement,
@@ -1015,7 +1030,9 @@ fn add_start_groups(
             );
         }
     }
-    rank_kana_groups(start, groups, first, limits)
+    rank_kana_groups(start, groups, first, limits)?;
+    lead_with_ranked_group(groups, first);
+    Ok(())
 }
 
 /// The format's kanji ranges (the unified ideographs and their extensions, and the
@@ -5003,6 +5020,113 @@ mod tests {
         )
         .unwrap();
         assert_eq!(limited.groups.len(), 1);
+    }
+
+    #[test]
+    fn an_unranked_exact_or_less_inflected_entry_follows_the_ranked_dictionary_form() {
+        let directory = tempdir().unwrap();
+        let words = fixture_with(
+            directory.path(),
+            "words.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Words","revision":"1","format":3}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["書いた","かいた","","",0,["past of 書く (learner's entry)"],1,""],
+                        ["書く","かく","v5","v5",0,["to write"],2,""],
+                        ["見て","みて","","",0,["an album"],3,""],
+                        ["見る","みる","v1","v1",0,["to see"],4,""],
+                        ["高さ","たかさ","n","",0,["height"],5,""],
+                        ["高い","たかい","adj-i","adj-i",0,["high"],6,""],
+                        ["食べさせる","たべさせる","v1","v1",0,["to feed"],7,""],
+                        ["食べる","たべる","v1","v1",0,["to eat"],8,""],
+                        ["ございます","ございます","exp","",0,["to be (polite)"],9,""],
+                        ["ござる","ござる","v5","v5",0,["to be (archaic)"],10,""]]"#,
+                ),
+            ],
+        );
+        let ranks = fixture_with(
+            directory.path(),
+            "ranks.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Ranks","revision":"1","format":3,"frequencyMode":"rank-based"}"#,
+                ),
+                (
+                    "term_meta_bank_1.json",
+                    r#"[["書く","freq",263],["見る","freq",36],["高さ","freq",2903],
+                        ["高い","freq",265],["食べる","freq",184],["ございます","freq",917],
+                        ["ござる","freq",1431]]"#,
+                ),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        for path in [&words, &ranks] {
+            assert_eq!(import_one(&mut connection, path).0, ImportStatus::Imported);
+        }
+        let order = |query: &str| {
+            let lookup = lookup_longest_start_from_store(&connection, query).unwrap();
+            (
+                lookup.text,
+                lookup
+                    .groups
+                    .iter()
+                    .map(|group| group.expression.clone())
+                    .collect::<Vec<_>>(),
+            )
+        };
+        // An exact entry no frequency list knows follows the ranked dictionary form, which keeps
+        // naming the same start.
+        assert_eq!(
+            order("書いた。"),
+            ("書いた".into(), vec!["書く".into(), "書いた".into()])
+        );
+        assert_eq!(
+            order("見て"),
+            ("見て".into(), vec!["見る".into(), "見て".into()])
+        );
+        // So does a less inflected candidate.
+        assert_eq!(
+            order("食べさせられた"),
+            (
+                "食べさせられた".into(),
+                vec!["食べる".into(), "食べさせる".into()]
+            )
+        );
+        // A ranked exact entry leads, however much rarer than the dictionary form.
+        assert_eq!(
+            order("高さ"),
+            ("高さ".into(), vec!["高さ".into(), "高い".into()])
+        );
+        assert_eq!(
+            order("ございます"),
+            (
+                "ございます".into(),
+                vec!["ございます".into(), "ござる".into()]
+            )
+        );
+        // Without a rank-based dictionary nothing moves.
+        connection
+            .execute(
+                "UPDATE dictionaries SET enabled = 0 WHERE title = 'Ranks'",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            order("書いた。"),
+            ("書いた".into(), vec!["書いた".into(), "書く".into()])
+        );
+        assert_eq!(
+            order("食べさせられた"),
+            (
+                "食べさせられた".into(),
+                vec!["食べさせる".into(), "食べる".into()]
+            )
+        );
     }
 
     #[test]

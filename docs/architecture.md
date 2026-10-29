@@ -1573,6 +1573,13 @@ ordinary prose does not. Sorting is stable within each tier, preserving source,
 score, row and candidate order, metadata and deduplication. A start containing
 kanji keeps its previous ranking; shorter-start and rare-particle handling remain.
 
+Any start's first group with a rank in the rank-based frequency dictionaries leads that
+start when the groups before it have none: an exact or less inflected entry that no
+frequency list knows (書いた in a learner's dictionary, a Pixiv tag 寝ろ, an album called
+見て, 食べさせる for 食べさせられた) follows the dictionary form it would otherwise hide.
+A ranked exact entry leads however much rarer it is (高さ before 高い); without a ranked
+group, or without a rank-based dictionary, nothing moves.
+
 Keep these concerns separate:
 
 - dictionary import/indexing
