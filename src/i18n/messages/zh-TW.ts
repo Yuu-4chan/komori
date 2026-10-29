@@ -686,6 +686,7 @@ export const zhTW: MessageCatalog = {
   "lookupLanguage.es": "西班牙語",
   "lookupLanguage.ko": "韓語",
   "lookupLanguage.zh": "中文",
+  "lookupLanguage.de": "德語",
   "popupSettings.cjkOnly": "只查日語/中日韓文字",
   "popupSettings.cjkOnlyHint": "忽略不含漢字、假名或諺文的自動查詞。詞典搜尋和連結仍可使用。",
   "popupSettings.scanLength": "掃描長度",

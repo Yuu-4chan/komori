@@ -1447,7 +1447,7 @@ publisher colors, use a soft yellow note highlight.
 
 ## Lookup language
 
-The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko` or `zh`, default `ja`; anything else is dropped, so
+The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko`, `zh` or `de`, default `ja`; anything else is dropped, so
 older records read as Japanese) is the language every lookup reads text in. Settings > Reader
 popup's Scanning and results card chooses it as Lookup language, first in the card; the Reader popup, its
 child popups, the Dictionary page, Anki and word audio follow it at once. The frontend sends
@@ -1519,6 +1519,15 @@ scripts, since its dictionaries list traditional and simplified headwords; it ha
 inflections, so a lookup matches the scanned text's starts exactly. Neither Japanese nor Chinese
 spaces its words; Korean does. On the Dictionary page a Chinese or Korean headword's reading
 (pinyin, or Hangul for hanja) follows it, smaller, where Japanese shows furigana.
+
+German (`deinflect/de.rs`) is Yomitan's `ext/js/language/de/german-transforms.js` at commit
+d3c54c1 (nominalizations in -ung, -bar and un- adjectives, past participles with their
+separable prefixes, zu-infinitives and nouns in -heit/-keit), followed by Komori's own regular
+verb tenses, present participles, adjective endings, comparatives and superlatives, and noun
+plurals. A participle's ending is replaced first and its ge- removed second (class `GE` between
+them), so a verb's own -t (macht) is never taken for a participle's. Yomitan's separated prefixes
+(fange … an → anfangen) span words and are left out. Its classes are `v` (with `vw` and `vst`),
+`n` and `adj`.
 
 Each dictionary belongs to one lookup language, the store's `language` column, and only that
 language's lookups use it. An import goes to the language Settings > Dictionary shows, unless its

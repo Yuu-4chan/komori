@@ -17,6 +17,7 @@
 //! can have. Only candidates whose classes include one of the language's dictionary forms can
 //! match a term, and then only a term whose rules name one of them.
 
+pub(crate) mod de;
 pub(crate) mod en;
 pub(crate) mod es;
 pub(crate) mod fr;

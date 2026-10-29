@@ -743,6 +743,7 @@ export const ja: MessageCatalog = {
   "lookupLanguage.es": "スペイン語",
   "lookupLanguage.ko": "韓国語",
   "lookupLanguage.zh": "中国語",
+  "lookupLanguage.de": "ドイツ語",
   "popupSettings.cjkOnly": "日本語・CJKの文字だけを引く",
   "popupSettings.cjkOnlyHint":
     "漢字、かな、ハングルを含まない自動の辞書引きを無視します。辞書の検索やリンクは引き続き使えます。",

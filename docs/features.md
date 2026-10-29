@@ -128,11 +128,11 @@ and tag marks. Until an installed dictionary can supply definitions, this page a
 lookup popup (and its Settings preview) offer Get dictionaries, linking to Settings; the
 Dictionary page says it has no dictionaries only in that offer.
 
-The lookup language, Japanese by default, English, French, Portuguese, Italian, Spanish, Korean or Chinese (Settings > Reader popup > Scanning and results), decides
+The lookup language, Japanese by default, English, French, Portuguese, Italian, Spanish, Korean, Chinese or German (Settings > Reader popup > Scanning and results), decides
 how the popup and the Dictionary read words. English lookups start at the word under the pointer
 and read on across spaces, so phrasal verbs match (looked it up → look up); capitalized words and
 ’ apostrophes match their entries; inflections are named (past, plural, -ing); only English's dictionaries are
-used; and entries show no reading, furigana or pitch. French, Portuguese, Italian and Spanish lookups work
+used; and entries show no reading, furigana or pitch. French, Portuguese, Italian, Spanish and German lookups work
 the same way with their own verb tenses, plurals and feminines; French and Italian also find the word after
 an elided l', d' or dell'. Korean lookups find the dictionary form of a word's verb and adjective
 endings (먹었어요 → 먹다). Chinese lookups read on from the character under the pointer like Japanese,

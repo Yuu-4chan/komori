@@ -5625,6 +5625,7 @@ mod tests {
             tagged("French", Some("fr")),
             tagged("Spanish", Some("es")),
             tagged("German", Some("de")),
+            tagged("Dutch", Some("nl")),
             tagged("Untagged", None),
         ];
         {
@@ -5654,7 +5655,8 @@ mod tests {
                 ("Japanese".to_owned(), Language::Japanese),
                 ("French".to_owned(), Language::French),
                 ("Spanish".to_owned(), Language::Spanish),
-                ("German".to_owned(), Language::Japanese),
+                ("German".to_owned(), Language::German),
+                ("Dutch".to_owned(), Language::Japanese),
                 ("Untagged".to_owned(), Language::Japanese),
             ]
         );

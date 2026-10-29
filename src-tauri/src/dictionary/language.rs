@@ -29,10 +29,12 @@ pub enum Language {
     /// Chinese in either script: its dictionaries list traditional and simplified headwords.
     #[serde(rename = "zh")]
     Chinese,
+    #[serde(rename = "de")]
+    German,
 }
 
 impl Language {
-    const ALL: [Self; 8] = [
+    const ALL: [Self; 9] = [
         Self::Japanese,
         Self::English,
         Self::French,
@@ -41,6 +43,7 @@ impl Language {
         Self::Spanish,
         Self::Korean,
         Self::Chinese,
+        Self::German,
     ];
 
     /// The language's ISO 639-1 code, as word audio sources and dictionaries name it.
@@ -54,6 +57,7 @@ impl Language {
             Self::Spanish => "es",
             Self::Korean => "ko",
             Self::Chinese => "zh",
+            Self::German => "de",
         }
     }
 
@@ -84,6 +88,7 @@ impl Language {
                 Self::Spanish => &["spa"],
                 Self::Korean => &["kor"],
                 Self::Chinese => &["zho", "chi", "cmn", "yue"],
+                Self::German => &["deu", "ger"],
             };
             primary == language.code() || three.contains(&primary.as_str())
         })
@@ -101,6 +106,7 @@ impl Language {
             Self::Korean => deinflect::ko::deinflect(text),
             // Chinese does not inflect.
             Self::Chinese => Vec::new(),
+            Self::German => deinflect::de::deinflect(text),
         }
     }
 
@@ -115,6 +121,7 @@ impl Language {
             Self::Spanish => deinflect::es::word_classes(rules),
             Self::Korean => deinflect::ko::word_classes(rules),
             Self::Chinese => 0,
+            Self::German => deinflect::de::word_classes(rules),
         }
     }
 
@@ -129,6 +136,7 @@ impl Language {
             Self::Spanish => deinflect::es::DICTIONARY_FORMS,
             Self::Korean => deinflect::ko::DICTIONARY_FORMS,
             Self::Chinese => 0,
+            Self::German => deinflect::de::DICTIONARY_FORMS,
         }
     }
 
@@ -285,6 +293,8 @@ mod tests {
             ("zh-Hant", Language::Chinese),
             ("zh_CN", Language::Chinese),
             ("cmn", Language::Chinese),
+            ("de-AT", Language::German),
+            ("ger", Language::German),
         ] {
             assert_eq!(Language::declared(Some(tag)), Some(language), "{tag}");
         }
@@ -292,7 +302,7 @@ mod tests {
             None,
             Some(""),
             Some(" "),
-            Some("de"),
+            Some("nl"),
             Some("jav"),
             Some("english"),
             Some("e"),
@@ -309,8 +319,8 @@ mod tests {
             assert_eq!(serde_json::from_str::<Language>(&json).unwrap(), language);
             assert_eq!(Language::from_code(language.code()), Some(language));
         }
-        assert_eq!(Language::from_code("de"), None);
-        assert!(serde_json::from_str::<Language>("\"de\"").is_err());
+        assert_eq!(Language::from_code("nl"), None);
+        assert!(serde_json::from_str::<Language>("\"nl\"").is_err());
         assert_eq!(Language::default(), Language::Japanese);
     }
 }
