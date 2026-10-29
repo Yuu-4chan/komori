@@ -376,6 +376,35 @@ describe("Reader lookup popup", () => {
     expect(reader.mounted).toHaveBeenCalledOnce();
   });
 
+  it("looks up English words in English, ignoring CJK only, and starts none on a non-letter", async () => {
+    const walked: TermLookup = {
+      text: "walked",
+      groups: [
+        {
+          ...group("walk", "walk", "walked", "to move on foot"),
+          deinflection: { form: "walk", inflections: ["past"] },
+        },
+      ],
+    };
+    lookupMock.mockResolvedValue(walked);
+    const reader = await openReader(true, undefined, {
+      lookupLanguage: "en",
+      readerPopupCjkOnly: true,
+    });
+    expect(reader.setLookupTriggers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ lookupLanguage: "en", readerPopupCjkOnly: true }),
+    );
+    reader.select(horizontal("1984 walked"));
+    expect(lookupMock).not.toHaveBeenCalled();
+    reader.select(horizontal("walked"));
+    const popup = await screen.findByRole("dialog", { name: "Lookup: walked" });
+    await within(popup).findByText("to move on foot");
+    expect(lookupMock).toHaveBeenCalledWith("walked", undefined, 5, "en");
+    expect(kanjiMock).not.toHaveBeenCalled();
+    expect(within(popup).getByTitle("Inflected: past")).toBeInTheDocument();
+    expect(popup.querySelector(".lookup-entry__reading, rt")).toBeNull();
+  });
+
   it("looks up selected book text from its text menu, with selection lookups off", async () => {
     lookupMock.mockResolvedValue(dokusho);
     const reader = await openReader(true, undefined, { readerPopupMouseSelection: false });

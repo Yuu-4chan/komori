@@ -150,13 +150,15 @@ function main(root = process.cwd(), args = process.argv.slice(2)) {
   }
 
   // ---------- paths in what the user sees ----------
-  // The interface, its strings and the notices; the notices name the one modified source file
-  // the GPL asks them to.
+  // The interface, its strings and the notices; the notices name the modified source files the
+  // GPL asks them to.
   const shown = [...files(join(root, "dist")), ...notices.map(([name]) => join(release, name))]
     .filter((path) => /\.(js|html|css|json|txt)$|LICENSE$|NOTICE$/u.test(path) && existsSync(path))
     .flatMap((path) =>
       pathsIn(readFileSync(path, "utf8"), [
         "src-tauri/src/dictionary/deinflect.rs",
+        "src-tauri/src/dictionary/deinflect/ja.rs",
+        "src-tauri/src/dictionary/deinflect/en.rs",
         "src-tauri/vendor/",
       ]).map((found) => `${relative(root, path)}: ${found}`),
     );

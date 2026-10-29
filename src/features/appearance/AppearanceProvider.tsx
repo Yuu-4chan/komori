@@ -1,5 +1,6 @@
 import { isBackgroundBlurLevel } from "../reader/backgroundAppearance";
 import { normalizeWordAudioSources, type WordAudioSource } from "../dictionary/wordAudio";
+import { isLookupLanguage, type LookupLanguage } from "../dictionary/lookupLanguage";
 import { isReaderFontChoice, type ReaderFontChoice } from "../reader/fontChoices";
 import { normalizeReaderFooter, type ReaderFooterPreferences } from "../reader/footerPreferences";
 import { registerWindowFlush } from "../../app/windowLifecycle";
@@ -184,6 +185,9 @@ interface AppearanceContextValue
   /** The font of the popup's headwords, readings and definitions. */
   readerPopupFont: ReaderFontChoice;
   setReaderPopupFont: (font: ReaderFontChoice) => void;
+  /** The language lookups deinflect and choose dictionaries for, in the popup and the Dictionary. */
+  lookupLanguage: LookupLanguage;
+  setLookupLanguage: (language: LookupLanguage) => void;
   /** The language of Komori's interface, applied at once without reloading anything. */
   interfaceLanguage: InterfaceLanguage;
   /** Chooses an interface language; anything else is ignored. */
@@ -443,6 +447,7 @@ export function AppearanceProvider({
     readerPopupHeight,
     readerPopupStyle,
     readerPopupFont,
+    lookupLanguage,
     interfaceLanguage,
     appIcon,
     theme,
@@ -616,6 +621,10 @@ export function AppearanceProvider({
       readerPopupFont,
       setReaderPopupFont: (font: ReaderFontChoice) => {
         if (isReaderFontChoice(font)) update({ readerPopupFont: font });
+      },
+      lookupLanguage,
+      setLookupLanguage: (language: LookupLanguage) => {
+        if (isLookupLanguage(language)) update({ lookupLanguage: language });
       },
       interfaceLanguage,
       setInterfaceLanguage: (language: InterfaceLanguage) => {
@@ -867,6 +876,7 @@ export function AppearanceProvider({
       readerPopupHeight,
       readerPopupStyle,
       readerPopupFont,
+      lookupLanguage,
       interfaceLanguage,
       appIcon,
       accentColor,

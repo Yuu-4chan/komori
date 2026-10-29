@@ -1,6 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
 import type { SourcePolicy } from "./sourcePolicy";
+import { defaultLookupLanguage, type LookupLanguage } from "./lookupLanguage";
 import { CaretDownIcon, SpeakerHighIcon } from "@phosphor-icons/react";
 import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from "react";
 
@@ -39,20 +40,25 @@ export interface DictionaryLookup {
 
 export const noKanji: KanjiLookup = { entries: [], frequencies: [] };
 
-/** Look up a trimmed, nonempty query as the Dictionary page does. */
+/** Look up a trimmed, nonempty query as the Dictionary page does, in the lookup language. */
 export async function lookupDictionary(
   query: string,
   sources?: SourcePolicy,
   maxResults?: number,
+  language: LookupLanguage = defaultLookupLanguage,
 ): Promise<DictionaryLookup> {
+  const japanese = language === defaultLookupLanguage;
   // Only a one-character query can be a kanji; the native lookup decides whether it is one.
+  // Kanji are looked up only in Japanese.
   const [{ text: matched, groups }, kanji] = await Promise.all([
-    maxResults !== undefined
-      ? lookupTerms(query, sources, maxResults)
-      : sources
-        ? lookupTerms(query, sources)
-        : lookupTerms(query),
-    [...query].length === 1
+    !japanese
+      ? lookupTerms(query, sources, maxResults, language)
+      : maxResults !== undefined
+        ? lookupTerms(query, sources, maxResults)
+        : sources
+          ? lookupTerms(query, sources)
+          : lookupTerms(query),
+    japanese && [...query].length === 1
       ? sources
         ? lookupKanji(query, sources)
         : lookupKanji(query)
@@ -147,11 +153,22 @@ const inflectionKeys: Record<string, MessageKey> = {
   "n-slang": "inflection.nSlang",
   "negative imperative slang": "inflection.negativeImperativeSlang",
   "kansai-ben": "inflection.kansaiBen",
+  plural: "inflection.plural",
+  possessive: "inflection.possessive",
+  "third person singular": "inflection.thirdPersonSingular",
+  "interposed object": "inflection.interposedObject",
+  archaic: "inflection.archaic",
+  adverb: "inflection.adverb",
+  comparative: "inflection.comparative",
+  superlative: "inflection.superlative",
+  "dropped g": "inflection.droppedG",
+  "going-to future": "inflection.goingToFuture",
+  "will future": "inflection.willFuture",
 };
 
 /**
- * The deinflector's names in the interface language, joined; endings such as -te and -tara
- * keep their romanized names.
+ * The deinflector's names in the interface language, joined; endings and affixes such as -te,
+ * -tara, -ing and un- keep their romanized names.
  */
 export function inflectionNames(names: readonly string[]): string {
   const { t } = i18n();

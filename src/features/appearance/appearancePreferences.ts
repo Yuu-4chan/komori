@@ -39,6 +39,11 @@ import {
 } from "../dictionary/sourcePolicy";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
+  defaultLookupLanguage,
+  isLookupLanguage,
+  type LookupLanguage,
+} from "../dictionary/lookupLanguage";
+import {
   defaultInterfaceLanguage,
   isInterfaceLanguage,
   type InterfaceLanguage,
@@ -174,6 +179,8 @@ export interface AppearancePreferences
   readerPopupStyle: LookupPopupStyle;
   /** The font of the popup's headwords, readings and definitions. */
   readerPopupFont: ReaderFontChoice;
+  /** The language lookups deinflect and choose dictionaries for. */
+  lookupLanguage: LookupLanguage;
   /** The language of Komori's own interface; books and dictionaries keep theirs. */
   interfaceLanguage: InterfaceLanguage;
   /** The window and tray icon; the executable keeps the default. */
@@ -289,6 +296,7 @@ export const defaultAppearance: AppearancePreferences = {
   readerPopupHeight: lookupPopupSize.height,
   readerPopupStyle: "standard",
   readerPopupFont: defaultPopupFont,
+  lookupLanguage: defaultLookupLanguage,
   interfaceLanguage: defaultInterfaceLanguage,
   appIcon: defaultAppIcon,
   theme: defaultAppTheme,
@@ -385,6 +393,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     readerPopupHeight,
     readerPopupStyle,
     readerPopupFont,
+    lookupLanguage,
     interfaceLanguage,
     appIcon,
     theme,
@@ -495,6 +504,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(isLookupDimension(readerPopupHeight, lookupPopupHeight) && { readerPopupHeight }),
     ...(isLookupPopupStyle(readerPopupStyle) && { readerPopupStyle }),
     ...(isReaderFontChoice(readerPopupFont) && { readerPopupFont }),
+    ...(isLookupLanguage(lookupLanguage) && { lookupLanguage }),
     ...(isInterfaceLanguage(interfaceLanguage) && { interfaceLanguage }),
     ...(isAppIcon(appIcon) && { appIcon }),
     ...(isAppTheme(theme) && { theme }),

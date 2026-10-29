@@ -25,15 +25,17 @@ type Kind = WordAudioSource["kind"];
 
 /**
  * Settings > Dictionary > Word audio: the sources Voice and Anki's Word audio content try in
- * order. Every change saves at once.
+ * order. Every change saves at once. JapanesePod101 is offered only for Japanese lookups, and
+ * other languages skip it.
  */
 export function WordAudioSettings() {
-  const { wordAudioSources: sources, setWordAudioSources } = useAppearance();
+  const { wordAudioSources: sources, setWordAudioSources, lookupLanguage } = useAppearance();
   const { t } = useI18n();
-  const hasJpod101 = sources.some((source) => source.kind === "jpod101");
-  const [kind, setKind] = useState<Kind>(hasJpod101 ? "url" : "jpod101");
+  const offerJpod101 =
+    lookupLanguage === "ja" && !sources.some((source) => source.kind === "jpod101");
+  const [kind, setKind] = useState<Kind>(offerJpod101 ? "jpod101" : "url");
   const [url, setUrl] = useState("");
-  const shownKind: Kind = kind === "jpod101" && hasJpod101 ? "url" : kind;
+  const shownKind: Kind = kind === "jpod101" && !offerJpod101 ? "url" : kind;
   const candidate: WordAudioSource =
     shownKind === "jpod101" ? { kind: "jpod101" } : { kind: shownKind, url: url.trim() };
 
@@ -139,7 +141,9 @@ export function WordAudioSettings() {
             label={t("wordAudio.newSource")}
             value={shownKind}
             options={[
-              ...(hasJpod101 ? [] : [{ value: "jpod101" as const, label: t("wordAudio.jpod101") }]),
+              ...(offerJpod101
+                ? [{ value: "jpod101" as const, label: t("wordAudio.jpod101") }]
+                : []),
               { value: "url" as const, label: t("wordAudio.kindUrl") },
               { value: "list" as const, label: t("wordAudio.kindList") },
             ]}

@@ -81,4 +81,43 @@ impl SourcePolicy {
             .iter()
             .all(|role| role.is_valid())
     }
+
+    /// Narrows every role to the dictionaries in `allowed`: All selects them, a selection keeps
+    /// only those, and None stays.
+    pub(super) fn restrict_to(&mut self, allowed: &[i64]) {
+        for role in [&mut self.definitions, &mut self.frequency, &mut self.pitch] {
+            match role {
+                SourceSelection::All => {
+                    *role = SourceSelection::Selected {
+                        ids: allowed.to_vec(),
+                    }
+                }
+                SourceSelection::None => {}
+                SourceSelection::Selected { ids } => ids.retain(|id| allowed.contains(id)),
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restricting_narrows_each_role_and_keeps_none() {
+        let mut policy = SourcePolicy {
+            definitions: SourceSelection::All,
+            frequency: SourceSelection::None,
+            pitch: SourceSelection::Selected { ids: vec![3, 1, 2] },
+        };
+        policy.restrict_to(&[2, 3]);
+        assert_eq!(
+            policy.definitions,
+            SourceSelection::Selected { ids: vec![2, 3] }
+        );
+        assert_eq!(policy.frequency, SourceSelection::None);
+        assert_eq!(policy.pitch, SourceSelection::Selected { ids: vec![3, 2] });
+        policy.restrict_to(&[]);
+        assert_eq!(policy.definitions.sql_ids().as_deref(), Some("[]"));
+    }
 }

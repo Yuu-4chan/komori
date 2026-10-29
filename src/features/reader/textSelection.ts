@@ -9,6 +9,7 @@ import {
   type LookupTriggerPreferences,
 } from "./lookupTriggers";
 import { noteAtPoint } from "./noteHighlights";
+import { spacesWords, type LookupLanguage } from "../dictionary/lookupLanguage";
 
 export type SelectionWatch = (() => void) & {
   cancelPending: () => void;
@@ -71,7 +72,7 @@ export function watchTextSelection(
     reported = bounds;
     if (!triggerEnabled(settings, origin) || !lookupTextAllowed(settings, text)) return false;
     selectionOwned = true;
-    report(rangeReport(range, text, origin, readingArea()));
+    report(rangeReport(range, text, origin, readingArea(), settings.lookupLanguage));
     return true;
   };
   // Rebinding after a settings change must not turn an unchanged selection into a new
@@ -154,11 +155,12 @@ function rangeReport(
   text: string,
   origin: LookupTrigger,
   readingArea: HTMLElement | undefined,
+  language?: LookupLanguage,
 ): ReaderSelection {
   return {
     origin,
     text,
-    sentence: sentenceAt(range),
+    sentence: sentenceAt(range, language),
     rect: readerRangeRect(
       range,
       range.startContainer.ownerDocument?.defaultView?.frameElement,
@@ -176,6 +178,7 @@ export function selectionLookup(
   document: Document,
   readingArea: HTMLElement | undefined,
   origin: LookupTrigger,
+  language?: LookupLanguage,
 ): ReaderSelection | null {
   const selection = document.getSelection();
   const range =
@@ -183,7 +186,7 @@ export function selectionLookup(
       ? selection.getRangeAt(0)
       : null;
   const text = range ? selectedText(range) : "";
-  return range && text.trim() ? rangeReport(range, text, origin, readingArea) : null;
+  return range && text.trim() ? rangeReport(range, text, origin, readingArea, language) : null;
 }
 
 /** Modifier scans use detached ranges only; they never change the browser selection. */
@@ -215,7 +218,7 @@ function watchPointerScan(
   };
   const scan = (origin: "shift" | "click" | "hover", deduplicate = true) => {
     if (!pointer || !triggerEnabled(settings, origin)) return false;
-    const range = characterAtPoint(document, pointer.x, pointer.y);
+    const range = wordStart(characterAtPoint(document, pointer.x, pointer.y), settings);
     if (!range) {
       scanned = null;
       return false;
@@ -229,7 +232,7 @@ function watchPointerScan(
       origin,
       ...(onPointerScan ? { scanId: onPointerScan(ranges) } : {}),
       text,
-      sentence: sentenceAt(range),
+      sentence: sentenceAt(range, settings.lookupLanguage),
       rect: readerRangeRect(range, document.defaultView?.frameElement, readingArea()),
       writingMode: writingModeAt(range.startContainer),
     });
@@ -249,7 +252,7 @@ function watchPointerScan(
     }
     scanned = null;
     if (!triggerEnabled(settings, "hover")) return;
-    const range = characterAtPoint(document, pointer.x, pointer.y);
+    const range = wordStart(characterAtPoint(document, pointer.x, pointer.y), settings);
     if (!range) {
       cancelHover();
       return;
@@ -454,12 +457,60 @@ export function characterAtPoint(document: Document, x: number, y: number): Rang
   return null;
 }
 
+/**
+ * In a language that spaces its words, the first character of the word holding a scanned
+ * character, so a scan reads the whole word wherever the pointer is on it. A word is letters,
+ * digits, marks, and apostrophes between them (don't, cat’s), within one text node.
+ */
+export function wordStart(
+  range: Range | null,
+  settings: Pick<LookupTriggerPreferences, "lookupLanguage">,
+): Range | null {
+  if (
+    !range ||
+    !settings.lookupLanguage ||
+    !spacesWords(settings.lookupLanguage) ||
+    range.startContainer.nodeType !== TEXT_NODE
+  )
+    return range;
+  const data = (range.startContainer as Text).data;
+  const word = /[\p{L}\p{N}\p{M}]/u;
+  // The character ending at `index`, and where it starts.
+  const before = (index: number) => {
+    const at = index - (index > 1 && isLowSurrogate(data.charCodeAt(index - 1)) ? 2 : 1);
+    return { at, character: at < 0 ? "" : String.fromCodePoint(data.codePointAt(at)!) };
+  };
+  let start = range.startOffset;
+  while (start > 0) {
+    const previous = before(start);
+    const apostrophe = before(previous.at);
+    if (word.test(previous.character)) start = previous.at;
+    else if (/['\u2019]/u.test(previous.character) && word.test(apostrophe.character))
+      start = apostrophe.at;
+    else break;
+  }
+  if (start === range.startOffset) return range;
+  const result = range.startContainer.ownerDocument!.createRange();
+  result.setStart(range.startContainer, start);
+  result.setEnd(
+    range.startContainer,
+    start + String.fromCodePoint(data.codePointAt(start)!).length,
+  );
+  return result;
+}
+
 function isLowSurrogate(code: number): boolean {
   return code >= 0xdc00 && code <= 0xdfff;
 }
 
-/** Surrounding sentence in its readable block. Uses detached ranges, never selection. */
-export function sentenceAt(range: Range): string {
+/**
+ * Surrounding sentence in its readable block. Uses detached ranges, never selection. Japanese
+ * sentences end at 。！？; a language that spaces its words ends them at . ! ? (and any closing
+ * quotes or brackets) followed by whitespace. Line breaks and the block end every sentence.
+ */
+export function sentenceAt(range: Range, language?: LookupLanguage): string {
+  const spaced = !!language && spacesWords(language);
+  const end = spaced ? /[.!?]["'”’)\]]*\s|\n/u : /[。！？\n]/u;
   const document = range.startContainer.ownerDocument!;
   let block =
     range.startContainer.nodeType === 1
@@ -497,18 +548,20 @@ export function sentenceAt(range: Range): string {
         .slice(-512)
         .join("");
       left = left.slice(
-        Math.max(
-          left.lastIndexOf("。"),
-          left.lastIndexOf("！"),
-          left.lastIndexOf("？"),
-          left.lastIndexOf("\n"),
-        ) + 1,
+        spaced
+          ? Math.max(0, ...Array.from(left.matchAll(new RegExp(end, "gu")), endOf))
+          : Math.max(
+              left.lastIndexOf("。"),
+              left.lastIndexOf("！"),
+              left.lastIndexOf("？"),
+              left.lastIndexOf("\n"),
+            ) + 1,
       );
       right = data.slice(offset, offset + 2048);
     } else right += data.slice(0, 2048);
-    const punctuation = right.search(/[。！？\n]/u);
-    if (punctuation >= 0) {
-      right = right.slice(0, punctuation + 1);
+    const punctuation = end.exec(right);
+    if (punctuation) {
+      right = right.slice(0, endOf(punctuation));
       break;
     }
     if (Array.from(left + right).length >= 1024) break;
@@ -521,6 +574,8 @@ export function sentenceAt(range: Range): string {
       .join("")
   ).trim();
 }
+
+const endOf = (match: RegExpExecArray | RegExpMatchArray) => match.index! + match[0].length;
 
 /**
  * Read inline text after the character, stopping at the block, a line break, or the scan length

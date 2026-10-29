@@ -1,6 +1,7 @@
 import { i18n } from "../../i18n/i18n";
 import type { SourcePolicy } from "./sourcePolicy";
 import { dictionariesChanged } from "./sourcePolicy";
+import { defaultLookupLanguage, type LookupLanguage } from "./lookupLanguage";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { runBulkOperation, type RemovalBatch } from "../operations/bulkOperation";
 
@@ -215,12 +216,15 @@ export async function lookupTerms(
   query: string,
   sources?: SourcePolicy,
   maxResults?: number,
+  language?: LookupLanguage,
 ): Promise<TermLookup> {
   requireDesktop();
+  // The native lookup is Japanese unless told otherwise.
   return invoke<TermLookup>("lookup_terms", {
     query,
     ...(sources ? { sources } : {}),
     ...(maxResults === undefined ? {} : { maxResults }),
+    ...(language && language !== defaultLookupLanguage ? { language } : {}),
   });
 }
 

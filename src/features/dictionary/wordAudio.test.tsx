@@ -185,6 +185,17 @@ describe("Settings > Dictionary > Word audio", () => {
     expect(rows()).toEqual(["http://localhost:5050/?term={term}", "JapanesePod101"]);
   });
 
+  it("offers JapanesePod101 only for Japanese lookups", async () => {
+    renderSettings({ wordAudioSources: [], lookupLanguage: "en" });
+    await screen.findByText("No sources.");
+    const kinds = screen.getByRole("combobox", { name: "New source" });
+    expect(Array.from((kinds as HTMLSelectElement).options, (option) => option.value)).toEqual([
+      "url",
+      "list",
+    ]);
+    expect(screen.getByRole("textbox", { name: "URL" })).toBeInTheDocument();
+  });
+
   it("shows an empty list", async () => {
     renderSettings({ wordAudioSources: [] });
     expect(await screen.findByText("No sources.")).toBeInTheDocument();

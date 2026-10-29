@@ -20,7 +20,7 @@ import { DictionaryLookupEntry, LookupEntry } from "../dictionary/LookupEntry";
 import { type ReaderCardContext } from "../anki/AnkiAction";
 import { lookupPopupFontSize, lookupQuery } from "./lookupPopup";
 import { triggerEnabled, lookupTextAllowed, type LookupTriggerPreferences } from "./lookupTriggers";
-import { characterAtPoint, textFromCharacter } from "./textSelection";
+import { characterAtPoint, textFromCharacter, wordStart } from "./textSelection";
 import type { ReaderRect } from "./renderer";
 import { activateExpression } from "./popupShortcuts";
 import { usePopupFont } from "./popupFont";
@@ -118,6 +118,7 @@ export function ReaderLookupPopup({
     readerPopupFont,
     readerTheme,
     readerCustomThemes,
+    lookupLanguage,
   } = appearance;
   const dictionaryStyle = readerPopupStyle === "dictionary";
   const font = usePopupFont(readerPopupFont);
@@ -145,6 +146,7 @@ export function ReaderLookupPopup({
         ? undefined
         : policy,
       readerPopupMaxResults,
+      lookupLanguage,
     ).then(
       (lookup) => {
         if (!active) return;
@@ -162,7 +164,7 @@ export function ReaderLookupPopup({
     return () => {
       active = false;
     };
-  }, [query, onMatch, policyKey, revision, retry, readerPopupMaxResults]);
+  }, [query, onMatch, policyKey, revision, retry, readerPopupMaxResults, lookupLanguage]);
 
   usePopupScanning(root, onChildLookup, appearance);
 
@@ -289,6 +291,7 @@ export function ReaderLookupPopup({
                 {dictionaryStyle ? (
                   <DictionaryLookupEntry
                     group={group}
+                    language={lookupLanguage}
                     onSearchTerm={searchTerm}
                     showDictionaryNames={readerPopupShowDictionaryNames}
                   />
@@ -301,6 +304,7 @@ export function ReaderLookupPopup({
                     showVoiceAction={readerPopupVoiceAction}
                     showDictionaryNames={readerPopupShowDictionaryNames}
                     readingPosition={readerPopupReadingPosition}
+                    language={lookupLanguage}
                     canPlayAudio={canPlayAudio}
                     group={group}
                     key={groupKey(group)}
@@ -334,7 +338,7 @@ function OpenInDictionary({ term, onOpen }: { term: string; onOpen: (term: strin
 /**
  * Lookups from inside a popup, with the Reader's own trigger settings: Shift over its text, hover
  * after the scan delay, and releasing a mouse selection. Scans read up to the scan length from
- * the character under the pointer, as the book does.
+ * the character under the pointer (or its word's start), as the book does.
  */
 function usePopupScanning(
   root: { current: HTMLElement | null },
@@ -354,7 +358,7 @@ function usePopupScanning(
     const scan = (origin: "shift" | "hover") => {
       const { onScan, settings } = latest.current;
       if (!pointer || !onScan || !triggerEnabled(settings, origin)) return;
-      const range = characterAtPoint(document, pointer.x, pointer.y);
+      const range = wordStart(characterAtPoint(document, pointer.x, pointer.y), settings);
       if (!range || !body()?.contains(range.startContainer)) return;
       if (scanned && scanned.node === range.startContainer && scanned.offset === range.startOffset)
         return;

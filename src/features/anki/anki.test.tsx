@@ -648,6 +648,9 @@ it("maps all definitions and selected dictionaries into safe structured parts an
   expect(cardFields(mapping, input.slice(0, 1)).fields.Selected).toBe("");
   expect(expressionFurigana("食べる", "たべる")).toBe("食[た]べる");
   expect(expressionFurigana("かな", "かな")).toBe("かな");
+  // An English entry's reading is its expression, so both fields hold the expression.
+  expect(expressionFurigana("look up", "look up")).toBe("look up");
+  expect(expressionFurigana("look up", "")).toBe("look up");
   const defaults = lapisDefaults([
     "ExpressionFurigana",
     "ExpressionReading",

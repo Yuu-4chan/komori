@@ -1356,6 +1356,58 @@ describe("Dictionary page", () => {
       expect(label.parentElement).toHaveClass("lookup-entry__notes");
     });
 
+    it("looks up in English with English inflection names and no reading, furigana or pitch", async () => {
+      const lookUp: GroupFixture = {
+        ...result,
+        expression: "look up",
+        reading: "look up",
+        deinflection: { form: "look up", inflections: ["past", "interposed object"] },
+        terms: [{ ...result.terms[0], rules: "v_phr", glossary: ["to search for"] }],
+        pitches: [
+          {
+            dictionaryId: 4,
+            dictionaryTitle: "Pitch source A",
+            data: { reading: "look up", pitches: [{ position: 0 }] },
+          },
+        ],
+      };
+      lookupMock.mockImplementation(async (query) =>
+        query === "I" ? matched("I", []) : matched("looked it up", [lookUp]),
+      );
+      const user = userEvent.setup();
+      renderComponent(
+        <MemoryRouter>
+          <AppearanceProvider
+            store={{
+              load: async () => ({ lookupLanguage: "en", readerPopupReadingPosition: "above" }),
+              save: async () => {},
+            }}
+          >
+            <DictionaryPage />
+          </AppearanceProvider>
+        </MemoryRouter>,
+      );
+      const input = await screen.findByRole("textbox", { name: "Dictionary search" });
+      await user.type(input, "I");
+      await user.click(screen.getByRole("button", { name: /^Search$/ }));
+      expect(await screen.findByText("No matches")).toBeInTheDocument();
+      expect(lookupMock).toHaveBeenLastCalledWith("I", undefined, undefined, "en");
+      // A one-letter query is not a kanji outside Japanese.
+      expect(kanjiMock).not.toHaveBeenCalled();
+      await user.clear(input);
+      await user.type(input, "looked it up");
+      await user.click(screen.getByRole("button", { name: /^Search$/ }));
+      const header = (await screen.findByText("Showing results for")).parentElement!;
+      expect(header).toHaveTextContent(
+        /^Showing results for looked it up → look up \(past, interposed object\)$/,
+      );
+      const card = await screen.findByRole("article", { name: "look up" });
+      expect(within(card).getByTitle("Inflected: past, interposed object")).toBeInTheDocument();
+      expect(card.querySelector("ruby, rt, .lookup-entry__reading")).toBeNull();
+      expect(card.querySelector(".lookup-entry__expression")).toHaveAttribute("lang", "en");
+      expect(within(card).queryByRole("region", { name: "Pitch positions" })).toBeNull();
+    });
+
     it("names a deinflected start of a longer query and the query", async () => {
       lookupMock.mockResolvedValue(
         matched("読んで", [{ ...result, deinflection: { form: "読む", inflections: ["-te"] } }]),

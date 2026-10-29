@@ -1914,8 +1914,9 @@ pub async fn create_anki_note(
     let path = catalog.database.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = OPERATIONS.lock().map_err(|_| AnkiError::Busy)?;
+        let language = crate::appearance_preferences::lookup_language(&path);
         create_note_with(&path, &request, &|sources, term, reading| {
-            tauri::async_runtime::block_on(word_audio::find(sources, term, reading))
+            tauri::async_runtime::block_on(word_audio::find(sources, term, reading, language))
         })
     })
     .await

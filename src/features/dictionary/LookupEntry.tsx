@@ -5,6 +5,7 @@ import { ErrorBoundary } from "../../components/ui/ErrorBoundary";
 import { IconButton } from "../../components/ui/IconButton";
 import { useId, useMemo, useState } from "react";
 import { furiganaSegments } from "./furigana";
+import { defaultLookupLanguage, type LookupLanguage } from "./lookupLanguage";
 
 import type { TermGroup, TermMatch } from "./dictionaryApi";
 import {
@@ -55,6 +56,7 @@ function LookupEntryContent({
   showVoiceAction,
   showDictionaryNames,
   readingPosition = "beside",
+  language = defaultLookupLanguage,
   canPlayAudio,
   group,
   onSearchTerm,
@@ -69,6 +71,11 @@ function LookupEntryContent({
   showVoiceAction: boolean;
   showDictionaryNames: boolean;
   readingPosition?: "beside" | "above";
+  /**
+   * The lookup language: furigana and pitch show only for Japanese, where a reading is kana.
+   * Japanese by default.
+   */
+  language?: LookupLanguage;
   /** Whether Voice has word audio sources to ask. */
   canPlayAudio: boolean;
   group: TermGroup;
@@ -96,7 +103,8 @@ function LookupEntryContent({
     ? 0
     : Math.max(0, group.frequencies.length - shownFrequencies);
   const reading = group.reading !== group.expression ? group.reading : null;
-  const above = readingPosition === "above" && reading !== null;
+  const japanese = language === "ja";
+  const above = japanese && readingPosition === "above" && reading !== null;
   return (
     <article
       aria-label={reading ? `${group.expression} (${reading})` : group.expression}
@@ -105,7 +113,7 @@ function LookupEntryContent({
       <header className="lookup-entry__header">
         <div className="lookup-entry__headline">
           <div className="lookup-entry__word">
-            <strong className="lookup-entry__expression" lang="ja">
+            <strong className="lookup-entry__expression" lang={language}>
               {above ? (
                 <FuriganaHeadword
                   expression={group.expression}
@@ -117,7 +125,7 @@ function LookupEntryContent({
               )}
             </strong>
             {reading && !above ? (
-              <span className="lookup-entry__reading" lang="ja">
+              <span className="lookup-entry__reading" lang={language}>
                 {reading}
               </span>
             ) : null}
@@ -147,7 +155,7 @@ function LookupEntryContent({
         {start !== null || group.deinflection ? (
           <div className="lookup-entry__notes">
             {start !== null ? (
-              <span lang="ja" title={t("lookupEntry.matched", { text: start })}>
+              <span lang={language} title={t("lookupEntry.matched", { text: start })}>
                 <span className="visually-hidden">{t("lookupEntry.matchedLabel")} </span>
                 {start}
               </span>
@@ -191,7 +199,7 @@ function LookupEntryContent({
             ) : null}
           </ul>
         ) : null}
-        {showPitch && (
+        {showPitch && japanese && (
           <PitchPositions
             pitches={group.pitches}
             reading={group.reading}
@@ -228,15 +236,18 @@ export function DictionaryLookupEntry(props: Parameters<typeof DictionaryLookupE
 
 function DictionaryLookupEntryContent({
   group,
+  language = defaultLookupLanguage,
   showDictionaryNames,
   onSearchTerm,
 }: {
   group: TermGroup;
+  /** The lookup language: the headword takes furigana only in Japanese. */
+  language?: LookupLanguage;
   showDictionaryNames: boolean;
   /** Search a headword kanji or glossary link (a child popup in the Reader). */
   onSearchTerm: (term: string) => void;
 }) {
-  const reading = group.reading !== group.expression ? group.reading : null;
+  const reading = language === "ja" && group.reading !== group.expression ? group.reading : null;
   // Each dictionary's definitions together, in the order the dictionaries first match.
   const sources = new Map<number, TermMatch[]>();
   for (const term of group.terms)
@@ -248,7 +259,7 @@ function DictionaryLookupEntryContent({
     >
       <strong
         className={`dictionary-entry__headword${reading ? " dictionary-entry__headword--furigana" : ""}`}
-        lang="ja"
+        lang={language}
       >
         {reading ? (
           <FuriganaHeadword

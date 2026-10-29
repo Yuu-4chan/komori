@@ -17,12 +17,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, State};
 
+use crate::dictionary::language::Language;
 use crate::dictionary::sources::SourceSelection;
 use crate::interface_text::LANGUAGES;
 use crate::library::{open_catalog, storage_error, CatalogState};
 use crate::reader_fonts::FontChoice;
 use crate::word_audio::AudioSource;
 
+/// The languages lookups deinflect and choose dictionaries for (`dictionary::language`).
+const LOOKUP_LANGUAGES: [&str; 2] = ["ja", "en"];
 const POPUP_SHORTCUTS: [&str; 3] = ["shift-enter", "alt-x", "ctrl-space"];
 const POPUP_MOUSE_TRIGGERS: [&str; 4] = ["left", "double", "shift-right", "middle"];
 const POPUP_CLOSE_BEHAVIORS: [&str; 3] = ["escape-outside", "outside", "persistent"];
@@ -251,6 +254,8 @@ pub struct AppearancePreferences {
     reader_popup_hover_lookup: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_cjk_only: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    lookup_language: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_shortcut_preset: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -613,6 +618,10 @@ impl AppearancePreferences {
                 .as_ref()
                 .is_none_or(FontChoice::valid)
             && self
+                .lookup_language
+                .as_deref()
+                .is_none_or(|value| LOOKUP_LANGUAGES.contains(&value))
+            && self
                 .reader_popup_shortcut_preset
                 .as_deref()
                 .is_none_or(|value| POPUP_SHORTCUTS.contains(&value))
@@ -792,6 +801,7 @@ impl AppearancePreferences {
             reader_popup_click_lookup: flag("readerPopupClickLookup"),
             reader_popup_hover_lookup: flag("readerPopupHoverLookup"),
             reader_popup_cjk_only: flag("readerPopupCjkOnly"),
+            lookup_language: choice("lookupLanguage", &LOOKUP_LANGUAGES),
             reader_popup_shortcut_preset: choice("readerPopupShortcutPreset", &POPUP_SHORTCUTS),
             reader_popup_mouse_trigger: choice("readerPopupMouseTrigger", &POPUP_MOUSE_TRIGGERS),
             reader_popup_close_behavior: choice("readerPopupCloseBehavior", &POPUP_CLOSE_BEHAVIORS),
@@ -1037,6 +1047,15 @@ pub(crate) fn word_audio_sources(database: &Path) -> Option<Vec<AudioSource>> {
     load(database)
         .ok()
         .and_then(|preferences| preferences.word_audio_sources)
+}
+
+/// The saved lookup language; Japanese unless another is saved.
+pub(crate) fn lookup_language(database: &Path) -> Language {
+    load(database)
+        .ok()
+        .and_then(|preferences| preferences.lookup_language)
+        .and_then(|code| Language::from_code(&code))
+        .unwrap_or_default()
 }
 
 /// The saved app icon, when the record names one.
@@ -1504,6 +1523,7 @@ mod tests {
             reader_popup_click_lookup: None,
             reader_popup_hover_lookup: None,
             reader_popup_cjk_only: None,
+            lookup_language: None,
             reader_popup_shortcut_preset: None,
             reader_popup_mouse_trigger: None,
             reader_popup_close_behavior: None,
@@ -2047,6 +2067,29 @@ mod tests {
     }
 
     #[test]
+    fn a_stored_lookup_language_is_kept_only_when_known() {
+        for stored in [
+            serde_json::json!({}),
+            serde_json::json!({"lookupLanguage": "fr"}),
+            serde_json::json!({"lookupLanguage": 1}),
+        ] {
+            assert_eq!(
+                super::AppearancePreferences::from_stored(&stored).lookup_language,
+                None
+            );
+        }
+        for language in ["ja", "en"] {
+            let stored = serde_json::json!({ "lookupLanguage": language });
+            assert_eq!(
+                super::AppearancePreferences::from_stored(&stored)
+                    .lookup_language
+                    .as_deref(),
+                Some(language)
+            );
+        }
+    }
+
+    #[test]
     fn popup_triggers_validate_independently_and_persist() {
         let directory = tempdir().unwrap();
         let database = directory.path().join("library.sqlite3");
@@ -2060,6 +2103,7 @@ mod tests {
             ("readerPopupClickLookup", serde_json::json!([false, true])),
             ("readerPopupHoverLookup", serde_json::json!([false, true])),
             ("readerPopupCjkOnly", serde_json::json!([false, true])),
+            ("lookupLanguage", serde_json::json!(["ja", "en"])),
             (
                 "readerPopupShortcutPreset",
                 serde_json::json!(["shift-enter", "alt-x", "ctrl-space"]),

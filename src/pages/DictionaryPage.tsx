@@ -54,7 +54,7 @@ interface DictionaryPageProps {
 export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
   const [query, setQuery] = useState(initialQuery);
   const [search, setSearch] = useState<SearchState>({ status: "empty" });
-  const { readerPopupReadingPosition } = useAppearance();
+  const { readerPopupReadingPosition, lookupLanguage } = useAppearance();
   const { t } = useI18n();
   const [sources, setSources] = useState<SourcesState>({ status: "loading" });
   const [selectedSource, setSelectedSource] = useState<number | null>(null);
@@ -109,7 +109,7 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
     setSearch({ status: "loading", query: value });
     setSelectedSource(null);
     try {
-      const lookup = await lookupDictionary(value);
+      const lookup = await lookupDictionary(value, undefined, undefined, lookupLanguage);
       if (request !== searchId.current) return;
       setSearch({ status: "ready", ...lookup });
     } catch {
@@ -319,6 +319,7 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
                       key={groupKey(group)}
                       onSearchTerm={searchTerm}
                       readingPosition={readerPopupReadingPosition}
+                      language={lookupLanguage}
                       showDictionaryNames
                       showFrequency
                       showOpenAction={false}

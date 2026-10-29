@@ -2,6 +2,7 @@
 //! Settings, in order. Native code owns every request: the frontend names only the headword
 //! and reading, and gets back bounded audio of a recognized type, never a URL or an error.
 
+use crate::dictionary::language::Language;
 use crate::library::CatalogState;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
@@ -71,7 +72,7 @@ pub(crate) fn default_sources() -> Vec<AudioSource> {
 fn valid_template(template: &str) -> bool {
     template.len() <= MAX_URL
         && !template.chars().any(char::is_control)
-        && Url::parse(&expand(template, "x", "x"))
+        && Url::parse(&expand(template, "x", "x", Language::Japanese))
             .is_ok_and(|url| matches!(url.scheme(), "http" | "https") && url.has_host())
 }
 
@@ -87,12 +88,13 @@ pub(crate) fn valid_sources(sources: &[AudioSource]) -> bool {
             .all(valid_template)
 }
 
-fn expand(template: &str, term: &str, reading: &str) -> String {
+/// `template` with the word, its reading and the lookup language's code filled in.
+fn expand(template: &str, term: &str, reading: &str, language: Language) -> String {
     let encode = |text: &str| utf8_percent_encode(text, COMPONENT).to_string();
     template
         .replace("{term}", &encode(term))
         .replace("{reading}", &encode(reading))
-        .replace("{language}", "ja")
+        .replace("{language}", language.code())
 }
 
 fn kana(text: &str) -> bool {
@@ -229,15 +231,18 @@ async fn from_source(
     source: &AudioSource,
     term: &str,
     reading: &str,
+    language: Language,
 ) -> Option<Audio> {
     match source {
+        // JapanesePod101 has only Japanese words.
+        AudioSource::JapanesePod101 if !language.is_japanese() => None,
         AudioSource::JapanesePod101 => {
             let audio = audio_at(client, jpod101_url(term, reading).as_str()).await?;
             (format!("{:x}", Sha256::digest(&audio.bytes)) != JPOD101_MISSING).then_some(audio)
         }
-        AudioSource::Url { url } => audio_at(client, &expand(url, term, reading)).await,
+        AudioSource::Url { url } => audio_at(client, &expand(url, term, reading, language)).await,
         AudioSource::List { url } => {
-            let list = body(client, &expand(url, term, reading), MAX_LIST).await?;
+            let list = body(client, &expand(url, term, reading, language), MAX_LIST).await?;
             for url in list_urls(&list) {
                 if let Some(audio) = audio_at(client, &url).await {
                     return Some(audio);
@@ -248,22 +253,32 @@ async fn from_source(
     }
 }
 
-type Key = (Vec<AudioSource>, String, String);
+type Key = (Vec<AudioSource>, String, String, Language);
 static CACHE: Mutex<VecDeque<(Key, Arc<Audio>)>> = Mutex::new(VecDeque::new());
 
 fn valid_term(text: &str) -> bool {
     text.chars().count() <= MAX_TERM && !text.chars().any(char::is_control)
 }
 
-/// The first recording of `term` the sources have, or none. Recent recordings are kept in
-/// memory so playing a word and then adding its card fetches it once.
-pub(crate) async fn find(sources: &[AudioSource], term: &str, reading: &str) -> Option<Arc<Audio>> {
+/// The first recording of `term` in the lookup language the sources have, or none. Recent
+/// recordings are kept in memory so playing a word and then adding its card fetches it once.
+pub(crate) async fn find(
+    sources: &[AudioSource],
+    term: &str,
+    reading: &str,
+    language: Language,
+) -> Option<Arc<Audio>> {
     let term = term.trim();
     let reading = reading.trim();
     if term.is_empty() || !valid_term(term) || !valid_term(reading) || !valid_sources(sources) {
         return None;
     }
-    let key = (sources.to_vec(), term.to_owned(), reading.to_owned());
+    let key = (
+        sources.to_vec(),
+        term.to_owned(),
+        reading.to_owned(),
+        language,
+    );
     if let Some(audio) = CACHE.lock().ok().and_then(|cache| {
         cache
             .iter()
@@ -274,7 +289,7 @@ pub(crate) async fn find(sources: &[AudioSource], term: &str, reading: &str) -> 
     }
     let client = client()?;
     for source in sources {
-        if let Some(audio) = from_source(&client, source, term, reading).await {
+        if let Some(audio) = from_source(&client, source, term, reading, language).await {
             let audio = Arc::new(audio);
             if let Ok(mut cache) = CACHE.lock() {
                 if cache.len() >= CACHED {
@@ -308,10 +323,15 @@ pub async fn get_word_audio(
     reading: String,
 ) -> Result<Option<WordAudio>, String> {
     let database = catalog.database.clone();
-    let sources = tauri::async_runtime::spawn_blocking(move || saved_sources(&database))
-        .await
-        .map_err(|error| error.to_string())?;
-    Ok(find(&sources, &term, &reading)
+    let (sources, language) = tauri::async_runtime::spawn_blocking(move || {
+        (
+            saved_sources(&database),
+            crate::appearance_preferences::lookup_language(&database),
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())?;
+    Ok(find(&sources, &term, &reading, language)
         .await
         .map(|audio| WordAudio {
             mime: audio.mime,
@@ -414,13 +434,23 @@ mod tests {
             expand(
                 "http://h/?t={term}&r={reading}&l={language}",
                 "読む",
-                "よむ"
+                "よむ",
+                Language::Japanese
             ),
             "http://h/?t=%E8%AA%AD%E3%82%80&r=%E3%82%88%E3%82%80&l=ja"
         );
         assert_eq!(
-            expand("http://h/{term}", "a&b c/d", ""),
+            expand("http://h/{term}", "a&b c/d", "", Language::Japanese),
             "http://h/a%26b%20c%2Fd"
+        );
+        assert_eq!(
+            expand(
+                "http://h/?t={term}&l={language}",
+                "look up",
+                "look up",
+                Language::English
+            ),
+            "http://h/?t=look%20up&l=en"
         );
         assert_eq!(
             jpod101_url("読む", "よむ").as_str(),
@@ -502,7 +532,9 @@ mod tests {
         let url = |path: &str| AudioSource::Url {
             url: format!("{server}{path}"),
         };
-        let found = |sources: Vec<AudioSource>, term: &str| run(find(&sources, term, "よむ"));
+        let found = |sources: Vec<AudioSource>, term: &str| {
+            run(find(&sources, term, "よむ", Language::Japanese))
+        };
 
         assert_eq!(
             found(vec![url("/word-a?t={term}")], "読む-1")
@@ -549,11 +581,50 @@ mod tests {
         let sources = vec![AudioSource::Url {
             url: format!("{server}/word?t={{term}}"),
         }];
-        let first = run(find(&sources, "キャッシュ", "きゃっしゅ")).unwrap();
-        let again = run(find(&sources, "キャッシュ", "きゃっしゅ")).unwrap();
+        let first = run(find(
+            &sources,
+            "キャッシュ",
+            "きゃっしゅ",
+            Language::Japanese,
+        ))
+        .unwrap();
+        let again = run(find(
+            &sources,
+            "キャッシュ",
+            "きゃっしゅ",
+            Language::Japanese,
+        ))
+        .unwrap();
         assert!(Arc::ptr_eq(&first, &again));
-        let other = run(find(&sources, "キャッシュ", "")).unwrap();
+        let other = run(find(&sources, "キャッシュ", "", Language::Japanese)).unwrap();
         assert!(!Arc::ptr_eq(&first, &other));
+    }
+
+    #[test]
+    fn other_languages_skip_japanesepod101_and_name_their_language() {
+        let server = serve(vec![("/en/", mp3(4), "200 OK"), ("/ja/", mp3(5), "200 OK")]);
+        let sources = vec![
+            AudioSource::JapanesePod101,
+            AudioSource::Url {
+                url: format!("{server}/{{language}}/{{term}}"),
+            },
+        ];
+        let english = run(find(&sources, "walk-en", "walk-en", Language::English)).unwrap();
+        assert_eq!(english.bytes, mp3(4));
+        // The same word in another language is another recording.
+        let url_only = &sources[1..];
+        let japanese = run(find(url_only, "walk-en", "walk-en", Language::Japanese)).unwrap();
+        assert_eq!(japanese.bytes, mp3(5));
+        let english_again = run(find(url_only, "walk-en", "walk-en", Language::English)).unwrap();
+        assert_eq!(english_again.bytes, mp3(4));
+        // JapanesePod101 alone has nothing for English, without asking it.
+        assert!(run(find(
+            &[AudioSource::JapanesePod101],
+            "walk-en",
+            "walk-en",
+            Language::English
+        ))
+        .is_none());
     }
 
     /// Run with `--ignored`: asks the real JapanesePod101 for a word it has and one it does not.
@@ -561,9 +632,10 @@ mod tests {
     #[ignore]
     fn real_jpod101_has_common_words_and_its_missing_clip_is_refused() {
         let sources = default_sources();
-        let audio = run(find(&sources, "読む", "よむ")).expect("a recording of 読む");
+        let audio =
+            run(find(&sources, "読む", "よむ", Language::Japanese)).expect("a recording of 読む");
         assert_eq!(audio.mime, "audio/mpeg");
-        assert!(run(find(&sources, "ほげほげ無", "ほげ")).is_none());
+        assert!(run(find(&sources, "ほげほげ無", "ほげ", Language::Japanese)).is_none());
     }
 
     #[test]

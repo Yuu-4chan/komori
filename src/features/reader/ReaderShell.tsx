@@ -238,7 +238,8 @@ export function ReaderShell({
     )
     .map((f) => ({ id: f.id, family: f.family, weight: f.weight!, style: f.style! }));
   const { readerPopupWidth, readerPopupHeight, readerPopupChildLevels } = appearance;
-  const triggerKey = JSON.stringify(normalizeLookupTriggers(appearance));
+  const { lookupLanguage } = appearance;
+  const triggerKey = JSON.stringify({ ...normalizeLookupTriggers(appearance), lookupLanguage });
   const triggers = useMemo(() => JSON.parse(triggerKey) as LookupTriggerPreferences, [triggerKey]);
   const triggersRef = useRef(triggers);
   triggersRef.current = triggers;
@@ -747,7 +748,12 @@ export function ReaderShell({
     const note = text.trim() ? null : noteAtPoint(contentDocument, event.clientX, event.clientY);
     if (text.trim()) {
       event.preventDefault();
-      const lookup = selectionLookup(contentDocument, viewportRef.current ?? undefined, "menu");
+      const lookup = selectionLookup(
+        contentDocument,
+        viewportRef.current ?? undefined,
+        "menu",
+        triggersRef.current.lookupLanguage,
+      );
       setBookMenu({ x, y, kind: "text", text, lookup });
     } else if (note) {
       event.preventDefault();

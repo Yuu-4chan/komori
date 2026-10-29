@@ -18,6 +18,7 @@ import {
   shortcutPresets,
 } from "./lookupTriggers";
 import { useAppearance } from "../appearance/AppearanceProvider";
+import { lookupLanguages } from "../dictionary/lookupLanguage";
 import { useI18n } from "../../i18n/i18n";
 
 /**
@@ -49,6 +50,8 @@ export function ReaderPopupSettings({
     setReaderPopupMouseSelection,
     readerPopupStyle,
     setReaderPopupStyle,
+    lookupLanguage,
+    setLookupLanguage,
   } = useAppearance();
   // The dictionary style shows none of the voice, pitch, frequency or Anki its switches add.
   const dictionaryStyle = readerPopupStyle === "dictionary";
@@ -214,12 +217,26 @@ export function ReaderPopupSettings({
           </div>
         </div>
         <div className="settings-list">
-          <ToggleSetting
-            label={t("popupSettings.cjkOnly")}
-            description={t("popupSettings.cjkOnlyHint")}
-            checked={triggers.readerPopupCjkOnly}
-            onChange={(value) => setReaderPopupTriggers({ readerPopupCjkOnly: value })}
-          />
+          <div className="settings-field">
+            <Select
+              label={t("popupSettings.lookupLanguage")}
+              value={lookupLanguage}
+              options={lookupLanguages.map((language) => ({
+                value: language,
+                label: t(`lookupLanguage.${language}`),
+              }))}
+              onChange={setLookupLanguage}
+            />
+            <p className="settings-field__hint">{t("popupSettings.lookupLanguageHint")}</p>
+          </div>
+          {lookupLanguage === "ja" && (
+            <ToggleSetting
+              label={t("popupSettings.cjkOnly")}
+              description={t("popupSettings.cjkOnlyHint")}
+              checked={triggers.readerPopupCjkOnly}
+              onChange={(value) => setReaderPopupTriggers({ readerPopupCjkOnly: value })}
+            />
+          )}
           <div className="settings-field">
             <Stepper
               label={t("popupSettings.scanLength")}
