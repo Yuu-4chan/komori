@@ -976,7 +976,8 @@
 }
 
 .library-selection-bar__button:hover:not(:disabled),
-.library-selection-bar__close:hover {
+.library-selection-bar__button[aria-expanded="true"],
+.library-selection-bar__close:hover:not(:disabled) {
   background: color-mix(in srgb, var(--text-primary) 7%, transparent);
 }
 
@@ -1001,7 +1002,8 @@
   border-radius: 50%;
 }
 
-.library-selection-bar :focus-visible {
+.library-selection-bar :focus-visible,
+.library-selection-toolbar :focus-visible {
   outline: var(--focus-ring);
   outline-offset: 1px;
 }

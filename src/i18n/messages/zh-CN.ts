@@ -747,7 +747,6 @@ export const zhCN: MessageCatalog = {
   "dictionarySources.selection": "词典选择",
   "dictionarySources.selected_other": "已选择{count}个词典",
   "dictionarySources.selectAll": "全选",
-  "dictionarySources.removeSelected": "移除所选",
   "dictionarySources.clear": "清除",
   "dictionarySources.removing": "正在移除…",
   "dictionarySources.removeDictionary": "移除词典",

@@ -896,7 +896,6 @@ export const es: MessageCatalog = {
   "dictionarySources.selected_other": "{count} diccionarios seleccionados",
   "dictionarySources.selected_many": "{count} diccionarios seleccionados",
   "dictionarySources.selectAll": "Seleccionar todo",
-  "dictionarySources.removeSelected": "Quitar seleccionados",
   "dictionarySources.clear": "Borrar",
   "dictionarySources.removing": "Quitando…",
   "dictionarySources.removeDictionary": "Quitar diccionario",

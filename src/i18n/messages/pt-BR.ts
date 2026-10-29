@@ -855,7 +855,6 @@ export const ptBR: MessageCatalog = {
   "dictionarySources.selected_one": "{count} dicionário selecionado",
   "dictionarySources.selected_other": "{count} dicionários selecionados",
   "dictionarySources.selectAll": "Selecionar tudo",
-  "dictionarySources.removeSelected": "Remover selecionados",
   "dictionarySources.clear": "Limpar",
   "dictionarySources.removing": "Removendo…",
   "dictionarySources.removeDictionary": "Remover dicionário",

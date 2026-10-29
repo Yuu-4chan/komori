@@ -800,7 +800,6 @@ export const ko: MessageCatalog = {
   "dictionarySources.selection": "사전 선택",
   "dictionarySources.selected_other": "사전 {count}개 선택됨",
   "dictionarySources.selectAll": "모두 선택",
-  "dictionarySources.removeSelected": "선택 항목 제거",
   "dictionarySources.clear": "지우기",
   "dictionarySources.removing": "제거하는 중…",
   "dictionarySources.removeDictionary": "사전 제거",

@@ -88,13 +88,13 @@ it("presents native import/removal progress across remounts, keeps failed items,
   expect(screen.getByText(/1 added · 1 already installed · 1 not added/)).toBeInTheDocument();
   await user.click(screen.getAllByRole("checkbox", { name: /^Select / })[0]);
   await user.click(screen.getByRole("button", { name: "Select all" }));
-  await user.click(screen.getByRole("button", { name: "Remove selected" }));
+  await user.click(screen.getByRole("button", { name: "Remove" }));
   let dialog = screen.getByRole("alertdialog");
   await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
   expect(vi.mocked(invoke).mock.calls.some(([command]) => command === "remove_dictionaries")).toBe(
     false,
   );
-  await user.click(screen.getByRole("button", { name: "Remove selected" }));
+  await user.click(screen.getByRole("button", { name: "Remove" }));
   dialog = screen.getByRole("alertdialog");
   await user.click(within(dialog).getByRole("button", { name: "Remove 3 dictionaries" }));
   await waitFor(() =>

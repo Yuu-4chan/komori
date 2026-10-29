@@ -634,7 +634,7 @@ describe("Dictionary sources", () => {
           { metaKey: true },
         ])
           fireEvent.keyDown(checkbox("Jitendex"), { key: "a", ctrlKey: true, ...init });
-        await user.click(within(toolbar()).getByRole("button", { name: "Remove selected" }));
+        await user.click(within(toolbar()).getByRole("button", { name: "Remove" }));
         fireEvent.keyDown(document.body, { key: "a", ctrlKey: true });
         expect(toolbar()).toHaveTextContent("1 dictionary selected");
         await user.click(
@@ -675,7 +675,7 @@ describe("Dictionary sources", () => {
       expect(row("Jitendex")).toHaveClass("settings-source-row--movable");
       expect(row("Jitendex")).toHaveAttribute("tabindex", "0");
       expect(screen.getByRole("button", { name: "Remove Jitendex" })).toBeInTheDocument();
-      const removeSelected = within(toolbar()).getByRole("button", { name: "Remove selected" });
+      const removeSelected = within(toolbar()).getByRole("button", { name: "Remove" });
       await waitFor(() => expect(checkbox("KANJIDIC")).toBeEnabled());
       expect(checkbox("Jitendex")).toBeChecked();
       expect(checkbox("KANJIDIC")).not.toBeChecked();
@@ -723,7 +723,7 @@ describe("Dictionary sources", () => {
       for (const name of ["Jitendex", "KANJIDIC", "JPDB"]) expect(checkbox(name)).toBeChecked();
 
       // Canceling the dialog keeps the selection.
-      await user.click(within(toolbar()).getByRole("button", { name: "Remove selected" }));
+      await user.click(within(toolbar()).getByRole("button", { name: "Remove" }));
       const dialog = screen.getByRole("alertdialog");
       expect(dialog).toHaveAccessibleName("Remove 3 dictionaries from Komori?");
       await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
@@ -748,7 +748,7 @@ describe("Dictionary sources", () => {
       bulkRemoveMock.mockResolvedValue([{ id: 2, status: "removed" }]);
       const user = await openSelection();
       await user.click(checkbox("KANJIDIC"));
-      await user.click(within(toolbar()).getByRole("button", { name: "Remove selected" }));
+      await user.click(within(toolbar()).getByRole("button", { name: "Remove" }));
       const dialog = screen.getByRole("alertdialog");
       expect(dialog).toHaveAccessibleName("Remove 1 dictionary from Komori?");
       expect(dialog).toHaveAccessibleDescription(
@@ -770,7 +770,7 @@ describe("Dictionary sources", () => {
       const user = await openSelection();
       await user.click(checkbox("Jitendex"));
       await user.click(within(toolbar()).getByRole("button", { name: "Select all" }));
-      await user.click(within(toolbar()).getByRole("button", { name: "Remove selected" }));
+      await user.click(within(toolbar()).getByRole("button", { name: "Remove" }));
       listMock.mockResolvedValue([kanjidic]);
       await user.click(
         within(screen.getByRole("alertdialog")).getByRole("button", {
@@ -796,7 +796,7 @@ describe("Dictionary sources", () => {
       const user = await openSelection();
       await user.click(checkbox("Jitendex"));
       await user.click(checkbox("KANJIDIC"));
-      await user.click(within(toolbar()).getByRole("button", { name: "Remove selected" }));
+      await user.click(within(toolbar()).getByRole("button", { name: "Remove" }));
       const dialog = screen.getByRole("alertdialog");
       await user.click(within(dialog).getByRole("button", { name: "Remove 2 dictionaries" }));
 
@@ -836,8 +836,10 @@ describe("Dictionary sources", () => {
     expect(listedTitles()).toEqual(["Jitendex", "KANJIDIC", "JPDB"]);
     await user.click(screen.getByRole("checkbox", { name: "Select Jitendex" }));
     await user.click(screen.getByRole("checkbox", { name: "Select JPDB" }));
-    await user.click(screen.getByRole("button", { name: /^Move to/ }));
-    expect(screen.getAllByRole("menuitemradio").map((item) => item.textContent)).toEqual([
+    const moveTo = screen.getByRole("button", { name: "Move to…" });
+    expect(moveTo).toHaveClass("library-selection-bar__button");
+    await user.click(moveTo);
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
       "English",
       "French",
       "Portuguese",
@@ -852,7 +854,7 @@ describe("Dictionary sources", () => {
       wordnet,
       { ...jpdb, language: "en" },
     ]);
-    await user.click(screen.getByRole("menuitemradio", { name: "English" }));
+    await user.click(screen.getByRole("menuitem", { name: "English" }));
     expect(languageMock).toHaveBeenCalledWith([1, 3], "en");
     expect(await screen.findByText("Moved to English: Jitendex and JPDB.")).toBeInTheDocument();
     await waitFor(() => expect(listedTitles()).toEqual(["KANJIDIC"]));

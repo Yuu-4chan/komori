@@ -869,7 +869,6 @@ export const en = {
   "dictionarySources.selected_one": "{count} dictionary selected",
   "dictionarySources.selected_other": "{count} dictionaries selected",
   "dictionarySources.selectAll": "Select all",
-  "dictionarySources.removeSelected": "Remove selected",
   "dictionarySources.clear": "Clear",
   "dictionarySources.removing": "Removing…",
   "dictionarySources.removeDictionary": "Remove dictionary",

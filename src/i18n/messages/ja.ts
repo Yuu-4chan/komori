@@ -810,7 +810,6 @@ export const ja: MessageCatalog = {
   "dictionarySources.selection": "辞書の選択",
   "dictionarySources.selected_other": "{count}件の辞書を選択中",
   "dictionarySources.selectAll": "すべて選択",
-  "dictionarySources.removeSelected": "選択したものを削除",
   "dictionarySources.clear": "解除",
   "dictionarySources.removing": "削除中…",
   "dictionarySources.removeDictionary": "辞書を削除",

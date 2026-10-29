@@ -174,7 +174,7 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   which; each dictionary belongs to one language, the one it was added to unless it declares
   another, and existing ones are Japanese). Add dictionaries (and, for Japanese when empty, starter downloads of five curated open dictionaries: two Japanese–English dictionaries, a word frequency list, a kanji dictionary and a proper-name dictionary, credited in `ACKNOWLEDGEMENTS.md`), the sources in
   lookup order with a selection box, ≡ handle and Remove on each row; choosing rows shows
-  Select all, Move to… (another language), Remove selected and Clear. Word audio lists the recording sources in order
+  Select all, Move to… (another language), Remove and ✕ to clear it. Word audio lists the recording sources in order
   (JapanesePod101 by default, for Japanese only; audio URLs and audio list URLs with `{term}`,
   `{reading}` and `{language}`) with Move up/down and Remove, and adds new ones.
 - **Statistics.** Recording, session start, jump limit and confirmed deletions.

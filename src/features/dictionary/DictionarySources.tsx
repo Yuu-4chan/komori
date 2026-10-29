@@ -2,6 +2,7 @@ import {
   BooksIcon,
   ListIcon,
   PlusIcon,
+  TranslateIcon,
   TrashIcon,
   WarningCircleIcon,
   XIcon,
@@ -414,36 +415,45 @@ export function DictionarySources({
                   <output aria-live="polite">
                     {tp("dictionarySources.selected", selection.selectedCount)}
                   </output>
-                  <Button disabled={busy} onClick={selection.selectAll} tone="quiet">
+                  <span aria-hidden="true" className="library-selection-bar__divider" />
+                  <button
+                    className="library-selection-bar__button"
+                    disabled={busy}
+                    onClick={selection.selectAll}
+                    type="button"
+                  >
                     {t("dictionarySources.selectAll")}
-                  </Button>
-                  {!busy && (
-                    // No option is chosen, so the button shows its own text.
-                    <MenuButton<LookupLanguage | "">
-                      label={t("dictionarySources.moveTo")}
-                      value=""
-                      options={lookupLanguages
-                        .filter((other) => other !== language)
-                        .map((other) => ({ value: other, label: t(`lookupLanguage.${other}`) }))}
-                      onChange={(target) => target && void moveToLanguage(target)}
-                    />
-                  )}
-                  <Button
+                  </button>
+                  <MenuButton<LookupLanguage>
+                    actionClassName="library-selection-bar__button"
                     disabled={busy}
-                    icon={<TrashIcon aria-hidden="true" />}
+                    icon={<TranslateIcon aria-hidden="true" size={16} />}
+                    label={t("dictionarySources.moveTo")}
+                    onChange={(target) => void moveToLanguage(target)}
+                    options={lookupLanguages
+                      .filter((other) => other !== language)
+                      .map((other) => ({ value: other, label: t(`lookupLanguage.${other}`) }))}
+                    value={language}
+                  />
+                  <button
+                    className="library-selection-bar__button library-selection-bar__button--danger"
+                    disabled={busy}
                     onClick={requestBulkRemoval}
-                    tone="danger"
+                    type="button"
                   >
-                    {t("dictionarySources.removeSelected")}
-                  </Button>
-                  <Button
+                    <TrashIcon aria-hidden="true" size={16} />
+                    {t("common.remove")}
+                  </button>
+                  <button
+                    aria-label={t("dictionarySources.clear")}
+                    className="library-selection-bar__close"
                     disabled={busy}
-                    icon={<XIcon aria-hidden="true" />}
                     onClick={selection.cancel}
-                    tone="secondary"
+                    title={t("dictionarySources.clear")}
+                    type="button"
                   >
-                    {t("dictionarySources.clear")}
-                  </Button>
+                    <XIcon aria-hidden="true" size={16} weight="bold" />
+                  </button>
                 </div>
               ) : null}
             </div>

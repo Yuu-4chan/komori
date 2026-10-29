@@ -906,7 +906,6 @@ export const ru: MessageCatalog = {
   "dictionarySources.selected_many": "Выбрано {count} словарей",
   "dictionarySources.selected_other": "Выбрано {count} словаря",
   "dictionarySources.selectAll": "Выбрать все",
-  "dictionarySources.removeSelected": "Удалить выбранные",
   "dictionarySources.clear": "Снять выбор",
   "dictionarySources.removing": "Удаление…",
   "dictionarySources.removeDictionary": "Удалить словарь",

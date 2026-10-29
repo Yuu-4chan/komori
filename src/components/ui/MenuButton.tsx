@@ -15,6 +15,12 @@ interface MenuButtonProps<T extends string> {
   value: T;
   options: readonly MenuOption<T>[];
   onChange: (value: T) => void;
+  /**
+   * Makes it an action menu: a button with this class showing `label`, whose options are actions
+   * rather than a choice, so none is checked and `value` is unused.
+   */
+  actionClassName?: string;
+  disabled?: boolean;
 }
 
 /**
@@ -28,6 +34,8 @@ export function MenuButton<T extends string>({
   value,
   options,
   onChange,
+  actionClassName,
+  disabled,
 }: MenuButtonProps<T>) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -81,29 +89,51 @@ export function MenuButton<T extends string>({
     };
   }, [open]);
 
-  const chosen = options.find((option) => option.value === value);
+  const chosen = actionClassName ? undefined : options.find((option) => option.value === value);
   return (
     <div className="menu-button" ref={wrapRef}>
-      <button
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label={`${label}: ${chosen?.label ?? value}`}
-        className={open ? "toolbar-pill toolbar-pill--active" : "toolbar-pill"}
-        onClick={() => setOpen((current) => !current)}
-        ref={buttonRef}
-        type="button"
-      >
-        {icon ? <span className="toolbar-pill__icon">{icon}</span> : null}
-        <span className="toolbar-pill__label">{chosen?.label ?? value}</span>
-        <CaretDownIcon aria-hidden="true" className="toolbar-pill__caret" size={12} weight="bold" />
-      </button>
+      {actionClassName ? (
+        <button
+          aria-expanded={open}
+          aria-haspopup="menu"
+          className={actionClassName}
+          disabled={disabled}
+          onClick={() => setOpen((current) => !current)}
+          ref={buttonRef}
+          type="button"
+        >
+          {icon}
+          {label}
+          <CaretDownIcon aria-hidden="true" size={12} weight="bold" />
+        </button>
+      ) : (
+        <button
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-label={`${label}: ${chosen?.label ?? value}`}
+          className={open ? "toolbar-pill toolbar-pill--active" : "toolbar-pill"}
+          disabled={disabled}
+          onClick={() => setOpen((current) => !current)}
+          ref={buttonRef}
+          type="button"
+        >
+          {icon ? <span className="toolbar-pill__icon">{icon}</span> : null}
+          <span className="toolbar-pill__label">{chosen?.label ?? value}</span>
+          <CaretDownIcon
+            aria-hidden="true"
+            className="toolbar-pill__caret"
+            size={12}
+            weight="bold"
+          />
+        </button>
+      )}
       {open ? (
         <div className="floating-menu" role="menu" aria-label={label}>
           {options.map((option) => {
-            const checked = option.value === value;
+            const checked = option.value === chosen?.value;
             return (
               <button
-                aria-checked={checked}
+                aria-checked={actionClassName ? undefined : checked}
                 className={
                   checked
                     ? "floating-menu__option floating-menu__option--active"
@@ -115,10 +145,10 @@ export function MenuButton<T extends string>({
                   setOpen(false);
                   buttonRef.current?.focus();
                 }}
-                role="menuitemradio"
+                role={actionClassName ? "menuitem" : "menuitemradio"}
                 type="button"
               >
-                <ChoiceCheck checked={checked} />
+                {actionClassName ? null : <ChoiceCheck checked={checked} />}
                 <span className="floating-menu__text">
                   <strong>{option.label}</strong>
                   {option.description ? <small>{option.description}</small> : null}
