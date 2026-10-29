@@ -333,11 +333,9 @@ export const de: MessageCatalog = {
     "Aus zeichnet keine Sitzungen auf: Die Leseansicht zeigt weder Lesezeit noch Tempo, und die Statistik erhält nichts Neues.",
   "statisticsSettings.sessionStart": "Sitzungsbeginn",
   "statisticsSettings.jumpLimit": "Sprunggrenze",
-  "statisticsSettings.jumpLimitUnit": "Zeichen oder Wörter",
   "statisticsSettings.jumpLimitHint":
-    "Ein weiterer Sprung, vor oder zurück, beendet die Sitzung (eine manuelle pausiert). 0 beendet nie.",
+    "Ein Sprung um mehr Zeichen oder Wörter als hier, vor oder zurück, beendet die Sitzung (eine manuelle pausiert). 0 beendet nie.",
   "statisticsSettings.idleLimit": "Zählung beenden nach",
-  "statisticsSettings.idleLimitUnit": "Minuten ohne Fortschritt",
   "statisticsSettings.idleLimitHint":
     "Zeit ohne Fortschritt wird ab dieser Grenze verworfen, damit Pausen dein Tempo nie senken. 0 stoppt nie.",
   "statisticsSettings.recordedTitle": "Aufgezeichnete Statistiken",
@@ -1520,6 +1518,7 @@ export const de: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "Z./s",
   "unit.steps": "Schritte",
+  "unit.minutes": "Min.",
   "footerChoice.readingPosition": "Leseposition",
   "footerChoice.percentage": "Prozent",
   "footerChoice.readingTime": "Lesezeit",

@@ -347,11 +347,9 @@ export const it: MessageCatalog = {
     "Se disattivato non registra sessioni: il lettore non mostra tempo né velocità di lettura e Statistiche non aggiunge nulla.",
   "statisticsSettings.sessionStart": "Inizio sessione",
   "statisticsSettings.jumpLimit": "Limite di salto",
-  "statisticsSettings.jumpLimitUnit": "caratteri o parole",
   "statisticsSettings.jumpLimitHint":
-    "Uno spostamento maggiore, avanti o indietro, termina la sessione (una manuale va in pausa). 0 non la termina mai.",
+    "Uno spostamento di più caratteri o parole di questo, avanti o indietro, termina la sessione (una manuale va in pausa). 0 non la termina mai.",
   "statisticsSettings.idleLimit": "Smetti di contare dopo",
-  "statisticsSettings.idleLimitUnit": "minuti senza avanzamento",
   "statisticsSettings.idleLimitHint":
     "Il tempo senza avanzare viene scartato oltre questa soglia, così le pause non abbassano mai la tua velocità. 0 non si ferma mai.",
   "statisticsSettings.recordedTitle": "Statistiche registrate",
@@ -1565,6 +1563,7 @@ export const it: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "car./s",
   "unit.steps": "passi",
+  "unit.minutes": "min",
   "footerChoice.readingPosition": "Posizione di lettura",
   "footerChoice.percentage": "Percentuale",
   "footerChoice.readingTime": "Tempo di lettura",

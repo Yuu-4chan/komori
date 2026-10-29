@@ -19,7 +19,8 @@ A Calibre-like Library of real covers and progress: Continue reading (books read
 grid/list, search, status filters, Cards details, sort and direction, which order groups too; grouping by series
 or language as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Series from titles in Settings > General, on
 by default, puts numbered volumes sharing a title (`Title 01`, `Title 02`) in a series when
-the books name none; Mark as completed from a card's menu or the selection; per-card selection boxes
+the books name none, with （上）/（下） parts and volumes whose title adds a subtitle
+(`Title～Subtitle～01`), keeping a title's own ＜＞ and ！？ in the series name; Mark as completed from a card's menu or the selection; per-card selection boxes
 (Continue reading stays while selecting) with bulk removal,
 relink and import with native progress. Drop EPUB files from Windows Explorer anywhere
 on the Library to add them; a drag overlay shows the accepted file type or a busy
