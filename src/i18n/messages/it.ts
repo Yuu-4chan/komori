@@ -808,6 +808,9 @@ export const it: MessageCatalog = {
     "Il popup e il Dizionario riconoscono le forme flesse e usano i dizionari di questa lingua.",
   "lookupLanguage.ja": "Giapponese",
   "lookupLanguage.en": "Inglese",
+  "lookupLanguage.fr": "Francese",
+  "lookupLanguage.pt": "Portoghese",
+  "lookupLanguage.it": "Italiano",
   "popupSettings.cjkOnly": "Cerca solo testo giapponese/CJK",
   "popupSettings.cjkOnlyHint":
     "Ignora le ricerche automatiche senza kanji, kana o hangul. Le ricerche nel dizionario e i link espliciti restano disponibili.",
@@ -858,7 +861,7 @@ export const it: MessageCatalog = {
   "popupSources.maximum_many": "Massimo {count} fonti selezionate.",
   "dictionarySources.moveFailed": "Komori non ha potuto spostare {title}. L’ordine non è cambiato.",
   "dictionarySources.moved": "{title} spostato in posizione {place} di {count}.",
-  "dictionarySources.moveTo": "Sposta in {language}",
+  "dictionarySources.moveTo": "Sposta in…",
   "dictionarySources.movedToLanguage": "Spostato in {language}: {titles}.",
   "dictionarySources.removeFailed_one":
     "Komori non ha potuto rimuovere {titles}. È ancora installato.",

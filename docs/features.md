@@ -127,11 +127,13 @@ and tag marks. Until an installed dictionary can supply definitions, this page a
 lookup popup (and its Settings preview) offer Get dictionaries, linking to Settings; the
 Dictionary page says it has no dictionaries only in that offer.
 
-The lookup language, Japanese by default or English (Settings > Reader popup > Scanning and results), decides
+The lookup language, Japanese by default, English, French, Portuguese or Italian (Settings > Reader popup > Scanning and results), decides
 how the popup and the Dictionary read words. English lookups start at the word under the pointer
 and read on across spaces, so phrasal verbs match (looked it up → look up); capitalized words and
 ’ apostrophes match their entries; inflections are named (past, plural, -ing); only English's dictionaries are
-used; and entries show no reading, furigana or pitch.
+used; and entries show no reading, furigana or pitch. French, Portuguese and Italian lookups work the same
+way with their own verb tenses, plurals and feminines; French and Italian also find the word after
+an elided l', d' or dell'.
 Only look up Japanese/CJK text, the Kanji card and JapanesePod101 are for Japanese.
 
 ## Statistics
@@ -172,7 +174,7 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   which; each dictionary belongs to one language, the one it was added to unless it declares
   another, and existing ones are Japanese). Add dictionaries (and, for Japanese when empty, starter downloads of five curated open dictionaries: two Japanese–English dictionaries, a word frequency list, a kanji dictionary and a proper-name dictionary, credited in `ACKNOWLEDGEMENTS.md`), the sources in
   lookup order with a selection box, ≡ handle and Remove on each row; choosing rows shows
-  Select all, Move to the other language, Remove selected and Clear. Word audio lists the recording sources in order
+  Select all, Move to… (another language), Remove selected and Clear. Word audio lists the recording sources in order
   (JapanesePod101 by default, for Japanese only; audio URLs and audio list URLs with `{term}`,
   `{reading}` and `{language}`) with Move up/down and Remove, and adds new ones.
 - **Statistics.** Recording, session start, jump limit and confirmed deletions.

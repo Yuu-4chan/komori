@@ -168,7 +168,7 @@ describe("Lookup trigger preferences", () => {
     );
   });
 
-  it("names the lookup language in every interface language and hides CJK only for English", async () => {
+  it("names the lookup language in every interface language and hides CJK for other languages", async () => {
     for (const language of interfaceLanguages) {
       const { t } = translatorFor(language);
       const saved = { ...defaultAppearance, interfaceLanguage: language };
@@ -192,6 +192,9 @@ describe("Lookup trigger preferences", () => {
       expect(Array.from((select as HTMLSelectElement).options, (option) => option.text)).toEqual([
         t("lookupLanguage.ja"),
         t("lookupLanguage.en"),
+        t("lookupLanguage.fr"),
+        t("lookupLanguage.pt"),
+        t("lookupLanguage.it"),
       ]);
       expect(screen.getByRole("button", { name: t("popupSettings.cjkOnly") })).toBeInTheDocument();
       fireEvent.change(select, { target: { value: "en" } });

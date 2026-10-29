@@ -13,8 +13,8 @@ Lapis note type through AnkiConnect.
 [Yomitan](https://github.com/yomidevs/yomitan) (and Yomichan before it) shaped how Komori looks
 words up.
 
-- Komori's Japanese and English deinflection rules and the engine that applies them are adapted
-  from Yomitan's Japanese and English transforms and its language transformer
+- Komori's Japanese, English and French deinflection rules and the engine that applies them are
+  adapted from Yomitan's Japanese, English and French transforms and its language transformer
   (GPL-3.0-or-later).
 - The kanji code-point ranges, the dictionary tag category colors and the frequency harmonic and
   average ranks for Anki follow Yomitan's.

@@ -776,6 +776,9 @@ export const ptBR: MessageCatalog = {
     "O pop-up e o Dicionário reconhecem as flexões e usam os dicionários deste idioma.",
   "lookupLanguage.ja": "Japonês",
   "lookupLanguage.en": "Inglês",
+  "lookupLanguage.fr": "Francês",
+  "lookupLanguage.pt": "Português",
+  "lookupLanguage.it": "Italiano",
   "popupSettings.cjkOnly": "Consultar só texto japonês/CJK",
   "popupSettings.cjkOnlyHint":
     "Ignora consultas automáticas sem kanji, kana ou hangul. As buscas no dicionário e os links continuam disponíveis.",
@@ -825,7 +828,7 @@ export const ptBR: MessageCatalog = {
   "popupSources.maximum_other": "No máximo {count} fontes selecionadas.",
   "dictionarySources.moveFailed": "O Komori não conseguiu mover {title}. A ordem não mudou.",
   "dictionarySources.moved": "{title} movido para a posição {place} de {count}.",
-  "dictionarySources.moveTo": "Mover para {language}",
+  "dictionarySources.moveTo": "Mover para…",
   "dictionarySources.movedToLanguage": "Movido para {language}: {titles}.",
   "dictionarySources.removeFailed_one":
     "O Komori não conseguiu remover {titles}. Ele continua instalado.",

@@ -788,6 +788,9 @@ export const en = {
     "The popup and the Dictionary read words and choose dictionaries in this language.",
   "lookupLanguage.ja": "Japanese",
   "lookupLanguage.en": "English",
+  "lookupLanguage.fr": "French",
+  "lookupLanguage.pt": "Portuguese",
+  "lookupLanguage.it": "Italian",
   "popupSettings.cjkOnly": "Only look up Japanese/CJK text",
   "popupSettings.cjkOnlyHint":
     "Ignore automatic lookups without kanji, kana or hangul. Dictionary searches and explicit links remain available.",
@@ -840,7 +843,7 @@ export const en = {
   // Dictionary sources
   "dictionarySources.moveFailed": "Komori could not move {title}. The order is unchanged.",
   "dictionarySources.moved": "{title} moved to position {place} of {count}.",
-  "dictionarySources.moveTo": "Move to {language}",
+  "dictionarySources.moveTo": "Move to…",
   "dictionarySources.movedToLanguage": "Moved to {language}: {titles}.",
   "dictionarySources.removeFailed_one": "Komori could not remove {titles}. It is still installed.",
   "dictionarySources.removeFailed_other":

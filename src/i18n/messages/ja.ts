@@ -739,6 +739,9 @@ export const ja: MessageCatalog = {
     "ポップアップと辞書は、この言語として語形を戻し、この言語の辞書を使います。",
   "lookupLanguage.ja": "日本語",
   "lookupLanguage.en": "英語",
+  "lookupLanguage.fr": "フランス語",
+  "lookupLanguage.pt": "ポルトガル語",
+  "lookupLanguage.it": "イタリア語",
   "popupSettings.cjkOnly": "日本語・CJKの文字だけを引く",
   "popupSettings.cjkOnlyHint":
     "漢字、かな、ハングルを含まない自動の辞書引きを無視します。辞書の検索やリンクは引き続き使えます。",
@@ -787,7 +790,7 @@ export const ja: MessageCatalog = {
   "popupSources.maximum_other": "選べる辞書は最大{count}件です。",
   "dictionarySources.moveFailed": "{title}を移動できませんでした。順序は変わっていません。",
   "dictionarySources.moved": "{title}を{count}件中{place}番目に移動しました。",
-  "dictionarySources.moveTo": "{language}に移動",
+  "dictionarySources.moveTo": "移動先…",
   "dictionarySources.movedToLanguage": "{titles}を{language}に移動しました。",
   "dictionarySources.removeFailed_other": "{titles}を削除できませんでした。取り込まれたままです。",
   "dictionarySources.removeOneFailed": "この辞書を削除できませんでした。何も削除していません。",

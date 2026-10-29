@@ -18,7 +18,10 @@
 //! match a term, and then only a term whose rules name one of them.
 
 pub(crate) mod en;
+pub(crate) mod fr;
+pub(crate) mod it;
 pub(crate) mod ja;
+pub(crate) mod pt;
 
 #[cfg(test)]
 pub(crate) use ja::{ADJ_I, V1, V5, VK, VS, VZ};
@@ -131,6 +134,33 @@ const fn interposed_words(
         kind: Kind::InterposedWords { words, particles },
         ..rule(name, "", "", applies_to, gives)
     }
+}
+
+/// One rule for each of `endings`: `stem` followed by it gives `base` (fal-o, fal-amos → falar
+/// with `stem` empty and `base` "ar").
+fn endings(
+    name: &'static str,
+    stem: &str,
+    endings: &[&str],
+    base: &'static str,
+    applies_to: u32,
+    gives: u32,
+) -> Vec<Rule> {
+    endings
+        .iter()
+        .map(|ending| {
+            let inflected: &'static str = format!("{stem}{ending}").leak();
+            rule(name, inflected, base, applies_to, gives)
+        })
+        .collect()
+}
+
+/// The word classes a term's space-separated rules name, each rule by `names`.
+fn named_classes(rules: &str, names: &[(&str, u32)]) -> u32 {
+    rules
+        .split_whitespace()
+        .filter_map(|rule| names.iter().find(|(name, _)| *name == rule))
+        .fold(0, |classes, (_, class)| classes | class)
 }
 
 impl Rule {

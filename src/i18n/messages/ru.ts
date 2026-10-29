@@ -818,6 +818,9 @@ export const ru: MessageCatalog = {
     "Всплывающее окно и словарь распознают формы слов и используют словари этого языка.",
   "lookupLanguage.ja": "Японский",
   "lookupLanguage.en": "Английский",
+  "lookupLanguage.fr": "Французский",
+  "lookupLanguage.pt": "Португальский",
+  "lookupLanguage.it": "Итальянский",
   "popupSettings.cjkOnly": "Искать только японский/CJK-текст",
   "popupSettings.cjkOnlyHint":
     "Игнорировать автоматический поиск без кандзи, каны или хангыля. Поиск в словаре и явные ссылки остаются доступными.",
@@ -869,7 +872,7 @@ export const ru: MessageCatalog = {
   "popupSources.maximum_other": "Не более {count} выбранных источников.",
   "dictionarySources.moveFailed": "Komori не удалось переместить {title}. Порядок не изменился.",
   "dictionarySources.moved": "{title} перемещён на позицию {place} из {count}.",
-  "dictionarySources.moveTo": "Перенести в раздел «{language}»",
+  "dictionarySources.moveTo": "Перенести в…",
   "dictionarySources.movedToLanguage": "Перенесено в раздел «{language}»: {titles}.",
   "dictionarySources.removeFailed_one":
     "Komori не удалось удалить {titles}. Он всё ещё установлен.",

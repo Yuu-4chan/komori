@@ -726,6 +726,9 @@ export const ko: MessageCatalog = {
     "팝업과 사전은 이 언어로 활용형을 되돌리고 이 언어의 사전을 사용합니다.",
   "lookupLanguage.ja": "일본어",
   "lookupLanguage.en": "영어",
+  "lookupLanguage.fr": "프랑스어",
+  "lookupLanguage.pt": "포르투갈어",
+  "lookupLanguage.it": "이탈리아어",
   "popupSettings.cjkOnly": "일본어/CJK 글자만 찾기",
   "popupSettings.cjkOnlyHint":
     "한자, 가나, 한글이 없는 자동 사전 찾기를 무시합니다. 사전 검색과 링크는 계속 쓸 수 있습니다.",
@@ -775,7 +778,7 @@ export const ko: MessageCatalog = {
   "dictionarySources.moveFailed":
     "Komori가 {title}을(를) 옮기지 못했습니다. 순서는 바뀌지 않았습니다.",
   "dictionarySources.moved": "{title}을(를) {count}개 중 {place}번째로 옮겼습니다.",
-  "dictionarySources.moveTo": "{language}로 이동",
+  "dictionarySources.moveTo": "이동…",
   "dictionarySources.movedToLanguage": "{titles}을(를) {language}로 옮겼습니다.",
   "dictionarySources.removeFailed_other":
     "Komori가 {titles}을(를) 제거하지 못했습니다. 계속 설치되어 있습니다.",

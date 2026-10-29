@@ -787,6 +787,9 @@ export const de: MessageCatalog = {
     "Popup und Wörterbuch erkennen gebeugte Formen und verwenden die Wörterbücher dieser Sprache.",
   "lookupLanguage.ja": "Japanisch",
   "lookupLanguage.en": "Englisch",
+  "lookupLanguage.fr": "Französisch",
+  "lookupLanguage.pt": "Portugiesisch",
+  "lookupLanguage.it": "Italienisch",
   "popupSettings.cjkOnly": "Nur japanischen/CJK-Text nachschlagen",
   "popupSettings.cjkOnlyHint":
     "Automatische Suchen ohne Kanji, Kana oder Hangul ignorieren. Wörterbuchsuchen und ausdrückliche Links bleiben verfügbar.",
@@ -837,7 +840,7 @@ export const de: MessageCatalog = {
   "dictionarySources.moveFailed":
     "Komori konnte {title} nicht verschieben. Die Reihenfolge bleibt unverändert.",
   "dictionarySources.moved": "{title} an Position {place} von {count} verschoben.",
-  "dictionarySources.moveTo": "Zu {language} verschieben",
+  "dictionarySources.moveTo": "Verschieben nach…",
   "dictionarySources.movedToLanguage": "Zu {language} verschoben: {titles}.",
   "dictionarySources.removeFailed_one":
     "Komori konnte {titles} nicht entfernen. Es ist weiterhin installiert.",

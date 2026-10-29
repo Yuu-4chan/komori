@@ -2,8 +2,8 @@
 //! classes, the variants of a text it also looks up, whether a lookup's starts must end at a word
 //! boundary, and whether the Japanese-only behaviors apply (the kana ranking, する nouns, the
 //! trailing-particle reorder and the kanji lookup). Each dictionary belongs to one language, and a
-//! lookup uses only that language's dictionaries. Adding a language is adding a variant here and
-//! its rule table in `deinflect`.
+//! lookup uses only that language's dictionaries. Every language but Japanese spaces its words.
+//! Adding a language is adding a variant here and its rule table in `deinflect`.
 
 use serde::{Deserialize, Serialize};
 
@@ -16,16 +16,31 @@ pub enum Language {
     Japanese,
     #[serde(rename = "en")]
     English,
+    #[serde(rename = "fr")]
+    French,
+    #[serde(rename = "pt")]
+    Portuguese,
+    #[serde(rename = "it")]
+    Italian,
 }
 
 impl Language {
-    const ALL: [Self; 2] = [Self::Japanese, Self::English];
+    const ALL: [Self; 5] = [
+        Self::Japanese,
+        Self::English,
+        Self::French,
+        Self::Portuguese,
+        Self::Italian,
+    ];
 
     /// The language's ISO 639-1 code, as word audio sources and dictionaries name it.
     pub(crate) fn code(self) -> &'static str {
         match self {
             Self::Japanese => "ja",
             Self::English => "en",
+            Self::French => "fr",
+            Self::Portuguese => "pt",
+            Self::Italian => "it",
         }
     }
 
@@ -47,11 +62,14 @@ impl Language {
             .unwrap_or_default()
             .to_ascii_lowercase();
         Self::ALL.into_iter().find(|language| {
-            let three = match language {
-                Self::Japanese => "jpn",
-                Self::English => "eng",
+            let three: &[&str] = match language {
+                Self::Japanese => &["jpn"],
+                Self::English => &["eng"],
+                Self::French => &["fra", "fre"],
+                Self::Portuguese => &["por"],
+                Self::Italian => &["ita"],
             };
-            primary == language.code() || primary == three
+            primary == language.code() || three.contains(&primary.as_str())
         })
     }
 
@@ -60,6 +78,9 @@ impl Language {
         match self {
             Self::Japanese => deinflect::ja::deinflect(text),
             Self::English => deinflect::en::deinflect(text),
+            Self::French => deinflect::fr::deinflect(text),
+            Self::Portuguese => deinflect::pt::deinflect(text),
+            Self::Italian => deinflect::it::deinflect(text),
         }
     }
 
@@ -68,6 +89,9 @@ impl Language {
         match self {
             Self::Japanese => deinflect::ja::word_classes(rules),
             Self::English => deinflect::en::word_classes(rules),
+            Self::French => deinflect::fr::word_classes(rules),
+            Self::Portuguese => deinflect::pt::word_classes(rules),
+            Self::Italian => deinflect::it::word_classes(rules),
         }
     }
 
@@ -76,22 +100,36 @@ impl Language {
         match self {
             Self::Japanese => deinflect::ja::DICTIONARY_FORMS,
             Self::English => deinflect::en::DICTIONARY_FORMS,
+            Self::French => deinflect::fr::DICTIONARY_FORMS,
+            Self::Portuguese => deinflect::pt::DICTIONARY_FORMS,
+            Self::Italian => deinflect::it::DICTIONARY_FORMS,
         }
     }
 
-    /// `text` and the other spellings a lookup also tries, each once: in English, with its
-    /// typographic apostrophes as ASCII ones, then also lowercased, with its first letter
-    /// capitalized, and lowercased with its first letter capitalized (Running: running; london:
-    /// London; NASA: nasa, Nasa).
+    /// `text` and the other spellings a lookup also tries, each once: in a language that spaces
+    /// its words, with its typographic apostrophes as ASCII ones, then also lowercased, with its
+    /// first letter capitalized, and lowercased with its first letter capitalized (Running:
+    /// running; london: London; NASA: nasa, Nasa); in French and Italian, then also all of those
+    /// for the text without the elided word that begins it (l'homme: homme; dell'Italia: Italia).
     /// Japanese tries only the text.
     pub(crate) fn variants(self, text: &str) -> Vec<String> {
         let mut variants = vec![text.to_owned()];
-        if self == Self::English {
+        if !self.spaces_words() {
+            return variants;
+        }
+        let elided = self.without_elision(text);
+        for text in std::iter::once(text).chain(elided.as_deref()) {
             let ascii = text.replace('\u{2019}', "'");
             let lower = ascii.to_lowercase();
             let capitalized_ascii = capitalized(&ascii);
             let capitalized_lower = capitalized(&lower);
-            for variant in [ascii, lower, capitalized_ascii, capitalized_lower] {
+            for variant in [
+                text.to_owned(),
+                ascii,
+                lower,
+                capitalized_ascii,
+                capitalized_lower,
+            ] {
                 if !variants.contains(&variant) {
                     variants.push(variant);
                 }
@@ -100,10 +138,28 @@ impl Language {
         variants
     }
 
+    /// `text` without the elided word that begins it (l', d', qu'; dell', un'), when more
+    /// follows it.
+    fn without_elision(self, text: &str) -> Option<String> {
+        let words: &[&str] = match self {
+            Self::French => &[
+                "l", "d", "j", "m", "n", "s", "t", "c", "ç", "qu", "jusqu", "lorsqu", "puisqu",
+                "quoiqu", "presqu",
+            ],
+            Self::Italian => &[
+                "l", "dell", "all", "dall", "nell", "sull", "coll", "un", "quest", "quell", "c",
+                "n", "d", "s", "m", "t", "v",
+            ],
+            _ => return None,
+        };
+        let (word, rest) = text.split_once(['\'', '\u{2019}'])?;
+        (words.contains(&word.to_lowercase().as_str()) && !rest.is_empty()).then(|| rest.to_owned())
+    }
+
     /// Whether a lookup's starts end only at word boundaries, as in languages that space their
     /// words: `looked` is not also looked up as `look` or `lo`.
     pub(crate) fn spaces_words(self) -> bool {
-        self == Self::English
+        self != Self::Japanese
     }
 
     /// Whether the Japanese-only lookup behaviors apply: the kana ranking, する nouns, the
@@ -144,6 +200,29 @@ mod tests {
             Language::English.variants("look up"),
             ["look up", "Look up"]
         );
+        assert_eq!(
+            Language::French.variants("L’homme"),
+            ["L’homme", "L'homme", "l'homme", "homme", "Homme"]
+        );
+        assert_eq!(
+            Language::French.variants("qu'il"),
+            ["qu'il", "Qu'il", "il", "Il"]
+        );
+        assert_eq!(
+            Language::Italian.variants("dell'Italia"),
+            [
+                "dell'Italia",
+                "dell'italia",
+                "Dell'Italia",
+                "Dell'italia",
+                "Italia",
+                "italia"
+            ]
+        );
+        assert_eq!(
+            Language::Portuguese.variants("d'água"),
+            ["d'água", "D'água"]
+        );
         assert_eq!(Language::Japanese.variants("Running"), ["Running"]);
         assert_eq!(
             Language::Japanese.variants("読む\u{2019}"),
@@ -160,18 +239,27 @@ mod tests {
                 "{tag}"
             );
         }
-        for tag in ["en", "en-US", "EN_gb", "eng"] {
-            assert_eq!(
-                Language::declared(Some(tag)),
-                Some(Language::English),
-                "{tag}"
-            );
+        for (tag, language) in [
+            ("en", Language::English),
+            ("en-US", Language::English),
+            ("EN_gb", Language::English),
+            ("eng", Language::English),
+            ("fr-CA", Language::French),
+            ("fre", Language::French),
+            ("fra", Language::French),
+            ("pt-BR", Language::Portuguese),
+            ("por", Language::Portuguese),
+            ("it", Language::Italian),
+            ("ita", Language::Italian),
+        ] {
+            assert_eq!(Language::declared(Some(tag)), Some(language), "{tag}");
         }
         for tag in [
             None,
             Some(""),
             Some(" "),
             Some("zh"),
+            Some("es"),
             Some("jav"),
             Some("english"),
             Some("e"),
@@ -182,14 +270,14 @@ mod tests {
 
     #[test]
     fn languages_round_trip_by_code() {
-        for language in [Language::Japanese, Language::English] {
+        for language in Language::ALL {
             let json = serde_json::to_string(&language).unwrap();
             assert_eq!(json, format!("\"{}\"", language.code()));
             assert_eq!(serde_json::from_str::<Language>(&json).unwrap(), language);
             assert_eq!(Language::from_code(language.code()), Some(language));
         }
-        assert_eq!(Language::from_code("fr"), None);
-        assert!(serde_json::from_str::<Language>("\"fr\"").is_err());
+        assert_eq!(Language::from_code("es"), None);
+        assert!(serde_json::from_str::<Language>("\"es\"").is_err());
         assert_eq!(Language::default(), Language::Japanese);
     }
 }

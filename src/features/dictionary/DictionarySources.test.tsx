@@ -836,7 +836,13 @@ describe("Dictionary sources", () => {
     expect(listedTitles()).toEqual(["Jitendex", "KANJIDIC", "JPDB"]);
     await user.click(screen.getByRole("checkbox", { name: "Select Jitendex" }));
     await user.click(screen.getByRole("checkbox", { name: "Select JPDB" }));
-    expect(screen.queryByRole("button", { name: "Move to Japanese" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^Move to/ }));
+    expect(screen.getAllByRole("menuitemradio").map((item) => item.textContent)).toEqual([
+      "English",
+      "French",
+      "Portuguese",
+      "Italian",
+    ]);
     languageMock.mockResolvedValue(2);
     listMock.mockResolvedValue([
       { ...jitendex, language: "en" },
@@ -845,7 +851,7 @@ describe("Dictionary sources", () => {
       wordnet,
       { ...jpdb, language: "en" },
     ]);
-    await user.click(screen.getByRole("button", { name: "Move to English" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "English" }));
     expect(languageMock).toHaveBeenCalledWith([1, 3], "en");
     expect(await screen.findByText("Moved to English: Jitendex and JPDB.")).toBeInTheDocument();
     await waitFor(() => expect(listedTitles()).toEqual(["KANJIDIC"]));

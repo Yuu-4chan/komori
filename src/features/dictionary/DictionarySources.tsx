@@ -22,6 +22,7 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { IconButton } from "../../components/ui/IconButton";
+import { MenuButton } from "../../components/ui/MenuButton";
 import { NoticeClose } from "../../components/ui/NoticeClose";
 import { Select } from "../../components/ui/Select";
 import { useSelection } from "../selection/useSelection";
@@ -416,20 +417,17 @@ export function DictionarySources({
                   <Button disabled={busy} onClick={selection.selectAll} tone="quiet">
                     {t("dictionarySources.selectAll")}
                   </Button>
-                  {lookupLanguages
-                    .filter((other) => other !== language)
-                    .map((other) => (
-                      <Button
-                        disabled={busy}
-                        key={other}
-                        onClick={() => void moveToLanguage(other)}
-                        tone="secondary"
-                      >
-                        {t("dictionarySources.moveTo", {
-                          language: t(`lookupLanguage.${other}`),
-                        })}
-                      </Button>
-                    ))}
+                  {!busy && (
+                    // No option is chosen, so the button shows its own text.
+                    <MenuButton<LookupLanguage | "">
+                      label={t("dictionarySources.moveTo")}
+                      value=""
+                      options={lookupLanguages
+                        .filter((other) => other !== language)
+                        .map((other) => ({ value: other, label: t(`lookupLanguage.${other}`) }))}
+                      onChange={(target) => target && void moveToLanguage(target)}
+                    />
+                  )}
                   <Button
                     disabled={busy}
                     icon={<TrashIcon aria-hidden="true" />}
