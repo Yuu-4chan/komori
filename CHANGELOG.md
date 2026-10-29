@@ -2,6 +2,10 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.7.1
+
+- Dictionary lookups show the word's dictionary form first when the other match is an entry no frequency list knows, such as a conjugated form listed on its own, a Pixiv tag or an album title. 書いた now leads with 書く, 寝ろ with 寝る and 見て with 見る; the other entry follows right after. Entries with a frequency rank of their own, such as 高さ, stay first.
+
 ## 1.7.0
 
 - The interface is now also in French, Italian, Spanish, German, Russian and Traditional Chinese. Choose one in Settings > General > Application language; the tray menu, file dialogs, the backup file name and the Discord status follow it.
