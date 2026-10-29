@@ -290,11 +290,9 @@ export const zhCN: MessageCatalog = {
     "关闭后不再记录阅读：阅读器不显示阅读时间或速度，统计中也不会新增内容。",
   "statisticsSettings.sessionStart": "开始记录",
   "statisticsSettings.jumpLimit": "跳转上限",
-  "statisticsSettings.jumpLimitUnit": "字或词",
   "statisticsSettings.jumpLimitHint":
-    "向前或向后移动超过此距离会结束阅读记录（手动记录则暂停）。0表示从不结束。",
+    "向前或向后移动超过此字数（或词数）会结束阅读记录（手动记录则暂停）。0表示从不结束。",
   "statisticsSettings.idleLimit": "停止计时前",
-  "statisticsSettings.idleLimitUnit": "分钟无进度",
   "statisticsSettings.idleLimitHint":
     "没有向前阅读的时间超过此值后会被舍弃，离开不会拉低阅读速度。0表示从不停止。",
   "statisticsSettings.recordedTitle": "已记录的统计",
@@ -1336,6 +1334,7 @@ export const zhCN: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "字/秒",
   "unit.steps": "格",
+  "unit.minutes": "分钟",
   "footerChoice.readingPosition": "阅读位置",
   "footerChoice.percentage": "百分比",
   "footerChoice.readingTime": "阅读时间",

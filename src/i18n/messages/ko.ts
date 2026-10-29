@@ -304,11 +304,9 @@ export const ko: MessageCatalog = {
     "끄면 세션을 기록하지 않습니다. 뷰어에 읽은 시간이나 속도가 표시되지 않고 통계에도 추가되지 않습니다.",
   "statisticsSettings.sessionStart": "세션 시작",
   "statisticsSettings.jumpLimit": "이동 한도",
-  "statisticsSettings.jumpLimitUnit": "자 또는 단어",
   "statisticsSettings.jumpLimitHint":
-    "앞뒤로 이보다 멀리 이동하면 세션이 끝납니다(수동 세션은 일시 정지). 0이면 끝나지 않습니다.",
+    "앞뒤로 이 글자 수(또는 단어 수)보다 멀리 이동하면 세션이 끝납니다(수동 세션은 일시 정지). 0이면 끝나지 않습니다.",
   "statisticsSettings.idleLimit": "측정 중지까지",
-  "statisticsSettings.idleLimitUnit": "분(진행 없음)",
   "statisticsSettings.idleLimitHint":
     "앞으로 나아가지 않은 시간이 이 값을 넘으면 그 시간은 빠지므로 자리를 비워도 속도가 떨어지지 않습니다. 0이면 멈추지 않습니다.",
   "statisticsSettings.recordedTitle": "기록된 통계",
@@ -1409,6 +1407,7 @@ export const ko: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "자/초",
   "unit.steps": "단계",
+  "unit.minutes": "분",
   "footerChoice.readingPosition": "읽는 위치",
   "footerChoice.percentage": "비율",
   "footerChoice.readingTime": "읽은 시간",

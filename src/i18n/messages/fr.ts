@@ -350,11 +350,9 @@ export const fr: MessageCatalog = {
     "Désactivé, aucune session n’est enregistrée : le lecteur n’affiche ni temps ni vitesse de lecture et les Statistiques n’ajoutent rien.",
   "statisticsSettings.sessionStart": "Début de session",
   "statisticsSettings.jumpLimit": "Limite de saut",
-  "statisticsSettings.jumpLimitUnit": "caractères ou mots",
   "statisticsSettings.jumpLimitHint":
-    "Un déplacement plus grand, en avant ou en arrière, termine la session (une session manuelle se met en pause). 0 ne la termine jamais.",
+    "Un déplacement de plus de ce nombre de caractères ou de mots, en avant ou en arrière, termine la session (une session manuelle se met en pause). 0 ne la termine jamais.",
   "statisticsSettings.idleLimit": "Arrêter de compter après",
-  "statisticsSettings.idleLimitUnit": "minutes sans progression",
   "statisticsSettings.idleLimitHint":
     "Le temps sans avancer est ignoré au-delà de cette durée, pour qu’une absence ne fasse jamais baisser votre vitesse. 0 n’arrête jamais.",
   "statisticsSettings.recordedTitle": "Statistiques enregistrées",
@@ -1577,6 +1575,7 @@ export const fr: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "car./s",
   "unit.steps": "crans",
+  "unit.minutes": "min",
   "footerChoice.readingPosition": "Position de lecture",
   "footerChoice.percentage": "Pourcentage",
   "footerChoice.readingTime": "Temps de lecture",

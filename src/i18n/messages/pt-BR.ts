@@ -332,11 +332,9 @@ export const ptBR: MessageCatalog = {
     "Desativado, nenhuma sessão é registrada: o leitor não mostra tempo nem velocidade de leitura e as Estatísticas não ganham nada novo.",
   "statisticsSettings.sessionStart": "Início da sessão",
   "statisticsSettings.jumpLimit": "Limite de salto",
-  "statisticsSettings.jumpLimitUnit": "caracteres ou palavras",
   "statisticsSettings.jumpLimitHint":
-    "Um movimento maior que isso, para frente ou para trás, encerra a sessão (uma manual pausa). 0 nunca encerra.",
+    "Um movimento de mais caracteres ou palavras que isso, para frente ou para trás, encerra a sessão (uma manual pausa). 0 nunca encerra.",
   "statisticsSettings.idleLimit": "Parar de contar após",
-  "statisticsSettings.idleLimitUnit": "minutos sem progresso",
   "statisticsSettings.idleLimitHint":
     "O tempo sem avançar é descartado quando passa disto, então o tempo ausente nunca reduz sua velocidade. 0 nunca para.",
   "statisticsSettings.recordedTitle": "Estatísticas registradas",
@@ -1503,8 +1501,9 @@ export const ptBR: MessageCatalog = {
   "appearancePanel.blurNoBoundary":
     "Nenhuma página de sumário utilizável foi identificada. Todas as imagens ficam desfocadas.",
   "unit.em": "em",
-  "unit.charsPerSecond": "Car./s",
+  "unit.charsPerSecond": "car./s",
   "unit.steps": "passos",
+  "unit.minutes": "min",
   "footerChoice.readingPosition": "Posição de leitura",
   "footerChoice.percentage": "Porcentagem",
   "footerChoice.readingTime": "Tempo de leitura",

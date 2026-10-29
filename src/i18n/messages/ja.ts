@@ -309,11 +309,9 @@ export const ja: MessageCatalog = {
     "オフにするとセッションを記録しません。読書画面に読書時間や速度は表示されず、統計にも追加されません。",
   "statisticsSettings.sessionStart": "セッションの開始",
   "statisticsSettings.jumpLimit": "ジャンプの上限",
-  "statisticsSettings.jumpLimitUnit": "文字または語",
   "statisticsSettings.jumpLimitHint":
-    "前後にこれより大きく移動するとセッションが終わります（手動の場合は一時停止）。0にすると終わりません。",
+    "前後にこの文字数（または語数）より大きく移動するとセッションが終わります（手動の場合は一時停止）。0にすると終わりません。",
   "statisticsSettings.idleLimit": "計測を止めるまで",
-  "statisticsSettings.idleLimitUnit": "分（進みがないとき）",
   "statisticsSettings.idleLimitHint":
     "先へ進まない時間がこれを超えると、その時間は記録から除かれ、離席で速度が下がりません。0にすると止まりません。",
   "statisticsSettings.recordedTitle": "記録された統計",
@@ -1422,6 +1420,7 @@ export const ja: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "字/秒",
   "unit.steps": "段階",
+  "unit.minutes": "分",
   "footerChoice.readingPosition": "読書位置",
   "footerChoice.percentage": "割合",
   "footerChoice.readingTime": "読書時間",

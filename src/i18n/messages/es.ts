@@ -350,11 +350,9 @@ export const es: MessageCatalog = {
     "Desactivado no registra sesiones: el lector no muestra tiempo ni velocidad de lectura y Estadísticas no añade nada nuevo.",
   "statisticsSettings.sessionStart": "Inicio de sesión",
   "statisticsSettings.jumpLimit": "Límite de salto",
-  "statisticsSettings.jumpLimitUnit": "caracteres o palabras",
   "statisticsSettings.jumpLimitHint":
-    "Un movimiento mayor, hacia delante o atrás, termina la sesión (una manual se pausa). 0 nunca la termina.",
+    "Un movimiento de más caracteres o palabras que esto, hacia delante o atrás, termina la sesión (una manual se pausa). 0 nunca la termina.",
   "statisticsSettings.idleLimit": "Dejar de contar tras",
-  "statisticsSettings.idleLimitUnit": "minutos sin avanzar",
   "statisticsSettings.idleLimitHint":
     "El tiempo sin avanzar se descarta al superar este límite, así las ausencias nunca bajan tu velocidad. 0 nunca se detiene.",
   "statisticsSettings.recordedTitle": "Estadísticas registradas",
@@ -1570,6 +1568,7 @@ export const es: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "car./s",
   "unit.steps": "pasos",
+  "unit.minutes": "min",
   "footerChoice.readingPosition": "Posición de lectura",
   "footerChoice.percentage": "Porcentaje",
   "footerChoice.readingTime": "Tiempo de lectura",

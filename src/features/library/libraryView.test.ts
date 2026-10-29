@@ -262,6 +262,28 @@ describe("series from titles", () => {
     expect(
       seriesFromTitles(["86─エイティシックス─Ep.06─明けねば─", "86─エイティシックス─Ep.05─死よ─"]),
     ).toBe("86─エイティシックス─");
+    // Angle brackets keep their closing mark, a title keeps its own ！ or ？, and parts go.
+    expect(
+      seriesFromTitles([
+        "IS＜インフィニット・ストラトス＞01",
+        "IS＜インフィニット・ストラトス＞02",
+      ]),
+    ).toBe("IS＜インフィニット・ストラトス＞");
+    expect(
+      seriesFromTitles([
+        "運命に愛されて。<運命に愛されて。>01",
+        "運命に愛されて。<運命に愛されて。>02",
+      ]),
+    ).toBe("運命に愛されて。<運命に愛されて。>");
+    expect(seriesFromTitles(["ギブあっぷ！01", "ギブあっぷ！02"])).toBe("ギブあっぷ！");
+    expect(seriesFromTitles(["にしない？01", "にしない？02"])).toBe("にしない？");
+    expect(seriesFromTitles(["魔女と傭兵06（上）", "魔女と傭兵06（下）"])).toBe("魔女と傭兵");
+    expect(
+      seriesFromTitles([
+        "地味なおじさん、実は英雄でした（上）。05",
+        "地味なおじさん、実は英雄でした（下）。06",
+      ]),
+    ).toBe("地味なおじさん、実は英雄でした");
   });
 
   it("names nothing for one title, titles sharing no name, or within a word", () => {

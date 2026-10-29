@@ -1083,7 +1083,9 @@
   border-top: 1px solid var(--border-soft);
 }
 
+/* An item's actions are as low as the settings rows' controls. */
 .settings-rows li {
+  --control-height: var(--control-height-row);
   min-height: 3.5rem;
   padding: 0.75rem 1rem;
   display: flex;

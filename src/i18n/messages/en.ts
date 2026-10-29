@@ -340,11 +340,9 @@ export const en = {
     "Off records no sessions: the reader shows no reading time or speed and Statistics adds nothing new.",
   "statisticsSettings.sessionStart": "Session start",
   "statisticsSettings.jumpLimit": "Jump limit",
-  "statisticsSettings.jumpLimitUnit": "characters or words",
   "statisticsSettings.jumpLimitHint":
-    "A move further than this, forward or back, ends the session (a manual one pauses). 0 never ends one.",
+    "A move of more than this many characters or words, forward or back, ends the session (a manual one pauses). 0 never ends one.",
   "statisticsSettings.idleLimit": "Stop counting after",
-  "statisticsSettings.idleLimitUnit": "minutes without progress",
   "statisticsSettings.idleLimitHint":
     "Time without moving forward is dropped once it passes this, so time away never lowers your speed. 0 never stops.",
   "statisticsSettings.recordedTitle": "Recorded statistics",
@@ -1541,6 +1539,7 @@ export const en = {
   "unit.em": "em",
   "unit.charsPerSecond": "chars/s",
   "unit.steps": "steps",
+  "unit.minutes": "min",
   "footerChoice.readingPosition": "Reading position",
   "footerChoice.percentage": "Percentage",
   "footerChoice.readingTime": "Reading time",

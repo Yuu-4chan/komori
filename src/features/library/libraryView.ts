@@ -338,15 +338,25 @@ export function groupPageLink(key: string): string {
 const VOLUME_WORD =
   /(?:(?<![\p{L}\p{N}])(?:vol(?:ume)?|ep(?:isode)?|book|part|tome|tomo|livro|parte)|第)$/iu;
 
+/** Numbers, separators and opening brackets ending a name, but not a title's own `！` or `？`. */
+const TRAILING = /(?:(?![!?！？‼⁉⁈⁇])[\s\p{N}\p{Po}\p{Ps}\p{Pi}\p{Pc}])+$/u;
+
+/** One part of a volume split in two or three, closing a name: `（上）`, `〈下〉`, `前編`. */
+const PART = /(?:[（(〈【［[]\s*[上中下前後][編巻]?\s*[）)〉】］\]]|[上中下前後][編巻])$/u;
+
+/** The opening partner of a closing symbol, so `＜インフィニット・ストラトス＞` keeps its `＞`. */
+const OPENING: Record<string, string> = { ">": "<", "＞": "＜", "﹥": "﹤" };
+
 /** A letter of a script that separates its words with spaces. */
 const SPACED_LETTER = /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}]/u;
 
 /**
  * The series name several titles share, from how they begin: `Cat Tales 1` and `Cat Tales 2`
  * give `Cat Tales`, and `86─エイティシックス─Ep.05─…` and `86─エイティシックス─Alter.01─…` give
- * `86─エイティシックス─`. Volume numbers and words, separators and opening brackets before
- * where the titles differ are left out, and so is a word they differ within; a closing
- * bracket stays, as does a dash or symbol that closes one opening earlier in the name.
+ * `86─エイティシックス─`. Volume numbers and words, parts such as `（上）`, separators and
+ * opening brackets before where the titles differ are left out, and so is a word they differ
+ * within; a closing bracket, `！` or `？` stays, as does a dash or symbol that closes one
+ * opening earlier in the name (`＜インフィニット・ストラトス＞`).
  * Empty for fewer than two titles, or when they share no name.
  */
 export function seriesFromTitles(titles: readonly string[]): string {
@@ -366,10 +376,16 @@ export function seriesFromTitles(titles: readonly string[]): string {
   });
   if (last && SPACED_LETTER.test(last) && midWord) stem = stem.replace(/[\p{L}\p{M}]+$/u, "");
   for (;;) {
-    let next = stem.replace(/[\s\p{N}\p{Po}\p{Ps}\p{Pi}\p{Pc}]+$/u, "").replace(VOLUME_WORD, "");
+    let next = stem.replace(TRAILING, "").replace(VOLUME_WORD, "").replace(PART, "");
     const end = [...next].at(-1);
-    if (end && /[\p{Pd}\p{S}]/u.test(end) && !next.slice(0, -end.length).includes(end))
-      next = next.slice(0, -end.length);
+    const earlier = end ? next.slice(0, -end.length) : "";
+    if (
+      end &&
+      /[\p{Pd}\p{S}]/u.test(end) &&
+      !earlier.includes(end) &&
+      !earlier.includes(OPENING[end] ?? end)
+    )
+      next = earlier;
     if (next === stem) break;
     stem = next;
   }
