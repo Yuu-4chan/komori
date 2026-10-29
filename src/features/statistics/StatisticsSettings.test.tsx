@@ -51,6 +51,10 @@ describe("Settings > Statistics", () => {
 
     await user.click(screen.getByRole("button", { name: "Decrease Jump limit" }));
     await waitFor(() => expect(saved.at(-1)?.statisticsJumpLimit).toBe(4_900));
+    // Short values that fit the control column: the jump limit's unit is in its hint.
+    expect(screen.getByText("4,900")).toBeInTheDocument();
+    expect(screen.getByText(/more than this many characters or words/)).toBeInTheDocument();
+    expect(screen.getByText("5 min")).toBeInTheDocument();
     // Nothing recorded: both deletions are unavailable.
     expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete all" })).toBeDisabled();

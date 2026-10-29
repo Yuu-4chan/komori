@@ -2,6 +2,13 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.7.2
+
+- Series from titles keeps a title's own brackets and marks in the series name, such as IS＜インフィニット・ストラトス＞, 運命に愛されてごめんなさい。<…> and ギブあっぷ！, instead of cutting the closing ＞ or the ！.
+- Series from titles now groups （上） and （下） volumes, such as 優等生がアダルトグッズを買いに来た（上）/（下）, and a volume whose title only adds a subtitle, such as たかがアイドル！～されど、やっぱり顔はいい～01 with たかがアイドル！02. A spin-off that repeats a volume number the series already has stays on its own.
+- In Settings, row buttons now match the height of the fields above them and line up in one column, so Delete and Delete all are the same size.
+- Settings steppers no longer cut their number or wrap their unit in any language. Jump limit's hint now says it counts characters or words, and Stop counting after reads "5 min".
+
 ## 1.7.1
 
 - Dictionary lookups show the word's dictionary form first when the other match is an entry no frequency list knows, such as a conjugated form listed on its own, a Pixiv tag or an album title. 書いた now leads with 書く, 寝ろ with 寝る and 見て with 見る; the other entry follows right after. Entries with a frequency rank of their own, such as 高さ, stay first.

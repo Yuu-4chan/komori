@@ -106,7 +106,6 @@ export function StatisticsSettings() {
               value={jumpLimit}
               {...statisticsJumpLimit}
               format={(value) => number(value)}
-              unit={t("statisticsSettings.jumpLimitUnit")}
               onChange={(value) => setStatistics({ statisticsJumpLimit: value })}
             />
             <p className="settings-field__hint">{t("statisticsSettings.jumpLimitHint")}</p>
@@ -117,7 +116,7 @@ export function StatisticsSettings() {
               value={idleMinutes}
               {...statisticsIdleMinutes}
               format={(value) => number(value)}
-              unit={t("statisticsSettings.idleLimitUnit")}
+              unit={t("unit.minutes")}
               onChange={(value) => setStatistics({ statisticsIdleMinutes: value })}
             />
             <p className="settings-field__hint">{t("statisticsSettings.idleLimitHint")}</p>

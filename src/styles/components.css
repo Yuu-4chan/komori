@@ -536,9 +536,17 @@
 /* In a grouped list every setting is one row, whatever its control: the label and its hint on
    the left, as a switch's label and description are, and the control on the right. */
 .settings-list > .settings-field,
+/* A row's actions are as low as the fields' controls, and a lone one fills the same column, so
+   Delete under a stepper lines up with it whatever its label's length. */
 .settings-list > .settings-row {
+  --control-height: var(--control-height-row);
+  --settings-control-width: min(14rem, 42%);
   min-height: 3.5rem;
   padding: 0.75rem 1rem;
+}
+
+.settings-list > .settings-row > .button {
+  min-width: var(--settings-control-width);
 }
 
 .settings-list > * + * {
@@ -901,12 +909,18 @@
 
 /* The unit reads as a word after the number: "16 characters", "0 ms". */
 .stepper__value > span {
+  min-width: 0;
   margin-inline-start: 0.3em;
+  overflow: hidden;
   color: var(--text-secondary);
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* The number never gives way to its unit. */
 .stepper__value input {
+  flex: none;
   field-sizing: content;
   min-width: 1ch;
   max-width: 100%;

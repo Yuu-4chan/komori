@@ -28,9 +28,9 @@ static ROMAN: LazyLock<Regex> =
 static LEADING: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([0-9０-９]+)[.．]\s*(.+)$").unwrap());
 // The cleaning below is the Library's `seriesFromTitles`, so a series named here reads the same
-// as the one the Series dialog suggests for the same books.
+// as the one the Series dialog suggests for the same books. A title's own `！` or `？` stays.
 static TRAILING: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[\s\p{N}\p{Po}\p{Ps}\p{Pi}\p{Pc}]+$").unwrap());
+    LazyLock::new(|| Regex::new(r"[[\s\p{N}\p{Po}\p{Ps}\p{Pi}\p{Pc}]--[!?！？‼⁉⁈⁇]]+$").unwrap());
 static VOLUME_WORD: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"(?i)(?:^|[^\p{L}\p{N}])(vol(?:ume)?|ep(?:isode)?|book|part|tome|tomo|livro|parte)$",
@@ -38,6 +38,11 @@ static VOLUME_WORD: LazyLock<Regex> = LazyLock::new(|| {
     .unwrap()
 });
 static CLOSING_MARK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\p{Pd}\p{S}]$").unwrap());
+/// One part of a volume split in two or three, closing a title: `（上）`, `〈下〉`, `前編`, `中巻`.
+static PART: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:[（(〈【［\[]\s*([上中下前後])[編巻]?\s*[）)〉】］\]]|([上中下前後])[編巻])$")
+        .unwrap()
+});
 static LETTER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\p{L}").unwrap());
 
 /// The automatic series and volume of each book, in the same order; `None` for books that keep
@@ -49,8 +54,9 @@ static LETTER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\p{L}").unwrap())
 /// Roman numeral (`Unnamed Memory VI`) or begin with its number (`01. Fate/Zero`). A name
 /// becomes a series once two such books share it with different volumes, or when another book
 /// already has a series by that name. A book whose last number names no series can still join
-/// one an earlier number names, as a volume that series does not have yet
-/// (`その者。のちに…08新婚旅行編01`).
+/// one the name before its subtitle names (`俺の…カノジョ ※みんな激重になった01`), or an
+/// earlier number names (`その者。のちに…08新婚旅行編01`), as a volume that series does not
+/// have yet.
 pub(crate) fn series_from_titles(books: &[TitledBook<'_>]) -> Vec<Option<(String, f64)>> {
     let mut volumes: HashMap<String, Vec<f64>> = HashMap::new();
     for book in books {
@@ -71,7 +77,7 @@ pub(crate) fn series_from_titles(books: &[TitledBook<'_>]) -> Vec<Option<(String
     for (name, index) in candidates.iter().filter_map(|options| options.first()) {
         sharing.entry(name.as_str()).or_default().push(*index);
     }
-    let series: HashSet<&str> = sharing
+    let mut series: HashSet<&str> = sharing
         .iter()
         .filter(|(name, indexes)| {
             named.contains(*name) || indexes.iter().any(|index| *index != indexes[0])
@@ -79,6 +85,34 @@ pub(crate) fn series_from_titles(books: &[TitledBook<'_>]) -> Vec<Option<(String
         .map(|(name, _)| *name)
         .chain(named.iter().copied())
         .collect();
+    // A volume whose title alone carries a subtitle (`たかがアイドル！～されど…～01` beside
+    // `たかがアイドル！02`) makes the name before it a series with the other book's volume.
+    let shorter: Vec<Vec<String>> = candidates
+        .iter()
+        .map(|options| {
+            options
+                .first()
+                .map(|(name, _)| subtitle_names(name))
+                .unwrap_or_default()
+        })
+        .collect();
+    for (options, shorter) in candidates.iter().zip(&shorter) {
+        let Some((name, index)) = options.first() else {
+            continue;
+        };
+        if series.contains(name.as_str()) {
+            continue;
+        }
+        let promoted = shorter.iter().find_map(|short| {
+            sharing
+                .get_key_value(short.as_str())
+                .filter(|(_, indexes)| indexes.iter().any(|other| other != index))
+                .map(|(name, _)| *name)
+        });
+        if let Some(name) = promoted {
+            series.insert(name);
+        }
+    }
 
     let mut chosen: Vec<Option<(String, f64)>> = candidates
         .iter()
@@ -92,24 +126,39 @@ pub(crate) fn series_from_titles(books: &[TitledBook<'_>]) -> Vec<Option<(String
     for (name, index) in chosen.iter().flatten() {
         volumes.entry(name.clone()).or_default().push(*index);
     }
-    for (options, chosen) in candidates.iter().zip(chosen.iter_mut()) {
+    for ((options, shorter), chosen) in candidates.iter().zip(&shorter).zip(chosen.iter_mut()) {
         if chosen.is_some() {
             continue;
         }
-        let joined = options.iter().skip(1).find(|(name, index)| {
-            series.contains(name.as_str())
-                && !volumes.get(name).is_some_and(|taken| taken.contains(index))
-        });
+        let free = |name: &str, index: &f64| {
+            series.contains(name) && !volumes.get(name).is_some_and(|taken| taken.contains(index))
+        };
+        let joined = options
+            .first()
+            .and_then(|(_, index)| {
+                shorter
+                    .iter()
+                    .find(|name| free(name, index))
+                    .map(|name| (name.clone(), *index))
+            })
+            .or_else(|| {
+                options
+                    .iter()
+                    .skip(1)
+                    .find(|(name, index)| free(name, index))
+                    .cloned()
+            });
         if let Some((name, index)) = joined {
-            volumes.entry(name.clone()).or_default().push(*index);
-            *chosen = Some((name.clone(), *index));
+            volumes.entry(name.clone()).or_default().push(index);
+            *chosen = Some((name, index));
         }
     }
     chosen
 }
 
 /// Every series name and volume a title can be read as, the likeliest first: from its last
-/// number back to its first, then a closing Roman numeral, then a heading number.
+/// number back to its first, then a closing Roman numeral, then a closing part (`（上）` is 1,
+/// `（中）` 2, `（下）` 3), then a heading number.
 fn volume_candidates(title: &str) -> Vec<(String, f64)> {
     let mut candidates: Vec<(String, f64)> = NUMBER
         .find_iter(title)
@@ -141,6 +190,18 @@ fn volume_candidates(title: &str) -> Vec<(String, f64)> {
         }
     }
     if candidates.is_empty() {
+        if let Some(part) = PART.captures(title.trim_end()) {
+            let value = match part.get(1).or(part.get(2)).map(|part| part.as_str()) {
+                Some("上" | "前") => 1.0,
+                Some("中") => 2.0,
+                _ => 3.0,
+            };
+            if let Some(name) = series_name(&title[..part.get(0).unwrap().start()]) {
+                candidates.push((name, value));
+            }
+        }
+    }
+    if candidates.is_empty() {
         if let Some(leading) = LEADING.captures(title) {
             if let (Some(name), Some(value)) = (series_name(&leading[2]), parse_number(&leading[1]))
             {
@@ -151,9 +212,10 @@ fn volume_candidates(title: &str) -> Vec<(String, f64)> {
     candidates
 }
 
-/// The series name a title's start gives: volume words, numbers, separators, and opening
-/// brackets at its end are left out, and so is a dash or symbol unless it closes one opening
-/// earlier in the name. `None` without a letter.
+/// The series name a title's start gives: volume words, parts, numbers, separators, and
+/// opening brackets at its end are left out, and so is a dash or symbol unless it closes one
+/// opening earlier in the name (`─エイティシックス─`, `＜インフィニット・ストラトス＞`).
+/// `None` without a letter.
 fn series_name(start: &str) -> Option<String> {
     let mut stem = start.trim().to_owned();
     loop {
@@ -162,9 +224,18 @@ fn series_name(start: &str) -> Option<String> {
             next.truncate(word.start());
         } else if let Some(stripped) = next.strip_suffix('第') {
             next.truncate(stripped.len());
+        } else if let Some(part) = PART.find(&next) {
+            next.truncate(part.start());
         }
         if let Some(mark) = CLOSING_MARK.find(&next) {
-            if !next[..mark.start()].contains(mark.as_str()) {
+            let opening = match mark.as_str() {
+                ">" => "<",
+                "＞" => "＜",
+                "﹥" => "﹤",
+                same => same,
+            };
+            let earlier = &next[..mark.start()];
+            if !earlier.contains(mark.as_str()) && !earlier.contains(opening) {
                 next.truncate(mark.start());
             }
         }
@@ -174,6 +245,20 @@ fn series_name(start: &str) -> Option<String> {
         stem = next;
     }
     LETTER.is_match(&stem).then_some(stem)
+}
+
+/// The names a series name gives before a subtitle it may carry, longest first:
+/// `たかがアイドル！～されど、やっぱり顔はいい～` gives `たかがアイドル`.
+fn subtitle_names(name: &str) -> Vec<String> {
+    let mut names: Vec<String> = name
+        .char_indices()
+        .filter(|(_, character)| character.is_whitespace() || "～〜~※―—–:：".contains(*character))
+        .filter_map(|(at, _)| series_name(&name[..at]))
+        .filter(|short| short != name)
+        .collect();
+    names.reverse();
+    names.dedup();
+    names
 }
 
 fn parse_number(text: &str) -> Option<f64> {
@@ -400,6 +485,58 @@ mod tests {
     }
 
     #[test]
+    fn joins_a_volume_whose_title_alone_carries_a_subtitle_or_a_part() {
+        assert_eq!(
+            named(&[
+                "たかがアイドル！～されど、やっぱり顔はいい～01",
+                "たかがアイドル！02",
+                "俺の一番になりたい3人の清楚なカノジョ ※みんな激重になった01",
+                "俺の一番になりたい3人の清楚なカノジョ02",
+                "地味なおじさん、実は英雄でした。01",
+                "地味なおじさん、実は英雄でした。02",
+                "地味なおじさん、実は英雄でした（上）。05",
+                "地味なおじさん、実は英雄でした（下）。06",
+                "優等生がアダルトグッズを買いに来た（上）",
+                "優等生がアダルトグッズを買いに来た（下）",
+            ]),
+            vec![
+                volume("たかがアイドル！", 1.0),
+                volume("たかがアイドル！", 2.0),
+                volume("俺の一番になりたい3人の清楚なカノジョ", 1.0),
+                volume("俺の一番になりたい3人の清楚なカノジョ", 2.0),
+                volume("地味なおじさん、実は英雄でした", 1.0),
+                volume("地味なおじさん、実は英雄でした", 2.0),
+                volume("地味なおじさん、実は英雄でした", 5.0),
+                volume("地味なおじさん、実は英雄でした", 6.0),
+                volume("優等生がアダルトグッズを買いに来た", 1.0),
+                volume("優等生がアダルトグッズを買いに来た", 3.0),
+            ]
+        );
+        // A spin-off whose volume the series has, the same volume twice, and two subtitles alone
+        // stay apart.
+        assert_eq!(
+            named(&[
+                "ヒロインが最後に死ぬラブコメ01",
+                "ヒロインが最後に死ぬラブコメ02",
+                "ヒロインが最後に死ぬラブコメ～夢の彼女編～01",
+                "遊戯に夢中な気まぐれ天使の堕としかた_01",
+                "遊戯に夢中な気まぐれ天使の堕としかた～チート使いの美少女天使を～01",
+                "The Apothecary Diaries 05",
+                "The Faraway Paladin 03",
+            ]),
+            vec![
+                volume("ヒロインが最後に死ぬラブコメ", 1.0),
+                volume("ヒロインが最後に死ぬラブコメ", 2.0),
+                None,
+                None,
+                None,
+                None,
+                None,
+            ]
+        );
+    }
+
+    #[test]
     fn leaves_series_set_by_hand_or_read_from_the_book_and_joins_their_names() {
         let books = [
             TitledBook {
@@ -437,11 +574,58 @@ mod tests {
                 "ムリムリ！（※ムリじゃなかった!?）",
                 Some("ムリムリ！（※ムリじゃなかった!?）"),
             ),
+            (
+                "IS＜インフィニット・ストラトス＞",
+                Some("IS＜インフィニット・ストラトス＞"),
+            ),
+            (
+                "運命に愛されて。<運命に愛されて。>",
+                Some("運命に愛されて。<運命に愛されて。>"),
+            ),
+            ("ギブあっぷ！", Some("ギブあっぷ！")),
+            (
+                "だれがわたしの百合なのか!? ",
+                Some("だれがわたしの百合なのか!?"),
+            ),
+            ("Re:Zero, ", Some("Re:Zero")),
+            ("魔女と傭兵（下）", Some("魔女と傭兵")),
             ("Foo Volume ", Some("Foo")),
             ("Facebook ", Some("Facebook")),
             ("2.", None),
         ] {
             assert_eq!(series_name(start).as_deref(), name, "{start}");
         }
+    }
+
+    #[test]
+    #[ignore = "reads a TSV of catalog titles named by KOMORI_TITLES_TSV; writes the named series beside it"]
+    fn names_series_across_a_real_catalog() {
+        let path = std::env::var("KOMORI_TITLES_TSV").expect("KOMORI_TITLES_TSV");
+        let text = std::fs::read_to_string(&path).unwrap();
+        let rows: Vec<Vec<&str>> = text
+            .lines()
+            .map(|line| line.split('\t').collect())
+            .collect();
+        let books: Vec<TitledBook<'_>> = rows
+            .iter()
+            .map(|row| TitledBook {
+                title: Some(row[1]).filter(|title| !title.is_empty()),
+                series: Some(row[2]).filter(|series| !series.is_empty()),
+                series_index: row[3].parse().ok(),
+                series_manual: row[4] == "1",
+            })
+            .collect();
+        let named = series_from_titles(&books);
+        let out: String = rows
+            .iter()
+            .zip(named)
+            .map(|(row, named)| {
+                let (series, index) = named
+                    .map(|(series, index)| (series, index.to_string()))
+                    .unwrap_or_default();
+                [row[0], row[1], row[2], &series, &index].join("\t") + "\n"
+            })
+            .collect();
+        std::fs::write(format!("{path}.out"), out).unwrap();
     }
 }
