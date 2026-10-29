@@ -1447,7 +1447,7 @@ publisher colors, use a soft yellow note highlight.
 
 ## Lookup language
 
-The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt` or `it`, default `ja`; anything else is dropped, so
+The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it` or `es`, default `ja`; anything else is dropped, so
 older records read as Japanese) is the language every lookup reads text in. Settings > Reader
 popup's Scanning and results card chooses it as Lookup language, first in the card; the Reader popup, its
 child popups, the Dictionary page, Anki and word audio follow it at once. The frontend sends
@@ -1497,6 +1497,15 @@ its starts end at word boundaries and are tried with the same apostrophe and cap
 spellings as English; French and Italian also try a start without the elided word that begins it
 (l', d', qu'; dell', un'), so l'homme finds homme. Their classes are `v`, `n`, `adj` and `adv`
 (French also `aux`).
+
+Spanish (`deinflect/es.rs`) is Yomitan's `ext/js/language/es/spanish-transforms.js` at commit
+d3c54c1, converted rule for rule (the simple tenses with their stem changes, participles,
+reflexive verbs, noun plurals and feminine adjectives), followed by Komori's own pronouns joined
+to an infinitive or gerund (hacerlo, dárselo, diciéndole), adjective plurals, diminutives,
+superlatives and adverbs in -mente. Yomitan's stem changes (piensan → pensar, juegas → jugar,
+huele → oler) are `Kind::StemChange` rules: the first changed vowel is restored and the ending
+replaced. Yomitan's pronominal rule (me despertar → despertarse) spans two words and is left
+out. Its classes are `v` (with `v_ar`, `v_er` and `v_ir`), `n` (with `ns` and `np`) and `adj`.
 
 Each dictionary belongs to one lookup language, the store's `language` column, and only that
 language's lookups use it. An import goes to the language Settings > Dictionary shows, unless its

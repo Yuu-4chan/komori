@@ -22,15 +22,18 @@ pub enum Language {
     Portuguese,
     #[serde(rename = "it")]
     Italian,
+    #[serde(rename = "es")]
+    Spanish,
 }
 
 impl Language {
-    const ALL: [Self; 5] = [
+    const ALL: [Self; 6] = [
         Self::Japanese,
         Self::English,
         Self::French,
         Self::Portuguese,
         Self::Italian,
+        Self::Spanish,
     ];
 
     /// The language's ISO 639-1 code, as word audio sources and dictionaries name it.
@@ -41,6 +44,7 @@ impl Language {
             Self::French => "fr",
             Self::Portuguese => "pt",
             Self::Italian => "it",
+            Self::Spanish => "es",
         }
     }
 
@@ -68,6 +72,7 @@ impl Language {
                 Self::French => &["fra", "fre"],
                 Self::Portuguese => &["por"],
                 Self::Italian => &["ita"],
+                Self::Spanish => &["spa"],
             };
             primary == language.code() || three.contains(&primary.as_str())
         })
@@ -81,6 +86,7 @@ impl Language {
             Self::French => deinflect::fr::deinflect(text),
             Self::Portuguese => deinflect::pt::deinflect(text),
             Self::Italian => deinflect::it::deinflect(text),
+            Self::Spanish => deinflect::es::deinflect(text),
         }
     }
 
@@ -92,6 +98,7 @@ impl Language {
             Self::French => deinflect::fr::word_classes(rules),
             Self::Portuguese => deinflect::pt::word_classes(rules),
             Self::Italian => deinflect::it::word_classes(rules),
+            Self::Spanish => deinflect::es::word_classes(rules),
         }
     }
 
@@ -103,6 +110,7 @@ impl Language {
             Self::French => deinflect::fr::DICTIONARY_FORMS,
             Self::Portuguese => deinflect::pt::DICTIONARY_FORMS,
             Self::Italian => deinflect::it::DICTIONARY_FORMS,
+            Self::Spanish => deinflect::es::DICTIONARY_FORMS,
         }
     }
 
@@ -251,6 +259,8 @@ mod tests {
             ("por", Language::Portuguese),
             ("it", Language::Italian),
             ("ita", Language::Italian),
+            ("es-MX", Language::Spanish),
+            ("spa", Language::Spanish),
         ] {
             assert_eq!(Language::declared(Some(tag)), Some(language), "{tag}");
         }
@@ -259,7 +269,7 @@ mod tests {
             Some(""),
             Some(" "),
             Some("zh"),
-            Some("es"),
+            Some("de"),
             Some("jav"),
             Some("english"),
             Some("e"),
@@ -276,8 +286,8 @@ mod tests {
             assert_eq!(serde_json::from_str::<Language>(&json).unwrap(), language);
             assert_eq!(Language::from_code(language.code()), Some(language));
         }
-        assert_eq!(Language::from_code("es"), None);
-        assert!(serde_json::from_str::<Language>("\"es\"").is_err());
+        assert_eq!(Language::from_code("de"), None);
+        assert!(serde_json::from_str::<Language>("\"de\"").is_err());
         assert_eq!(Language::default(), Language::Japanese);
     }
 }

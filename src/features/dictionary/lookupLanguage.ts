@@ -2,7 +2,7 @@
  * The language lookups deinflect and choose dictionaries for. Japanese is the default; each
  * language decides how the Reader scans text and which parts of an entry show.
  */
-export const lookupLanguages = ["ja", "en", "fr", "pt", "it"] as const;
+export const lookupLanguages = ["ja", "en", "fr", "pt", "it", "es"] as const;
 export type LookupLanguage = (typeof lookupLanguages)[number];
 export const defaultLookupLanguage: LookupLanguage = "ja";
 

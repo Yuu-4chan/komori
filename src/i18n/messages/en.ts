@@ -791,6 +791,7 @@ export const en = {
   "lookupLanguage.fr": "French",
   "lookupLanguage.pt": "Portuguese",
   "lookupLanguage.it": "Italian",
+  "lookupLanguage.es": "Spanish",
   "popupSettings.cjkOnly": "Only look up Japanese/CJK text",
   "popupSettings.cjkOnlyHint":
     "Ignore automatic lookups without kanji, kana or hangul. Dictionary searches and explicit links remain available.",

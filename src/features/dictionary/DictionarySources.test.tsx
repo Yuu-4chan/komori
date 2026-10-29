@@ -842,6 +842,7 @@ describe("Dictionary sources", () => {
       "French",
       "Portuguese",
       "Italian",
+      "Spanish",
     ]);
     languageMock.mockResolvedValue(2);
     listMock.mockResolvedValue([

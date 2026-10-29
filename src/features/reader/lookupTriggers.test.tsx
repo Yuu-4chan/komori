@@ -195,6 +195,7 @@ describe("Lookup trigger preferences", () => {
         t("lookupLanguage.fr"),
         t("lookupLanguage.pt"),
         t("lookupLanguage.it"),
+        t("lookupLanguage.es"),
       ]);
       expect(screen.getByRole("button", { name: t("popupSettings.cjkOnly") })).toBeInTheDocument();
       fireEvent.change(select, { target: { value: "en" } });

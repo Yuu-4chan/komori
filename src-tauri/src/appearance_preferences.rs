@@ -25,7 +25,7 @@ use crate::reader_fonts::FontChoice;
 use crate::word_audio::AudioSource;
 
 /// The languages lookups deinflect and choose dictionaries for (`dictionary::language`).
-const LOOKUP_LANGUAGES: [&str; 5] = ["ja", "en", "fr", "pt", "it"];
+const LOOKUP_LANGUAGES: [&str; 6] = ["ja", "en", "fr", "pt", "it", "es"];
 const POPUP_SHORTCUTS: [&str; 3] = ["shift-enter", "alt-x", "ctrl-space"];
 const POPUP_MOUSE_TRIGGERS: [&str; 4] = ["left", "double", "shift-right", "middle"];
 const POPUP_CLOSE_BEHAVIORS: [&str; 3] = ["escape-outside", "outside", "persistent"];
@@ -2070,7 +2070,7 @@ mod tests {
     fn a_stored_lookup_language_is_kept_only_when_known() {
         for stored in [
             serde_json::json!({}),
-            serde_json::json!({"lookupLanguage": "es"}),
+            serde_json::json!({"lookupLanguage": "de"}),
             serde_json::json!({"lookupLanguage": 1}),
         ] {
             assert_eq!(
@@ -2078,7 +2078,7 @@ mod tests {
                 None
             );
         }
-        for language in ["ja", "en", "fr", "pt", "it"] {
+        for language in ["ja", "en", "fr", "pt", "it", "es"] {
             let stored = serde_json::json!({ "lookupLanguage": language });
             assert_eq!(
                 super::AppearancePreferences::from_stored(&stored)

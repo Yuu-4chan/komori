@@ -18,6 +18,7 @@
 //! match a term, and then only a term whose rules name one of them.
 
 pub(crate) mod en;
+pub(crate) mod es;
 pub(crate) mod fr;
 pub(crate) mod it;
 pub(crate) mod ja;
@@ -52,6 +53,18 @@ enum Kind {
     InterposedWords {
         words: &'static [&'static str],
         particles: &'static [&'static str],
+    },
+    /// A stem's vowel change before an ending (piensan → pensar): the text must end in one of
+    /// `endings` after a `from` followed only by lowercase ASCII letters; its first `from` becomes
+    /// `to`, then the longest of `strip` ending it becomes the base. A text must begin with
+    /// `starts` and must not begin with `not_starts`, where they are not empty.
+    StemChange {
+        from: &'static str,
+        to: &'static str,
+        endings: &'static [&'static str],
+        strip: &'static [&'static str],
+        starts: &'static str,
+        not_starts: &'static str,
     },
 }
 
@@ -163,7 +176,76 @@ fn named_classes(rules: &str, names: &[(&str, u32)]) -> u32 {
         .fold(0, |classes, (_, class)| classes | class)
 }
 
+/// A rule changing a stem's vowel before one of `endings` (see `Kind::StemChange`).
+const fn stem_change(
+    name: &'static str,
+    from: &'static str,
+    to: &'static str,
+    endings: &'static [&'static str],
+    base: &'static str,
+    applies_to: u32,
+    gives: u32,
+) -> Rule {
+    Rule {
+        kind: Kind::StemChange {
+            from,
+            to,
+            endings,
+            strip: endings,
+            starts: "",
+            not_starts: "",
+        },
+        ..rule(name, "", base, applies_to, gives)
+    }
+}
+
 impl Rule {
+    /// This stem change, applying only to text beginning with `starts` and replacing the longest
+    /// of `strip` with its base.
+    const fn only_starting(self, starts: &'static str, strip: &'static [&'static str]) -> Self {
+        match self.kind {
+            Kind::StemChange {
+                from, to, endings, ..
+            } => Self {
+                kind: Kind::StemChange {
+                    from,
+                    to,
+                    endings,
+                    strip,
+                    starts,
+                    not_starts: "",
+                },
+                ..self
+            },
+            _ => self,
+        }
+    }
+
+    /// This stem change, not applying to text beginning with `start`.
+    const fn not_starting(self, start: &'static str) -> Self {
+        match self.kind {
+            Kind::StemChange {
+                from,
+                to,
+                endings,
+                strip,
+                starts,
+                ..
+            } => Self {
+                kind: Kind::StemChange {
+                    from,
+                    to,
+                    endings,
+                    strip,
+                    starts,
+                    not_starts: start,
+                },
+                ..self
+            },
+            _ => self,
+        }
+    }
+
     /// The text this rule gives `text`, when it applies to its form.
     fn apply(&self, text: &str) -> Option<String> {
         match self.kind {
@@ -191,6 +273,40 @@ impl Rule {
                     && first.chars().all(char::is_alphanumeric)
                     && particles.contains(&rest[particle]))
                 .then(|| format!("{first} {}", rest[particle..].join(" ")))
+            }
+            Kind::StemChange {
+                from,
+                to,
+                endings,
+                strip,
+                starts,
+                not_starts,
+            } => {
+                if !text.starts_with(starts)
+                    || (!not_starts.is_empty() && text.starts_with(not_starts))
+                {
+                    return None;
+                }
+                let inflected = endings.iter().any(|ending| {
+                    text.strip_suffix(ending)
+                        .and_then(|stem| stem.rfind(from).map(|at| &stem[at + from.len()..]))
+                        .is_some_and(|between| {
+                            between.bytes().all(|byte| byte.is_ascii_lowercase())
+                        })
+                });
+                if !inflected {
+                    return None;
+                }
+                let changed = text.replacen(from, to, 1);
+                let ending = strip
+                    .iter()
+                    .filter(|ending| changed.ends_with(*ending))
+                    .max_by_key(|ending| ending.len())?;
+                Some(format!(
+                    "{}{}",
+                    &changed[..changed.len() - ending.len()],
+                    self.base
+                ))
             }
         }
     }
