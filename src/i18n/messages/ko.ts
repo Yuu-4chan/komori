@@ -728,6 +728,8 @@ export const ko: MessageCatalog = {
   "lookupLanguage.pt": "포르투갈어",
   "lookupLanguage.it": "이탈리아어",
   "lookupLanguage.es": "스페인어",
+  "lookupLanguage.ko": "한국어",
+  "lookupLanguage.zh": "중국어",
   "popupSettings.cjkOnly": "일본어/CJK 글자만 찾기",
   "popupSettings.cjkOnlyHint":
     "한자, 가나, 한글이 없는 자동 사전 찾기를 무시합니다. 사전 검색과 링크는 계속 쓸 수 있습니다.",

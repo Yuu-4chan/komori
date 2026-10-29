@@ -817,6 +817,8 @@ export const fr: MessageCatalog = {
   "lookupLanguage.pt": "Portugais",
   "lookupLanguage.it": "Italien",
   "lookupLanguage.es": "Espagnol",
+  "lookupLanguage.ko": "Coréen",
+  "lookupLanguage.zh": "Chinois",
   "popupSettings.cjkOnly": "Rechercher uniquement le texte japonais/CJK",
   "popupSettings.cjkOnlyHint":
     "Ignorer les recherches automatiques sans kanji, kana ni hangul. Les recherches dans le dictionnaire et les liens explicites restent disponibles.",

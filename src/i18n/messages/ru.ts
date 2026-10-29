@@ -820,6 +820,8 @@ export const ru: MessageCatalog = {
   "lookupLanguage.pt": "Португальский",
   "lookupLanguage.it": "Итальянский",
   "lookupLanguage.es": "Испанский",
+  "lookupLanguage.ko": "Корейский",
+  "lookupLanguage.zh": "Китайский",
   "popupSettings.cjkOnly": "Искать только японский/CJK-текст",
   "popupSettings.cjkOnlyHint":
     "Игнорировать автоматический поиск без кандзи, каны или хангыля. Поиск в словаре и явные ссылки остаются доступными.",

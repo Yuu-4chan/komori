@@ -22,6 +22,7 @@ pub(crate) mod es;
 pub(crate) mod fr;
 pub(crate) mod it;
 pub(crate) mod ja;
+pub(crate) mod ko;
 pub(crate) mod pt;
 
 #[cfg(test)]
@@ -329,13 +330,9 @@ impl<'a> RuleSet<'a> {
             .map(|rule| (true, rule))
             .chain(more.iter().map(|rule| (false, rule)));
         for (is_first, rule) in tagged {
-            match rule.kind {
-                Kind::Suffix | Kind::WholeWord => {
-                    let last = rule
-                        .inflected
-                        .chars()
-                        .next_back()
-                        .expect("an inflected form");
+            // A suffix rule adding only its base (Korean's) has no last character to match.
+            match (rule.kind, rule.inflected.chars().next_back()) {
+                (Kind::Suffix | Kind::WholeWord, Some(last)) => {
                     by_last.entry(last).or_default().push((is_first, rule));
                 }
                 _ => others.push((is_first, rule)),

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { TermGroup, TermMatch } from "./dictionaryApi";
-import { LookupEntry } from "./LookupEntry";
+import { DictionaryLookupEntry, LookupEntry } from "./LookupEntry";
 
 function group(expression: string, terms: TermMatch[]): TermGroup {
   return {
@@ -119,6 +119,26 @@ describe("LookupEntry", () => {
     expect(shown()).toEqual(names);
     fireEvent.click(screen.getByRole("button", { name: "Show fewer" }));
     expect(shown()).toEqual(["n", "vs", "uk", "P"]);
+  });
+});
+
+describe("Dictionary page readings", () => {
+  it("show pinyin and Hangul beside the headword, and no reading in English", () => {
+    const entry = (expression: string, reading: string, language: "zh" | "ko" | "en") =>
+      render(
+        <DictionaryLookupEntry
+          group={{ ...good, expression, reading }}
+          language={language}
+          onSearchTerm={() => {}}
+          showDictionaryNames={false}
+        />,
+      );
+    entry("学习", "xué xí", "zh");
+    expect(screen.getByRole("article", { name: "学习 (xué xí)" })).toHaveTextContent("xué xí");
+    entry("學校", "학교", "ko");
+    expect(screen.getByRole("article", { name: "學校 (학교)" })).toHaveTextContent("학교");
+    entry("walk", "wɔːk", "en");
+    expect(screen.getByRole("article", { name: "walk" })).not.toHaveTextContent("wɔːk");
   });
 });
 

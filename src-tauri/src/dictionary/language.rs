@@ -24,16 +24,23 @@ pub enum Language {
     Italian,
     #[serde(rename = "es")]
     Spanish,
+    #[serde(rename = "ko")]
+    Korean,
+    /// Chinese in either script: its dictionaries list traditional and simplified headwords.
+    #[serde(rename = "zh")]
+    Chinese,
 }
 
 impl Language {
-    const ALL: [Self; 6] = [
+    const ALL: [Self; 8] = [
         Self::Japanese,
         Self::English,
         Self::French,
         Self::Portuguese,
         Self::Italian,
         Self::Spanish,
+        Self::Korean,
+        Self::Chinese,
     ];
 
     /// The language's ISO 639-1 code, as word audio sources and dictionaries name it.
@@ -45,6 +52,8 @@ impl Language {
             Self::Portuguese => "pt",
             Self::Italian => "it",
             Self::Spanish => "es",
+            Self::Korean => "ko",
+            Self::Chinese => "zh",
         }
     }
 
@@ -73,6 +82,8 @@ impl Language {
                 Self::Portuguese => &["por"],
                 Self::Italian => &["ita"],
                 Self::Spanish => &["spa"],
+                Self::Korean => &["kor"],
+                Self::Chinese => &["zho", "chi", "cmn", "yue"],
             };
             primary == language.code() || three.contains(&primary.as_str())
         })
@@ -87,6 +98,9 @@ impl Language {
             Self::Portuguese => deinflect::pt::deinflect(text),
             Self::Italian => deinflect::it::deinflect(text),
             Self::Spanish => deinflect::es::deinflect(text),
+            Self::Korean => deinflect::ko::deinflect(text),
+            // Chinese does not inflect.
+            Self::Chinese => Vec::new(),
         }
     }
 
@@ -99,6 +113,8 @@ impl Language {
             Self::Portuguese => deinflect::pt::word_classes(rules),
             Self::Italian => deinflect::it::word_classes(rules),
             Self::Spanish => deinflect::es::word_classes(rules),
+            Self::Korean => deinflect::ko::word_classes(rules),
+            Self::Chinese => 0,
         }
     }
 
@@ -111,6 +127,8 @@ impl Language {
             Self::Portuguese => deinflect::pt::DICTIONARY_FORMS,
             Self::Italian => deinflect::it::DICTIONARY_FORMS,
             Self::Spanish => deinflect::es::DICTIONARY_FORMS,
+            Self::Korean => deinflect::ko::DICTIONARY_FORMS,
+            Self::Chinese => 0,
         }
     }
 
@@ -119,7 +137,7 @@ impl Language {
     /// first letter capitalized, and lowercased with its first letter capitalized (Running:
     /// running; london: London; NASA: nasa, Nasa); in French and Italian, then also all of those
     /// for the text without the elided word that begins it (l'homme: homme; dell'Italia: Italia).
-    /// Japanese tries only the text.
+    /// Japanese and Chinese try only the text.
     pub(crate) fn variants(self, text: &str) -> Vec<String> {
         let mut variants = vec![text.to_owned()];
         if !self.spaces_words() {
@@ -167,7 +185,7 @@ impl Language {
     /// Whether a lookup's starts end only at word boundaries, as in languages that space their
     /// words: `looked` is not also looked up as `look` or `lo`.
     pub(crate) fn spaces_words(self) -> bool {
-        self != Self::Japanese
+        !matches!(self, Self::Japanese | Self::Chinese)
     }
 
     /// Whether the Japanese-only lookup behaviors apply: the kana ranking, する nouns, the
@@ -261,6 +279,12 @@ mod tests {
             ("ita", Language::Italian),
             ("es-MX", Language::Spanish),
             ("spa", Language::Spanish),
+            ("ko", Language::Korean),
+            ("kor", Language::Korean),
+            ("zh", Language::Chinese),
+            ("zh-Hant", Language::Chinese),
+            ("zh_CN", Language::Chinese),
+            ("cmn", Language::Chinese),
         ] {
             assert_eq!(Language::declared(Some(tag)), Some(language), "{tag}");
         }
@@ -268,7 +292,6 @@ mod tests {
             None,
             Some(""),
             Some(" "),
-            Some("zh"),
             Some("de"),
             Some("jav"),
             Some("english"),

@@ -1447,7 +1447,7 @@ publisher colors, use a soft yellow note highlight.
 
 ## Lookup language
 
-The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it` or `es`, default `ja`; anything else is dropped, so
+The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko` or `zh`, default `ja`; anything else is dropped, so
 older records read as Japanese) is the language every lookup reads text in. Settings > Reader
 popup's Scanning and results card chooses it as Lookup language, first in the card; the Reader popup, its
 child popups, the Dictionary page, Anki and word audio follow it at once. The frontend sends
@@ -1507,6 +1507,19 @@ huele → oler) are `Kind::StemChange` rules: the first changed vowel is restore
 replaced. Yomitan's pronominal rule (me despertar → despertarse) spans two words and is left
 out. Its classes are `v` (with `v_ar`, `v_er` and `v_ir`), `n` (with `ns` and `np`) and `adj`.
 
+Korean (`deinflect/ko.rs`) is Yomitan's `ext/js/language/ko/korean-transforms.js` at commit
+d3c54c1, converted rule for rule: verb, adjective and 이다 endings over the intermediate past,
+future, honorific and formal endings (classes `p`, `f`, `eusi` and the others, never dictionary
+forms). As in Yomitan the rules work on the text split into letters, each two-letter vowel and
+final consonant in both (먹었다 → ㅁㅓㄱㅇㅓㅆㄷㅏ, 괜찮다 → ㄱㅗㅐㄴㅊㅏㄴㅎㄷㅏ), and each candidate is
+joined back into syllables: an initial consonant with its vowel, then a final consonant no vowel
+follows. Endings stack, so Korean keeps up to 512 candidates. Its classes are `v`, `adj` and
+`ida`. Chinese (`zh`, also declared as `zho`, `chi`, `cmn` or `yue`) is one language for both
+scripts, since its dictionaries list traditional and simplified headwords; it has no
+inflections, so a lookup matches the scanned text's starts exactly. Neither Japanese nor Chinese
+spaces its words; Korean does. On the Dictionary page a Chinese or Korean headword's reading
+(pinyin, or Hangul for hanja) follows it, smaller, where Japanese shows furigana.
+
 Each dictionary belongs to one lookup language, the store's `language` column, and only that
 language's lookups use it. An import goes to the language Settings > Dictionary shows, unless its
 `index.json` declares a supported source language: one whose primary subtag, in any case, is a
@@ -1518,7 +1531,7 @@ languages' dictionaries but none of this one's selects all of this one's, so one
 works for every language. Otherwise those choices pass unchanged. The kana ranking, する nouns,
 the trailing-particle reorder and the kanji lookup are Japanese only.
 
-In the Reader, a language that spaces its words (every one but Japanese) starts a pointer scan at the start of
+In the Reader, a language that spaces its words (every one but Japanese and Chinese) starts a pointer scan at the start of
 the word under the pointer: letters, digits, marks, and apostrophes between them, within one
 text node. Its scan then reads on across spaces up to the Scan length, so phrasal verbs and
 multi-word entries match. Spaces and punctuation still start none, and an automatic English

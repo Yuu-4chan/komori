@@ -5,7 +5,7 @@ import { ErrorBoundary } from "../../components/ui/ErrorBoundary";
 import { IconButton } from "../../components/ui/IconButton";
 import { useId, useMemo, useState } from "react";
 import { furiganaSegments } from "./furigana";
-import { defaultLookupLanguage, type LookupLanguage } from "./lookupLanguage";
+import { defaultLookupLanguage, readsBeside, type LookupLanguage } from "./lookupLanguage";
 
 import type { TermGroup, TermMatch } from "./dictionaryApi";
 import {
@@ -247,14 +247,18 @@ function DictionaryLookupEntryContent({
   /** Search a headword kanji or glossary link (a child popup in the Reader). */
   onSearchTerm: (term: string) => void;
 }) {
-  const reading = language === "ja" && group.reading !== group.expression ? group.reading : null;
+  const other = group.reading !== group.expression ? group.reading : null;
+  const reading = language === "ja" ? other : null;
+  const beside = readsBeside(language) ? other : null;
   // Each dictionary's definitions together, in the order the dictionaries first match.
   const sources = new Map<number, TermMatch[]>();
   for (const term of group.terms)
     sources.set(term.dictionaryId, [...(sources.get(term.dictionaryId) ?? []), term]);
   return (
     <article
-      aria-label={reading ? `${group.expression} (${reading})` : group.expression}
+      aria-label={
+        (reading ?? beside) ? `${group.expression} (${reading ?? beside})` : group.expression
+      }
       className="dictionary-entry"
     >
       <strong
@@ -270,6 +274,7 @@ function DictionaryLookupEntryContent({
         ) : (
           <HeadwordKanji expression={group.expression} onSearchTerm={onSearchTerm} />
         )}
+        {beside && <span className="dictionary-entry__reading">{beside}</span>}
       </strong>
       {[...sources.values()].map((terms) => (
         <section
