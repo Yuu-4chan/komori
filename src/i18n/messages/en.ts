@@ -840,6 +840,8 @@ export const en = {
   // Dictionary sources
   "dictionarySources.moveFailed": "Komori could not move {title}. The order is unchanged.",
   "dictionarySources.moved": "{title} moved to position {place} of {count}.",
+  "dictionarySources.moveTo": "Move to {language}",
+  "dictionarySources.movedToLanguage": "Moved to {language}: {titles}.",
   "dictionarySources.removeFailed_one": "Komori could not remove {titles}. It is still installed.",
   "dictionarySources.removeFailed_other":
     "Komori could not remove {titles}. They are still installed.",

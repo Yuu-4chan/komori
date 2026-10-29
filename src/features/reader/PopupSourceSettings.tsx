@@ -29,6 +29,10 @@ function eligibleSource(source: DictionarySummary, role: SourceRole) {
       : source.hasPitch;
 }
 
+/**
+ * Popup source choices for the lookup language's dictionaries. A choice is shared by every
+ * language; a selection naming only other languages' dictionaries selects all of this one's.
+ */
 export function PopupSourceSettings({
   onDictionarySettings,
 }: {
@@ -41,7 +45,13 @@ export function PopupSourceSettings({
     frequency: appearance.readerPopupFrequencySources,
     pitch: appearance.readerPopupPitchSources,
   };
-  const [sources, setSources] = useState<DictionarySummary[]>([]);
+  const [installed, setInstalled] = useState<DictionarySummary[]>([]);
+  const language = appearance.lookupLanguage;
+  const sources = installed.filter((source) => source.language === language);
+  // Other languages' dictionaries a selection may name, kept as they are.
+  const elsewhere = new Set(
+    installed.filter((source) => source.language !== language).map((source) => source.id),
+  );
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [dialog, setDialog] = useState<{ role: SourceRole; draft: SourceSelection } | null>(null);
   const [retry, setRetry] = useState(0);
@@ -52,7 +62,7 @@ export function PopupSourceSettings({
     listDictionaries().then(
       (list) => {
         if (active) {
-          setSources(list);
+          setInstalled(list);
           setStatus("ready");
         }
       },
@@ -87,7 +97,13 @@ export function PopupSourceSettings({
       <div className="settings-list">
         {sourceRoles.map((role) => {
           const eligible = sources.filter((source) => eligibleSource(source, role));
-          const choice = choices[role];
+          const chosen = choices[role];
+          const choice: SourceSelection =
+            chosen.mode === "selected" &&
+            chosen.ids.some((id) => elsewhere.has(id)) &&
+            !chosen.ids.some((id) => sources.some((source) => source.id === id))
+              ? { mode: "all" }
+              : chosen;
           const active = eligible.filter(
             (source) =>
               choice.mode === "all" ||
@@ -95,7 +111,9 @@ export function PopupSourceSettings({
           );
           const unavailable =
             choice.mode === "selected"
-              ? choice.ids.filter((id) => !active.some((source) => source.id === id)).length
+              ? choice.ids.filter(
+                  (id) => !elsewhere.has(id) && !active.some((source) => source.id === id),
+                ).length
               : 0;
           const names = active.map((source) => source.title).join(", ");
           const missing = eligible.length === 0;
@@ -226,6 +244,7 @@ export function PopupSourceSettings({
                 {dialog.draft.ids
                   .filter(
                     (id) =>
+                      !elsewhere.has(id) &&
                       !sources.some(
                         (source) => eligibleSource(source, dialog.role) && source.id === id,
                       ),
@@ -248,7 +267,9 @@ export function PopupSourceSettings({
                       {t("popupSources.unavailableSource", { id: String(id) })}
                     </label>
                   ))}
-                {dialog.draft.ids.length === 0 && <p>{t("popupSources.noneSelected")}</p>}
+                {!dialog.draft.ids.some((id) => !elsewhere.has(id)) && (
+                  <p>{t("popupSources.noneSelected")}</p>
+                )}
                 {dialog.draft.ids.length >= 128 && <p>{tp("popupSources.maximum", 128)}</p>}
               </div>
             )}

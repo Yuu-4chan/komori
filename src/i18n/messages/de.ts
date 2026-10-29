@@ -837,6 +837,8 @@ export const de: MessageCatalog = {
   "dictionarySources.moveFailed":
     "Komori konnte {title} nicht verschieben. Die Reihenfolge bleibt unverändert.",
   "dictionarySources.moved": "{title} an Position {place} von {count} verschoben.",
+  "dictionarySources.moveTo": "Zu {language} verschieben",
+  "dictionarySources.movedToLanguage": "Zu {language} verschoben: {titles}.",
   "dictionarySources.removeFailed_one":
     "Komori konnte {titles} nicht entfernen. Es ist weiterhin installiert.",
   "dictionarySources.removeFailed_other":

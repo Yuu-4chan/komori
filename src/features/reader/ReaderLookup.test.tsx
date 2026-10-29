@@ -94,6 +94,7 @@ function summary(id: number, title: string, hasDefinitions: boolean): Dictionary
     hasDefinitions,
     hasFrequency: !hasDefinitions,
     hasPitch: false,
+    language: "ja",
   };
 }
 const listMock = vi.mocked(listDictionaries);

@@ -775,6 +775,8 @@ export const ko: MessageCatalog = {
   "dictionarySources.moveFailed":
     "Komori가 {title}을(를) 옮기지 못했습니다. 순서는 바뀌지 않았습니다.",
   "dictionarySources.moved": "{title}을(를) {count}개 중 {place}번째로 옮겼습니다.",
+  "dictionarySources.moveTo": "{language}로 이동",
+  "dictionarySources.movedToLanguage": "{titles}을(를) {language}로 옮겼습니다.",
   "dictionarySources.removeFailed_other":
     "Komori가 {titles}을(를) 제거하지 못했습니다. 계속 설치되어 있습니다.",
   "dictionarySources.removeOneFailed":

@@ -866,6 +866,8 @@ export const es: MessageCatalog = {
   "popupSources.maximum_many": "Máximo {count} fuentes seleccionadas.",
   "dictionarySources.moveFailed": "Komori no pudo mover {title}. El orden no ha cambiado.",
   "dictionarySources.moved": "{title} movido a la posición {place} de {count}.",
+  "dictionarySources.moveTo": "Mover a {language}",
+  "dictionarySources.movedToLanguage": "Movido a {language}: {titles}.",
   "dictionarySources.removeFailed_one": "Komori no pudo quitar {titles}. Sigue instalado.",
   "dictionarySources.removeFailed_other": "Komori no pudo quitar {titles}. Siguen instalados.",
   "dictionarySources.removeFailed_many": "Komori no pudo quitar {titles}. Siguen instalados.",

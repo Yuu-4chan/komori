@@ -14,6 +14,7 @@ import {
   listDictionaries,
   lookupKanji,
   lookupTerms,
+  type DictionarySummary,
   type KanjiLookup,
   type TermGroup,
   type TermLookup,
@@ -50,7 +51,7 @@ vi.mock("../features/dictionary/dictionaryApi", () => ({
 const lookupMock = vi.mocked(lookupTerms);
 const kanjiMock = vi.mocked(lookupKanji);
 const listMock = vi.mocked(listDictionaries);
-const dictionaries = [
+const dictionaries: DictionarySummary[] = [
   {
     id: 1,
     title: "Jitendex",
@@ -62,6 +63,7 @@ const dictionaries = [
     kanjiMetaCount: 0,
     hasFrequency: true,
     hasPitch: false,
+    language: "ja",
     hasDefinitions: true,
   },
   {
@@ -75,6 +77,7 @@ const dictionaries = [
     kanjiMetaCount: 0,
     hasFrequency: true,
     hasPitch: false,
+    language: "ja",
     hasDefinitions: true,
   },
 ];

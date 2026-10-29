@@ -30,7 +30,7 @@ use super::deinflect::ja::{self, VS};
 use super::language::Language;
 use super::sources::SourcePolicy;
 
-const SCHEMA_VERSION: i64 = 8;
+const SCHEMA_VERSION: i64 = 9;
 pub(crate) const DATABASE_FILE_NAME: &str = "dictionaries.sqlite3";
 const MAX_QUERY_CHARS: usize = 256;
 const MAX_QUERY_BYTES: usize = 1024;
@@ -219,6 +219,8 @@ pub struct DictionarySummary {
     has_definitions: bool,
     has_frequency: bool,
     has_pitch: bool,
+    /// The lookup language whose lookups use it.
+    language: Language,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -396,34 +398,32 @@ pub async fn lookup_kanji(
     .map_err(|error| format!("Dictionary lookup task failed: {error}"))?
 }
 
-/// `sources` narrowed to the dictionaries that serve `language` (see `Language::serves`), or
-/// unchanged when every dictionary does.
+/// `sources` narrowed to `language`'s dictionaries, or unchanged when every dictionary is in it.
+/// A role's selection that names other languages' dictionaries but none of this one's selects all
+/// of this one's, so choices made for one language do not empty another.
 fn language_sources(
     connection: &Connection,
     sources: &SourcePolicy,
     language: Language,
 ) -> Result<SourcePolicy, String> {
-    let declared = connection
-        .prepare("SELECT id, source_language FROM dictionaries ORDER BY position, id")
+    let languages = connection
+        .prepare("SELECT id, language FROM dictionaries ORDER BY position, id")
         .and_then(|mut statement| {
             statement
                 .query_map([], |row| {
-                    Ok((row.get::<_, i64>(0)?, row.get::<_, Option<String>>(1)?))
+                    Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
                 })?
                 .collect::<Result<Vec<_>, _>>()
         })
         .map_err(storage_error)?;
     let mut sources = sources.clone();
-    if declared
-        .iter()
-        .any(|(_, tag)| !language.serves(tag.as_deref()))
-    {
-        let allowed: Vec<i64> = declared
-            .into_iter()
-            .filter(|(_, tag)| language.serves(tag.as_deref()))
-            .map(|(id, _)| id)
-            .collect();
-        sources.restrict_to(&allowed);
+    let (allowed, others): (Vec<_>, Vec<_>) = languages
+        .into_iter()
+        .partition(|(_, code)| Language::from_code(code).unwrap_or_default() == language);
+    if !others.is_empty() {
+        let allowed: Vec<i64> = allowed.into_iter().map(|(id, _)| id).collect();
+        let others: Vec<i64> = others.into_iter().map(|(id, _)| id).collect();
+        sources.restrict_to(&allowed, &others);
     }
     Ok(sources)
 }
@@ -1374,8 +1374,10 @@ pub async fn import_dictionaries(
     app: AppHandle,
     store: State<'_, DictionaryStoreState>,
     catalog: State<'_, crate::library::CatalogState>,
+    language: Option<Language>,
     operation_id: Option<String>,
 ) -> Result<DictionaryImportBatch, String> {
+    let into = language.unwrap_or_default();
     let mut progress = BatchProgress::for_app(app, operation_id)?;
     progress.phase("picking");
     let language = interface_text::language(&catalog.database);
@@ -1406,7 +1408,7 @@ pub async fn import_dictionaries(
         let mut connection = open_store(&database)?;
         Ok(DictionaryImportBatch {
             canceled: false,
-            results: import_paths_with_progress(&mut connection, &paths, &mut progress),
+            results: import_paths_with_progress(&mut connection, &paths, into, &mut progress),
         })
     })
     .await
@@ -1648,6 +1650,45 @@ fn move_in_store(
     drop(statement);
     transaction.commit()?;
     Ok(MoveStatus::Moved)
+}
+
+/// Puts the dictionaries with these IDs in `language`, so only its lookups use them. Their rows,
+/// order and source choices are untouched. Returns how many it found.
+#[tauri::command]
+pub async fn set_dictionary_language(
+    ids: Vec<i64>,
+    language: Language,
+    store: State<'_, DictionaryStoreState>,
+) -> Result<usize, String> {
+    let database = store.database.clone();
+    let write_lock = Arc::clone(&store.write_lock);
+    tauri::async_runtime::spawn_blocking(move || {
+        let _writing = write_lock
+            .lock()
+            .map_err(|_| "A previous dictionary change failed.".to_string())?;
+        let connection = open_store(&database)?;
+        set_language_in_store(&connection, &ids, language).map_err(storage_error)
+    })
+    .await
+    .map_err(|error| format!("Dictionary language task failed: {error}"))?
+}
+
+fn set_language_in_store(
+    connection: &Connection,
+    ids: &[i64],
+    language: Language,
+) -> Result<usize, rusqlite::Error> {
+    let transaction = connection.unchecked_transaction()?;
+    let mut changed = 0;
+    {
+        let mut statement =
+            transaction.prepare("UPDATE dictionaries SET language = ?2 WHERE id = ?1")?;
+        for id in ids {
+            changed += statement.execute(params![id, language.code()])?;
+        }
+    }
+    transaction.commit()?;
+    Ok(changed)
 }
 
 /// The store's size on disk in bytes: the database file and its write-ahead log.
@@ -1898,6 +1939,38 @@ pub(crate) fn open_store(path: &Path) -> Result<Connection, String> {
             .map_err(storage_error)?;
         transaction.commit().map_err(storage_error)?;
     }
+    if version < 9 {
+        // Each dictionary belongs to one lookup language: the one its index declared, if Komori
+        // has it, and otherwise Japanese, the only language before this.
+        let transaction = connection.unchecked_transaction().map_err(storage_error)?;
+        transaction
+            .execute_batch(
+                "ALTER TABLE dictionaries ADD COLUMN language TEXT NOT NULL DEFAULT 'ja';",
+            )
+            .map_err(storage_error)?;
+        let declared = transaction
+            .prepare("SELECT id, source_language FROM dictionaries")
+            .map_err(storage_error)?
+            .query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, Option<String>>(1)?))
+            })
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        for (id, tag) in declared {
+            let language = Language::declared(tag.as_deref()).unwrap_or_default();
+            transaction
+                .execute(
+                    "UPDATE dictionaries SET language = ?2 WHERE id = ?1",
+                    params![id, language.code()],
+                )
+                .map_err(storage_error)?;
+        }
+        transaction
+            .execute_batch("PRAGMA user_version = 9;")
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+    }
     Ok(connection)
 }
 
@@ -1949,7 +2022,7 @@ fn list_from_store(connection: &Connection) -> Result<Vec<DictionarySummary>, St
     let mut statement = connection
         .prepare(
             "SELECT id, title, revision, enabled, term_count, term_meta_count, kanji_count,
-                    kanji_meta_count, has_frequency, has_pitch, has_definitions
+                    kanji_meta_count, has_frequency, has_pitch, has_definitions, language
                FROM dictionaries ORDER BY position, id",
         )
         .map_err(storage_error)?;
@@ -1967,6 +2040,7 @@ fn list_from_store(connection: &Connection) -> Result<Vec<DictionarySummary>, St
                 has_frequency: row.get(8)?,
                 has_pitch: row.get(9)?,
                 has_definitions: row.get(10)?,
+                language: Language::from_code(&row.get::<_, String>(11)?).unwrap_or_default(),
             })
         })
         .map_err(storage_error)?;
@@ -1975,12 +2049,19 @@ fn list_from_store(connection: &Connection) -> Result<Vec<DictionarySummary>, St
 
 #[cfg(test)]
 fn import_paths(connection: &mut Connection, paths: &[PathBuf]) -> Vec<DictionaryImportResult> {
-    import_paths_with_progress(connection, paths, &mut BatchProgress::silent())
+    import_paths_with_progress(
+        connection,
+        paths,
+        Language::Japanese,
+        &mut BatchProgress::silent(),
+    )
 }
 
+/// Imports each archive into `language`, unless its index declares another language Komori has.
 fn import_paths_with_progress(
     connection: &mut Connection,
     paths: &[PathBuf],
+    language: Language,
     progress: &mut BatchProgress,
 ) -> Vec<DictionaryImportResult> {
     progress.start(paths.len());
@@ -1991,7 +2072,7 @@ fn import_paths_with_progress(
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "Selected file".into());
-            let (status, title) = import_one(connection, path);
+            let (status, title) = import_one_into(connection, path, language);
             let result = DictionaryImportResult {
                 file_name,
                 status,
@@ -2020,9 +2101,19 @@ impl From<rusqlite::Error> for ImportError {
     }
 }
 
+/// Imports one archive into Japanese, unless its index declares another language Komori has.
 pub(super) fn import_one(
     connection: &mut Connection,
     path: &Path,
+) -> (ImportStatus, Option<String>) {
+    import_one_into(connection, path, Language::Japanese)
+}
+
+/// Imports one archive into `language`, unless its index declares another language Komori has.
+fn import_one_into(
+    connection: &mut Connection,
+    path: &Path,
+    language: Language,
 ) -> (ImportStatus, Option<String>) {
     let mut archive = match DictionaryArchive::open(path) {
         Ok(archive) => archive,
@@ -2033,7 +2124,7 @@ pub(super) fn import_one(
         .transaction()
         .map_err(ImportError::from)
         .and_then(|transaction| {
-            let status = write_dictionary(&transaction, &mut archive)?;
+            let status = write_dictionary(&transaction, &mut archive, language)?;
             transaction.commit()?;
             Ok(status)
         });
@@ -2076,6 +2167,7 @@ fn archive_status(error: &DictionaryArchiveError) -> ImportStatus {
 fn write_dictionary(
     transaction: &Transaction<'_>,
     archive: &mut DictionaryArchive,
+    language: Language,
 ) -> Result<ImportStatus, ImportError> {
     let index = archive.index();
     let exists: bool = transaction.query_row(
@@ -2086,11 +2178,12 @@ fn write_dictionary(
     if exists {
         return Ok(ImportStatus::AlreadyImported);
     }
+    let language = Language::declared(index.source_language.as_deref()).unwrap_or(language);
     // A new dictionary goes last in the reader's order.
     transaction.execute(
         "INSERT INTO dictionaries (title, revision, format, sequenced, author, url, description,
-             attribution, source_language, target_language, frequency_mode, position)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
+             attribution, source_language, target_language, frequency_mode, language, position)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
                  (SELECT COALESCE(MAX(position), 0) + 1 FROM dictionaries))",
         params![
             index.title,
@@ -2104,6 +2197,7 @@ fn write_dictionary(
             index.source_language,
             index.target_language,
             index.frequency_mode.map(|mode| mode.as_str()),
+            language.code(),
         ],
     )?;
     let dictionary = transaction.last_insert_rowid();
@@ -2320,6 +2414,7 @@ mod tests {
         let results = import_paths_with_progress(
             &mut connection,
             &[large.clone(), invalid, large, kept],
+            Language::Japanese,
             &mut progress,
         );
         assert_eq!(
@@ -2513,6 +2608,7 @@ mod tests {
             has_frequency: true,
             has_pitch: true,
             has_definitions: true,
+            language: Language::Japanese,
         }
     }
 
@@ -2553,6 +2649,7 @@ mod tests {
             .execute_batch(
                 "ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 6;",
             )
             .unwrap();
@@ -3037,6 +3134,7 @@ mod tests {
                 "ALTER TABLE dictionaries DROP COLUMN has_definitions;
                  ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 5;",
             )
             .unwrap();
@@ -3125,6 +3223,7 @@ mod tests {
             .execute_batch(
                 "ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 7;",
             )
             .unwrap();
@@ -5299,25 +5398,40 @@ mod tests {
             ],
         );
         let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
-        for path in [&english, &japanese, &untagged] {
-            assert_eq!(import_one(&mut connection, path).0, ImportStatus::Imported);
-        }
-        let lookup = |query: &str, language| {
-            let sources =
-                language_sources(&connection, &SourcePolicy::default(), language).unwrap();
-            lookup_longest_start_in(
-                &connection,
-                query,
-                &sources,
-                language,
-                None,
-                GLOSSARY_LIMITS,
-            )
-            .unwrap()
+        // A declared language wins over the one imported into; an undeclared dictionary goes
+        // where it was imported.
+        assert_eq!(
+            import_one_into(&mut connection, &english, Language::Japanese).0,
+            ImportStatus::Imported
+        );
+        assert_eq!(
+            import_one_into(&mut connection, &japanese, Language::English).0,
+            ImportStatus::Imported
+        );
+        assert_eq!(
+            import_one_into(&mut connection, &untagged, Language::English).0,
+            ImportStatus::Imported
+        );
+        assert_eq!(
+            list_from_store(&connection)
+                .unwrap()
+                .into_iter()
+                .map(|dictionary| (dictionary.title, dictionary.language))
+                .collect::<Vec<_>>(),
+            [
+                ("English".to_owned(), Language::English),
+                ("Japanese".to_owned(), Language::Japanese),
+                ("Untagged".to_owned(), Language::English),
+            ]
+        );
+        let lookup = |connection: &Connection, query: &str, language| {
+            let sources = language_sources(connection, &SourcePolicy::default(), language).unwrap();
+            lookup_longest_start_in(connection, query, &sources, language, None, GLOSSARY_LIMITS)
+                .unwrap()
         };
         // Each group as (text, expression, its dictionary form's inflections, dictionaries).
         let english_groups = |query: &str| {
-            lookup(query, Language::English)
+            lookup(&connection, query, Language::English)
                 .groups
                 .into_iter()
                 .map(|group| {
@@ -5398,7 +5512,7 @@ mod tests {
                 &["English"]
             ),]
         );
-        // Untagged dictionaries serve every language, the other language's never.
+        // A lookup uses only its language's dictionaries.
         assert_eq!(
             english_groups("unhappy"),
             [group(
@@ -5412,39 +5526,134 @@ mod tests {
             english_groups("walk"),
             [group("walk", "walk", &[], &["English", "English"])]
         );
-        let japanese_walk = lookup("walk", Language::Japanese);
+        let japanese_walk = lookup(&connection, "walk", Language::Japanese);
         assert_eq!(japanese_walk.groups.len(), 1);
         assert_eq!(japanese_walk.groups[0].terms.len(), 1);
         assert_eq!(
             japanese_walk.groups[0].terms[0].dictionary_title,
             "Japanese"
         );
-        assert!(lookup("happy", Language::Japanese).groups[0]
-            .terms
-            .iter()
-            .all(|term| term.dictionary_title == "Untagged"));
+        assert!(lookup(&connection, "happy", Language::Japanese)
+            .groups
+            .is_empty());
         // English applies no Japanese rule, and Japanese no English one.
         assert!(english_groups("読んだ").is_empty());
-        assert!(lookup("walked", Language::Japanese)
+        assert!(lookup(&connection, "walked", Language::Japanese)
             .groups
             .iter()
             .all(|group| group.deinflection.is_none()));
         assert_eq!(
-            lookup("読んだ", Language::Japanese).groups[0].expression,
+            lookup(&connection, "読んだ", Language::Japanese).groups[0].expression,
             "読む"
         );
-        // With every dictionary serving the language, the sources stay as chosen.
+        // Moving a dictionary moves its entries to the other language's lookups.
+        let untagged_id = list_from_store(&connection).unwrap()[2].id;
+        assert_eq!(
+            set_language_in_store(&connection, &[untagged_id, 999], Language::Japanese).unwrap(),
+            1
+        );
+        assert!(lookup(&connection, "happy", Language::Japanese).groups[0]
+            .terms
+            .iter()
+            .all(|term| term.dictionary_title == "Untagged"));
+        assert_eq!(
+            english_groups("unhappy"),
+            [group("unhappy", "happy", &["un-"], &["English"])]
+        );
+        // A selection made of Japanese dictionaries selects all of English's for English.
+        let japanese_ids = list_from_store(&connection)
+            .unwrap()
+            .into_iter()
+            .filter(|dictionary| dictionary.language == Language::Japanese)
+            .map(|dictionary| dictionary.id)
+            .collect::<Vec<_>>();
+        let chosen = SourcePolicy {
+            definitions: super::super::sources::SourceSelection::Selected {
+                ids: japanese_ids.clone(),
+            },
+            ..SourcePolicy::default()
+        };
+        assert_eq!(
+            language_sources(&connection, &chosen, Language::English)
+                .unwrap()
+                .definitions,
+            super::super::sources::SourceSelection::Selected {
+                ids: vec![list_from_store(&connection).unwrap()[0].id]
+            }
+        );
+        assert_eq!(
+            language_sources(&connection, &chosen, Language::Japanese)
+                .unwrap()
+                .definitions,
+            super::super::sources::SourceSelection::Selected { ids: japanese_ids }
+        );
+        // With every dictionary in the language, the sources stay as chosen.
         connection
-            .execute("UPDATE dictionaries SET source_language = NULL", [])
+            .execute("UPDATE dictionaries SET language = 'en'", [])
             .unwrap();
-        for language in [Language::Japanese, Language::English] {
-            assert_eq!(
-                language_sources(&connection, &SourcePolicy::default(), language)
-                    .unwrap()
-                    .definitions,
-                super::super::sources::SourceSelection::All
-            );
+        assert_eq!(
+            language_sources(&connection, &SourcePolicy::default(), Language::English)
+                .unwrap()
+                .definitions,
+            super::super::sources::SourceSelection::All
+        );
+    }
+
+    #[test]
+    fn version_9_puts_each_dictionary_in_its_declared_language_or_japanese() {
+        let directory = tempdir().unwrap();
+        let database = directory.path().join(DATABASE_FILE_NAME);
+        let tagged = |name: &str, language: Option<&str>| {
+            let index = match language {
+                Some(language) => format!(
+                    r#"{{"title":"{name}","revision":"1","format":3,"sourceLanguage":"{language}"}}"#
+                ),
+                None => format!(r#"{{"title":"{name}","revision":"1","format":3}}"#),
+            };
+            fixture_with(
+                directory.path(),
+                &format!("{name}.zip"),
+                &[
+                    ("index.json", &index),
+                    ("term_bank_1.json", r#"[["walk","","","",0,["x"],1,""]]"#),
+                ],
+            )
+        };
+        let paths = [
+            tagged("English", Some("en-US")),
+            tagged("Japanese", Some("ja")),
+            tagged("French", Some("fr")),
+            tagged("Untagged", None),
+        ];
+        {
+            let mut connection = open_store(&database).unwrap();
+            for path in &paths {
+                assert_eq!(
+                    import_one_into(&mut connection, path, Language::English).0,
+                    ImportStatus::Imported
+                );
+            }
+            connection
+                .execute_batch(
+                    "ALTER TABLE dictionaries DROP COLUMN language; PRAGMA user_version = 8;",
+                )
+                .unwrap();
         }
+        let connection = open_store(&database).unwrap();
+        assert_eq!(pragma(&connection, "user_version"), SCHEMA_VERSION);
+        assert_eq!(
+            list_from_store(&connection)
+                .unwrap()
+                .into_iter()
+                .map(|dictionary| (dictionary.title, dictionary.language))
+                .collect::<Vec<_>>(),
+            [
+                ("English".to_owned(), Language::English),
+                ("Japanese".to_owned(), Language::Japanese),
+                ("French".to_owned(), Language::Japanese),
+                ("Untagged".to_owned(), Language::Japanese),
+            ]
+        );
     }
 
     #[test]
@@ -6793,6 +7002,7 @@ mod tests {
                  ALTER TABLE dictionaries DROP COLUMN has_definitions;
                  ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 1;",
             )
             .unwrap();
@@ -7112,6 +7322,7 @@ mod tests {
                  ALTER TABLE dictionaries DROP COLUMN has_definitions;
                  ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 2;",
             )
             .unwrap();
@@ -7156,6 +7367,7 @@ mod tests {
                  ALTER TABLE dictionaries DROP COLUMN has_definitions;
                  ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 3;",
             )
             .unwrap();
@@ -7191,6 +7403,7 @@ mod tests {
                  ALTER TABLE dictionaries DROP COLUMN has_definitions;
                  ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 4;",
             )
             .unwrap();
@@ -7927,7 +8140,7 @@ mod tests {
         let list = serde_json::to_string(&list_from_store(&connection).unwrap()).unwrap();
         assert_eq!(
             list,
-            r#"[{"id":1,"title":"Fixture","revision":"fixture-1","enabled":true,"termCount":5,"termMetaCount":4,"kanjiCount":1,"kanjiMetaCount":1,"hasDefinitions":true,"hasFrequency":true,"hasPitch":true}]"#
+            r#"[{"id":1,"title":"Fixture","revision":"fixture-1","enabled":true,"termCount":5,"termMetaCount":4,"kanjiCount":1,"kanjiMetaCount":1,"hasDefinitions":true,"hasFrequency":true,"hasPitch":true,"language":"ja"}]"#
         );
     }
 
@@ -8017,7 +8230,7 @@ mod tests {
         assert!(open_store(&database).is_ok());
         Connection::open(&database)
             .unwrap()
-            .execute_batch("PRAGMA user_version = 9")
+            .execute_batch("PRAGMA user_version = 10")
             .unwrap();
         assert!(open_store(&database).is_err());
     }

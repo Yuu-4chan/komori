@@ -787,6 +787,8 @@ export const ja: MessageCatalog = {
   "popupSources.maximum_other": "選べる辞書は最大{count}件です。",
   "dictionarySources.moveFailed": "{title}を移動できませんでした。順序は変わっていません。",
   "dictionarySources.moved": "{title}を{count}件中{place}番目に移動しました。",
+  "dictionarySources.moveTo": "{language}に移動",
+  "dictionarySources.movedToLanguage": "{titles}を{language}に移動しました。",
   "dictionarySources.removeFailed_other": "{titles}を削除できませんでした。取り込まれたままです。",
   "dictionarySources.removeOneFailed": "この辞書を削除できませんでした。何も削除していません。",
   "dictionarySources.alreadyRemoved_other": "{titles}はすでに削除されています。",

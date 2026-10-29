@@ -865,6 +865,8 @@ export const fr: MessageCatalog = {
   "popupSources.maximum_many": "{count} sources sélectionnées au maximum.",
   "dictionarySources.moveFailed": "Komori n’a pas pu déplacer {title}. L’ordre n’a pas changé.",
   "dictionarySources.moved": "{title} déplacé en position {place} sur {count}.",
+  "dictionarySources.moveTo": "Déplacer vers {language}",
+  "dictionarySources.movedToLanguage": "Déplacé vers {language} : {titles}.",
   "dictionarySources.removeFailed_one":
     "Komori n’a pas pu retirer {titles}. Il est toujours installé.",
   "dictionarySources.removeFailed_other":

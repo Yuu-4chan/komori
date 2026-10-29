@@ -825,6 +825,8 @@ export const ptBR: MessageCatalog = {
   "popupSources.maximum_other": "No máximo {count} fontes selecionadas.",
   "dictionarySources.moveFailed": "O Komori não conseguiu mover {title}. A ordem não mudou.",
   "dictionarySources.moved": "{title} movido para a posição {place} de {count}.",
+  "dictionarySources.moveTo": "Mover para {language}",
+  "dictionarySources.movedToLanguage": "Movido para {language}: {titles}.",
   "dictionarySources.removeFailed_one":
     "O Komori não conseguiu remover {titles}. Ele continua instalado.",
   "dictionarySources.removeFailed_other":

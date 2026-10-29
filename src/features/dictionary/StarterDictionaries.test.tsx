@@ -26,6 +26,7 @@ const imported: DictionarySummary = {
   hasDefinitions: true,
   hasFrequency: false,
   hasPitch: false,
+  language: "ja",
 };
 const emit = () =>
   act(() =>

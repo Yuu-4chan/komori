@@ -1,8 +1,9 @@
 //! The lookup language and what it decides about a lookup: its deinflection rules and word
 //! classes, the variants of a text it also looks up, whether a lookup's starts must end at a word
-//! boundary, which dictionaries serve it, and whether the Japanese-only behaviors apply (the kana
-//! ranking, する nouns, the trailing-particle reorder and the kanji lookup). Adding a language is
-//! adding a variant here and its rule table in `deinflect`.
+//! boundary, and whether the Japanese-only behaviors apply (the kana ranking, する nouns, the
+//! trailing-particle reorder and the kanji lookup). Each dictionary belongs to one language, and a
+//! lookup uses only that language's dictionaries. Adding a language is adding a variant here and
+//! its rule table in `deinflect`.
 
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +19,8 @@ pub enum Language {
 }
 
 impl Language {
+    const ALL: [Self; 2] = [Self::Japanese, Self::English];
+
     /// The language's ISO 639-1 code, as word audio sources and dictionaries name it.
     pub(crate) fn code(self) -> &'static str {
         match self {
@@ -26,30 +29,30 @@ impl Language {
         }
     }
 
-    /// The language a code names, as preferences save it.
+    /// The language a code names, as preferences and the dictionary store save it.
     pub(crate) fn from_code(code: &str) -> Option<Self> {
-        [Self::Japanese, Self::English]
+        Self::ALL
             .into_iter()
             .find(|language| language.code() == code)
     }
 
-    /// Whether a dictionary declaring `declared` as its source language serves this language: one
-    /// declaring none serves every language. A declared tag matches by its primary subtag, in
-    /// either case, as a two- or three-letter code (`en-US`, `EN`, `eng`).
-    pub(crate) fn serves(self, declared: Option<&str>) -> bool {
-        let Some(declared) = declared.map(str::trim).filter(|tag| !tag.is_empty()) else {
-            return true;
-        };
-        let primary = declared
+    /// The language a dictionary's declared source language names, if it is one of these: a tag
+    /// matches by its primary subtag, in either case, as a two- or three-letter code (`en-US`,
+    /// `EN`, `eng`).
+    pub(crate) fn declared(tag: Option<&str>) -> Option<Self> {
+        let primary = tag?
+            .trim()
             .split(['-', '_'])
             .next()
             .unwrap_or_default()
             .to_ascii_lowercase();
-        let three = match self {
-            Self::Japanese => "jpn",
-            Self::English => "eng",
-        };
-        primary == self.code() || primary == three
+        Self::ALL.into_iter().find(|language| {
+            let three = match language {
+                Self::Japanese => "jpn",
+                Self::English => "eng",
+            };
+            primary == language.code() || primary == three
+        })
     }
 
     /// The forms `text` may be an inflection of in this language.
@@ -149,26 +152,31 @@ mod tests {
     }
 
     #[test]
-    fn dictionaries_serve_their_declared_language_or_every_one() {
-        for declared in [
+    fn declared_source_languages_name_a_language_by_primary_subtag() {
+        for tag in ["ja", "JA", "ja-JP", " jpn "] {
+            assert_eq!(
+                Language::declared(Some(tag)),
+                Some(Language::Japanese),
+                "{tag}"
+            );
+        }
+        for tag in ["en", "en-US", "EN_gb", "eng"] {
+            assert_eq!(
+                Language::declared(Some(tag)),
+                Some(Language::English),
+                "{tag}"
+            );
+        }
+        for tag in [
             None,
             Some(""),
             Some(" "),
-            Some("ja"),
-            Some("JA"),
-            Some("ja-JP"),
-            Some("jpn"),
+            Some("zh"),
+            Some("jav"),
+            Some("english"),
+            Some("e"),
         ] {
-            assert!(Language::Japanese.serves(declared), "{declared:?}");
-        }
-        for declared in [Some("en"), Some("eng"), Some("zh"), Some("jav")] {
-            assert!(!Language::Japanese.serves(declared), "{declared:?}");
-        }
-        for declared in [None, Some("en"), Some("en-US"), Some("EN_gb"), Some("eng")] {
-            assert!(Language::English.serves(declared), "{declared:?}");
-        }
-        for declared in [Some("ja"), Some("english"), Some("e")] {
-            assert!(!Language::English.serves(declared), "{declared:?}");
+            assert_eq!(Language::declared(tag), None, "{tag:?}");
         }
     }
 

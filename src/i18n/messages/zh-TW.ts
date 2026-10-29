@@ -726,6 +726,8 @@ export const zhTW: MessageCatalog = {
   "popupSources.maximum_other": "最多可選擇{count}個詞典。",
   "dictionarySources.moveFailed": "Komori無法移動{title}。順序未改變。",
   "dictionarySources.moved": "已將{title}移到第{place}位（共{count}個）。",
+  "dictionarySources.moveTo": "移至{language}",
+  "dictionarySources.movedToLanguage": "已將{titles}移至{language}。",
   "dictionarySources.removeFailed_other": "Komori無法移除{titles}。它們仍處於已安裝狀態。",
   "dictionarySources.removeOneFailed": "Komori無法移除此詞典。未移除任何內容。",
   "dictionarySources.alreadyRemoved_other": "{titles}已被移除。",

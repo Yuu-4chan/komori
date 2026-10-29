@@ -869,6 +869,8 @@ export const ru: MessageCatalog = {
   "popupSources.maximum_other": "Не более {count} выбранных источников.",
   "dictionarySources.moveFailed": "Komori не удалось переместить {title}. Порядок не изменился.",
   "dictionarySources.moved": "{title} перемещён на позицию {place} из {count}.",
+  "dictionarySources.moveTo": "Перенести в раздел «{language}»",
+  "dictionarySources.movedToLanguage": "Перенесено в раздел «{language}»: {titles}.",
   "dictionarySources.removeFailed_one":
     "Komori не удалось удалить {titles}. Он всё ещё установлен.",
   "dictionarySources.removeFailed_few":

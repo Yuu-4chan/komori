@@ -34,6 +34,7 @@ const source = (id: number): DictionarySummary => ({
   hasDefinitions: true,
   hasFrequency: false,
   hasPitch: false,
+  language: "ja",
 });
 
 it("presents native import/removal progress across remounts, keeps failed items, and separates maintenance failure", async () => {

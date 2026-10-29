@@ -23,6 +23,7 @@ import { Card } from "../../components/ui/Card";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { IconButton } from "../../components/ui/IconButton";
 import { NoticeClose } from "../../components/ui/NoticeClose";
+import { Select } from "../../components/ui/Select";
 import { useSelection } from "../selection/useSelection";
 import { selectAllKey, selectionKeyTarget } from "../selection/selectionKeyboard";
 import { SelectionCheckbox } from "../../components/ui/SelectionBox";
@@ -31,12 +32,14 @@ import { OperationNotice } from "../operations/OperationNotice";
 import { StarterDictionaries } from "./StarterDictionaries";
 import { starterActive, useStarterDictionaries } from "./useStarterDictionaries";
 import { dictionariesChanged } from "./sourcePolicy";
+import { defaultLookupLanguage, lookupLanguages, type LookupLanguage } from "./lookupLanguage";
 import {
   importDictionaries,
   listDictionaries,
   moveDictionary,
   removeDictionaries,
   removeDictionary,
+  setDictionaryLanguage,
   type DictionaryImportBatch,
   type DictionaryImportResult,
   type DictionarySummary,
@@ -52,9 +55,14 @@ type ListState =
   | { kind: "loaded"; dictionaries: DictionarySummary[] }
   | { kind: "error"; message: string };
 
-/** Imported dictionaries in lookup order, moved by their handle or Alt+Arrow keys,
- * with native import and confirmed single/bulk removal. */
-export function DictionarySources() {
+/** One lookup language's imported dictionaries in lookup order, moved by their handle or
+ * Alt+Arrow keys or to another language, with native import into the language shown and
+ * confirmed single/bulk removal. It first shows `lookupLanguage`'s. */
+export function DictionarySources({
+  lookupLanguage = defaultLookupLanguage,
+}: {
+  lookupLanguage?: LookupLanguage;
+}) {
   const operation = useBulkOperation("dictionaries");
   const starter = useStarterDictionaries();
   const { t, tp } = useI18n();
@@ -90,6 +98,8 @@ export function DictionarySources() {
   const [bulkRemoving, setBulkRemoving] = useState(false);
   const [bulkRemoveError, setBulkRemoveError] = useState<string | null>(null);
   const [changeError, setChangeError] = useState<Message | null>(null);
+  const [language, setLanguage] = useState(lookupLanguage);
+  useEffect(() => setLanguage(lookupLanguage), [lookupLanguage]);
   const moveHintId = useId();
   const busy =
     importing ||
@@ -98,14 +108,19 @@ export function DictionarySources() {
     moving ||
     Boolean(operation?.active) ||
     starterActive(starter.snapshot);
-  const dictionaries = useMemo(() => (list.kind === "loaded" ? list.dictionaries : []), [list]);
+  const installed = useMemo(() => (list.kind === "loaded" ? list.dictionaries : []), [list]);
+  const dictionaries = useMemo(
+    () => installed.filter((dictionary) => dictionary.language === language),
+    [installed, language],
+  );
+  const shownList: ListState = list.kind === "loaded" ? { kind: "loaded", dictionaries } : list;
   const dictionaryIds = useMemo(
     () => dictionaries.map((dictionary) => dictionary.id),
     [dictionaries],
   );
   const installedTitles = useMemo(
-    () => dictionaries.map((dictionary) => dictionary.title),
-    [dictionaries],
+    () => installed.map((dictionary) => dictionary.title),
+    [installed],
   );
   const selection = useSelection(dictionaryIds);
   const selected = dictionaries.filter((dictionary) => selection.isSelected(dictionary.id));
@@ -169,7 +184,7 @@ export function DictionarySources() {
 
   async function move(dictionary: DictionarySummary, position: number, keepFocus = false) {
     if (busy || list.kind !== "loaded") return;
-    const order = list.dictionaries.map((item) => item.id);
+    const order = dictionaries.map((item) => item.id);
     const from = order.indexOf(dictionary.id);
     if (from < 0 || position === from) return;
     setMoving(true);
@@ -177,10 +192,18 @@ export function DictionarySources() {
     setNotice(null);
     setAnnouncement("");
     if (keepFocus) setFocusAfterMove(dictionary.id);
-    setPendingOrder(movedOrder(order, from, position));
+    const shownOrder = movedOrder(order, from, position);
+    setPendingOrder(shownOrder);
     const failure = () => i18n().t("dictionarySources.moveFailed", { title: dictionary.title });
     try {
-      const status = await moveDictionary(dictionary.id, position);
+      const status = await moveDictionary(
+        dictionary.id,
+        storePosition(
+          installed.map((item) => item.id),
+          shownOrder,
+          dictionary.id,
+        ),
+      );
       if (status === "failed") {
         setChangeError(() => failure);
         return;
@@ -202,6 +225,33 @@ export function DictionarySources() {
       setChangeError(() => () => `${failure()} ${errorMessage(error)}`);
     } finally {
       setPendingOrder(null);
+      setMoving(false);
+    }
+  }
+
+  async function moveToLanguage(target: LookupLanguage) {
+    const targets = selected;
+    if (targets.length === 0 || busy) return;
+    setMoving(true);
+    setChangeError(null);
+    setNotice(null);
+    try {
+      await setDictionaryLanguage(
+        targets.map((dictionary) => dictionary.id),
+        target,
+      );
+      selection.cancel();
+      setNotice(
+        () => () =>
+          i18n().t("dictionarySources.movedToLanguage", {
+            language: i18n().t(`lookupLanguage.${target}`),
+            titles: titleList(targets),
+          }),
+      );
+      await refresh();
+    } catch (error) {
+      setChangeError(() => () => errorMessage(error));
+    } finally {
       setMoving(false);
     }
   }
@@ -283,7 +333,7 @@ export function DictionarySources() {
     setNotice(null);
     setChangeError(null);
     try {
-      const result = await importDictionaries();
+      const result = await importDictionaries(language);
       if (!result.canceled) {
         setImportResult(result);
         await refresh();
@@ -311,9 +361,25 @@ export function DictionarySources() {
       <div className="settings-dictionary-sources">
         <OperationNotice
           operation={operation}
-          items={dictionaries.map((dictionary) => ({ id: dictionary.id, title: dictionary.title }))}
+          items={installed.map((dictionary) => ({ id: dictionary.id, title: dictionary.title }))}
         />
         <div className="settings-list">
+          <div className="settings-field">
+            <Select
+              label={t("popupSettings.lookupLanguage")}
+              value={language}
+              options={lookupLanguages.map((value) => ({
+                value,
+                label: t(`lookupLanguage.${value}`),
+              }))}
+              onChange={(value) => {
+                selection.cancel();
+                setNotice(null);
+                setChangeError(null);
+                setLanguage(value);
+              }}
+            />
+          </div>
           <div className="settings-row">
             <div>
               <strong>{t("dictionarySources.installed")}</strong>
@@ -350,6 +416,20 @@ export function DictionarySources() {
                   <Button disabled={busy} onClick={selection.selectAll} tone="quiet">
                     {t("dictionarySources.selectAll")}
                   </Button>
+                  {lookupLanguages
+                    .filter((other) => other !== language)
+                    .map((other) => (
+                      <Button
+                        disabled={busy}
+                        key={other}
+                        onClick={() => void moveToLanguage(other)}
+                        tone="secondary"
+                      >
+                        {t("dictionarySources.moveTo", {
+                          language: t(`lookupLanguage.${other}`),
+                        })}
+                      </Button>
+                    ))}
                   <Button
                     disabled={busy}
                     icon={<TrashIcon aria-hidden="true" />}
@@ -375,7 +455,7 @@ export function DictionarySources() {
             busy={busy}
             focusAfterMove={focusAfterMove}
             isSelected={selection.isSelected}
-            list={list}
+            list={shownList}
             moveHintId={moveHintId}
             onFocused={() => setFocusAfterMove(null)}
             onMove={(dictionary, position, keepFocus) => void move(dictionary, position, keepFocus)}
@@ -417,7 +497,7 @@ export function DictionarySources() {
           </div>
         ) : null}
 
-        {list.kind === "loaded" && (
+        {list.kind === "loaded" && language === "ja" && (
           <StarterDictionaries
             empty={dictionaries.length === 0}
             installed={installedTitles}
@@ -476,6 +556,18 @@ interface Drag {
   pointerId: number;
   /** The dragged row's current place in the shown order. */
   position: number;
+}
+
+/**
+ * The place in the whole store order (`all`) that puts `id` where `shown`, one language's new
+ * order, has it: right after the dictionary shown before it, or right before the one after it.
+ * Other languages' dictionaries keep their order.
+ */
+function storePosition(all: number[], shown: number[], id: number): number {
+  const others = all.filter((other) => other !== id);
+  const at = shown.indexOf(id);
+  if (at > 0) return others.indexOf(shown[at - 1]) + 1;
+  return shown.length > 1 ? others.indexOf(shown[1]) : 0;
 }
 
 /** `order` with the ID at `from` moved to `to` (clamped to the end). */

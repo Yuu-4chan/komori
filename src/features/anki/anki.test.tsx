@@ -725,6 +725,7 @@ describe("Anki setup", () => {
         kanjiMetaCount: 0,
         hasFrequency: false,
         hasPitch: false,
+        language: "ja",
         hasDefinitions: true,
       },
     ]);
@@ -779,6 +780,7 @@ describe("Anki setup", () => {
         kanjiMetaCount: 0,
         hasFrequency: true,
         hasPitch: false,
+        language: "ja",
         hasDefinitions: false,
       },
     ]);

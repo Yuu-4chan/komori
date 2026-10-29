@@ -167,7 +167,7 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
   return (
     <div className="page page--dictionary">
       <PageHeader title={t("shell.dictionary")} description={t("dictionaryPage.description")} />
-      {sources.status === "ready" && !suppliesDefinitions(sources.dictionaries) && (
+      {sources.status === "ready" && !suppliesDefinitions(sources.dictionaries, lookupLanguage) && (
         <div className="library-notice dictionary-starter-offer">
           <div>
             <strong>{t("dictionaryPage.noDictionaries")}</strong>
@@ -245,7 +245,7 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
             ))}
           </div>
           {sources.status === "ready" &&
-            sources.dictionaries.length > 0 &&
+            sources.dictionaries.some((dictionary) => dictionary.language === lookupLanguage) &&
             matchingSources.length === 0 && (
               <p className="dictionary-sources__message">
                 {search.status === "ready"

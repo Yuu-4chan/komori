@@ -8,6 +8,7 @@ import {
   moveDictionary,
   removeDictionaries,
   removeDictionary,
+  setDictionaryLanguage,
   type DictionaryMoveStatus,
   type DictionaryRemovalResult,
   type DictionaryRemovalStatus,
@@ -22,6 +23,7 @@ vi.mock("./dictionaryApi", () => ({
   moveDictionary: vi.fn(),
   removeDictionaries: vi.fn(),
   removeDictionary: vi.fn(),
+  setDictionaryLanguage: vi.fn(),
 }));
 
 const listMock = vi.mocked(listDictionaries);
@@ -29,6 +31,7 @@ const importMock = vi.mocked(importDictionaries);
 const removeMock = vi.mocked(removeDictionary);
 const bulkRemoveMock = vi.mocked(removeDictionaries);
 const moveMock = vi.mocked(moveDictionary);
+const languageMock = vi.mocked(setDictionaryLanguage);
 
 const jitendex: DictionarySummary = {
   id: 1,
@@ -41,6 +44,7 @@ const jitendex: DictionarySummary = {
   kanjiMetaCount: 0,
   hasFrequency: true,
   hasPitch: false,
+  language: "ja",
   hasDefinitions: true,
 };
 
@@ -55,6 +59,7 @@ const kanjidic: DictionarySummary = {
   kanjiMetaCount: 1,
   hasFrequency: true,
   hasPitch: false,
+  language: "ja",
   hasDefinitions: true,
 };
 
@@ -69,6 +74,7 @@ const jpdb: DictionarySummary = {
   kanjiMetaCount: 0,
   hasFrequency: true,
   hasPitch: false,
+  language: "ja",
   hasDefinitions: false,
 };
 
@@ -802,6 +808,62 @@ describe("Dictionary sources", () => {
       await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
       expect(toolbar()).toHaveTextContent("2 dictionaries selected");
     });
+  });
+
+  it("lists, adds to and moves dictionaries one lookup language at a time", async () => {
+    const user = userEvent.setup();
+    const webster: DictionarySummary = { ...jitendex, id: 4, title: "Webster", language: "en" };
+    const wordnet: DictionarySummary = { ...jpdb, id: 5, title: "WordNet", language: "en" };
+    // The store's one order interleaves the languages.
+    listMock.mockResolvedValue([jitendex, webster, kanjidic, wordnet, jpdb]);
+    render(<DictionarySources lookupLanguage="en" />);
+    await waitFor(() => expect(listedTitles()).toEqual(["Webster", "WordNet"]));
+    const language = screen.getByRole("combobox", { name: "Lookup language" });
+    expect(language).toHaveValue("en");
+
+    importMock.mockResolvedValue({ canceled: true, results: [] });
+    await user.click(screen.getByRole("button", { name: "Add dictionaries" }));
+    expect(importMock).toHaveBeenCalledWith("en");
+
+    // Within a language, a dictionary moves next to its neighbor in the store order.
+    moveMock.mockResolvedValue("moved");
+    row("WordNet").focus();
+    await user.keyboard("{Alt>}{ArrowUp}{/Alt}");
+    expect(moveMock).toHaveBeenCalledWith(5, 1);
+    expect(await screen.findByText("WordNet moved to position 1 of 2.")).toBeInTheDocument();
+
+    await user.selectOptions(language, "ja");
+    expect(listedTitles()).toEqual(["Jitendex", "KANJIDIC", "JPDB"]);
+    await user.click(screen.getByRole("checkbox", { name: "Select Jitendex" }));
+    await user.click(screen.getByRole("checkbox", { name: "Select JPDB" }));
+    expect(screen.queryByRole("button", { name: "Move to Japanese" })).not.toBeInTheDocument();
+    languageMock.mockResolvedValue(2);
+    listMock.mockResolvedValue([
+      { ...jitendex, language: "en" },
+      webster,
+      kanjidic,
+      wordnet,
+      { ...jpdb, language: "en" },
+    ]);
+    await user.click(screen.getByRole("button", { name: "Move to English" }));
+    expect(languageMock).toHaveBeenCalledWith([1, 3], "en");
+    expect(await screen.findByText("Moved to English: Jitendex and JPDB.")).toBeInTheDocument();
+    await waitFor(() => expect(listedTitles()).toEqual(["KANJIDIC"]));
+    expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
+
+    await user.selectOptions(language, "en");
+    expect(listedTitles()).toEqual(["Jitendex", "Webster", "WordNet", "JPDB"]);
+  });
+
+  it("offers the Japanese starter dictionaries only while Japanese has none", async () => {
+    const user = userEvent.setup();
+    listMock.mockResolvedValue([{ ...jitendex, language: "en" }]);
+    const view = render(<DictionarySources lookupLanguage="en" />);
+    await waitFor(() => expect(listedTitles()).toEqual(["Jitendex"]));
+    expect(view.container.querySelector(".starter-dictionaries")).toBeNull();
+    await user.selectOptions(screen.getByRole("combobox", { name: "Lookup language" }), "ja");
+    expect(await screen.findByText(/No dictionaries yet/)).toBeInTheDocument();
+    expect(view.container.querySelector(".starter-dictionaries")).not.toBeNull();
   });
 
   it("lists the installed dictionaries in one grouped box under their header and Add button", async () => {

@@ -14,6 +14,7 @@ import {
 
 import { PageHeader } from "../components/layout/PageHeader";
 import { AppThemeSettings } from "../features/appearance/AppThemeSettings";
+import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { DictionarySources } from "../features/dictionary/DictionarySources";
 import { DiscordIcon } from "../features/discord/DiscordIcon";
 import { DiscordSettings } from "../features/discord/DiscordSettings";
@@ -95,6 +96,7 @@ const movedSections: Record<string, SectionId> = {
 export function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t, rich } = useI18n();
+  const { lookupLanguage } = useAppearance();
   const requested = searchParams.get("section") ?? "";
   const activeSection =
     sections.find(({ id }) => id === (movedSections[requested] ?? requested)) ?? sections[0];
@@ -211,7 +213,7 @@ export function SettingsPage() {
                   ),
                 })}
               </p>
-              <DictionarySources />
+              <DictionarySources lookupLanguage={lookupLanguage} />
               <WordAudioSettings />
             </>
           )}

@@ -19,6 +19,8 @@ export interface DictionarySummary {
   hasDefinitions: boolean;
   hasFrequency: boolean;
   hasPitch: boolean;
+  /** The lookup language whose lookups use it. */
+  language: LookupLanguage;
 }
 
 export interface DictionaryImportResult {
@@ -155,12 +157,18 @@ export async function listDictionaries(): Promise<DictionarySummary[]> {
   return invoke<DictionarySummary[]>("list_dictionaries");
 }
 
-/** Opens the native picker and imports each chosen dictionary archive. */
-export async function importDictionaries(): Promise<DictionaryImportBatch> {
+/**
+ * Opens the native picker and imports each chosen dictionary archive into `language`, unless its
+ * index declares another lookup language.
+ */
+export async function importDictionaries(
+  language: LookupLanguage = defaultLookupLanguage,
+): Promise<DictionaryImportBatch> {
   requireDesktop();
   const result = await runBulkOperation<DictionaryImportBatch>(
     "dictionaries",
     "import_dictionaries",
+    { language },
   );
   window.dispatchEvent(new Event(dictionariesChanged));
   return result;
@@ -200,6 +208,15 @@ export async function removeDictionaries(ids: number[]): Promise<DictionaryRemov
 export async function moveDictionary(id: number, position: number): Promise<DictionaryMoveStatus> {
   requireDesktop();
   return mutate<DictionaryMoveStatus>("move_dictionary", { id, position });
+}
+
+/** Puts these dictionaries in `language`, so only its lookups use them. Returns how many exist. */
+export async function setDictionaryLanguage(
+  ids: number[],
+  language: LookupLanguage,
+): Promise<number> {
+  requireDesktop();
+  return mutate<number>("set_dictionary_language", { ids, language });
 }
 
 /** The dictionary store's size on disk in bytes. */

@@ -191,6 +191,7 @@ pub fn run() {
             dictionary::store::remove_dictionary,
             dictionary::store::remove_dictionaries,
             dictionary::store::move_dictionary,
+            dictionary::store::set_dictionary_language,
             dictionary::store::get_dictionary_store_size
         ])
         .run(tauri::generate_context!())

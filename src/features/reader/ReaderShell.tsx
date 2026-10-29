@@ -248,7 +248,7 @@ export function ReaderShell({
   // Child popups (lookups from inside a popup) follow the root lookup, deepest last.
   const [lookups, setLookups] = useState<Lookup[]>([]);
   // Read once for the book's popups rather than once per lookup.
-  const definitionSources = useDefinitionSources();
+  const definitionSources = useDefinitionSources(true, lookupLanguage);
   const lookup = lookups[0] ?? null;
   const lookupOpen = useRef(false);
   lookupOpen.current = lookup !== null;
