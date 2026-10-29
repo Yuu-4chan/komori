@@ -2268,7 +2268,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn series_from_titles_names_volumes_only_when_chosen_and_after_series_set_by_hand() {
+    fn series_from_titles_names_volumes_unless_turned_off_and_after_series_set_by_hand() {
         let directory = tempdir().unwrap();
         let titles = [
             "Cat Tales 01",
@@ -2308,10 +2308,18 @@ pub(crate) mod tests {
             id_of("Cat Tales 03"),
             id_of("Cat Tales 04"),
         );
-        // Off by default.
-        assert!(shown(&connection)
-            .values()
-            .all(|(series, _)| series.is_none()));
+        let cat_tales = |index| (Some("Cat Tales".to_owned()), Some(index));
+        // On by default.
+        assert_eq!(
+            shown(&connection).into_values().collect::<Vec<_>>(),
+            vec![
+                cat_tales(1.0),
+                cat_tales(2.0),
+                cat_tales(3.0),
+                cat_tales(4.0),
+                (None, None)
+            ]
+        );
 
         // No series by hand for one volume, and the series by hand for another.
         connection
@@ -2327,7 +2335,6 @@ pub(crate) mod tests {
                 [r#"{"librarySeriesFromTitles":true}"#],
             )
             .unwrap();
-        let cat_tales = |index| (Some("Cat Tales".to_owned()), Some(index));
         assert_eq!(
             shown(&connection).into_values().collect::<Vec<_>>(),
             vec![

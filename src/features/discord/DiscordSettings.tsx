@@ -1,9 +1,9 @@
-import { DiscordLogoIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { ToggleSetting } from "../../components/ui/ToggleSetting";
 import { useI18n } from "../../i18n/i18n";
+import { DiscordIcon } from "./DiscordIcon";
 import {
   defaultDiscordPreferences,
   getDiscordPreferences,
@@ -65,7 +65,7 @@ export function DiscordSettings() {
     <Card className="settings-card settings-card--wide" aria-busy={(!loaded && !error) || busy}>
       <div className="settings-card__heading">
         <span className="settings-card__icon">
-          <DiscordLogoIcon aria-hidden="true" weight="duotone" />
+          <DiscordIcon aria-hidden="true" />
         </span>
         <div>
           <h2>{t("discord.title")}</h2>

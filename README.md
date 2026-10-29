@@ -65,7 +65,8 @@
   is bundled.
 - **Your data stays yours.** Automatic snapshots, backup export and import, signed
   updates you approve, and no telemetry. The interface is available in English, Japanese,
-  Simplified Chinese, Korean and Brazilian Portuguese.
+  Simplified and Traditional Chinese, Korean, German, Spanish, French, Italian, Brazilian
+  Portuguese and Russian.
 
 ## Install
 

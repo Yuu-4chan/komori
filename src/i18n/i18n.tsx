@@ -1,11 +1,17 @@
 import { createContext, Fragment, useContext, type ReactNode } from "react";
 
 import { defaultInterfaceLanguage, formattingLocale, type InterfaceLanguage } from "./languages";
+import { de } from "./messages/de";
 import { en } from "./messages/en";
+import { es } from "./messages/es";
+import { fr } from "./messages/fr";
+import { it } from "./messages/it";
 import { ja } from "./messages/ja";
 import { ko } from "./messages/ko";
 import { ptBR } from "./messages/pt-BR";
+import { ru } from "./messages/ru";
 import { zhCN } from "./messages/zh-CN";
+import { zhTW } from "./messages/zh-TW";
 
 export type MessageKey = keyof typeof en;
 /** A message with plural forms: `<key>_one`, `<key>_other`, … in the catalog. */
@@ -14,16 +20,27 @@ type PluralKey = MessageKey extends infer K
     ? Base
     : never
   : never;
-export type MessageCatalog = Partial<Record<MessageKey, string>>;
+/** A plural message's form for each CLDR category, such as Russian's `_few`. */
+type PluralForm = `${PluralKey}_${Intl.LDMLPluralRule}`;
+export type MessageCatalog = Partial<Record<MessageKey | PluralForm, string>>;
 type Values = Record<string, string | number>;
 
 export const catalogs: Record<InterfaceLanguage, MessageCatalog> = {
   en,
   ja,
   "zh-CN": zhCN,
+  "zh-TW": zhTW,
   ko,
+  de,
+  es,
+  fr,
+  it,
   "pt-BR": ptBR,
+  ru,
 };
+
+/** Languages whose own compact forms ("1,2 mil", "1,2 Mio.") read long beside a count. */
+const englishCompactSuffixes = new Set<InterfaceLanguage>(["de", "es", "fr", "it", "pt-BR"]);
 
 const numberFormats = new Map<string, Intl.NumberFormat>();
 const dateFormats = new Map<string, Intl.DateTimeFormat>();
@@ -128,17 +145,20 @@ function createTranslator(language: InterfaceLanguage): Translator {
         }),
     number: (value, options) => numberFormat(language, options).format(value),
     compact: (value, maximumFractionDigits) => {
-      const text = numberFormat(language, { notation: "compact", maximumFractionDigits }).format(
-        value,
+      const options = { notation: "compact", maximumFractionDigits } as const;
+      if (!englishCompactSuffixes.has(language))
+        return numberFormat(language, options).format(value);
+      // Keep localized separators, with the same compact suffixes as English.
+      const separators = new Map(
+        numberFormat(language)
+          .formatToParts(12345.6)
+          .filter((part) => part.type === "decimal" || part.type === "group")
+          .map((part) => [part.type, part.value]),
       );
-      // Keep localized decimals, with the same compact suffixes as English.
-      return language === "pt-BR"
-        ? text.replace(
-            /(\d)\s*(mil|mi|bi|tri)\b/u,
-            (_, digit: string, unit: string) =>
-              digit + ({ mil: "K", mi: "M", bi: "B", tri: "T" }[unit] ?? unit),
-          )
-        : text;
+      return numberFormat("en", options)
+        .formatToParts(value)
+        .map((part) => separators.get(part.type) ?? part.value)
+        .join("");
     },
     date: (value, options) => dateFormat(language, options).format(value),
     languageName(tag) {

@@ -45,9 +45,11 @@ describe("interface language catalogs", () => {
         } else {
           expect(catalog[key], `${language} ${key}`).toBeTruthy();
         }
-        expect(placeholders(catalog[key]), `${language} ${key}`).toEqual(
-          placeholders(en[key as keyof typeof en]),
-        );
+        // A plural form may also hold the count, as Russian's _one does for 21.
+        const allowed = [en[key as keyof typeof en], base && en[`${base}_other` as keyof typeof en]]
+          .filter((text) => text !== undefined && text !== "")
+          .map((text) => placeholders(text).join());
+        expect(allowed, `${language} ${key}`).toContain(placeholders(catalog[key]).join());
       }
       for (const key of Object.keys(catalog)) {
         const base = pluralBase(key);
@@ -58,14 +60,32 @@ describe("interface language catalogs", () => {
     },
   );
 
-  it("names each language in itself, using Simplified Chinese", () => {
-    expect(interfaceLanguages).toEqual(["en", "ja", "zh-CN", "ko", "pt-BR"]);
+  it("names each language in itself", () => {
+    expect(interfaceLanguages).toEqual([
+      "en",
+      "ja",
+      "zh-CN",
+      "zh-TW",
+      "ko",
+      "de",
+      "es",
+      "fr",
+      "it",
+      "pt-BR",
+      "ru",
+    ]);
     expect(interfaceLanguageNames).toEqual({
       en: "English",
       ja: "日本語",
       "zh-CN": "简体中文",
+      "zh-TW": "繁體中文",
       ko: "한국어",
+      de: "Deutsch",
+      es: "Español",
+      fr: "Français",
+      it: "Italiano",
       "pt-BR": "Português (Brasil)",
+      ru: "Русский",
     });
   });
 
@@ -98,14 +118,27 @@ describe("interface language catalogs", () => {
     expect(tp("ja", 1)).toBe("1枚の画像");
     expect(tp("ko", 3)).toBe("이미지 3개");
     expect(tp("zh-CN", 2)).toBe("2张图片");
+    expect(tp("zh-TW", 2)).toBe("2張圖片");
+    // French reads zero as singular; Russian has a form for 2–4 and another for 5–20.
+    expect([tp("fr", 0), tp("fr", 2)]).toEqual(["0 image", "2 images"]);
+    expect([tp("de", 1), tp("es", 3), tp("it", 3)]).toEqual(["1 Bild", "3 imágenes", "3 immagini"]);
+    expect([tp("ru", 1), tp("ru", 3), tp("ru", 5), tp("ru", 21)]).toEqual([
+      "1 изображение",
+      "3 изображения",
+      "5 изображений",
+      "21 изображение",
+    ]);
     const day = new Date(2026, 9, 5);
     const options = { year: "numeric", month: "long", day: "numeric" } as const;
     expect(translatorFor("en").date(day, options)).toBe("October 5, 2026");
     expect(translatorFor("ja").date(day, options)).toBe("2026年10月5日");
     expect(translatorFor("pt-BR").date(day, options)).toBe("5 de outubro de 2026");
-    // Brazilian counts use English suffixes, with localized decimal separators.
+    // Latin-script European counts use English suffixes, with localized decimal separators.
     expect(translatorFor("en").compact(12_345_678, 1)).toBe("12.3M");
-    expect(translatorFor("pt-BR").compact(12_345_678, 1)).toBe("12,3M");
+    for (const language of ["pt-BR", "de", "es", "fr", "it"] as const)
+      expect(translatorFor(language).compact(12_345_678, 1), language).toBe("12,3M");
+    expect(translatorFor("es").compact(1_234, 1)).toBe("1,2K");
+    expect(translatorFor("ru").compact(12_345_678, 1)).toBe("12,3 млн");
     expect(translatorFor("pt-BR").compact(1_234_567_890, 1)).toBe("1,2B");
     // Brazilian durations join each unit to its number.
     expect(translatorFor("pt-BR").t("duration.hoursMinutes", { hours: 8, minutes: 20 })).toBe(
@@ -120,7 +153,7 @@ describe("interface language catalogs", () => {
   });
 
   it("joins Japanese and Chinese counts and Latin names without extra spaces", () => {
-    for (const language of ["ja", "zh-CN"] as const) {
+    for (const language of ["ja", "zh-CN", "zh-TW"] as const) {
       const translator = translatorFor(language);
       const cjk = "[\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}]";
       for (const [key, value] of Object.entries(catalogs[language])) {
@@ -130,10 +163,10 @@ describe("interface language catalogs", () => {
       const characters = translator.t("librarySummary.characters", {
         count: translator.compact(94_000, 1),
       });
-      expect(books).toBe(language === "ja" ? "1冊" : "1本书");
-      expect(characters).toBe("9.4万字");
+      expect(books).toBe({ ja: "1冊", "zh-CN": "1本书", "zh-TW": "1本書" }[language]);
+      expect(characters).toBe(language === "zh-TW" ? "9.4萬字" : "9.4万字");
       expect(translator.t("settings.description")).toContain(
-        language === "ja" ? "てKomoriを" : "让Komori适合",
+        { ja: "てKomoriを", "zh-CN": "让Komori适合", "zh-TW": "讓Komori適合" }[language],
       );
     }
     // Korean uses word spacing, but count suffixes and grammatical particles stay attached.
@@ -192,7 +225,7 @@ describe("interface language preference", () => {
       expect(normalizeAppearancePreferences({ interfaceLanguage: language })).toEqual({
         interfaceLanguage: language,
       });
-    for (const invalid of ["zh-TW", "fr", "JA", "", null, 1, {}])
+    for (const invalid of ["zh-HK", "fr-FR", "ar", "JA", "", null, 1, {}])
       expect(normalizeAppearancePreferences({ interfaceLanguage: invalid })).toEqual({});
   });
 
@@ -228,7 +261,7 @@ describe("interface language preference", () => {
     const select = await screen.findByLabelText("Application language");
     expect(select).toHaveValue("en");
     expect(document.documentElement.lang).toBe("en");
-    for (const language of ["ja", "zh-CN", "ko", "pt-BR", "en"] as const) {
+    for (const language of [...interfaceLanguages.slice(1), "en"] as const) {
       await user.selectOptions(
         screen.getByRole("combobox", {
           name: translatorFor(i18n().language).t("appearance.language"),
