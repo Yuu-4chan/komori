@@ -823,6 +823,7 @@ export const ru: MessageCatalog = {
   "lookupLanguage.ko": "Корейский",
   "lookupLanguage.zh": "Китайский",
   "lookupLanguage.de": "Немецкий",
+  "lookupLanguage.ru": "Русский",
   "popupSettings.cjkOnly": "Искать только японский/CJK-текст",
   "popupSettings.cjkOnlyHint":
     "Игнорировать автоматический поиск без кандзи, каны или хангыля. Поиск в словаре и явные ссылки остаются доступными.",

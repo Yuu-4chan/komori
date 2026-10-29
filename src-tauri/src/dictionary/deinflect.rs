@@ -25,6 +25,7 @@ pub(crate) mod it;
 pub(crate) mod ja;
 pub(crate) mod ko;
 pub(crate) mod pt;
+pub(crate) mod ru;
 
 #[cfg(test)]
 pub(crate) use ja::{ADJ_I, V1, V5, VK, VS, VZ};

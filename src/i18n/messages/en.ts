@@ -793,6 +793,7 @@ export const en = {
   "lookupLanguage.ko": "Korean",
   "lookupLanguage.zh": "Chinese",
   "lookupLanguage.de": "German",
+  "lookupLanguage.ru": "Russian",
   "popupSettings.cjkOnly": "Only look up Japanese/CJK text",
   "popupSettings.cjkOnlyHint":
     "Ignore automatic lookups without kanji, kana or hangul. Dictionary searches and explicit links remain available.",

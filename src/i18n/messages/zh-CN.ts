@@ -687,6 +687,7 @@ export const zhCN: MessageCatalog = {
   "lookupLanguage.ko": "韩语",
   "lookupLanguage.zh": "中文",
   "lookupLanguage.de": "德语",
+  "lookupLanguage.ru": "俄语",
   "popupSettings.cjkOnly": "只查日语/中日韩文字",
   "popupSettings.cjkOnlyHint": "忽略不含汉字、假名或谚文的自动查词。词典搜索和链接仍可使用。",
   "popupSettings.scanLength": "扫描长度",

@@ -781,6 +781,7 @@ export const ptBR: MessageCatalog = {
   "lookupLanguage.ko": "Coreano",
   "lookupLanguage.zh": "Chinês",
   "lookupLanguage.de": "Alemão",
+  "lookupLanguage.ru": "Russo",
   "popupSettings.cjkOnly": "Consultar só texto japonês/CJK",
   "popupSettings.cjkOnlyHint":
     "Ignora consultas automáticas sem kanji, kana ou hangul. As buscas no dicionário e os links continuam disponíveis.",

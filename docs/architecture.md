@@ -1447,7 +1447,7 @@ publisher colors, use a soft yellow note highlight.
 
 ## Lookup language
 
-The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko`, `zh` or `de`, default `ja`; anything else is dropped, so
+The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko`, `zh`, `de` or `ru`, default `ja`; anything else is dropped, so
 older records read as Japanese) is the language every lookup reads text in. Settings > Reader
 popup's Scanning and results card chooses it as Lookup language, first in the card; the Reader popup, its
 child popups, the Dictionary page, Anki and word audio follow it at once. The frontend sends
@@ -1528,6 +1528,14 @@ plurals. A participle's ending is replaced first and its ge- removed second (cla
 them), so a verb's own -t (macht) is never taken for a participle's. Yomitan's separated prefixes
 (fange … an → anfangen) span words and are left out. Its classes are `v` (with `vw` and `vst`),
 `n` and `adj`.
+
+Russian (`deinflect/ru.rs`; Yomitan has none) is Komori's own rules: noun cases of the regular
+declensions, adjective endings with their short, comparative and superlative forms and adverbs in
+-о, and regular verbs' present and past tenses, imperatives, gerunds and participles. -ся/-сь is
+removed first to class `VF` (a verb form, never a dictionary form), which the verb endings
+continue from. Irregular forms rely on the dictionaries' own form entries. A Russian lookup also
+tries each spelling without its stress marks (U+0301), with ё as е and with е as ё. Its classes
+are `v`, `n` and `adj`.
 
 Each dictionary belongs to one lookup language, the store's `language` column, and only that
 language's lookups use it. An import goes to the language Settings > Dictionary shows, unless its

@@ -31,10 +31,12 @@ pub enum Language {
     Chinese,
     #[serde(rename = "de")]
     German,
+    #[serde(rename = "ru")]
+    Russian,
 }
 
 impl Language {
-    const ALL: [Self; 9] = [
+    const ALL: [Self; 10] = [
         Self::Japanese,
         Self::English,
         Self::French,
@@ -44,6 +46,7 @@ impl Language {
         Self::Korean,
         Self::Chinese,
         Self::German,
+        Self::Russian,
     ];
 
     /// The language's ISO 639-1 code, as word audio sources and dictionaries name it.
@@ -58,6 +61,7 @@ impl Language {
             Self::Korean => "ko",
             Self::Chinese => "zh",
             Self::German => "de",
+            Self::Russian => "ru",
         }
     }
 
@@ -89,6 +93,7 @@ impl Language {
                 Self::Korean => &["kor"],
                 Self::Chinese => &["zho", "chi", "cmn", "yue"],
                 Self::German => &["deu", "ger"],
+                Self::Russian => &["rus"],
             };
             primary == language.code() || three.contains(&primary.as_str())
         })
@@ -107,6 +112,7 @@ impl Language {
             // Chinese does not inflect.
             Self::Chinese => Vec::new(),
             Self::German => deinflect::de::deinflect(text),
+            Self::Russian => deinflect::ru::deinflect(text),
         }
     }
 
@@ -122,6 +128,7 @@ impl Language {
             Self::Korean => deinflect::ko::word_classes(rules),
             Self::Chinese => 0,
             Self::German => deinflect::de::word_classes(rules),
+            Self::Russian => deinflect::ru::word_classes(rules),
         }
     }
 
@@ -137,6 +144,7 @@ impl Language {
             Self::Korean => deinflect::ko::DICTIONARY_FORMS,
             Self::Chinese => 0,
             Self::German => deinflect::de::DICTIONARY_FORMS,
+            Self::Russian => deinflect::ru::DICTIONARY_FORMS,
         }
     }
 
@@ -145,6 +153,7 @@ impl Language {
     /// first letter capitalized, and lowercased with its first letter capitalized (Running:
     /// running; london: London; NASA: nasa, Nasa); in French and Italian, then also all of those
     /// for the text without the elided word that begins it (l'homme: homme; dell'Italia: Italia).
+    /// Russian then also tries each without its stress marks, with ё as е, and with е as ё.
     /// Japanese and Chinese try only the text.
     pub(crate) fn variants(self, text: &str) -> Vec<String> {
         let mut variants = vec![text.to_owned()];
@@ -166,6 +175,18 @@ impl Language {
             ] {
                 if !variants.contains(&variant) {
                     variants.push(variant);
+                }
+            }
+        }
+        if self == Self::Russian {
+            for variant in variants.clone() {
+                let plain = variant.replace('\u{301}', "");
+                let with_e = plain.replace('ё', "е").replace('Ё', "Е");
+                let with_yo = plain.replace('е', "ё").replace('Е', "Ё");
+                for respelled in [plain, with_e, with_yo] {
+                    if !variants.contains(&respelled) {
+                        variants.push(respelled);
+                    }
                 }
             }
         }
@@ -265,6 +286,17 @@ mod tests {
     }
 
     #[test]
+    fn russian_also_tries_its_text_without_stress_marks_and_with_yo_respelled() {
+        assert_eq!(
+            Language::Russian.variants("Ещё"),
+            ["Ещё", "ещё", "Еще", "Ёщё", "еще", "ёщё"]
+        );
+        assert!(Language::Russian
+            .variants("молоко\u{301}")
+            .contains(&"молоко".to_owned()));
+    }
+
+    #[test]
     fn declared_source_languages_name_a_language_by_primary_subtag() {
         for tag in ["ja", "JA", "ja-JP", " jpn "] {
             assert_eq!(
@@ -295,6 +327,8 @@ mod tests {
             ("cmn", Language::Chinese),
             ("de-AT", Language::German),
             ("ger", Language::German),
+            ("ru", Language::Russian),
+            ("rus", Language::Russian),
         ] {
             assert_eq!(Language::declared(Some(tag)), Some(language), "{tag}");
         }

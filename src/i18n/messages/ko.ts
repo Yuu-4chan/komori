@@ -731,6 +731,7 @@ export const ko: MessageCatalog = {
   "lookupLanguage.ko": "한국어",
   "lookupLanguage.zh": "중국어",
   "lookupLanguage.de": "독일어",
+  "lookupLanguage.ru": "러시아어",
   "popupSettings.cjkOnly": "일본어/CJK 글자만 찾기",
   "popupSettings.cjkOnlyHint":
     "한자, 가나, 한글이 없는 자동 사전 찾기를 무시합니다. 사전 검색과 링크는 계속 쓸 수 있습니다.",
