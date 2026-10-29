@@ -306,7 +306,7 @@ export const defaultAppearance: AppearancePreferences = {
   libraryCardKanji: true,
   libraryGroup: "none",
   libraryCardSize: libraryCardSize.default,
-  librarySeriesFromTitles: false,
+  librarySeriesFromTitles: true,
   readerWheelStep: readerWheelStep.default,
   middleClickAutoscroll: true,
   readerChapterWheelThreshold: readerChapterWheelThreshold.default,

@@ -6,7 +6,6 @@ import {
   CardsIcon,
   ChartBarIcon,
   ChatTextIcon,
-  DiscordLogoIcon,
   GearSixIcon,
   HardDrivesIcon,
   TranslateIcon,
@@ -16,6 +15,7 @@ import {
 import { PageHeader } from "../components/layout/PageHeader";
 import { AppThemeSettings } from "../features/appearance/AppThemeSettings";
 import { DictionarySources } from "../features/dictionary/DictionarySources";
+import { DiscordIcon } from "../features/discord/DiscordIcon";
 import { DiscordSettings } from "../features/discord/DiscordSettings";
 import { WordAudioSettings } from "../features/dictionary/WordAudioSettings";
 import { LibrarySettings } from "../features/library/LibrarySettings";
@@ -73,7 +73,7 @@ const sections = [
     id: "discord",
     label: "settings.discord",
     description: "settings.discordDescription",
-    icon: DiscordLogoIcon,
+    icon: DiscordIcon,
   },
 ] as const;
 

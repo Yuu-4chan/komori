@@ -17,7 +17,7 @@ three, while the Reader keeps it for bookmarks.
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;
 grid/list, search, status filters, Cards details, sort and direction, which order groups too; grouping by series
-or language as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Series from titles in Settings > General, off
+or language as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Series from titles in Settings > General, on
 by default, puts numbered volumes sharing a title (`Title 01`, `Title 02`) in a series when
 the books name none; Mark as completed from a card's menu or the selection; per-card selection boxes
 (Continue reading stays while selecting) with bulk removal,
@@ -177,7 +177,7 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   and Idle after 5 minutes without reading or using the page, or with nothing to show.
 
 The application and Reader themes default to Hojicha. The Library initially sorts
-by Title and shows Series, Language, Last read and Unique kanji, without series from titles. Reader popup mouse
+by Title and shows Series, Language, Last read and Unique kanji, with series from titles. Reader popup mouse
 selection defaults off, with 0 ms scan delay, 5 results and 5 child popup levels.
 The Reader shows its clock and book position/percentage, with chapter
 position/percentage off.

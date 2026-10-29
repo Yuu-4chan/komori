@@ -1046,12 +1046,12 @@ pub(crate) fn app_icon(database: &Path) -> Option<String> {
         .and_then(|preferences| preferences.app_icon)
 }
 
-/// Whether the Library gives books without a series one from their titles; off unless chosen.
+/// Whether the Library gives books without a series one from their titles; on unless turned off.
 pub(crate) fn series_from_titles(connection: &Connection) -> bool {
     load_from(connection)
         .ok()
         .and_then(|preferences| preferences.library_series_from_titles)
-        .unwrap_or(false)
+        .unwrap_or(true)
 }
 
 fn load(database: &Path) -> Result<AppearancePreferences, String> {
@@ -3178,7 +3178,7 @@ mod tests {
         assert_eq!(loaded.library_group, None);
         assert_eq!(loaded.library_card_size, None);
         assert_eq!(loaded.library_series_from_titles, None);
-        assert!(!series_from_titles(&connection));
+        assert!(series_from_titles(&connection));
         // The retired Pages sort loads as no saved sort.
         let stored = serde_json::json!({ "librarySort": "pages", "libraryCardSize": 300 });
         let kept = AppearancePreferences::from_stored(&stored);
