@@ -2,6 +2,12 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.7.0
+
+- The interface is now also in French, Italian, Spanish, German, Russian and Traditional Chinese. Choose one in Settings > General > Application language; the tray menu, file dialogs, the backup file name and the Discord status follow it.
+- Series from titles is on by default. A choice already saved in Settings > General stays as it is.
+- Settings shows Discord's own logo in the Discord section.
+
 ## 1.6.0
 
 - A group's own page keeps a sort of its own, saved apart from the Library's, so each can have its preferred order. Grouped, the Library's sort orders the groups and each carousel shows its books in the group page's order.
