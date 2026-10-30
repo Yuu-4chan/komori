@@ -1485,6 +1485,7 @@ export const en = {
   "reader.dismissReturn": "Dismiss",
   "reader.layingOut": "Laying out the book",
   "reader.escapeAgain": "Press Escape again to return to library.",
+  "reader.fontChanged": "Font changed to {font} to support {language}.",
   "reader.newNote": "New note",
   "readerFooter.bookProgress": "Book progress",
   "readerFooter.chapterProgress": "Chapter progress",

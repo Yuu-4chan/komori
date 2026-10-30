@@ -12,8 +12,7 @@ import {
   fontPairStack,
   popupFontFaces,
   popupFontStack,
-  bookAsianFont,
-  defaultAsianFont,
+  bookFontLanguage,
   sameFontPair,
   isReaderFontChoice,
   googleFontFiles,
@@ -44,6 +43,27 @@ vi.mock("./readerFonts", () => ({
   refreshReaderFonts: vi.fn(async () => {}),
   importReaderFonts: vi.fn(async () => {}),
 }));
+
+it("shows the open book's Asian font and sends a new pick to where the book keeps it", async () => {
+  const user = userEvent.setup();
+  const store = memoryStore();
+  const pick = vi.fn();
+  render(
+    <AppearanceProvider store={store}>
+      <ReaderFontControls
+        asianFont={{ source: "google", id: "noto-sans-kr" }}
+        onAsianFontChange={pick}
+      />
+    </AppearanceProvider>,
+  );
+  const asian = await screen.findByRole("combobox", { name: "Asian font" });
+  expect(asian).toHaveValue("Noto Sans KR");
+  await user.clear(asian);
+  await user.type(asian, "Meiryo{Enter}");
+  expect(pick).toHaveBeenCalledWith({ source: "system", family: "Meiryo" });
+  // The font saved for other books stays.
+  expect(store.saved.readerAsianFont).not.toEqual({ source: "system", family: "Meiryo" });
+});
 
 it("migrates each legacy group independently, gives new choices precedence, and keeps missing-font names", () => {
   const prefs = normalizeAppearancePreferences({
@@ -499,19 +519,13 @@ it("sets the popup in its chosen font over the included Zen Old Mincho, declarin
   expect(
     popupFontStack({ source: "system", family: "Yu Mincho" }, "zh").startsWith('"Yu Mincho", '),
   ).toBe(true);
-  expect(bookAsianFont(defaultAsianFont, "zh-Hans")).toEqual({
-    source: "google",
-    id: "noto-sans-sc",
-  });
-  expect(bookAsianFont(defaultAsianFont, "zh")).toEqual({ source: "google", id: "noto-sans-sc" });
-  expect(bookAsianFont(defaultAsianFont, "zh-Hant")).toEqual({
-    source: "system",
-    family: "Microsoft JhengHei",
-  });
-  expect(bookAsianFont(defaultAsianFont, "ko")).toEqual({ source: "google", id: "noto-sans-kr" });
-  expect(bookAsianFont(defaultAsianFont, "ja")).toBe(defaultAsianFont);
-  const ownFont = { source: "system", family: "Yu Mincho" } as const;
-  expect(bookAsianFont(ownFont, "zh")).toBe(ownFont);
+  expect(bookFontLanguage("zh-Hans")).toBe("zh-Hans");
+  expect(bookFontLanguage("zh")).toBe("zh-Hans");
+  expect(bookFontLanguage("zh-Hant")).toBe("zh-Hant");
+  expect(bookFontLanguage("ko")).toBe("ko");
+  expect(bookFontLanguage("ja")).toBe("ja");
+  expect(bookFontLanguage("fr")).toBeUndefined();
+  expect(bookFontLanguage(null)).toBeUndefined();
   expect(popupFontStack({ source: "system", family: "Yu Mincho" })).toBe(
     '"Yu Mincho", "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
   );

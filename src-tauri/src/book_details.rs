@@ -96,6 +96,29 @@ fn reshow_languages(connection: &Connection) -> Result<(), String> {
             )
             .map_err(storage_error)?;
     }
+    // Chinese whose metadata doesn't say its script takes it from the characters already counted.
+    let plain: Vec<(String, String)> = {
+        let mut statement = connection
+            .prepare(
+                "SELECT book_id, kanji FROM book_details
+                  WHERE language = 'zh' AND kanji IS NOT NULL",
+            )
+            .map_err(storage_error)?;
+        let rows = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(storage_error)?;
+        rows.collect::<Result<_, _>>().map_err(storage_error)?
+    };
+    for (book, han) in plain {
+        if let Some(script) = epub::details::chinese_script(&han) {
+            connection
+                .execute(
+                    "UPDATE book_details SET language = ?1 WHERE book_id = ?2",
+                    [script, book.as_str()],
+                )
+                .map_err(storage_error)?;
+        }
+    }
     Ok(())
 }
 

@@ -1359,6 +1359,7 @@ export const ko: MessageCatalog = {
   "reader.dismissReturn": "닫기",
   "reader.layingOut": "책을 배치하는 중",
   "reader.escapeAgain": "Esc를 한 번 더 누르면 서재로 돌아갑니다.",
+  "reader.fontChanged": "{language}을(를) 지원하도록 글꼴을 {font}(으)로 변경했습니다.",
   "reader.newNote": "새 메모",
   "readerFooter.bookProgress": "책 진행률",
   "readerFooter.chapterProgress": "장 진행률",

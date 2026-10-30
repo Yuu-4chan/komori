@@ -479,6 +479,182 @@ fn system_available(_: &str) -> bool {
     false
 }
 
+/// The kana a Japanese book needs all of; its kanji are in the book's counted text.
+const KANA_SAMPLE: &str = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんアイウエオカキクケコ";
+/// Common Hangul, as a Korean book needs all of it; its hanja are in the book's counted text.
+const HANGUL_SAMPLE: &str = "가나다라마바사아자차카타파하한글은는이을를에의고로";
+/// Stand-ins for a Chinese book's text before it has been counted.
+const SIMPLIFIED_SAMPLE: &str = "这们说对时过还进发经问见从现开关门国会学书东车";
+const TRADITIONAL_SAMPLE: &str = "這們說對時過還進發經問見從現開關門國會學書東車";
+
+/// Whether a font has what a book's text needs: for a Chinese, Japanese or Korean book, its kana
+/// or Hangul and all but a few rare ones of its distinct Han characters. Others are always fit.
+fn covers_language(language: &str, han: &str, has: impl Fn(&[char]) -> Vec<bool>) -> bool {
+    let (all, most): (&str, &str) = match language {
+        "ko" => (HANGUL_SAMPLE, han),
+        "ja" => (KANA_SAMPLE, han),
+        "zh-Hant" => (
+            "",
+            if han.is_empty() {
+                TRADITIONAL_SAMPLE
+            } else {
+                han
+            },
+        ),
+        "zh" | "zh-Hans" => (
+            "",
+            if han.is_empty() {
+                SIMPLIFIED_SAMPLE
+            } else {
+                han
+            },
+        ),
+        _ => return true,
+    };
+    let all: Vec<char> = all.chars().collect();
+    let most: Vec<char> = most.chars().collect();
+    let found = has(&most).iter().filter(|found| **found).count();
+    has(&all).iter().all(|found| *found) && found * 100 >= most.len() * 99
+}
+
+/// Which of these characters a font has; none when it can't be read.
+fn font_has(root: &Path, bundled: &[PathBuf], font: &FontChoice, chars: &[char]) -> Vec<bool> {
+    let in_file = |bytes: Option<Vec<u8>>| {
+        let parsed = bytes
+            .as_deref()
+            .and_then(|data| ttf_parser::Face::parse(data, 0).ok());
+        chars
+            .iter()
+            .map(|c| {
+                parsed
+                    .as_ref()
+                    .is_some_and(|face| face.glyph_index(*c).is_some())
+            })
+            .collect()
+    };
+    match font {
+        FontChoice::Preset { id } => match preset_family(id) {
+            Some(family) => system_has(family, chars),
+            None => vec![false; chars.len()],
+        },
+        FontChoice::System { family } => system_has(family, chars),
+        FontChoice::Google { id } => in_file(
+            FONTS
+                .iter()
+                .filter(|f| &f.family_id == id)
+                .find_map(|f| bundled_bytes(bundled, f).or_else(|| installed_bytes(root, f).ok())),
+        ),
+        FontChoice::Uploaded { id } => in_file(imports::bytes(root, id).ok()),
+    }
+}
+
+/// The installed family a preset names; generic and Latin-only presets name none to check.
+fn preset_family(id: &str) -> Option<&'static str> {
+    match id {
+        "yu-mincho" => Some("Yu Mincho"),
+        "yu-gothic" => Some("Yu Gothic"),
+        "noto-serif-jp" => Some("Noto Serif JP"),
+        "noto-sans-jp" => Some("Noto Sans JP"),
+        "noto-serif-sc" => Some("Noto Serif SC"),
+        "noto-sans-sc" => Some("Noto Sans SC"),
+        "noto-serif-kr" => Some("Noto Serif KR"),
+        "noto-sans-kr" => Some("Noto Sans KR"),
+        _ => None,
+    }
+}
+
+#[cfg(windows)]
+fn system_has(family: &str, chars: &[char]) -> Vec<bool> {
+    use windows_sys::Win32::Graphics::Gdi::*;
+    let mut found = vec![false; chars.len()];
+    if chars.is_empty() || !system_available(family) {
+        return found;
+    }
+    let text: Vec<u16> = chars
+        .iter()
+        .map(|c| u16::try_from(*c as u32).unwrap_or(0xFFFD))
+        .collect();
+    let mut glyphs = vec![0u16; text.len()];
+    // SAFETY: the context and font are created and released here, and both buffers hold
+    // `text.len()` units.
+    unsafe {
+        let dc = CreateCompatibleDC(std::ptr::null_mut());
+        if dc.is_null() {
+            return found;
+        }
+        let mut log: LOGFONTW = std::mem::zeroed();
+        log.lfCharSet = DEFAULT_CHARSET;
+        for (to, from) in log
+            .lfFaceName
+            .iter_mut()
+            .zip(family.encode_utf16().take(31))
+        {
+            *to = from;
+        }
+        let font = CreateFontIndirectW(&log);
+        if !font.is_null() {
+            let before = SelectObject(dc, font as _);
+            let read = GetGlyphIndicesW(
+                dc,
+                text.as_ptr(),
+                text.len() as i32,
+                glyphs.as_mut_ptr(),
+                GGI_MARK_NONEXISTING_GLYPHS,
+            );
+            if read != u32::MAX {
+                for ((found, glyph), unit) in found.iter_mut().zip(&glyphs).zip(&text) {
+                    *found = *glyph != 0xFFFF && *unit != 0xFFFD;
+                }
+            }
+            SelectObject(dc, before);
+            DeleteObject(font as _);
+        }
+        DeleteDC(dc);
+    }
+    found
+}
+#[cfg(not(windows))]
+fn system_has(_: &str, chars: &[char]) -> Vec<bool> {
+    vec![false; chars.len()]
+}
+
+/// Whether a font has what this book's text needs; the Reader replaces one that doesn't.
+#[tauri::command]
+pub(crate) async fn font_supports_book(
+    font: FontChoice,
+    book_id: String,
+    fonts: State<'_, FontState>,
+    catalog: State<'_, crate::library::CatalogState>,
+) -> Result<bool, String> {
+    if !font.valid() {
+        return Err("Unknown font.".into());
+    }
+    let (root, bundled) = (fonts.root.clone(), fonts.bundled.clone());
+    let database = catalog.database.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let connection = crate::library::open_catalog(&database)?;
+        let (language, han) = connection
+            .query_row(
+                "SELECT language, kanji FROM book_details WHERE book_id = ?1",
+                [&book_id],
+                |row| {
+                    Ok((
+                        row.get::<_, Option<String>>(0)?,
+                        row.get::<_, Option<String>>(1)?,
+                    ))
+                },
+            )
+            .unwrap_or((None, None));
+        Ok(covers_language(
+            language.as_deref().unwrap_or_default(),
+            han.as_deref().unwrap_or_default(),
+            |chars| font_has(&root, &bundled, &font, chars),
+        ))
+    })
+    .await
+    .map_err(|_| "Could not check this font.".to_string())?
+}
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Progress {
@@ -789,6 +965,54 @@ fn response(status: StatusCode, bytes: Vec<u8>) -> Response<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_font_fits_a_book_by_the_characters_its_text_needs() {
+        let having = |text: &'static str| {
+            move |chars: &[char]| chars.iter().map(|c| text.contains(*c)).collect::<Vec<_>>()
+        };
+        // Korean needs its Hangul, whatever else the font has.
+        assert!(super::covers_language(
+            "ko",
+            "",
+            having(super::HANGUL_SAMPLE)
+        ));
+        assert!(!super::covers_language("ko", "", having("かな漢字")));
+        // Chinese is measured on the book's own characters, and a rare one or two may be missing.
+        let han: String = (0..200u32)
+            .filter_map(|n| char::from_u32(0x4E00 + n))
+            .collect();
+        let most: String = han.chars().skip(2).collect();
+        let less: String = han.chars().skip(3).collect();
+        let leak = |text: String| -> &'static str { Box::leak(text.into_boxed_str()) };
+        assert!(super::covers_language("zh-Hant", &han, having(leak(most))));
+        assert!(!super::covers_language("zh-Hant", &han, having(leak(less))));
+        // A book not counted yet is measured on common characters of its script.
+        assert!(super::covers_language(
+            "zh-Hans",
+            "",
+            having(super::SIMPLIFIED_SAMPLE)
+        ));
+        assert!(!super::covers_language(
+            "zh-Hans",
+            "",
+            having(super::TRADITIONAL_SAMPLE)
+        ));
+        // Japanese needs its kana and kanji.
+        assert!(super::covers_language(
+            "ja",
+            "漢",
+            having(leak(format!("{}漢", super::KANA_SAMPLE)))
+        ));
+        assert!(!super::covers_language(
+            "ja",
+            "漢",
+            having(super::HANGUL_SAMPLE)
+        ));
+        // Other books keep any font.
+        assert!(super::covers_language("fr", "", having("")));
+        assert!(super::covers_language("", "", having("")));
+    }
+
     use super::*;
     #[cfg(windows)]
     #[test]

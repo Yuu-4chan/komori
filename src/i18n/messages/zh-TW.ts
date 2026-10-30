@@ -1290,6 +1290,7 @@ export const zhTW: MessageCatalog = {
   "reader.dismissReturn": "關閉",
   "reader.layingOut": "正在排版圖書",
   "reader.escapeAgain": "再按一次Esc即可返回書架。",
+  "reader.fontChanged": "已將字型變更為{font}以支援{language}。",
   "reader.newNote": "新建筆記",
   "readerFooter.bookProgress": "全書進度",
   "readerFooter.chapterProgress": "章節進度",

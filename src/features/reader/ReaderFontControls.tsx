@@ -414,8 +414,16 @@ export function FontPicker({
   );
 }
 
-export function ReaderFontControls() {
+export function ReaderFontControls({
+  asianFont,
+  onAsianFontChange,
+}: {
+  /** The Asian font the open book reads in, and where a new pick for it goes. */
+  asianFont?: ReaderFontChoice;
+  onAsianFontChange?: (font: ReaderFontChoice) => void;
+}) {
   const prefs = useAppearance();
+  const shownAsianFont = asianFont ?? prefs.readerAsianFont;
   const { t } = useI18n();
   const { fonts } = useReaderFonts();
   const weight = (
@@ -456,11 +464,11 @@ export function ReaderFontControls() {
       <FontPicker
         label={t("fonts.asian")}
         category="asian"
-        value={prefs.readerAsianFont}
-        onChange={prefs.setReaderAsianFont}
+        value={shownAsianFont}
+        onChange={onAsianFontChange ?? prefs.setReaderAsianFont}
       />
       {weight(
-        prefs.readerAsianFont,
+        shownAsianFont,
         prefs.readerAsianFontWeight,
         t("fonts.asianWeight"),
         prefs.setReaderAsianFontWeight,

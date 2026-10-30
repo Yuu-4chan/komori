@@ -95,27 +95,31 @@ function systemFontFor(language?: string | null): string | undefined {
   return undefined;
 }
 
-/**
- * The Asian font a book reads in: the default Noto Sans JP lacks many Chinese and Korean
- * characters, whose stand-ins would look thinner than the rest, so those books use the included
- * font for their language until another is chosen. No Traditional Chinese font is included.
- */
-export function bookAsianFont(
-  choice: ReaderFontChoice,
-  language?: string | null,
-): ReaderFontChoice {
-  if (fontChoiceKey(choice) !== fontChoiceKey(defaultAsianFont)) return choice;
+/** The languages whose books a font is checked for and that keep a font of their own. */
+export type BookFontLanguage = "ja" | "ko" | "zh-Hans" | "zh-Hant";
+export const bookFontLanguages: readonly BookFontLanguage[] = ["ja", "ko", "zh-Hans", "zh-Hant"];
+
+export function bookFontLanguage(language?: string | null): BookFontLanguage | undefined {
+  if (language && /^ja(-|$)/i.test(language)) return "ja";
   switch (systemFontFor(language)) {
-    case "Microsoft YaHei":
-      return { source: "google", id: "noto-sans-sc" };
     case "Malgun Gothic":
-      return { source: "google", id: "noto-sans-kr" };
+      return "ko";
+    case "Microsoft YaHei":
+      return "zh-Hans";
     case "Microsoft JhengHei":
-      return { source: "system", family: "Microsoft JhengHei" };
+      return "zh-Hant";
     default:
-      return choice;
+      return undefined;
   }
 }
+
+/** What a book reads in when the chosen font lacks its text. No Traditional font is included. */
+export const replacementAsianFonts: Record<BookFontLanguage, ReaderFontChoice> = {
+  ja: defaultAsianFont,
+  ko: { source: "google", id: "noto-sans-kr" },
+  "zh-Hans": { source: "google", id: "noto-sans-sc" },
+  "zh-Hant": { source: "system", family: "Microsoft JhengHei" },
+};
 
 export function validFontFamily(value: unknown): value is string {
   return (

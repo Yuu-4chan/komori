@@ -1371,6 +1371,7 @@ export const ja: MessageCatalog = {
   "reader.dismissReturn": "閉じる",
   "reader.layingOut": "本をレイアウトしています",
   "reader.escapeAgain": "もう一度Escを押すと本棚に戻ります。",
+  "reader.fontChanged": "{language}に対応するため、フォントを{font}に変更しました。",
   "reader.newNote": "新しいメモ",
   "readerFooter.bookProgress": "本の進み具合",
   "readerFooter.chapterProgress": "章の進み具合",

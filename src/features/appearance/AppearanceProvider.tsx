@@ -6,7 +6,11 @@ import {
   type DefinitionLanguage,
   isDefinitionLanguage,
 } from "../dictionary/lookupLanguage";
-import { isReaderFontChoice, type ReaderFontChoice } from "../reader/fontChoices";
+import {
+  isReaderFontChoice,
+  type BookFontLanguage,
+  type ReaderFontChoice,
+} from "../reader/fontChoices";
 import { normalizeReaderFooter, type ReaderFooterPreferences } from "../reader/footerPreferences";
 import { registerWindowFlush } from "../../app/windowLifecycle";
 import {
@@ -237,6 +241,8 @@ interface AppearanceContextValue
   readerAsianFont: ReaderFontChoice;
   readerWesternFont: ReaderFontChoice;
   setReaderAsianFont: (font: ReaderFontChoice) => void;
+  readerAsianFontByLanguage: Partial<Record<BookFontLanguage, ReaderFontChoice>>;
+  setReaderAsianFontForLanguage: (language: BookFontLanguage, font: ReaderFontChoice) => void;
   setReaderWesternFont: (font: ReaderFontChoice) => void;
   readerFontFamilyGroup1: ReaderSerifFont;
   setReaderFontFamilyGroup1: (font: ReaderSerifFont) => void;
@@ -482,6 +488,7 @@ export function AppearanceProvider({
     readerLetterSpacing,
     readerWordSpacing,
     readerAsianFont,
+    readerAsianFontByLanguage,
     readerWesternFont,
     readerFontFamilyGroup1,
     readerFontFamilyGroup2,
@@ -722,6 +729,13 @@ export function AppearanceProvider({
       setReaderAsianFont: (font: ReaderFontChoice) => {
         if (isReaderFontChoice(font)) update({ readerAsianFont: font });
       },
+      readerAsianFontByLanguage,
+      setReaderAsianFontForLanguage: (language: BookFontLanguage, font: ReaderFontChoice) => {
+        if (isReaderFontChoice(font))
+          update({
+            readerAsianFontByLanguage: { ...readerAsianFontByLanguage, [language]: font },
+          });
+      },
       setReaderWesternFont: (font: ReaderFontChoice) => {
         if (isReaderFontChoice(font)) update({ readerWesternFont: font });
       },
@@ -913,6 +927,7 @@ export function AppearanceProvider({
       readerLetterSpacing,
       readerWordSpacing,
       readerAsianFont,
+      readerAsianFontByLanguage,
       readerWesternFont,
       readerFontFamilyGroup1,
       readerFontFamilyGroup2,

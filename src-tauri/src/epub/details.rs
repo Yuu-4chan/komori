@@ -51,14 +51,37 @@ impl BookDetails {
     /// The language to show: the declared one, unless the text is clearly Chinese, Japanese, or
     /// Korean and the declaration is not (exported metadata often keeps a default `en`).
     pub(crate) fn language(&self) -> Option<String> {
-        match (&self.package.language, &self.text) {
+        let shown = match (&self.package.language, &self.text) {
             (Some(declared), Some(text)) if !is_cjk_language(declared) => {
                 Some(text.language.to_string())
             }
             (Some(declared), _) => Some(shown_language(declared)),
             (None, Some(text)) => Some(text.language.to_string()),
             (None, None) => None,
-        }
+        }?;
+        Some(match &self.text {
+            Some(text) if shown == "zh" => chinese_script(&text.kanji).unwrap_or("zh").to_string(),
+            _ => shown,
+        })
+    }
+}
+
+/// Characters written differently in the two scripts, paired by position.
+const ONLY_SIMPLIFIED: &str =
+    "这们说对时过还进发经问见从现开关门国会学书东车马鸟鱼语话让给动实点头气军体爱";
+const ONLY_TRADITIONAL: &str =
+    "這們說對時過還進發經問見從現開關門國會學書東車馬鳥魚語話讓給動實點頭氣軍體愛";
+
+/// `zh-Hans` or `zh-Hant`, from a Chinese book's distinct characters, when they clearly use one.
+pub(crate) fn chinese_script(han: &str) -> Option<&'static str> {
+    let used = |set: &str| set.chars().filter(|c| han.contains(*c)).count();
+    let (simplified, traditional) = (used(ONLY_SIMPLIFIED), used(ONLY_TRADITIONAL));
+    if simplified > traditional * 2 {
+        Some("zh-Hans")
+    } else if traditional > simplified * 2 {
+        Some("zh-Hant")
+    } else {
+        None
     }
 }
 
@@ -530,6 +553,14 @@ mod tests {
         let mut counter = TextCounter::default();
         counter.count_markup(markup);
         counter
+    }
+
+    #[test]
+    fn plain_chinese_takes_its_script_from_its_characters() {
+        assert_eq!(chinese_script("这们说的书"), Some("zh-Hans"));
+        assert_eq!(chinese_script("這們說的書"), Some("zh-Hant"));
+        assert_eq!(chinese_script("山水"), None);
+        assert_eq!(chinese_script("这這"), None);
     }
 
     #[test]

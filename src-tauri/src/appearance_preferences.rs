@@ -223,6 +223,28 @@ impl AppCustomTheme {
     }
 }
 
+/// The fonts picked while reading a Chinese, Japanese or Korean book, kept apart from the Asian font.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AsianFontsByLanguage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ja: Option<FontChoice>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ko: Option<FontChoice>,
+    #[serde(default, rename = "zh-Hans", skip_serializing_if = "Option::is_none")]
+    zh_hans: Option<FontChoice>,
+    #[serde(default, rename = "zh-Hant", skip_serializing_if = "Option::is_none")]
+    zh_hant: Option<FontChoice>,
+}
+
+impl AsianFontsByLanguage {
+    fn valid(&self) -> bool {
+        [&self.ja, &self.ko, &self.zh_hans, &self.zh_hant]
+            .iter()
+            .all(|font| font.as_ref().is_none_or(FontChoice::valid))
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppearancePreferences {
@@ -372,6 +394,8 @@ pub struct AppearancePreferences {
     reader_asian_font_weight: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_asian_font: Option<FontChoice>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_asian_font_by_language: Option<AsianFontsByLanguage>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_western_font: Option<FontChoice>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -722,6 +746,10 @@ impl AppearancePreferences {
                 .as_ref()
                 .is_none_or(FontChoice::valid)
             && self
+                .reader_asian_font_by_language
+                .as_ref()
+                .is_none_or(AsianFontsByLanguage::valid)
+            && self
                 .reader_western_font
                 .as_ref()
                 .is_none_or(FontChoice::valid)
@@ -895,6 +923,10 @@ impl AppearancePreferences {
                 value.get("readerAsianFont"),
                 text("readerFontFamilyGroup1").filter(|f| READER_SERIF_FONTS.contains(f)),
             ),
+            reader_asian_font_by_language: value
+                .get("readerAsianFontByLanguage")
+                .and_then(|fonts| serde_json::from_value(fonts.clone()).ok())
+                .filter(AsianFontsByLanguage::valid),
             reader_western_font: FontChoice::from_stored(
                 value.get("readerWesternFont"),
                 text("readerFontFamilyGroup2").filter(|f| READER_SANS_FONTS.contains(f)),
@@ -1132,6 +1164,30 @@ fn save_to(connection: &Connection, preferences: &AppearancePreferences) -> Resu
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn fonts_picked_for_a_language_are_kept_and_invalid_ones_dropped() {
+        let kept = AppearancePreferences::from_stored(&serde_json::json!({
+            "readerAsianFontByLanguage": { "ko": { "source": "system", "family": "Malgun Gothic" } }
+        }));
+        assert_eq!(
+            kept.reader_asian_font_by_language
+                .and_then(|fonts| fonts.ko)
+                .as_ref(),
+            Some(&FontChoice::System {
+                family: "Malgun Gothic".into()
+            })
+        );
+        for invalid in [
+            serde_json::json!({ "ko": { "source": "system", "family": "a;b{}" } }),
+            serde_json::json!({ "fr": { "source": "system", "family": "Arial" } }),
+        ] {
+            let dropped = AppearancePreferences::from_stored(
+                &serde_json::json!({ "readerAsianFontByLanguage": invalid }),
+            );
+            assert_eq!(dropped.reader_asian_font_by_language, None);
+        }
+    }
+
     #[test]
     fn vn_preferences_validate_independently_and_survive_reopen() {
         let directory = tempfile::tempdir().unwrap();
@@ -1574,6 +1630,7 @@ mod tests {
             library_group: None,
             library_card_size: None,
             library_series_from_titles: None,
+            reader_asian_font_by_language: None,
             accent_color: Some(accent.into()),
             reader_wheel_step: Some(wheel_step),
             middle_click_autoscroll: None,

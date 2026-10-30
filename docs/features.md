@@ -56,8 +56,10 @@ back. The search stays in the top bar even in an empty Library.
   custom themes), Background image (Choose/Replace, Remove, saved blur 0–40 px),
   Typography (editable Western and Asian font dropdowns holding only usable fonts of
   their own collection: installed presets, included and downloaded Google families,
-  added fonts and installed families; defaults Georgia and the included Noto Sans JP, which a Chinese or Korean book replaces
-  with the included Noto Sans SC or KR (Traditional Chinese: Microsoft JhengHei) until another is chosen;
+  added fonts and installed families; defaults Georgia and the included Noto Sans JP, and a Chinese, Japanese or Korean book's own characters
+  decide if the chosen Asian font fits it: one that doesn't is replaced for that book by the included
+  Noto Sans JP, SC or KR (Traditional Chinese: Microsoft JhengHei), shown in the panel and announced
+  briefly, while other books keep it; a font picked in such a book is saved for that language;
   Zen Old Mincho, Klee One and Noto Sans JP, SC and KR come with the installer; the
   adjacent + opens a floating manager on Asian, Western or Added fonts tabs for
   TTF/OTF imports up to 100 MB and 93 Google families with separate weights or variable ranges;

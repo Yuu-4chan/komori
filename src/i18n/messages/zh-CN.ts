@@ -1290,6 +1290,7 @@ export const zhCN: MessageCatalog = {
   "reader.dismissReturn": "关闭",
   "reader.layingOut": "正在排版图书",
   "reader.escapeAgain": "再按一次Esc即可返回书架。",
+  "reader.fontChanged": "已将字体更改为{font}以支持{language}。",
   "reader.newNote": "新建笔记",
   "readerFooter.bookProgress": "全书进度",
   "readerFooter.chapterProgress": "章节进度",

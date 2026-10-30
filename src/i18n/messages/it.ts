@@ -1513,6 +1513,7 @@ export const it: MessageCatalog = {
   "reader.dismissReturn": "Ignora",
   "reader.layingOut": "Impaginazione del libro",
   "reader.escapeAgain": "Premi di nuovo Esc per tornare alla libreria.",
+  "reader.fontChanged": "Carattere cambiato in {font} per supportare {language}.",
   "reader.newNote": "Nuova nota",
   "readerFooter.bookProgress": "Avanzamento del libro",
   "readerFooter.chapterProgress": "Avanzamento del capitolo",

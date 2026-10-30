@@ -1525,6 +1525,7 @@ export const fr: MessageCatalog = {
   "reader.dismissReturn": "Ignorer",
   "reader.layingOut": "Mise en page du livre",
   "reader.escapeAgain": "Appuyez de nouveau sur Échap pour revenir à la bibliothèque.",
+  "reader.fontChanged": "Police remplacée par {font} pour prendre en charge : {language}.",
   "reader.newNote": "Nouvelle note",
   "readerFooter.bookProgress": "Progression du livre",
   "readerFooter.chapterProgress": "Progression du chapitre",

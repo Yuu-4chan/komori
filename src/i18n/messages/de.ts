@@ -1469,6 +1469,7 @@ export const de: MessageCatalog = {
   "reader.dismissReturn": "Schließen",
   "reader.layingOut": "Buch wird gesetzt",
   "reader.escapeAgain": "Drücke erneut Esc, um zur Bibliothek zurückzukehren.",
+  "reader.fontChanged": "Schriftart zu {font} geändert, um {language} zu unterstützen.",
   "reader.newNote": "Neue Notiz",
   "readerFooter.bookProgress": "Buchfortschritt",
   "readerFooter.chapterProgress": "Kapitelfortschritt",

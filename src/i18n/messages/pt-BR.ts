@@ -1454,6 +1454,7 @@ export const ptBR: MessageCatalog = {
   "reader.dismissReturn": "Dispensar",
   "reader.layingOut": "Diagramando o livro",
   "reader.escapeAgain": "Pressione Esc de novo para voltar à biblioteca.",
+  "reader.fontChanged": "Fonte alterada para {font} para oferecer suporte a {language}.",
   "reader.newNote": "Nova nota",
   "readerFooter.bookProgress": "Progresso do livro",
   "readerFooter.chapterProgress": "Progresso do capítulo",

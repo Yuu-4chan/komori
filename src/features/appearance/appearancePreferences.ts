@@ -11,6 +11,8 @@ import {
   defaultWesternFont,
   isReaderFontChoice,
   normalizeFontChoice,
+  bookFontLanguages,
+  type BookFontLanguage,
   type ReaderFontChoice,
 } from "../reader/fontChoices";
 import { isFaceWeight } from "../reader/fontWeights";
@@ -228,6 +230,8 @@ export interface AppearancePreferences
   readerWordSpacing: number;
   /** Ordered font choices for every reflowable book. */
   readerAsianFont: ReaderFontChoice;
+  /** The fonts picked while reading a Chinese, Japanese or Korean book. */
+  readerAsianFontByLanguage: Partial<Record<BookFontLanguage, ReaderFontChoice>>;
   readerWesternFont: ReaderFontChoice;
   readerFontFamilyGroup1: ReaderSerifFont;
   readerFontFamilyGroup2: ReaderSansFont;
@@ -328,6 +332,7 @@ export const defaultAppearance: AppearancePreferences = {
   readerLetterSpacing: readerLetterSpacing.default,
   readerWordSpacing: readerWordSpacing.default,
   readerAsianFont: defaultAsianFont,
+  readerAsianFontByLanguage: {},
   readerWesternFont: defaultWesternFont,
   readerFontFamilyGroup1: defaultReaderSerifFont,
   readerFontFamilyGroup2: defaultReaderSansFont,
@@ -426,6 +431,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     readerLetterSpacing,
     readerWordSpacing,
     readerAsianFont,
+    readerAsianFontByLanguage,
     readerWesternFont,
     readerFontFamilyGroup1,
     readerFontFamilyGroup2,
@@ -541,6 +547,15 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
       readerAsianFont,
       isReaderSerifFont(readerFontFamilyGroup1) ? readerFontFamilyGroup1 : undefined,
     ) && { readerAsianFont: normalizeFontChoice(readerAsianFont, readerFontFamilyGroup1) }),
+    ...(typeof readerAsianFontByLanguage === "object" &&
+      readerAsianFontByLanguage !== null && {
+        readerAsianFontByLanguage: Object.fromEntries(
+          bookFontLanguages.flatMap((language) => {
+            const font = (readerAsianFontByLanguage as Record<string, unknown>)[language];
+            return isReaderFontChoice(font) ? [[language, font]] : [];
+          }),
+        ),
+      }),
     ...(normalizeFontChoice(
       readerWesternFont,
       isReaderSansFont(readerFontFamilyGroup2) ? readerFontFamilyGroup2 : undefined,

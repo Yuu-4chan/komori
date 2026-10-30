@@ -1548,6 +1548,7 @@ export const ru: MessageCatalog = {
   "reader.dismissReturn": "Скрыть",
   "reader.layingOut": "Вёрстка книги",
   "reader.escapeAgain": "Нажмите Esc ещё раз, чтобы вернуться в библиотеку.",
+  "reader.fontChanged": "Шрифт заменён на {font} для поддержки языка: {language}.",
   "reader.newNote": "Новая заметка",
   "readerFooter.bookProgress": "Прогресс книги",
   "readerFooter.chapterProgress": "Прогресс главы",

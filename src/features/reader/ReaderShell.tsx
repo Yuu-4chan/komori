@@ -1,6 +1,17 @@
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
-import { useAsianFontFallback, useReaderFonts, useSystemFontFaces } from "./readerFonts";
-import { bookAsianFont } from "./fontChoices";
+import {
+  useAsianFontFallback,
+  useBookFontSupport,
+  useReaderFonts,
+  useSystemFontFaces,
+} from "./readerFonts";
+import {
+  bookFontLanguage,
+  fontChoiceLabel,
+  replacementAsianFonts,
+  type ReaderFontChoice,
+} from "./fontChoices";
+import { languageName } from "../library/libraryView";
 import { usePopupFont } from "./popupFont";
 import { availableFontWeights, resolveFontWeight } from "./fontWeights";
 import {
@@ -202,15 +213,37 @@ export function ReaderShell({
   usePopupFont(appearance.readerPopupFont, appearance.lookupLanguage);
   // The default Yu Mincho, or the Noto Serif JP that stands in for it on a computer without it.
   const shownAsianFont = useAsianFontFallback(appearance.readerAsianFont);
-  const asianFont = bookAsianFont(
-    shownAsianFont ?? appearance.readerAsianFont,
-    identity.status === "book" ? identity.book.language : undefined,
+  const bookLanguage = identity.status === "book" ? identity.book.language : undefined;
+  const fontLanguage = bookFontLanguage(bookLanguage);
+  // A font picked in a Chinese, Japanese or Korean book stays with that language. Otherwise the saved font
+  // is kept where it has the book's text, and replaced for this book where it doesn't.
+  const pickedAsianFont = fontLanguage && appearance.readerAsianFontByLanguage[fontLanguage];
+  const savedAsianFont = shownAsianFont ?? appearance.readerAsianFont;
+  const savedFontFits = useBookFontSupport(
+    fontLanguage && !pickedAsianFont ? savedAsianFont : undefined,
+    identity.status === "book" ? identity.book.id : undefined,
   );
+  const replacedFont =
+    fontLanguage && !pickedAsianFont && savedFontFits === false
+      ? replacementAsianFonts[fontLanguage]
+      : undefined;
+  const asianFont = pickedAsianFont ?? replacedFont ?? savedAsianFont;
+  const fontNotice =
+    replacedFont && bookLanguage
+      ? t("reader.fontChanged", {
+          font: fontChoiceLabel(replacedFont),
+          language: languageName(bookLanguage),
+        })
+      : "";
   const checkedFaces = useSystemFontFaces([appearance.readerWesternFont, asianFont]);
   const systemFaces = checkedFaces ?? [];
   // A book is laid out once its fonts are known, so it does not open in one and turn to another.
   const fontsKnown =
-    fontsListed && !!shownAsianFont && !!checkedFaces && identity.status !== "loading";
+    fontsListed &&
+    !!shownAsianFont &&
+    !!checkedFaces &&
+    identity.status !== "loading" &&
+    savedFontFits !== undefined;
   const westernWeight = resolveFontWeight(
     appearance.readerWesternFontWeight,
     availableFontWeights(appearance.readerWesternFont, managedFonts),
@@ -625,6 +658,10 @@ export function ReaderShell({
     fontsKnown,
   );
   highlightPointerMatchRef.current = highlightPointerMatch;
+  const bookReady = status === "ready";
+  useEffect(() => {
+    if (bookReady && fontNotice) showFeedback(fontNotice);
+  }, [bookReady, fontNotice, showFeedback]);
 
   // A saved place reads as its chapter, the last contents entry at or before it, and how far
   // into the book it lies; before the book is counted, or ahead of every entry, its section.
@@ -1738,6 +1775,11 @@ export function ReaderShell({
           onBlurModeChange: setReaderBlurMode,
           imageBlurBoundary: status === "ready" ? imageBlurBoundary : undefined,
           vnNotice: pageTurns.vnNotice,
+          asianFont,
+          onAsianFontChange: (font: ReaderFontChoice) =>
+            fontLanguage
+              ? appearance.setReaderAsianFontForLanguage(fontLanguage, font)
+              : appearance.setReaderAsianFont(font),
           viewMode: readerViewMode,
           onViewModeChange: setReaderViewMode,
           wheelStep: readerWheelStep,
