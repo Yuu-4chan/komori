@@ -1479,8 +1479,9 @@ object`. Irregular forms (went, children) come from the dictionaries' own form e
 English start is also tried with its typographic apostrophes as ASCII ones, lowercased, with its
 first letter capitalized, and lowercased then capitalized (each once, the start as written
 first), its exact matches before its deinflected ones; groups name the text as scanned. An
-English start must end at a word boundary, so walked is never also wal or lo. Inflection names
-show translated, like Japanese ones.
+English start must end at a word boundary, so walked is never also wal or lo. Every language's
+inflection names show translated, except endings and affixes (`-ing`, `-bar`, Korean's), which keep
+their spelling.
 
 French (`deinflect/fr.rs`) is Yomitan's `ext/js/language/fr/french-transforms.js` at commit
 d3c54c1, converted rule for rule (the simple tenses of the three verb groups and of être and

@@ -127,7 +127,7 @@ export function DictionaryResultsHeader({
   );
 }
 
-const inflectionKeys: Record<string, MessageKey> = {
+export const inflectionKeys: Record<string, MessageKey> = {
   past: "inflection.past",
   negative: "inflection.negative",
   polite: "inflection.polite",
@@ -164,6 +164,32 @@ const inflectionKeys: Record<string, MessageKey> = {
   "dropped g": "inflection.droppedG",
   "going-to future": "inflection.goingToFuture",
   "will future": "inflection.willFuture",
+  nominalization: "inflection.nominalization",
+  "past participle": "inflection.pastParticiple",
+  "zu-infinitive": "inflection.zuInfinitive",
+  present: "inflection.present",
+  "present participle": "inflection.presentParticiple",
+  declension: "inflection.declension",
+  "present indicative": "inflection.presentIndicative",
+  "imperfect indicative": "inflection.imperfectIndicative",
+  future: "inflection.future",
+  "imperative present": "inflection.imperativePresent",
+  preterite: "inflection.preterite",
+  "present subjunctive": "inflection.presentSubjunctive",
+  feminine: "inflection.feminine",
+  "feminine adjective": "inflection.feminineAdjective",
+  imperfect: "inflection.imperfect",
+  "imperfect subjunctive": "inflection.imperfectSubjunctive",
+  participle: "inflection.participle",
+  reflexive: "inflection.reflexive",
+  "pronoun substitution": "inflection.pronounSubstitution",
+  pronoun: "inflection.pronoun",
+  diminutive: "inflection.diminutive",
+  gerund: "inflection.gerund",
+  pluperfect: "inflection.pluperfect",
+  "future subjunctive": "inflection.futureSubjunctive",
+  case: "inflection.case",
+  "short form": "inflection.shortForm",
 };
 
 /**
