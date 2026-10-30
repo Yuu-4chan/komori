@@ -695,6 +695,7 @@ export const ru: MessageCatalog = {
   "ankiContent.frequencyHarmonic": "Частотность (среднее гармоническое)",
   "ankiContent.frequencyAverage": "Частотность (среднее)",
   "ankiContent.pitch": "Позиция ударения",
+  "ankiContent.ipa": "Произношение",
   "ankiContent.sentence": "Предложение из книги",
   "ankiContent.bookTitle": "Название книги",
   "ankiContent.picture": "Обложка книги",

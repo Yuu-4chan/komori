@@ -5,7 +5,12 @@ import { ErrorBoundary } from "../../components/ui/ErrorBoundary";
 import { IconButton } from "../../components/ui/IconButton";
 import { useId, useMemo, useState } from "react";
 import { furiganaSegments } from "./furigana";
-import { defaultLookupLanguage, readsBeside, type LookupLanguage } from "./lookupLanguage";
+import {
+  defaultLookupLanguage,
+  readsBeside,
+  type LookupLanguage,
+  transcriptionText,
+} from "./lookupLanguage";
 
 import type { TermGroup, TermMatch } from "./dictionaryApi";
 import {
@@ -129,6 +134,11 @@ function LookupEntryContent({
                 {reading}
               </span>
             ) : null}
+            {group.transcriptions.length > 0 && (
+              <span className="lookup-entry__transcription">
+                {transcriptionText(language, group.transcriptions)}
+              </span>
+            )}
             {showVoiceAction && (
               <PronunciationButton
                 canPlay={canPlayAudio}
@@ -275,6 +285,11 @@ function DictionaryLookupEntryContent({
           <HeadwordKanji expression={group.expression} onSearchTerm={onSearchTerm} />
         )}
         {beside && <span className="dictionary-entry__reading">{beside}</span>}
+        {group.transcriptions.length > 0 && (
+          <span className="dictionary-entry__reading">
+            {transcriptionText(language, group.transcriptions)}
+          </span>
+        )}
       </strong>
       {[...sources.values()].map((terms) => (
         <section

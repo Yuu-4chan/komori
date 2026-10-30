@@ -610,6 +610,7 @@ const contentLabels: Record<(typeof placeholders)[number], MessageKey> = {
   frequencyHarmonic: "ankiContent.frequencyHarmonic",
   frequencyAverage: "ankiContent.frequencyAverage",
   pitch: "ankiContent.pitch",
+  ipa: "ankiContent.ipa",
   sentence: "ankiContent.sentence",
   bookTitle: "ankiContent.bookTitle",
   picture: "ankiContent.picture",

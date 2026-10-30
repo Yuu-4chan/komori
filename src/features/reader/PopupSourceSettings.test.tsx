@@ -90,6 +90,7 @@ const result: TermLookup = {
         },
       ],
       frequencies: [{ dictionaryId: 2, dictionaryTitle: "Frequency", data: 10 }],
+      transcriptions: [],
       pitches: [
         {
           dictionaryId: 3,

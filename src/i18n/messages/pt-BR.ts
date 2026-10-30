@@ -654,6 +654,7 @@ export const ptBR: MessageCatalog = {
   "ankiContent.frequencyHarmonic": "Frequência (média harmônica)",
   "ankiContent.frequencyAverage": "Frequência (média)",
   "ankiContent.pitch": "Posição do acento",
+  "ankiContent.ipa": "Pronúncia",
   "ankiContent.sentence": "Frase do leitor",
   "ankiContent.bookTitle": "Título do livro",
   "ankiContent.picture": "Capa do livro",

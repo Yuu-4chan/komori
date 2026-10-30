@@ -661,6 +661,7 @@ export const de: MessageCatalog = {
   "ankiContent.frequencyHarmonic": "Häufigkeit (harmonisches Mittel)",
   "ankiContent.frequencyAverage": "Häufigkeit (Durchschnitt)",
   "ankiContent.pitch": "Akzentposition",
+  "ankiContent.ipa": "Aussprache",
   "ankiContent.sentence": "Satz aus der Leseansicht",
   "ankiContent.bookTitle": "Buchtitel",
   "ankiContent.picture": "Buchcover",

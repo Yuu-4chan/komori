@@ -1565,6 +1565,16 @@ followed by whitespace, at a line break, or at the end of its block. English ent
 duplicate reading, furigana or pitch, and their text is marked `lang="en"`; Anki's reading and
 furigana fields hold the expression, the archive's reading for an entry without one.
 
+Every entry shows its pronunciations after its headword and reading, in every popup style and on
+the Dictionary page, from the term `ipa` metadata of the lookup language's enabled dictionaries:
+up to four, each once, for the group's reading or a row naming the headword as its reading. Commas
+and `|` separate alternatives. Dictionaries list the endings of other forms in the same data, so a
+value without a letter, starting or ending in `-`, or under half the first's letters is dropped.
+Chinese `ipa` metadata is pinyin: its commas belong to the phrase, and a value repeating the reading
+(ignoring spaces, hyphens and the script `ɡ`) is dropped. They show between slashes, except in Chinese. These
+dictionaries have no source role: turning one off in Settings hides it. Anki's `{{ipa}}` field holds
+them joined by commas.
+
 ## Reader lookup
 
 Settings > Reader popup's Scanning and results card saves `readerPopupCjkOnly`

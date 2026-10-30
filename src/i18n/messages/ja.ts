@@ -623,6 +623,7 @@ export const ja: MessageCatalog = {
   "ankiContent.frequencyHarmonic": "頻度（調和平均）",
   "ankiContent.frequencyAverage": "頻度（平均）",
   "ankiContent.pitch": "アクセントの位置",
+  "ankiContent.ipa": "発音",
   "ankiContent.sentence": "読書画面の文",
   "ankiContent.bookTitle": "本の題名",
   "ankiContent.picture": "本の表紙",

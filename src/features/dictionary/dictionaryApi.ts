@@ -97,6 +97,8 @@ export interface TermGroup {
   terms: TermMatch[];
   frequencies: FrequencyMatch[];
   pitches: PitchMatch[];
+  /** The word's pronunciations, from its language's enabled `ipa` metadata. */
+  transcriptions: string[];
 }
 
 /**

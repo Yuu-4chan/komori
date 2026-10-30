@@ -572,6 +572,7 @@ export const zhTW: MessageCatalog = {
   "ankiContent.frequencyHarmonic": "頻率（調和平均）",
   "ankiContent.frequencyAverage": "頻率（平均）",
   "ankiContent.pitch": "音調位置",
+  "ankiContent.ipa": "發音",
   "ankiContent.sentence": "閱讀器中的句子",
   "ankiContent.bookTitle": "書名",
   "ankiContent.picture": "圖書封面",

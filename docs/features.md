@@ -138,6 +138,7 @@ an elided l', d' or dell'. Korean lookups find the dictionary form of a word's v
 endings (먹었어요 → 먹다). Chinese lookups read on from the character under the pointer like Japanese,
 in traditional or simplified characters as the dictionary lists them, and its readings (pinyin) show
 beside the headword.
+Entries show the word's pronunciation when a dictionary with IPA data is on, and Anki can use it as a field.
 Only look up Japanese/CJK text, the Kanji card and JapanesePod101 are for Japanese.
 
 ## Statistics

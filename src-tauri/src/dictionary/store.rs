@@ -32,6 +32,8 @@ use super::sources::SourcePolicy;
 
 const SCHEMA_VERSION: i64 = 9;
 pub(crate) const DATABASE_FILE_NAME: &str = "dictionaries.sqlite3";
+/// The most pronunciations an entry shows.
+const MAX_TRANSCRIPTIONS: usize = 4;
 const MAX_QUERY_CHARS: usize = 256;
 const MAX_QUERY_BYTES: usize = 1024;
 /// The longest start of a query tried when the whole query matches nothing, in characters.
@@ -146,6 +148,8 @@ pub struct TermGroup {
     terms: Vec<TermMatch>,
     frequencies: Vec<FrequencyMatch>,
     pitches: Vec<PitchMatch>,
+    /// The word's pronunciations from the language's enabled `ipa` metadata, each once.
+    transcriptions: Vec<String>,
 }
 
 /// The groups for a query, or for its longest start that an enabled dictionary matches, exactly
@@ -441,6 +445,52 @@ fn lookup_from_store(connection: &Connection, query: &str) -> Result<Vec<TermGro
     lookup_classes_from_store(connection, query, None)
 }
 
+impl TermGroup {
+    /// Adds the transcriptions of one `ipa` metadata row for this group's reading, or for a row
+    /// naming the headword as its reading, as dictionaries do for a word without one.
+    fn add_transcriptions(&mut self, data: &Value, language: Language) {
+        let reading = data["reading"].as_str();
+        if reading != Some(self.reading.as_str()) && reading != Some(self.expression.as_str()) {
+            return;
+        }
+        for transcription in data["transcriptions"].as_array().into_iter().flatten() {
+            let text = transcription["ipa"].as_str().unwrap_or_default();
+            if language == Language::Chinese {
+                // Chinese "ipa" is pinyin: its commas are the phrase's own, and most of it repeats
+                // the reading, in a script `ɡ`.
+                let bare = |text: &str| text.replace([' ', '-', ','], "").replace('ɡ', "g");
+                if bare(text) != bare(&self.reading) {
+                    self.add_transcription(text);
+                }
+            } else {
+                for text in text.split([',', '|']) {
+                    self.add_transcription(text);
+                }
+            }
+        }
+    }
+
+    /// Adds one transcription, unless it is a part of the word's: dictionaries list the endings of
+    /// other forms in the same data (`ʃ(ə)val,` then `o`; `-lɛndɪʃ`), which name no whole word.
+    fn add_transcription(&mut self, text: &str) {
+        let text = text.trim_matches(|c: char| c == ',' || c == '|' || c.is_whitespace());
+        let letters = |text: &str| text.chars().filter(|c| c.is_alphabetic()).count();
+        let whole = self
+            .transcriptions
+            .first()
+            .map_or(0, |first| letters(first));
+        if self.transcriptions.len() < MAX_TRANSCRIPTIONS
+            && letters(text) > 0
+            && letters(text) * 2 >= whole
+            && !text.starts_with('-')
+            && !text.ends_with('-')
+            && !self.transcriptions.iter().any(|seen| seen == text)
+        {
+            self.transcriptions.push(text.to_owned());
+        }
+    }
+}
+
 /// Which of the terms an exact lookup finds it keeps.
 #[derive(Clone, Copy)]
 enum TermFilter {
@@ -491,6 +541,7 @@ fn lookup_filtered_with_sources(
 ) -> Result<Vec<TermGroup>, String> {
     let mut groups = exact_groups(connection, query, filter, sources, GLOSSARY_LIMITS)?;
     read_glossaries(&mut groups, GLOSSARY_LIMITS)?;
+    add_transcriptions(connection, &mut groups, Language::Japanese)?;
     Ok(groups)
 }
 
@@ -616,6 +667,7 @@ fn exact_groups(
                 terms: Vec::new(),
                 frequencies: Vec::new(),
                 pitches: Vec::new(),
+                transcriptions: Vec::new(),
             });
             groups.len() - 1
         });
@@ -988,7 +1040,40 @@ fn lookup_longest_start_in(
         groups.truncate(limit);
     }
     read_glossaries(&mut groups, limits)?;
+    add_transcriptions(connection, &mut groups, language)?;
     Ok(TermLookup { text, groups })
+}
+
+/// Sets each group's transcriptions from the `ipa` metadata of the language's enabled
+/// dictionaries, in dictionary order. These dictionaries have no source role, so turning one off
+/// is how a reader hides it.
+fn add_transcriptions(
+    connection: &Connection,
+    groups: &mut [TermGroup],
+    language: Language,
+) -> Result<(), String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT m.data FROM term_meta m JOIN dictionaries d ON d.id = m.dictionary
+              WHERE m.expression = ?1 AND m.mode = 'ipa' AND d.enabled AND d.language = ?2
+              ORDER BY d.position, d.id, m.rowid",
+        )
+        .map_err(storage_error)?;
+    for group in groups {
+        let rows = statement
+            .query_map(params![&group.expression, language.code()], |row| {
+                row.get::<_, String>(0)
+            })
+            .map_err(storage_error)?;
+        for data in rows {
+            let data = data.map_err(storage_error)?;
+            let Ok(data) = serde_json::from_str::<Value>(&data) else {
+                continue;
+            };
+            group.add_transcriptions(&data, language);
+        }
+    }
+    Ok(())
 }
 
 /// Whether `start`, a start of `query`, ends a word: it does not end in a space, and the query
@@ -4440,6 +4525,114 @@ mod tests {
         assert_eq!(
             winning_start(lookup_longest_start_from_store(&connection, "泳いじゃった").unwrap()),
             deinflected("泳いじゃった", "泳ぐ", V5, &["completive", "past"])
+        );
+    }
+
+    #[test]
+    fn entries_carry_their_languages_enabled_transcriptions() {
+        let directory = tempdir().unwrap();
+        let archive = |name: &str, bank: &str, data: &str| {
+            fixture_with(
+                directory.path(),
+                name,
+                &[
+                    (
+                        "index.json",
+                        &format!(r#"{{"title":"{name}","revision":"1","format":3}}"#),
+                    ),
+                    (bank, data),
+                ],
+            )
+        };
+        let words = archive(
+            "words.zip",
+            "term_bank_1.json",
+            r#"[["Kind","Kind","n","n",0,["child"],1,""],
+                ["pass","pass","n","n",0,["passport"],2,""],
+                ["谷歌","gǔ gē","","",0,["Google"],3,""],
+                ["一心一意","yīxīn","","",0,["wholeheartedly"],4,""]]"#,
+        );
+        let sounds = archive(
+            "sounds.zip",
+            "term_meta_bank_1.json",
+            r#"[["Kind","ipa",{"reading":"Kind","transcriptions":[{"ipa":" kɪnt, ","tags":[]},{"ipa":"|  |","tags":[]},{"ipa":"","tags":[]}]}],
+                ["Kind","ipa",{"reading":"Kind","transcriptions":[{"ipa":"kɪnt","tags":[]}]}],
+                ["Kind","ipa",{"reading":"Kind","transcriptions":[{"ipa":"t","tags":[]},{"ipa":"-ɪnd","tags":[]},{"ipa":"kɪn-","tags":[]}]}],
+                ["Kind","ipa",{"reading":"Kind","transcriptions":[{"ipa":"kɪnd | kɪndɐ, kɪ-","tags":[]}]}],
+                ["Kind","ipa",{"reading":"other","transcriptions":[{"ipa":"nope","tags":[]}]}],
+                ["pass","ipa",{"reading":"pass","transcriptions":[{"ipa":"pass","tags":[]}]}],
+                ["谷歌","ipa",{"reading":"谷歌","transcriptions":[{"ipa":"ɡǔɡē","tags":[]}]}],
+                ["一心一意","ipa",{"reading":"一心一意","transcriptions":[{"ipa":"yīxīn, yīyì","tags":[]}]}]]"#,
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        let (status, _) = import_one_into(&mut connection, &words, Language::German);
+        assert_eq!(status, ImportStatus::Imported);
+        let (status, _) = import_one_into(&mut connection, &sounds, Language::German);
+        assert_eq!(status, ImportStatus::Imported);
+        let transcriptions = |connection: &Connection, query: &str, language| {
+            let sources = language_sources(connection, &SourcePolicy::default(), language).unwrap();
+            lookup_longest_start_in(connection, query, &sources, language, None, GLOSSARY_LIMITS)
+                .unwrap()
+                .groups
+                .into_iter()
+                .next()
+                .map(|group| group.transcriptions)
+        };
+        let some = |values: &[&str]| {
+            Some(
+                values
+                    .iter()
+                    .map(|value| value.to_string())
+                    .collect::<Vec<_>>(),
+            )
+        };
+        // Each once, without a form's ending or part, alternatives apart.
+        assert_eq!(
+            transcriptions(&connection, "Kind", Language::German),
+            some(&["kɪnt", "kɪnd", "kɪndɐ"])
+        );
+        // A deinflected word carries its dictionary form's.
+        assert_eq!(
+            transcriptions(&connection, "Kinder", Language::German),
+            some(&["kɪnt", "kɪnd", "kɪndɐ"])
+        );
+        // A pronunciation spelled as its word is still one.
+        assert_eq!(
+            transcriptions(&connection, "pass", Language::German),
+            some(&["pass"])
+        );
+        // Chinese pinyin repeating the reading adds nothing; a phrase's stays whole.
+        connection
+            .execute("UPDATE dictionaries SET language = 'zh'", [])
+            .unwrap();
+        assert_eq!(
+            transcriptions(&connection, "谷歌", Language::Chinese),
+            some(&[])
+        );
+        assert_eq!(
+            transcriptions(&connection, "一心一意", Language::Chinese),
+            some(&["yīxīn, yīyì"])
+        );
+        // Only the lookup language's dictionaries count, and only enabled ones.
+        connection
+            .execute(
+                "UPDATE dictionaries SET language = 'de' WHERE title = 'words.zip'",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            transcriptions(&connection, "Kind", Language::German),
+            some(&[])
+        );
+        connection
+            .execute(
+                "UPDATE dictionaries SET language = 'de', enabled = 0 WHERE title = 'sounds.zip'",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            transcriptions(&connection, "Kind", Language::German),
+            some(&[])
         );
     }
 

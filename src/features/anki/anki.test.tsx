@@ -124,6 +124,7 @@ describe("bounded field mappings and lookup context", () => {
       deinflection: null,
       terms,
       frequencies: [],
+      transcriptions: [],
       pitches: [],
     });
     expect(reads).toEqual([1, 1, 1, 1]);
@@ -198,6 +199,7 @@ describe("bounded field mappings and lookup context", () => {
           },
         ],
         frequencies: [{ dictionaryId: 2, dictionaryTitle: "Rank", data: 5 }],
+        transcriptions: ["jomɯ", "joːmɯ"],
         pitches: [
           {
             dictionaryId: 3,
@@ -220,6 +222,7 @@ describe("bounded field mappings and lookup context", () => {
       frequencyHarmonic: "5",
       frequencyAverage: "5",
       pitch: "Pitch: 1",
+      ipa: "jomɯ, joːmɯ",
       sentence: "昨日読んだ。",
       bookTitle: "Real book",
     });
@@ -325,6 +328,7 @@ it("gives FreqSort Yomitan's harmonic and average ranks", () => {
         glossary: ["read"],
       },
     ],
+    transcriptions: [],
     pitches: [],
   };
   const [card] = termCardSources({ ...group, frequencies });

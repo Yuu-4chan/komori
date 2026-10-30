@@ -30,7 +30,7 @@ mod tests;
 const MAX_RESPONSE: usize = 2 * 1024 * 1024;
 const FIELD_LIMIT: usize = 128 * 1024;
 const TOTAL_LIMIT: usize = 512 * 1024;
-const PLACEHOLDERS: [&str; 15] = [
+const PLACEHOLDERS: [&str; 16] = [
     "expression",
     "reading",
     "definition",
@@ -39,6 +39,7 @@ const PLACEHOLDERS: [&str; 15] = [
     "frequencyHarmonic",
     "frequencyAverage",
     "pitch",
+    "ipa",
     "sentence",
     "bookTitle",
     "expressionFurigana",

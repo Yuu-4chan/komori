@@ -123,6 +123,7 @@ function group(expression: string, reading: string, text: string, gloss: string)
       },
     ],
     frequencies: [],
+    transcriptions: [],
     pitches: [],
   };
 }
@@ -966,12 +967,14 @@ describe("Reader lookup popup", () => {
           dictionaryTitle: `Frequency ${rank}`,
           data: rank + index,
         })),
+        transcriptions: [],
         pitches: [
           {
             dictionaryId: 3,
             dictionaryTitle: "Pitch source",
             data: {
               reading: original.reading,
+              transcriptions: [],
               pitches: [{ position: 0 }, { position: 2, nasal: 1, devoice: 2, tags: ["noun"] }],
             },
           },
@@ -1043,12 +1046,14 @@ describe("Reader lookup popup", () => {
         {
           ...dokusho.groups[0],
           frequencies: [{ dictionaryId: 2, dictionaryTitle: "Frequency source", data: 12 }],
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 3,
               dictionaryTitle: "Pitch source",
               data: {
                 reading: dokusho.groups[0].reading,
+                transcriptions: [],
                 pitches: [{ position: 0 }],
               },
             },
@@ -1088,6 +1093,7 @@ describe("Reader lookup popup", () => {
       dictionaryTitle,
       data: {
         reading: "どくしょ",
+        transcriptions: [],
         pitches: [{ position: 0 }, { position: 2, nasal: 1, devoice: 2, tags: ["noun"] }],
       },
     }));
@@ -1638,6 +1644,7 @@ describe("Reader lookup popup", () => {
             { ...term, sequence: 3, glossary: ["perusal"] },
           ],
           frequencies: [{ dictionaryId: 3, dictionaryTitle: "Frequency source", data: 12 }],
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,

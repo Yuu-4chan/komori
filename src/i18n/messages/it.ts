@@ -683,6 +683,7 @@ export const it: MessageCatalog = {
   "ankiContent.frequencyHarmonic": "Frequenza (media armonica)",
   "ankiContent.frequencyAverage": "Frequenza (media)",
   "ankiContent.pitch": "Posizione dell’accento",
+  "ankiContent.ipa": "Pronuncia",
   "ankiContent.sentence": "Frase del lettore",
   "ankiContent.bookTitle": "Titolo del libro",
   "ankiContent.picture": "Copertina del libro",

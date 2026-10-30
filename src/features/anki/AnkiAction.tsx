@@ -159,6 +159,7 @@ export function termCardSources(group: TermGroup, reader?: ReaderCardContext): C
       frequencyHarmonic: frequencyHarmonic(group.frequencies),
       frequencyAverage: frequencyAverage(group.frequencies),
       pitch: pitches,
+      ipa: group.transcriptions.join(", "),
       sentence: reader?.sentence ?? "",
       bookTitle: reader?.bookTitle ?? "",
     },

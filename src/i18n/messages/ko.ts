@@ -610,6 +610,7 @@ export const ko: MessageCatalog = {
   "ankiContent.frequencyHarmonic": "빈도(조화 평균)",
   "ankiContent.frequencyAverage": "빈도(평균)",
   "ankiContent.pitch": "악센트 위치",
+  "ankiContent.ipa": "발음",
   "ankiContent.sentence": "뷰어의 문장",
   "ankiContent.bookTitle": "책 제목",
   "ankiContent.picture": "책 표지",

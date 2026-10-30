@@ -12,6 +12,7 @@ function group(expression: string, terms: TermMatch[]): TermGroup {
     deinflection: null,
     terms,
     frequencies: [],
+    transcriptions: [],
     pitches: [],
   };
 }
@@ -139,6 +140,23 @@ describe("Dictionary page readings", () => {
     expect(screen.getByRole("article", { name: "學校 (학교)" })).toHaveTextContent("학교");
     entry("walk", "wɔːk", "en");
     expect(screen.getByRole("article", { name: "walk" })).not.toHaveTextContent("wɔːk");
+  });
+
+  it("show pronunciations between slashes, and pinyin as it is", () => {
+    const entry = (expression: string, language: "de" | "zh", transcriptions: string[]) =>
+      render(
+        <DictionaryLookupEntry
+          group={{ ...good, expression, reading: expression, transcriptions }}
+          language={language}
+          onSearchTerm={() => {}}
+          showDictionaryNames={false}
+        />,
+      );
+    entry("Kind", "de", ["kɪnt", "[kɪnd]"]);
+    expect(screen.getByRole("article", { name: "Kind" })).toHaveTextContent("/kɪnt/, [kɪnd]");
+    entry("好", "zh", ["hǎo"]);
+    expect(screen.getByRole("article", { name: "好" })).toHaveTextContent("hǎo");
+    expect(screen.getByRole("article", { name: "好" })).not.toHaveTextContent("/hǎo/");
   });
 });
 

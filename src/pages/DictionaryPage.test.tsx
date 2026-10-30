@@ -122,6 +122,7 @@ const result: GroupFixture = {
       data: { frequency: { displayValue: "7", value: 7 } },
     },
   ],
+  transcriptions: [],
   pitches: [],
 };
 
@@ -210,6 +211,7 @@ describe("Dictionary page", () => {
       exact([
         {
           ...result,
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
@@ -891,6 +893,7 @@ describe("Dictionary page", () => {
       exact([
         {
           ...result,
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
@@ -1007,6 +1010,7 @@ describe("Dictionary page", () => {
         {
           ...result,
           reading: "きょう",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
@@ -1019,6 +1023,7 @@ describe("Dictionary page", () => {
           ...result,
           expression: "今日",
           reading: "今日",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 5,
@@ -1054,12 +1059,14 @@ describe("Dictionary page", () => {
         {
           ...result,
           reading: "きがく",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
               dictionaryTitle: "Marked A",
               data: {
                 reading: "きがく",
+                transcriptions: [],
                 pitches: [{ position: 1, devoice: [1, 1, 0, 4, 1.5, "2"], nasal: 2 }],
               },
             },
@@ -1084,6 +1091,7 @@ describe("Dictionary page", () => {
           ...result,
           expression: "今日",
           reading: "今日",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 8,
@@ -1138,12 +1146,14 @@ describe("Dictionary page", () => {
         {
           ...result,
           reading: "きがく",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
               dictionaryTitle: "Tagged A",
               data: {
                 reading: "きがく",
+                transcriptions: [],
                 pitches: [
                   { position: 1, tags: [" n ", "vs", "n", "", "  ", 3, null, {}] },
                   { position: 2, tags: "n" },
@@ -1171,6 +1181,7 @@ describe("Dictionary page", () => {
           ...result,
           expression: "今日",
           reading: "今日",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 8,
@@ -1222,6 +1233,7 @@ describe("Dictionary page", () => {
       exact([
         {
           ...result,
+          transcriptions: [],
           pitches: [
             { dictionaryId: 4, dictionaryTitle: "Unsupported", data: null },
             {
@@ -1366,6 +1378,7 @@ describe("Dictionary page", () => {
         reading: "look up",
         deinflection: { form: "look up", inflections: ["past", "interposed object"] },
         terms: [{ ...result.terms[0], rules: "v_phr", glossary: ["to search for"] }],
+        transcriptions: [],
         pitches: [
           {
             dictionaryId: 4,
@@ -1974,6 +1987,7 @@ describe("Dictionary page", () => {
           deinflection: null,
           terms: [another],
           frequencies: [],
+          transcriptions: [],
           pitches: [],
         },
       ]),

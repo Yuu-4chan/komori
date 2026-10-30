@@ -28,3 +28,12 @@ export const spacesWords = (language: LookupLanguage) => language !== "ja" && la
  * Chinese, Hangul for a Korean word in hanja. Japanese shows its reading as furigana instead.
  */
 export const readsBeside = (language: LookupLanguage) => language === "zh" || language === "ko";
+
+/**
+ * A word's pronunciations as an entry shows them: between slashes, except Chinese, whose
+ * `ipa` metadata is pinyin.
+ */
+export const transcriptionText = (language: LookupLanguage, transcriptions: string[]) =>
+  transcriptions
+    .map((text) => (language === "zh" || /^[/[]/.test(text) ? text : `/${text}/`))
+    .join(", ");

@@ -665,6 +665,7 @@ export const en = {
   "ankiContent.frequencyHarmonic": "Frequency (harmonic mean)",
   "ankiContent.frequencyAverage": "Frequency (average)",
   "ankiContent.pitch": "Pitch position",
+  "ankiContent.ipa": "Pronunciation",
   "ankiContent.sentence": "Reader sentence",
   "ankiContent.bookTitle": "Book title",
   "ankiContent.picture": "Book cover",
