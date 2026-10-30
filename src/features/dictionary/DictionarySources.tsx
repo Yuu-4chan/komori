@@ -59,11 +59,14 @@ type ListState =
 
 /** One lookup language's imported dictionaries in lookup order, moved by their handle or
  * Alt+Arrow keys or to another language, with native import into the language shown and
- * confirmed single/bulk removal. It first shows `lookupLanguage`'s. */
+ * confirmed single/bulk removal. It first shows `lookupLanguage`'s, and choosing another
+ * language chooses the lookup language through `onLookupLanguageChange`. */
 export function DictionarySources({
   lookupLanguage = defaultLookupLanguage,
+  onLookupLanguageChange,
 }: {
   lookupLanguage?: LookupLanguage;
+  onLookupLanguageChange?: (language: LookupLanguage) => void;
 }) {
   const operation = useBulkOperation("dictionaries");
   const starter = useStarterDictionaries();
@@ -379,6 +382,7 @@ export function DictionarySources({
                 setNotice(null);
                 setChangeError(null);
                 setLanguage(value);
+                onLookupLanguageChange?.(value);
               }}
             />
           </div>

@@ -1449,7 +1449,8 @@ publisher colors, use a soft yellow note highlight.
 
 The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko`, `zh`, `de` or `ru`, default `ja`; anything else is dropped, so
 older records read as Japanese) is the language every lookup reads text in. Settings > Reader
-popup's Scanning and results card chooses it as Lookup language, first in the card; the Reader popup, its
+popup's Scanning and results card chooses it as Lookup language, first in the card, and so does the same select
+on Settings > Dictionary, which lists that language's dictionaries; the Reader popup, its
 child popups, the Dictionary page, Anki and word audio follow it at once. The frontend sends
 `language` to `lookup_terms` and `lookup_kanji` only when it is not Japanese, and native code
 reads it as `Language` (`src-tauri/src/dictionary/language.rs`), Japanese when absent.

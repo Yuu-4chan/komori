@@ -96,7 +96,7 @@ const movedSections: Record<string, SectionId> = {
 export function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t, rich } = useI18n();
-  const { lookupLanguage } = useAppearance();
+  const { lookupLanguage, setLookupLanguage } = useAppearance();
   const requested = searchParams.get("section") ?? "";
   const activeSection =
     sections.find(({ id }) => id === (movedSections[requested] ?? requested)) ?? sections[0];
@@ -213,7 +213,10 @@ export function SettingsPage() {
                   ),
                 })}
               </p>
-              <DictionarySources lookupLanguage={lookupLanguage} />
+              <DictionarySources
+                lookupLanguage={lookupLanguage}
+                onLookupLanguageChange={setLookupLanguage}
+              />
               <WordAudioSettings />
             </>
           )}
