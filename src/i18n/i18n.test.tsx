@@ -191,7 +191,6 @@ describe("interface language catalogs", () => {
       "reader.escapeAgain",
       "library.removeDescription",
       "library.bulkDescription_other",
-      "popupSettings.lookupLanguageHint",
     ];
     for (const language of interfaceLanguages) {
       const catalog = catalogs[language] as Record<string, string>;

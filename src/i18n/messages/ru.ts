@@ -686,7 +686,7 @@ export const ru: MessageCatalog = {
   "ankiSettings.requestTag": "Метка: {tag}",
   "ankiSettings.checkOutcome": "Проверить результат для {expression}",
   "ankiContent.expression": "Выражение",
-  "ankiContent.reading": "Чтение (кана)",
+  "ankiContent.reading": "Чтение",
   "ankiContent.expressionFurigana": "Выражение с фуриганой",
   "ankiContent.definition": "Основное определение (первый источник)",
   "ankiContent.glossary": "Глоссарий (все определения)",
@@ -722,7 +722,7 @@ export const ru: MessageCatalog = {
   "popupSettings.mouseShiftRight": "Правый щелчок + модификатор",
   "popupSettings.mouseMiddle": "Средний щелчок",
   "popupSettings.positionBeside": "Рядом со словом",
-  "popupSettings.positionAbove": "Над словом (фуригана)",
+  "popupSettings.positionAbove": "Над словом",
   "popupSettings.closeEscapeOutside": "Esc или щелчок снаружи",
   "popupSettings.closeOutside": "Только щелчок снаружи",
   "popupSettings.closePersistent": "Остаётся до следующего поиска",
@@ -759,19 +759,19 @@ export const ru: MessageCatalog = {
   "popupSettings.radiusHint": "0 px делает углы окна прямыми.",
   "popupSettings.readingPosition": "Положение чтения",
   "popupSettings.readingPositionHint":
-    "Показывать чтение каждого заголовочного слова рядом с ним или над его кандзи как фуригану.",
+    "Показывать чтение каждого заголовочного слова рядом с ним или над ним.",
   "popupSettings.style": "Стиль окна",
   "popupSettings.style.standard": "Стандартный",
   "popupSettings.style.dictionary": "Словарь",
   "popupSettings.styleHint.standard":
     "Стандартный стиль показывает каждую статью полностью: с озвучкой, ударением, частотностью и действиями Anki.",
   "popupSettings.styleHint.dictionary":
-    "Стиль «Словарь» показывает только заголовочные слова с фуриганой и определениями — для быстрого поиска без озвучки, ударения, частотности и Anki.",
+    "Словарь показывает только заголовочное слово с чтением и определениями — для быстрого поиска без голоса, ударения, частотности и Anki.",
   "popupSettings.font": "Шрифт",
   "popupSettings.fontHint":
     "Шрифт заголовочных слов, чтений и определений в окне. Zen Old Mincho входит в Komori.",
   "popupSettings.readingPositionDictionary":
-    "Стиль «Словарь» всегда показывает чтения над кандзи как фуригану.",
+    "Стиль «Словарь» всегда показывает чтения над словами.",
   "popupSettings.title": "Всплывающее окно поиска в режиме чтения",
   "popupSettings.description": "Показывать результаты словаря, не покидая книгу.",
   "popupSettings.enable": "Включить всплывающее окно",
@@ -813,8 +813,6 @@ export const ru: MessageCatalog = {
   "popupSettings.scanningDescription":
     "Выберите, сколько текста читает сканирование и сколько результатов и окон появляется.",
   "popupSettings.lookupLanguage": "Язык поиска",
-  "popupSettings.lookupLanguageHint":
-    "Всплывающее окно и словарь распознают формы слов и используют словари этого языка.",
   "lookupLanguage.ja": "Японский",
   "lookupLanguage.en": "Английский",
   "lookupLanguage.fr": "Французский",
@@ -979,7 +977,19 @@ export const ru: MessageCatalog = {
   "starter.jitenName": "Частотность Jiten",
   "starter.jitenDescription":
     "Частотные ранги слов из японских медиа. Для определений добавьте словарь терминов.",
-  "starter.title": "Начните с японских словарей",
+  "starter.definitions": "Язык определений",
+  "starter.wiktionary": "Wiktionary",
+  "starter.wiktionaryDescription": "Язык слов: {language}. Язык определений: {definitions}.",
+  "starter.wiktionaryIpa": "Произношение из Wiktionary",
+  "starter.wiktionaryIpaDescription": "Произношение в МФА. Язык: {language}.",
+  "wordAudio.commons": "Wikimedia Commons",
+  "ankiSettings.newDeck": "Новая колода",
+  "ankiSettings.newDeckHint": "Создаёт в Anki колоду с типом записей Lapis.",
+  "ankiSettings.newDeckEllipsis": "Новая колода…",
+  "ankiSettings.newDeckName": "Название колоды",
+  "ankiSettings.newDeckCreate": "Создать колоду",
+  "ankiSettings.newDeckReady": "Колода «{deck}» готова.",
+  "starter.title": "Начните со словаря",
   "starter.description":
     "У Jitendex и JMdict много общих определений; для начала достаточно одного.",
   "starter.loading": "Загрузка начальных словарей…",
@@ -1762,7 +1772,7 @@ export const ru: MessageCatalog = {
   "viewport.startingWait": "Подождите, пока запустится режим чтения.",
   "viewport.tryLater": "Вернитесь в библиотеку и попробуйте позже.",
   "popup.label": "Поиск: {query}",
-  "popup.initial": "Введите слово или кандзи, чтобы проверить импортированные словари.",
+  "popup.initial": "Введите слово, чтобы проверить импортированные словари.",
   "popup.previewFailed": "Не удалось выполнить поиск. Откройте настройки снова, чтобы повторить.",
   "popup.failed": "Не удалось выполнить поиск. Выделите текст снова, чтобы повторить.",
   "popup.noMatches":

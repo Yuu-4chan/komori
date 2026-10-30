@@ -165,7 +165,7 @@ it("keeps category navigation, handoffs and history in sync without losing prefe
   );
 });
 
-it("saves the lookup language chosen on the Dictionary category for every other category", async () => {
+it("saves the lookup language chosen on the Dictionary category and keeps it across categories", async () => {
   const user = userEvent.setup();
   const save = vi.fn(async () => {});
   render(
@@ -186,6 +186,7 @@ it("saves the lookup language chosen on the Dictionary category for every other 
   await user.click(within(nav).getByRole("button", { name: "General" }));
   await user.click(within(nav).getByRole("button", { name: "Dictionary" }));
   expect(language()).toHaveValue("ko");
+  // Only this category chooses it.
   await user.click(within(nav).getByRole("button", { name: "Reader popup" }));
-  expect(language()).toHaveValue("ko");
+  expect(screen.queryByRole("combobox", { name: "Lookup language" })).toBeNull();
 });

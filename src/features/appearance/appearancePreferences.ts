@@ -181,6 +181,8 @@ export interface AppearancePreferences
   readerPopupFont: ReaderFontChoice;
   /** The language lookups deinflect and choose dictionaries for. */
   lookupLanguage: LookupLanguage;
+  /** The language of the starter dictionaries offered; empty follows the interface language. */
+  starterDefinitions: LookupLanguage | "";
   /** The language of Komori's own interface; books and dictionaries keep theirs. */
   interfaceLanguage: InterfaceLanguage;
   /** The window and tray icon; the executable keeps the default. */
@@ -297,6 +299,7 @@ export const defaultAppearance: AppearancePreferences = {
   readerPopupStyle: "standard",
   readerPopupFont: defaultPopupFont,
   lookupLanguage: defaultLookupLanguage,
+  starterDefinitions: "",
   interfaceLanguage: defaultInterfaceLanguage,
   appIcon: defaultAppIcon,
   theme: defaultAppTheme,
@@ -394,6 +397,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     readerPopupStyle,
     readerPopupFont,
     lookupLanguage,
+    starterDefinitions,
     interfaceLanguage,
     appIcon,
     theme,
@@ -505,6 +509,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(isLookupPopupStyle(readerPopupStyle) && { readerPopupStyle }),
     ...(isReaderFontChoice(readerPopupFont) && { readerPopupFont }),
     ...(isLookupLanguage(lookupLanguage) && { lookupLanguage }),
+    ...(isLookupLanguage(starterDefinitions) && { starterDefinitions }),
     ...(isInterfaceLanguage(interfaceLanguage) && { interfaceLanguage }),
     ...(isAppIcon(appIcon) && { appIcon }),
     ...(isAppTheme(theme) && { theme }),

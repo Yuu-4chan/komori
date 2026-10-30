@@ -188,6 +188,8 @@ interface AppearanceContextValue
   /** The language lookups deinflect and choose dictionaries for, in the popup and the Dictionary. */
   lookupLanguage: LookupLanguage;
   setLookupLanguage: (language: LookupLanguage) => void;
+  starterDefinitions: LookupLanguage | "";
+  setStarterDefinitions: (language: LookupLanguage) => void;
   /** The language of Komori's interface, applied at once without reloading anything. */
   interfaceLanguage: InterfaceLanguage;
   /** Chooses an interface language; anything else is ignored. */
@@ -448,6 +450,7 @@ export function AppearanceProvider({
     readerPopupStyle,
     readerPopupFont,
     lookupLanguage,
+    starterDefinitions,
     interfaceLanguage,
     appIcon,
     theme,
@@ -625,6 +628,10 @@ export function AppearanceProvider({
       lookupLanguage,
       setLookupLanguage: (language: LookupLanguage) => {
         if (isLookupLanguage(language)) update({ lookupLanguage: language });
+      },
+      starterDefinitions,
+      setStarterDefinitions: (language: LookupLanguage) => {
+        if (isLookupLanguage(language)) update({ starterDefinitions: language });
       },
       interfaceLanguage,
       setInterfaceLanguage: (language: InterfaceLanguage) => {
@@ -877,6 +884,7 @@ export function AppearanceProvider({
       readerPopupStyle,
       readerPopupFont,
       lookupLanguage,
+      starterDefinitions,
       interfaceLanguage,
       appIcon,
       accentColor,

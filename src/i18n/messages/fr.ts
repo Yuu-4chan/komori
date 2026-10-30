@@ -679,7 +679,7 @@ export const fr: MessageCatalog = {
   "ankiSettings.requestTag": "Étiquette : {tag}",
   "ankiSettings.checkOutcome": "Vérifier le résultat pour {expression}",
   "ankiContent.expression": "Expression",
-  "ankiContent.reading": "Lecture (kana)",
+  "ankiContent.reading": "Lecture",
   "ankiContent.expressionFurigana": "Expression avec furigana",
   "ankiContent.definition": "Définition principale (première source)",
   "ankiContent.glossary": "Glossaire (toutes les définitions)",
@@ -715,7 +715,7 @@ export const fr: MessageCatalog = {
   "popupSettings.mouseShiftRight": "Clic droit + modificateur",
   "popupSettings.mouseMiddle": "Clic du milieu",
   "popupSettings.positionBeside": "À côté du mot",
-  "popupSettings.positionAbove": "Au-dessus du mot (furigana)",
+  "popupSettings.positionAbove": "Au-dessus du mot",
   "popupSettings.closeEscapeOutside": "Échap ou clic à l’extérieur",
   "popupSettings.closeOutside": "Clic à l’extérieur uniquement",
   "popupSettings.closePersistent": "Reste ouvert jusqu’à la recherche suivante",
@@ -752,19 +752,19 @@ export const fr: MessageCatalog = {
   "popupSettings.radiusHint": "0 px donne au popup des coins carrés.",
   "popupSettings.readingPosition": "Position de la lecture",
   "popupSettings.readingPositionHint":
-    "Afficher la lecture de chaque entrée à côté d’elle, ou au-dessus de ses kanji en furigana.",
+    "Afficher la lecture de chaque entrée à côté d’elle ou au-dessus.",
   "popupSettings.style": "Style du popup",
   "popupSettings.style.standard": "Standard",
   "popupSettings.style.dictionary": "Dictionnaire",
   "popupSettings.styleHint.standard":
     "Standard affiche chaque entrée en entier, avec la voix, l’accent, la fréquence et les actions Anki.",
   "popupSettings.styleHint.dictionary":
-    "Dictionnaire n’affiche que chaque entrée avec ses furigana et ses définitions, pour des recherches rapides sans voix, accent, fréquence ni Anki.",
+    "Dictionnaire n’affiche que chaque entrée avec sa lecture et ses définitions, pour des recherches rapides sans voix, accent, fréquence ni Anki.",
   "popupSettings.font": "Police",
   "popupSettings.fontHint":
     "La police des entrées, lectures et définitions du popup. Zen Old Mincho est fourni avec Komori.",
   "popupSettings.readingPositionDictionary":
-    "Le style Dictionnaire affiche toujours les lectures au-dessus des kanji en furigana.",
+    "Le style Dictionnaire affiche toujours les lectures au-dessus de leurs mots.",
   "popupSettings.title": "Popup de recherche du lecteur",
   "popupSettings.description": "Affichez les résultats du dictionnaire sans quitter le livre.",
   "popupSettings.enable": "Activer le popup du lecteur",
@@ -810,8 +810,6 @@ export const fr: MessageCatalog = {
   "popupSettings.scanningDescription":
     "Choisissez la quantité de texte analysée et le nombre de résultats et de popups affichés.",
   "popupSettings.lookupLanguage": "Langue de recherche",
-  "popupSettings.lookupLanguageHint":
-    "Le popup et le Dictionnaire reconnaissent les formes fléchies et utilisent les dictionnaires de cette langue.",
   "lookupLanguage.ja": "Japonais",
   "lookupLanguage.en": "Anglais",
   "lookupLanguage.fr": "Français",
@@ -963,7 +961,19 @@ export const fr: MessageCatalog = {
   "starter.jitenName": "Fréquence Jiten",
   "starter.jitenDescription":
     "Rangs de fréquence des mots dans les médias japonais. Ajoutez un dictionnaire de termes pour les définitions.",
-  "starter.title": "Commencer avec des dictionnaires japonais",
+  "starter.definitions": "Définitions en",
+  "starter.wiktionary": "Wiktionary",
+  "starter.wiktionaryDescription": "Mots en {language} avec des définitions en {definitions}.",
+  "starter.wiktionaryIpa": "Prononciation de Wiktionary",
+  "starter.wiktionaryIpaDescription": "Prononciation en {language} en API.",
+  "wordAudio.commons": "Wikimedia Commons",
+  "ankiSettings.newDeck": "Nouveau paquet",
+  "ankiSettings.newDeckHint": "Crée dans Anki un paquet qui utilise le type de note Lapis.",
+  "ankiSettings.newDeckEllipsis": "Nouveau paquet…",
+  "ankiSettings.newDeckName": "Nom du paquet",
+  "ankiSettings.newDeckCreate": "Créer le paquet",
+  "ankiSettings.newDeckReady": "{deck} est prêt.",
+  "starter.title": "Commencer avec un dictionnaire",
   "starter.description":
     "Jitendex et JMdict partagent de nombreuses définitions ; un seul suffit pour commencer.",
   "starter.loading": "Chargement des dictionnaires de départ…",
@@ -1744,7 +1754,7 @@ export const fr: MessageCatalog = {
   "viewport.startingWait": "Patientez pendant le démarrage du lecteur.",
   "viewport.tryLater": "Retournez à votre bibliothèque et réessayez plus tard.",
   "popup.label": "Recherche : {query}",
-  "popup.initial": "Saisissez un mot ou un kanji pour essayer vos dictionnaires importés.",
+  "popup.initial": "Saisissez un mot pour essayer vos dictionnaires importés.",
   "popup.previewFailed": "La recherche n’a pas pu aboutir. Rouvrez les réglages pour réessayer.",
   "popup.failed":
     "La recherche n’a pas pu aboutir. Sélectionnez de nouveau le texte pour réessayer.",

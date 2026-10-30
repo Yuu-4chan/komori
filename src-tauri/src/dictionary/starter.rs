@@ -17,18 +17,25 @@ use super::{
 
 const MAX_DOWNLOAD: u64 = 128 * 1024 * 1024;
 const MAX_EXPANDED: u64 = 2 * 1024 * 1024 * 1024;
+/// The largest saved status: one small record per source.
+const MAX_JOURNAL: u64 = 64 * 1024;
 const EVENT: &str = "starter-dictionaries-changed";
 const FAILURE: &str =
     "Could not download or verify this dictionary. Check your connection and try again.";
 
 struct Source {
     id: &'static str,
+    /// The lookup language it serves, and the language of its definitions when that matters.
+    language: &'static str,
+    definitions: Option<&'static str>,
     name: &'static str,
     description: &'static str,
     attribution: &'static str,
     page: &'static str,
     url: &'static str,
     asset_repository: Option<&'static str>,
+    /// Hugging Face answers from its CDN.
+    hugging_face: bool,
     hash: Option<&'static str>,
     title_prefix: &'static str,
     /// The bank a genuine archive of this source must contain.
@@ -37,50 +44,183 @@ struct Source {
 
 // Explicit snapshots: downloads never update an existing imported revision automatically.
 // New sources are appended: each saved download status is stored by its position here.
-const SOURCES: [Source; 5] = [
+/// One pinned commit of the wty release, so each download's hash holds.
+macro_rules! wty_url {
+    ($language:literal, $definitions:literal, $suffix:literal) => {
+        concat!(
+            "https://huggingface.co/datasets/daxida/wty-release/resolve/de7ed9cd558acce3423ccf6e17dc690f8a839bf2/latest/dict/",
+            $language, "/", $definitions, "/wty-", $language, "-", $definitions, $suffix, ".zip"
+        )
+    };
+}
+macro_rules! wiktionary {
+    ($language:literal, $definitions:literal, $hash:literal) => {
+        Source {
+            id: concat!("wty-", $language, "-", $definitions),
+            language: $language,
+            definitions: Some($definitions),
+            name: "Wiktionary",
+            description: "Words with definitions from Wiktionary.",
+            attribution: WIKTIONARY_CREDIT,
+            page: WIKTIONARY_PAGE,
+            url: wty_url!($language, $definitions, ""),
+            asset_repository: None,
+            hugging_face: true,
+            hash: Some($hash),
+            title_prefix: concat!("wty-", $language, "-", $definitions),
+            bank: BankKind::Term,
+        }
+    };
+}
+macro_rules! wiktionary_ipa {
+    ($language:literal, $definitions:literal, $hash:literal) => {
+        Source {
+            id: concat!("wty-", $language, "-", $definitions, "-ipa"),
+            language: $language,
+            definitions: Some($definitions),
+            name: "Wiktionary pronunciation",
+            description: "Pronunciations in IPA from Wiktionary.",
+            attribution: WIKTIONARY_CREDIT,
+            page: WIKTIONARY_PAGE,
+            url: wty_url!($language, $definitions, "-ipa"),
+            asset_repository: None,
+            hugging_face: true,
+            hash: Some($hash),
+            title_prefix: concat!("wty-", $language, "-", $definitions, "-ipa"),
+            bank: BankKind::TermMeta,
+        }
+    };
+}
+const WIKTIONARY_CREDIT: &str = "Wiktionary contributors, through Kaikki.org; package by wty.";
+const WIKTIONARY_PAGE: &str = "https://github.com/yomidevs/wiktionary-to-yomitan";
+
+static SOURCES: &[Source] = &[
     Source {
-        id: "jitendex", name: "Jitendex", description: "Japanese–English definitions with examples and usage notes.",
+        id: "jitendex", language: "ja", definitions: Some("en"), name: "Jitendex", description: "Japanese–English definitions with examples and usage notes.",
         attribution: "Stephen Kraus; JMdict by EDRDG, examples by Tatoeba (CC BY 2.0 FR), furigana by JmdictFurigana.",
         page: "https://jitendex.org/pages/legal.html",
         url: "https://github.com/stephenmk/stephenmk.github.io/releases/download/2026.10.03.0/jitendex-yomitan.zip",
-        asset_repository: Some("744330420"),
+        asset_repository: Some("744330420"), hugging_face: false,
         hash: Some("e914c76596220dffc6ee0c069cd05992f03adb2988c12c3cebe817a3ac271356"),
         title_prefix: "Jitendex", bank: BankKind::Term,
     },
     Source {
-        id: "jmdict", name: "JMdict", description: "Japanese–English definitions without examples.",
-        attribution: "Electronic Dictionary Research and Development Group (EDRDG); Yomitan package by yomidevs.",
+        id: "jmdict", language: "ja", definitions: Some("en"), name: "JMdict", description: "Japanese–English definitions without examples.",
+        attribution: "Electronic Dictionary Research and Development Group (EDRDG); package by yomidevs.",
         page: "https://github.com/yomidevs/jmdict-yomitan#license",
         url: "https://github.com/yomidevs/jmdict-yomitan/releases/download/2026-10-04/JMdict_english.zip",
-        asset_repository: Some("696075636"),
+        asset_repository: Some("696075636"), hugging_face: false,
         hash: Some("a2053ac64d4bf1fd17f5d7a5d1cf2df5f7ebc4415da0d63ae04a724ef6c330dd"),
         title_prefix: "JMdict", bank: BankKind::Term,
     },
     Source {
-        id: "jiten", name: "Jiten frequency", description: "Global word frequency ranks from Japanese media. Add a term dictionary for definitions.",
+        id: "jiten", language: "ja", definitions: None, name: "Jiten frequency", description: "Global word frequency ranks from Japanese media. Add a term dictionary for definitions.",
         attribution: "Jiten — global Japanese media frequency list.",
         page: "https://jiten.moe/frequency-dictionaries",
         url: "https://api.jiten.moe/api/frequency-list/download?downloadType=yomitan",
-        asset_repository: None, hash: None, title_prefix: "Jiten", bank: BankKind::TermMeta,
+        asset_repository: None, hugging_face: false, hash: None, title_prefix: "Jiten", bank: BankKind::TermMeta,
     },
     Source {
-        id: "kanjidic", name: "KANJIDIC", description: "Kanji meanings, on and kun readings, stroke counts and grades.",
-        attribution: "Electronic Dictionary Research and Development Group (EDRDG); Yomitan package by yomidevs.",
+        id: "kanjidic", language: "ja", definitions: Some("en"), name: "KANJIDIC", description: "Kanji meanings, on and kun readings, stroke counts and grades.",
+        attribution: "Electronic Dictionary Research and Development Group (EDRDG); package by yomidevs.",
         page: "https://github.com/yomidevs/jmdict-yomitan#license",
         url: "https://github.com/yomidevs/jmdict-yomitan/releases/download/2026-10-04/KANJIDIC_english.zip",
-        asset_repository: Some("696075636"),
+        asset_repository: Some("696075636"), hugging_face: false,
         hash: Some("a657edea5035cb436366b5581f3e77d4c7dbc93e214048100cf441602d50e8a2"),
         title_prefix: "KANJIDIC", bank: BankKind::Kanji,
     },
     Source {
-        id: "jmnedict", name: "JMnedict", description: "Japanese proper names: people, places, companies and works.",
-        attribution: "Electronic Dictionary Research and Development Group (EDRDG); Yomitan package by yomidevs.",
+        id: "jmnedict", language: "ja", definitions: Some("en"), name: "JMnedict", description: "Japanese proper names: people, places, companies and works.",
+        attribution: "Electronic Dictionary Research and Development Group (EDRDG); package by yomidevs.",
         page: "https://github.com/yomidevs/jmdict-yomitan#license",
         url: "https://github.com/yomidevs/jmdict-yomitan/releases/download/2026-10-04/JMnedict.zip",
-        asset_repository: Some("696075636"),
+        asset_repository: Some("696075636"), hugging_face: false,
         hash: Some("09c9e4f7947beddf87924bcf36915c1f5bf8555c354246dd6b3057d3569b6f57"),
         title_prefix: "JMnedict", bank: BankKind::Term,
     },
+    wiktionary!("ja", "ja", "8affbadcec191512d3736b5e81a9ea63b02dcd93dc951eb7604edd7c64af2851"),
+    wiktionary!("ja", "fr", "34813c0e3eceb011a81b72c2b8abd64169198bf6723a12f44f8b60e52c08510b"),
+    wiktionary!("ja", "zh", "0aada48c9c25d5db860cb7acf56ec38bdcaae69628103b7ac1fcbd5ac83cb8c2"),
+    wiktionary!("en", "ja", "6d75a7aef3c33e0efff58c09671a298abf48b0efbe22b7bfb90a34486f0f72c2"),
+    wiktionary!("en", "en", "0e62d0d3d6bf68c3f65906b5940601a375392f45d89a50e5dcb5068e1961436f"),
+    wiktionary!("en", "fr", "4cffe210c66826d201ae7b8182064c4163b743f6e8f4401293dc1dfe3e02f382"),
+    wiktionary!("en", "pt", "e792e22c87658c8560f0f9791d0f57d5d32e41a58b5956fbad618c261a548bde"),
+    wiktionary!("en", "it", "f6703151e78df23ecc55984b9f7b344a91b0c5b2b0d9069f1df5438cb1d6cbfe"),
+    wiktionary!("en", "es", "593e68de7a6fad658e9395f426c6fee7350ed727188059c8332e465194b765cf"),
+    wiktionary!("en", "ko", "dace97a57d5c09518fb6d9805cdc32883722990f7eef0b153e3a45272c9d5074"),
+    wiktionary!("en", "zh", "1533c163bd4a0513f37a9786d01da40e869830587d04f0bf19ee36abf0364778"),
+    wiktionary!("en", "de", "967e455817a21be4e8b634370a15af0001340a8e5e8e3e171b43977062562330"),
+    wiktionary!("en", "ru", "ee079b9826995a91e61b37649b1edec0d82447fa9512b2a5222d4a229d24fe36"),
+    wiktionary!("fr", "en", "7ce164c86d0ad613d55f1397766ca206e9898099125d13b7c14222b2a05bf8a7"),
+    wiktionary!("fr", "fr", "8911b8d22d8f886eb0f700cd202e429e78e77c9ef59bc0fcebaa9d18bb1330f3"),
+    wiktionary!("fr", "zh", "8883710b0b6155129ddf98018ca9bc42a7af907eec10fca768cf57234916825d"),
+    wiktionary!("fr", "ru", "9e5ae7f16908a28d21f698316108cceb745fb3edde5b02b30b063b77d11670a0"),
+    wiktionary!("pt", "en", "90c8e8fe98818163c21ea84ac4dbc8683395c8b696b312054744e5739bfe8ee8"),
+    wiktionary!("pt", "pt", "de2485bce47c0160147d07970740cb7beb7e8158bcc918baf86cc21cae3adc09"),
+    wiktionary!("pt", "zh", "2580fe2a7b1c8a6492ff2a5ddccf663db1284eb9ec51b91d3579e616e55af1dd"),
+    wiktionary!("it", "en", "f7d92e821cd87f759c381f232ca1ff83151f59062b80a5d89a1323d13cddef71"),
+    wiktionary!("it", "fr", "8504bef22f2a8bfec23622a7062b97ab89e35a6c414ee4a398ae8a495fd9ebfa"),
+    wiktionary!("it", "it", "2766fd5e778df97e4a2ef48357409743908a0d4ad946e0cf54763888f655fa1f"),
+    wiktionary!("it", "zh", "89357b6317d2eb0b6a980416e880319c27cdcc29ca3e6bccc6cc339c584d472c"),
+    wiktionary!("es", "en", "967f390f19509b46ef0fd1eeef19093c027c0f91242ca57d171a8ca5bfdd658d"),
+    wiktionary!("es", "fr", "2a05572efa427a5f08db0a235d2d2292c7049a64583c143c977db455dd6cecd8"),
+    wiktionary!("es", "es", "1b82fef5f73c72b87c36abeb2d99552d28ae04a0b9a1b2710d8a16ccb4f96276"),
+    wiktionary!("es", "zh", "69ed31617c258b8c014b7d0fe15d20844fd30d43ea615d9c19b4fa2e8aa28efa"),
+    wiktionary!("es", "ru", "b92703dc37db73f86bc84be20b679245b9ec66f6ce64c87ed51090cb512545c5"),
+    wiktionary!("ko", "ja", "72f118d818cad0b364463e4da36b125c6cc7f20c43e6469ad981f50c33cb1f32"),
+    wiktionary!("ko", "en", "2783441d710cbc0498d7f0c24fc28779d9bf107292b30da1d468700f0b0cfc73"),
+    wiktionary!("ko", "fr", "92001701d29a1ec1f3b6a15e26ce6ca392ce54b3a1bf2e9f92c56913ff017654"),
+    wiktionary!("ko", "ko", "e849ccf1271449d7aa911ef25299b7029a0aba7239933739c26f99f680e9e22c"),
+    wiktionary!("ko", "zh", "eb1c5635670befa09e6ec2f8f44cc3339d8066038b53d05aa040d00c36f3dc01"),
+    wiktionary!("zh", "ja", "0eb88ce4758ea5cface16832a1bd5770f2de2dea2bdda5df28682d83290ce960"),
+    wiktionary!("zh", "en", "f055265a63269980b2315ab18a3402684105fcff98a2a75385b5e50c3c7b576f"),
+    wiktionary!("zh", "fr", "e97688a67d27b22138526461a18930a62dce7451cbe57d19773bd58b493fbbaa"),
+    wiktionary!("de", "en", "a9af3cc38777c8ec77c5dccc85883745a0268b0a9577c5c5eded25aa9396079d"),
+    wiktionary!("de", "fr", "7e90b1196ac38db3ae8b67dd241ea7a7741d0600af1827991a8315148959e902"),
+    wiktionary!("de", "zh", "7baa17228b6c082899d33fb1b22bd3f54a0bd0609d71061272ea0c9209796096"),
+    wiktionary!("ru", "en", "3c46775512bddc27759d79a9870c0540c6592a4c6d70a44c4b7de5c85fbfc4fb"),
+    wiktionary!("ru", "fr", "b0a4850ce241365945c973a2513afb692aa5d9b29ea77234c36f442a594f149c"),
+    wiktionary!("ru", "zh", "9567659caf1875c88265da5c1723aa906c6d7c6ee3e63fb80398429a86fc2741"),
+    wiktionary!("ru", "ru", "f4b5de258377a7462aa87ce4e01024f5f43e25cf4ab318a290206789d62209b6"),
+    wiktionary_ipa!("en", "ja", "5d8cd690b265ba6675c62a79d84e328230344bafa67b75c8ba104671638a64d2"),
+    wiktionary_ipa!("en", "en", "88d23f6d8b68cadb62cd81135bb39212a44882e2daa40d65f8af6a35982ba930"),
+    wiktionary_ipa!("en", "fr", "4b4b5c3d18991f10ab38f2adbeca6cab16d4f3f96e8f56202e30865cb899077b"),
+    wiktionary_ipa!("en", "pt", "f5ee50d939b520faff3b12fbafd4a7faf8c5cc06dbb02c9b6c432d5422dc56f3"),
+    wiktionary_ipa!("en", "it", "2b84aeb99ae70a535e250d4738a11227f76e4b40e838406552c734f94e4dca0e"),
+    wiktionary_ipa!("en", "es", "0a26f6c35eba206f46ef2a5d313e13edb19a9fc2d600f9059c248e0a2c4124a4"),
+    wiktionary_ipa!("en", "ko", "2b3d0951d3d8660d45029e98603e5afdcac23f469217bfa358165d619e4f5766"),
+    wiktionary_ipa!("en", "zh", "3e2ab067b95528a467b102ee59325c9521bed6fc2dee4f8389e303dfeb7904e4"),
+    wiktionary_ipa!("en", "de", "a7c47302ea1759a1ca1e58f9df2f391da2d1d1f079c13c624f213e8f021c8560"),
+    wiktionary_ipa!("en", "ru", "334b05776113a5b1fcdb052268e77da20bc3d954e10ff4bd927836b917a8fc5b"),
+    wiktionary_ipa!("fr", "en", "502409627f0465d6c0b10aa65d4b99ccc9fad01b6d3e58cfb38e838ab9deafd9"),
+    wiktionary_ipa!("fr", "fr", "5ebd9c2f8ccec374426b23a68382c469d0add7c55880c18ed1ea033078c919a0"),
+    wiktionary_ipa!("fr", "zh", "6d9bc00be7282a18acff274ed1fb3d319b052907cac587cd2aad3fbfab84741d"),
+    wiktionary_ipa!("fr", "ru", "2a3fa3860ca33377652cf064b074d9a3aa5f34c6b9012a2ebf0272d5d8ef0a9b"),
+    wiktionary_ipa!("pt", "en", "52014c2a70d965e8bd04173ca5212b6b41fa51aa5e1dead0309f64b6086006d9"),
+    wiktionary_ipa!("pt", "pt", "25deba65e15596ac6f878f47c6f1077aad58cca9df0ec75d0eaf85e50a3f2068"),
+    wiktionary_ipa!("it", "en", "1b9f608de4bf3d621a3e1b588b9288628a29107a2c4ebdad4c5467fb18999c38"),
+    wiktionary_ipa!("it", "fr", "0bdbbdb2c857f7a8717c4856bea00736f8907b90de46e3d99a04b02d833e4f69"),
+    wiktionary_ipa!("it", "it", "118d76627c77016f8d0d84598ce7be954ccc1e8de254484c6099f67613ff9544"),
+    wiktionary_ipa!("it", "zh", "74736d013b179d841c2bb2e6bdeb62e95fb961744a88187e1b8dc98a052e84e7"),
+    wiktionary_ipa!("es", "en", "b5c988f317d756b6ca1ac1c3ad00b577a66a28b823e0dc41cdf52a4a16289671"),
+    wiktionary_ipa!("es", "fr", "7b36d59a673097fcd216e64065662313537313e0593516e17f91b73c83d730bf"),
+    wiktionary_ipa!("es", "es", "34757787c14774f9739b71fae549ea20d6a3fb737c6c11bac16567c1591631fd"),
+    wiktionary_ipa!("es", "zh", "1124c68c70b3140e5f355d5e52a515792327c163254846d4f1e0f635ac9dba1d"),
+    wiktionary_ipa!("es", "ru", "5fdb4793e0d9558f4cad3790b3dab125c94db16fd07f6f3eea8e97d8071c3efd"),
+    wiktionary_ipa!("ko", "ja", "605d726f53c3145b62b9f1d4490a8d13b0ac992e8855654c5a05f1649ad0486e"),
+    wiktionary_ipa!("ko", "en", "75697a063244b7a83470a3cbf875b570e03299fdbca0c4b0f583886fc0dfff3e"),
+    wiktionary_ipa!("ko", "ko", "3a1376da1e085dd4d5d27c5939641c5f76d1904e0e2d8658ee6b43b8346b0b4d"),
+    wiktionary_ipa!("ko", "zh", "dc8aeed9f711e21eb1e9b0d8fbba52bbde87e014a3621bbde0aeb056f87da4c8"),
+    wiktionary_ipa!("zh", "ja", "f2a5f50d621a3e69e78bfcda361c6375f77f08e40ba4016c581cfacc5bdbd6ec"),
+    wiktionary_ipa!("zh", "en", "9c999cf2647e6c9cca7980c1e6c0cf2ab5294a52cb50b9359f2d51f162e925c7"),
+    wiktionary_ipa!("zh", "fr", "2b7c7b882fe20d1739485de3383d5f453472ded4b0f702e3b5ba11d6ed55c031"),
+    wiktionary_ipa!("de", "en", "e0ff90dab5b89e35a8b64e101aa2a7f2d3a5f08684ce90c492d42a146de4d81b"),
+    wiktionary_ipa!("de", "fr", "99eff5a465fcec98c0c5c72aa7b73707440cda6c5bc799bccc05c1971da14a01"),
+    wiktionary_ipa!("de", "zh", "220059019bd1b7423337ecc2976632d41b0f57720e07af61a140d3be9be6c6bb"),
+    wiktionary_ipa!("ru", "en", "43fdf8473dec083a80f8510964585deb3f43b172054008c36dfd2ac10910bbeb"),
+    wiktionary_ipa!("ru", "fr", "0399a7de4745d75e9975dffbba2d786f8450e079251e395cbeb558a1e315dfbf"),
+    wiktionary_ipa!("ru", "zh", "5c41426b90718cd6073c540a3f6bbd57cdea8b3ed760957ef3b5b997ee637ce1"),
+    wiktionary_ipa!("ru", "ru", "e035f9e6df324bf3ae5e809a0c01546aa84c8b836ac797b33ae534222c42da5f"),
 ];
 
 fn source(id: &str) -> Result<&'static Source, String> {
@@ -142,6 +282,8 @@ impl Default for Journal {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Entry {
     id: &'static str,
+    language: &'static str,
+    definitions: Option<&'static str>,
     name: &'static str,
     description: &'static str,
     attribution: &'static str,
@@ -179,6 +321,8 @@ fn snapshot(inner: &Inner) -> Snapshot {
             .zip(&inner.journal.jobs)
             .map(|(s, job)| Entry {
                 id: s.id,
+                language: s.language,
+                definitions: s.definitions,
                 name: s.name,
                 description: s.description,
                 attribution: s.attribution,
@@ -259,10 +403,10 @@ fn initialize_at(root: PathBuf) -> Result<StarterState, String> {
         let mut bytes = Vec::new();
         File::open(path)
             .map_err(|_| "Could not read download status.")?
-            .take(4097)
+            .take(MAX_JOURNAL + 1)
             .read_to_end(&mut bytes)
             .map_err(|_| "Could not read download status.")?;
-        if bytes.len() > 4096 {
+        if bytes.len() as u64 > MAX_JOURNAL {
             Journal::default()
         } else {
             serde_json::from_slice::<Journal>(&bytes).unwrap_or_default()
@@ -494,9 +638,20 @@ fn verify(path: &Path, s: &Source) -> Result<(), String> {
     Ok(())
 }
 
-// GitHub releases may redirect once to their repository-specific signed asset path.
+// GitHub releases may redirect once to their repository-specific signed asset path, and Hugging
+// Face to its CDN; both downloads are checked against a pinned hash.
 // Jiten's published API endpoint has no redirect allowance.
 fn allowed_redirect(s: &Source, url: &str) -> bool {
+    if s.hugging_face {
+        return url
+            .strip_prefix("https://")
+            .and_then(|rest| rest.split_once('/'))
+            .is_some_and(|(host, _)| host.ends_with(".hf.co"))
+            && url.len() < 8192
+            && !url
+                .chars()
+                .any(|c| c.is_control() || c.is_whitespace() || "\\\"<>#".contains(c));
+    }
     let Some(repository) = s.asset_repository else {
         return false;
     };
@@ -617,7 +772,7 @@ fn fetch(s: &Source, file: &mut File, progress: Progress<'_>) -> Result<(), Stri
             let mut received = 0u64;
             let mut announced = 0u64;
             loop {
-                if started.elapsed().as_secs() > 180 {
+                if started.elapsed().as_secs() > 600 {
                     return Err(FAILURE.into());
                 }
                 let mut buffer = [0u8; 32768];
@@ -704,13 +859,60 @@ mod tests {
     }
 
     #[test]
+    fn every_lookup_language_has_a_pinned_wiktionary_dictionary_and_ids_are_unique() {
+        for language in ["ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru"] {
+            assert!(
+                SOURCES
+                    .iter()
+                    .any(|s| s.language == language && s.bank == BankKind::Term),
+                "{language}"
+            );
+        }
+        for (index, s) in SOURCES.iter().enumerate() {
+            assert!(
+                SOURCES[..index].iter().all(|other| other.id != s.id),
+                "{}",
+                s.id
+            );
+            if s.hugging_face {
+                assert_eq!(s.hash.map(str::len), Some(64), "{}", s.id);
+                assert!(s.url.ends_with(&format!("/{}.zip", s.id)), "{}", s.id);
+                assert_eq!(s.title_prefix, s.id);
+            }
+        }
+        // Every status fits what a restart reads back.
+        let journal = Journal::default();
+        assert!((serde_json::to_vec(&journal).unwrap().len() as u64) < MAX_JOURNAL);
+    }
+
+    #[test]
+    fn hugging_face_downloads_redirect_only_to_its_cdn() {
+        let s = source("wty-fr-en").unwrap();
+        assert!(allowed_redirect(
+            s,
+            "https://us.aws.cdn.hf.co/xet-bridge-us/1/2?X-Amz=3"
+        ));
+        assert!(allowed_redirect(
+            s,
+            "https://cas-bridge.xethub.hf.co/xet-bridge-us/1/2?X-Amz=3"
+        ));
+        for invalid in [
+            "http://us.aws.cdn.hf.co/a",
+            "https://hf.co.evil.example/a",
+            "https://evil.example/.hf.co/a",
+            "https://us.aws.cdn.hf.co/a#fragment",
+            "https://us.aws.cdn.hf.co/a\n",
+        ] {
+            assert!(!allowed_redirect(s, invalid), "{invalid}");
+        }
+    }
+
+    #[test]
     fn descriptions_never_name_yomitan_while_attribution_keeps_its_credit() {
         for source in SOURCES {
             assert!(!source.description.to_lowercase().contains("yomitan"));
         }
-        assert!(SOURCES[1]
-            .attribution
-            .contains("Yomitan package by yomidevs"));
+        assert!(SOURCES[1].attribution.contains("package by yomidevs"));
     }
 
     #[test]
@@ -934,7 +1136,7 @@ mod tests {
         let entries = snapshot(&state.inner.lock().unwrap()).entries;
         let phases: Vec<_> = entries.iter().map(|e| (e.id, e.job.phase)).collect();
         assert_eq!(
-            phases,
+            phases[..5],
             [
                 ("jitendex", Phase::Ready),
                 ("jmdict", Phase::Imported),
@@ -968,12 +1170,40 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "official network download; isolated store only"]
+    fn real_wiktionary_download() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = initialize_at(dir.path().join("stage")).unwrap();
+        let database = dir.path().join("dictionaries.sqlite3");
+        for id in ["wty-ko-en", "wty-ko-en-ipa"] {
+            let result = install(
+                &state.root,
+                source(id).unwrap(),
+                &database,
+                &Mutex::new(()),
+                &|_, _, _| {},
+                fetch,
+            );
+            assert_eq!(result.unwrap().0, Phase::Imported, "{id}");
+        }
+        let connection = store::open_store(&database).unwrap();
+        let languages: Vec<String> = connection
+            .prepare("SELECT language FROM dictionaries")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(languages, ["ko", "ko"]);
+    }
+
+    #[test]
     #[ignore = "official network downloads; isolated store only"]
     fn real_starter_downloads() {
         let dir = tempfile::tempdir().unwrap();
         let state = initialize_at(dir.path().join("stage")).unwrap();
         let database = dir.path().join("dictionaries.sqlite3");
-        for s in &SOURCES {
+        for s in SOURCES.iter().filter(|s| !s.hugging_face) {
             let result = install(
                 &state.root,
                 s,
@@ -989,7 +1219,10 @@ mod tests {
         let count: i64 = connection
             .query_row("SELECT count(*) FROM dictionaries", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(count, SOURCES.len() as i64);
+        assert_eq!(
+            count,
+            SOURCES.iter().filter(|s| !s.hugging_face).count() as i64
+        );
         assert!(
             connection
                 .query_row(

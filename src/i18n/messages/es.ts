@@ -679,7 +679,7 @@ export const es: MessageCatalog = {
   "ankiSettings.requestTag": "Etiqueta: {tag}",
   "ankiSettings.checkOutcome": "Comprobar el resultado de {expression}",
   "ankiContent.expression": "Expresión",
-  "ankiContent.reading": "Lectura (kana)",
+  "ankiContent.reading": "Lectura",
   "ankiContent.expressionFurigana": "Expresión con furigana",
   "ankiContent.definition": "Definición principal (primera fuente)",
   "ankiContent.glossary": "Glosario (todas las definiciones)",
@@ -715,7 +715,7 @@ export const es: MessageCatalog = {
   "popupSettings.mouseShiftRight": "Clic derecho + modificador",
   "popupSettings.mouseMiddle": "Clic central",
   "popupSettings.positionBeside": "Junto a la palabra",
-  "popupSettings.positionAbove": "Sobre la palabra (furigana)",
+  "popupSettings.positionAbove": "Sobre la palabra",
   "popupSettings.closeEscapeOutside": "Esc o clic fuera",
   "popupSettings.closeOutside": "Solo clic fuera",
   "popupSettings.closePersistent": "Permanece hasta la siguiente búsqueda",
@@ -752,20 +752,19 @@ export const es: MessageCatalog = {
   "popupSettings.radius": "Esquinas redondeadas",
   "popupSettings.radiusHint": "0 px da a la ventana emergente esquinas rectas.",
   "popupSettings.readingPosition": "Posición de la lectura",
-  "popupSettings.readingPositionHint":
-    "Mostrar la lectura de cada entrada a su lado, o sobre sus kanji como furigana.",
+  "popupSettings.readingPositionHint": "Mostrar la lectura de cada entrada a su lado o encima.",
   "popupSettings.style": "Estilo de la ventana emergente",
   "popupSettings.style.standard": "Estándar",
   "popupSettings.style.dictionary": "Diccionario",
   "popupSettings.styleHint.standard":
     "Estándar muestra cada entrada completa, con voz, acento, frecuencia y acciones de Anki.",
   "popupSettings.styleHint.dictionary":
-    "Diccionario muestra solo cada entrada con su furigana y sus definiciones, para búsquedas rápidas sin voz, acento, frecuencia ni Anki.",
+    "Diccionario muestra solo cada entrada con su lectura y sus definiciones, para búsquedas rápidas sin voz, tono, frecuencia ni Anki.",
   "popupSettings.font": "Fuente",
   "popupSettings.fontHint":
     "La fuente de las entradas, lecturas y definiciones de la ventana emergente. Zen Old Mincho viene con Komori.",
   "popupSettings.readingPositionDictionary":
-    "El estilo Diccionario siempre muestra las lecturas sobre sus kanji como furigana.",
+    "El estilo Diccionario siempre muestra las lecturas sobre sus palabras.",
   "popupSettings.title": "Ventana emergente de búsqueda del lector",
   "popupSettings.description": "Muestra los resultados del diccionario sin salir del libro.",
   "popupSettings.enable": "Activar la ventana emergente del lector",
@@ -811,8 +810,6 @@ export const es: MessageCatalog = {
   "popupSettings.scanningDescription":
     "Elige cuánto texto lee un análisis y cuántos resultados y ventanas emergentes aparecen.",
   "popupSettings.lookupLanguage": "Idioma de búsqueda",
-  "popupSettings.lookupLanguageHint":
-    "La ventana emergente y el Diccionario reconocen las formas flexionadas y usan los diccionarios de este idioma.",
   "lookupLanguage.ja": "Japonés",
   "lookupLanguage.en": "Inglés",
   "lookupLanguage.fr": "Francés",
@@ -959,7 +956,19 @@ export const es: MessageCatalog = {
   "starter.jitenName": "Frecuencia Jiten",
   "starter.jitenDescription":
     "Rangos de frecuencia de palabras en medios japoneses. Añade un diccionario de términos para las definiciones.",
-  "starter.title": "Empieza con diccionarios de japonés",
+  "starter.definitions": "Definiciones en",
+  "starter.wiktionary": "Wiktionary",
+  "starter.wiktionaryDescription": "Palabras en {language} con definiciones en {definitions}.",
+  "starter.wiktionaryIpa": "Pronunciación de Wiktionary",
+  "starter.wiktionaryIpaDescription": "Pronunciación de {language} en AFI.",
+  "wordAudio.commons": "Wikimedia Commons",
+  "ankiSettings.newDeck": "Nuevo mazo",
+  "ankiSettings.newDeckHint": "Crea en Anki un mazo que usa el tipo de nota Lapis.",
+  "ankiSettings.newDeckEllipsis": "Nuevo mazo…",
+  "ankiSettings.newDeckName": "Nombre del mazo",
+  "ankiSettings.newDeckCreate": "Crear mazo",
+  "ankiSettings.newDeckReady": "{deck} está listo.",
+  "starter.title": "Empieza con un diccionario",
   "starter.description":
     "Jitendex y JMdict comparten muchas definiciones; con uno basta para empezar.",
   "starter.loading": "Cargando los diccionarios iniciales…",
@@ -1733,7 +1742,7 @@ export const es: MessageCatalog = {
   "viewport.startingWait": "Espera mientras se inicia el lector.",
   "viewport.tryLater": "Vuelve a tu biblioteca e inténtalo más tarde.",
   "popup.label": "Búsqueda: {query}",
-  "popup.initial": "Introduce una palabra o un kanji para probar tus diccionarios importados.",
+  "popup.initial": "Introduce una palabra para probar tus diccionarios importados.",
   "popup.previewFailed":
     "No se pudo completar la búsqueda. Vuelve a abrir Ajustes para reintentarlo.",
   "popup.failed":

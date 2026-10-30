@@ -257,6 +257,8 @@ pub struct AppearancePreferences {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     lookup_language: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    starter_definitions: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_shortcut_preset: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_mouse_trigger: Option<String>,
@@ -622,6 +624,10 @@ impl AppearancePreferences {
                 .as_deref()
                 .is_none_or(|value| LOOKUP_LANGUAGES.contains(&value))
             && self
+                .starter_definitions
+                .as_deref()
+                .is_none_or(|value| LOOKUP_LANGUAGES.contains(&value))
+            && self
                 .reader_popup_shortcut_preset
                 .as_deref()
                 .is_none_or(|value| POPUP_SHORTCUTS.contains(&value))
@@ -802,6 +808,7 @@ impl AppearancePreferences {
             reader_popup_hover_lookup: flag("readerPopupHoverLookup"),
             reader_popup_cjk_only: flag("readerPopupCjkOnly"),
             lookup_language: choice("lookupLanguage", &LOOKUP_LANGUAGES),
+            starter_definitions: choice("starterDefinitions", &LOOKUP_LANGUAGES),
             reader_popup_shortcut_preset: choice("readerPopupShortcutPreset", &POPUP_SHORTCUTS),
             reader_popup_mouse_trigger: choice("readerPopupMouseTrigger", &POPUP_MOUSE_TRIGGERS),
             reader_popup_close_behavior: choice("readerPopupCloseBehavior", &POPUP_CLOSE_BEHAVIORS),
@@ -1524,6 +1531,7 @@ mod tests {
             reader_popup_hover_lookup: None,
             reader_popup_cjk_only: None,
             lookup_language: None,
+            starter_definitions: None,
             reader_popup_shortcut_preset: None,
             reader_popup_mouse_trigger: None,
             reader_popup_close_behavior: None,
@@ -3776,7 +3784,7 @@ mod tests {
         let version: i64 = migrated
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 7);
+        assert_eq!(version, 8);
         let books: i64 = migrated
             .query_row("SELECT count(*) FROM books", [], |row| row.get(0))
             .unwrap();

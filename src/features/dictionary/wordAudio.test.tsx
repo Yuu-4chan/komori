@@ -148,6 +148,8 @@ describe("Settings > Dictionary > Word audio", () => {
     const user = userEvent.setup();
     const saved = renderSettings();
     await screen.findByRole("list", { name: "Word audio sources" });
+    expect(rows()).toEqual(["JapanesePod101", "Wikimedia Commons"]);
+    await user.click(screen.getByRole("button", { name: "Remove Wikimedia Commons" }));
     expect(rows()).toEqual(["JapanesePod101"]);
     const add = screen.getByRole("button", { name: "Add" });
     expect(add).toBeDisabled();
@@ -183,17 +185,34 @@ describe("Settings > Dictionary > Word audio", () => {
     expect(screen.queryByRole("textbox", { name: "URL" })).toBeNull();
     await user.click(add);
     expect(rows()).toEqual(["http://localhost:5050/?term={term}", "JapanesePod101"]);
+    // So can a removed Wikimedia Commons.
+    await user.selectOptions(screen.getByRole("combobox", { name: "New source" }), "commons");
+    await user.click(add);
+    expect(rows()).toEqual([
+      "http://localhost:5050/?term={term}",
+      "JapanesePod101",
+      "Wikimedia Commons",
+    ]);
+    await waitFor(() =>
+      expect(saved.at(-1)?.wordAudioSources).toEqual([
+        listSource,
+        { kind: "jpod101" },
+        { kind: "commons" },
+      ]),
+    );
   });
 
-  it("offers JapanesePod101 only for Japanese lookups", async () => {
+  it("offers JapanesePod101 only for Japanese lookups, and Wikimedia Commons for any", async () => {
     renderSettings({ wordAudioSources: [], lookupLanguage: "en" });
     await screen.findByText("No sources.");
     const kinds = screen.getByRole("combobox", { name: "New source" });
     expect(Array.from((kinds as HTMLSelectElement).options, (option) => option.value)).toEqual([
+      "commons",
       "url",
       "list",
     ]);
-    expect(screen.getByRole("textbox", { name: "URL" })).toBeInTheDocument();
+    expect(kinds).toHaveValue("commons");
+    expect(screen.queryByRole("textbox", { name: "URL" })).toBeNull();
   });
 
   it("shows an empty list", async () => {

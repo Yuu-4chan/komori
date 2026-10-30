@@ -656,7 +656,7 @@ export const en = {
   "ankiSettings.requestTag": "Tag: {tag}",
   "ankiSettings.checkOutcome": "Check outcome for {expression}",
   "ankiContent.expression": "Expression",
-  "ankiContent.reading": "Reading (kana)",
+  "ankiContent.reading": "Reading",
   "ankiContent.expressionFurigana": "Expression with furigana",
   "ankiContent.definition": "Main definition (first source)",
   "ankiContent.glossary": "Glossary (all definitions)",
@@ -695,7 +695,7 @@ export const en = {
   "popupSettings.mouseShiftRight": "Right click + modifier",
   "popupSettings.mouseMiddle": "Middle click",
   "popupSettings.positionBeside": "Beside the word",
-  "popupSettings.positionAbove": "Above the word (furigana)",
+  "popupSettings.positionAbove": "Above the word",
   "popupSettings.closeEscapeOutside": "Esc or outside click",
   "popupSettings.closeOutside": "Outside click only",
   "popupSettings.closePersistent": "Persistent until next lookup",
@@ -730,20 +730,19 @@ export const en = {
   "popupSettings.radius": "Rounded corners",
   "popupSettings.radiusHint": "0 px gives the popup square corners.",
   "popupSettings.readingPosition": "Reading position",
-  "popupSettings.readingPositionHint":
-    "Show each headword's reading beside it, or above its kanji as furigana.",
+  "popupSettings.readingPositionHint": "Show each headword's reading beside it or above it.",
   "popupSettings.style": "Popup style",
   "popupSettings.style.standard": "Standard",
   "popupSettings.style.dictionary": "Dictionary",
   "popupSettings.styleHint.standard":
     "Standard shows each entry in full, with voice, pitch accent, frequency and Anki actions.",
   "popupSettings.styleHint.dictionary":
-    "Dictionary shows only each headword with its furigana and its definitions, for fast lookups without voice, pitch, frequency or Anki.",
+    "Dictionary shows only each headword with its reading and its definitions, for fast lookups without voice, pitch, frequency or Anki.",
   "popupSettings.font": "Font",
   "popupSettings.fontHint":
     "The font of the popup's headwords, readings and definitions. Zen Old Mincho comes with Komori.",
   "popupSettings.readingPositionDictionary":
-    "The Dictionary style always shows readings above their kanji as furigana.",
+    "The Dictionary style always shows readings above their words.",
   "popupSettings.title": "Reader lookup popup",
   "popupSettings.description": "Show dictionary results without leaving the book.",
   "popupSettings.enable": "Enable reader popup",
@@ -783,8 +782,6 @@ export const en = {
   "popupSettings.scanningDescription":
     "Choose how much text a scan reads and how many results and popups appear.",
   "popupSettings.lookupLanguage": "Lookup language",
-  "popupSettings.lookupLanguageHint":
-    "The popup and the Dictionary read words and choose dictionaries in this language.",
   "lookupLanguage.ja": "Japanese",
   "lookupLanguage.en": "English",
   "lookupLanguage.fr": "French",
@@ -924,7 +921,19 @@ export const en = {
   "starter.jitenName": "Jiten frequency",
   "starter.jitenDescription":
     "Global word frequency ranks from Japanese media. Add a term dictionary for definitions.",
-  "starter.title": "Start with Japanese dictionaries",
+  "starter.definitions": "Definitions in",
+  "starter.wiktionary": "Wiktionary",
+  "starter.wiktionaryDescription": "{language} words with definitions in {definitions}.",
+  "starter.wiktionaryIpa": "Wiktionary pronunciation",
+  "starter.wiktionaryIpaDescription": "{language} pronunciations in IPA.",
+  "wordAudio.commons": "Wikimedia Commons",
+  "ankiSettings.newDeck": "New deck",
+  "ankiSettings.newDeckHint": "Creates a deck in Anki that uses the Lapis note type.",
+  "ankiSettings.newDeckEllipsis": "New deck…",
+  "ankiSettings.newDeckName": "Deck name",
+  "ankiSettings.newDeckCreate": "Create deck",
+  "ankiSettings.newDeckReady": "{deck} is ready.",
+  "starter.title": "Start with a dictionary",
   "starter.description": "Jitendex and JMdict share many definitions; one is enough to begin.",
   "starter.loading": "Loading starter dictionaries…",
   "starter.loadFailed": "Starter dictionaries could not be loaded.",
@@ -1711,7 +1720,7 @@ export const en = {
 
   // Lookup popup
   "popup.label": "Lookup: {query}",
-  "popup.initial": "Enter a word or kanji to try your imported dictionaries.",
+  "popup.initial": "Enter a word to try your imported dictionaries.",
   "popup.previewFailed": "Lookup could not be completed. Open Settings again to retry.",
   "popup.failed": "Lookup could not be completed. Select the text again to retry.",
   "popup.noMatches": "No imported dictionary matches this text or the words it starts with.",

@@ -128,7 +128,7 @@ and tag marks. Until an installed dictionary can supply definitions, this page a
 lookup popup (and its Settings preview) offer Get dictionaries, linking to Settings; the
 Dictionary page says it has no dictionaries only in that offer.
 
-The lookup language, Japanese by default, English, French, Portuguese, Italian, Spanish, Korean, Chinese, German or Russian (Settings > Reader popup > Scanning and results), decides
+The lookup language, Japanese by default, English, French, Portuguese, Italian, Spanish, Korean, Chinese, German or Russian (Settings > Dictionary), decides
 how the popup and the Dictionary read words. English lookups start at the word under the pointer
 and read on across spaces, so phrasal verbs match (looked it up → look up); capitalized words and
 ’ apostrophes match their entries; inflections are named (past, plural, -ing); only English's dictionaries are
@@ -174,16 +174,16 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   four), Lookup appearance (Application, Classic, Paper, Night and Custom palettes,
   width, height, font size, font, line height, corners, reading position), the real
   preview of 読む, Dictionary cards (Term, Frequency, Pitch sources), Lookup triggers and
-  Scanning and results (starting with the lookup language).
+  Scanning and results.
 - **Dictionary.** One lookup language's dictionaries at a time (a Lookup language row picks
   which; each dictionary belongs to one language, the one it was added to unless it declares
-  another, and existing ones are Japanese). Add dictionaries (and, for Japanese when empty, starter downloads of five curated open dictionaries: two Japanese–English dictionaries, a word frequency list, a kanji dictionary and a proper-name dictionary, credited in `ACKNOWLEDGEMENTS.md`), the sources in
+  another, and existing ones are Japanese). Add dictionaries (and, when empty, starter downloads: Wiktionary dictionaries and IPA pronunciations for every language, with Definitions in choosing their language, saved, following the interface language until chosen; for Japanese also five curated open dictionaries: two Japanese–English dictionaries, a word frequency list, a kanji dictionary and a proper-name dictionary, credited in `ACKNOWLEDGEMENTS.md`), the sources in
   lookup order with a selection box, ≡ handle and Remove on each row; choosing rows shows
   Select all, Move to… (another language), Remove and ✕ to clear it. Word audio lists the recording sources in order
-  (JapanesePod101 by default, for Japanese only; audio URLs and audio list URLs with `{term}`,
+  (JapanesePod101, for Japanese only, and Wikimedia Commons, for every language, by default; audio URLs and audio list URLs with `{term}`,
   `{reading}` and `{language}`) with Move up/down and Remove, and adds new ones.
 - **Statistics.** Recording, session start, jump limit and confirmed deletions.
-- **Anki.** Connection (port, key, Test connection, the bundled Lapis license), card
+- **Anki.** New deck creates a deck in Anki named as you choose (the lookup language at first), with the Lapis note type, and selects it. Connection (port, key, Test connection, the bundled Lapis license), card
   configuration (deck, note type, field contents table, tags, duplicates) and
   interrupted requests. Duplicate scope initially covers the entire collection.
 - **Discord.** Discord status (off by default): shows the open book in Discord with its

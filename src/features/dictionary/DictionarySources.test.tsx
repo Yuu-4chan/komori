@@ -868,13 +868,13 @@ describe("Dictionary sources", () => {
     expect(listedTitles()).toEqual(["Jitendex", "Webster", "WordNet", "JPDB"]);
   });
 
-  it("offers the Japanese starter dictionaries only while Japanese has none", async () => {
+  it("offers starter dictionaries for the language shown while it has none", async () => {
     const user = userEvent.setup();
     listMock.mockResolvedValue([{ ...jitendex, language: "en" }]);
     const view = render(<DictionarySources lookupLanguage="en" />);
     await waitFor(() => expect(listedTitles()).toEqual(["Jitendex"]));
     expect(view.container.querySelector(".starter-dictionaries")).toBeNull();
-    await user.selectOptions(screen.getByRole("combobox", { name: "Lookup language" }), "ja");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Lookup language" }), "ko");
     expect(await screen.findByText(/No dictionaries yet/)).toBeInTheDocument();
     expect(view.container.querySelector(".starter-dictionaries")).not.toBeNull();
   });

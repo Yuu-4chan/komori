@@ -652,7 +652,7 @@ export const de: MessageCatalog = {
   "ankiSettings.requestTag": "Tag: {tag}",
   "ankiSettings.checkOutcome": "Ergebnis für {expression} prüfen",
   "ankiContent.expression": "Ausdruck",
-  "ankiContent.reading": "Lesung (Kana)",
+  "ankiContent.reading": "Lesung",
   "ankiContent.expressionFurigana": "Ausdruck mit Furigana",
   "ankiContent.definition": "Hauptdefinition (erste Quelle)",
   "ankiContent.glossary": "Glossar (alle Definitionen)",
@@ -688,7 +688,7 @@ export const de: MessageCatalog = {
   "popupSettings.mouseShiftRight": "Rechtsklick + Zusatztaste",
   "popupSettings.mouseMiddle": "Mittelklick",
   "popupSettings.positionBeside": "Neben dem Wort",
-  "popupSettings.positionAbove": "Über dem Wort (Furigana)",
+  "popupSettings.positionAbove": "Über dem Wort",
   "popupSettings.closeEscapeOutside": "Esc oder Klick außerhalb",
   "popupSettings.closeOutside": "Nur Klick außerhalb",
   "popupSettings.closePersistent": "Bleibt bis zur nächsten Suche",
@@ -724,20 +724,19 @@ export const de: MessageCatalog = {
   "popupSettings.radius": "Abgerundete Ecken",
   "popupSettings.radiusHint": "0 px gibt dem Popup eckige Ecken.",
   "popupSettings.readingPosition": "Position der Lesung",
-  "popupSettings.readingPositionHint":
-    "Die Lesung jedes Stichworts daneben anzeigen oder über seinen Kanji als Furigana.",
+  "popupSettings.readingPositionHint": "Die Lesung jedes Stichworts daneben oder darüber anzeigen.",
   "popupSettings.style": "Popup-Stil",
   "popupSettings.style.standard": "Standard",
   "popupSettings.style.dictionary": "Wörterbuch",
   "popupSettings.styleHint.standard":
     "Standard zeigt jeden Eintrag vollständig, mit Stimme, Tonhöhenakzent, Häufigkeit und Anki-Aktionen.",
   "popupSettings.styleHint.dictionary":
-    "Wörterbuch zeigt nur jedes Stichwort mit seinen Furigana und Definitionen – für schnelle Suchen ohne Stimme, Akzent, Häufigkeit oder Anki.",
+    "Wörterbuch zeigt nur jedes Stichwort mit seiner Lesung und seinen Definitionen, für schnelles Nachschlagen ohne Stimme, Tonhöhe, Häufigkeit oder Anki.",
   "popupSettings.font": "Schrift",
   "popupSettings.fontHint":
     "Die Schrift der Stichwörter, Lesungen und Definitionen im Popup. Zen Old Mincho ist in Komori enthalten.",
   "popupSettings.readingPositionDictionary":
-    "Der Stil Wörterbuch zeigt Lesungen immer über ihren Kanji als Furigana.",
+    "Der Stil Wörterbuch zeigt Lesungen immer über ihren Wörtern.",
   "popupSettings.title": "Leser-Popup für die Suche",
   "popupSettings.description": "Wörterbuchergebnisse anzeigen, ohne das Buch zu verlassen.",
   "popupSettings.enable": "Leser-Popup aktivieren",
@@ -782,8 +781,6 @@ export const de: MessageCatalog = {
   "popupSettings.scanningDescription":
     "Wähle, wie viel Text ein Scan liest und wie viele Ergebnisse und Popups erscheinen.",
   "popupSettings.lookupLanguage": "Nachschlagesprache",
-  "popupSettings.lookupLanguageHint":
-    "Popup und Wörterbuch erkennen gebeugte Formen und verwenden die Wörterbücher dieser Sprache.",
   "lookupLanguage.ja": "Japanisch",
   "lookupLanguage.en": "Englisch",
   "lookupLanguage.fr": "Französisch",
@@ -924,7 +921,19 @@ export const de: MessageCatalog = {
   "starter.jitenName": "Jiten-Häufigkeit",
   "starter.jitenDescription":
     "Häufigkeitsränge von Wörtern aus japanischen Medien. Füge für Definitionen ein Begriffswörterbuch hinzu.",
-  "starter.title": "Mit japanischen Wörterbüchern beginnen",
+  "starter.definitions": "Definitionen auf",
+  "starter.wiktionary": "Wiktionary",
+  "starter.wiktionaryDescription": "Wörter auf {language} mit Definitionen auf {definitions}.",
+  "starter.wiktionaryIpa": "Wiktionary-Aussprache",
+  "starter.wiktionaryIpaDescription": "Aussprache von {language} in IPA.",
+  "wordAudio.commons": "Wikimedia Commons",
+  "ankiSettings.newDeck": "Neuer Stapel",
+  "ankiSettings.newDeckHint": "Erstellt in Anki einen Stapel, der den Notiztyp Lapis verwendet.",
+  "ankiSettings.newDeckEllipsis": "Neuer Stapel…",
+  "ankiSettings.newDeckName": "Stapelname",
+  "ankiSettings.newDeckCreate": "Stapel erstellen",
+  "ankiSettings.newDeckReady": "{deck} ist bereit.",
+  "starter.title": "Mit einem Wörterbuch beginnen",
   "starter.description":
     "Jitendex und JMdict teilen viele Definitionen; eines reicht für den Anfang.",
   "starter.loading": "Einstiegswörterbücher werden geladen…",
@@ -1687,8 +1696,7 @@ export const de: MessageCatalog = {
   "viewport.startingWait": "Bitte warte, während die Leseansicht startet.",
   "viewport.tryLater": "Kehre zur Bibliothek zurück und versuche es später erneut.",
   "popup.label": "Suche: {query}",
-  "popup.initial":
-    "Gib ein Wort oder ein Kanji ein, um deine importierten Wörterbücher auszuprobieren.",
+  "popup.initial": "Gib ein Wort ein, um deine importierten Wörterbücher auszuprobieren.",
   "popup.previewFailed":
     "Die Suche konnte nicht abgeschlossen werden. Öffne die Einstellungen erneut, um es noch einmal zu versuchen.",
   "popup.failed":

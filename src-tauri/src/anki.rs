@@ -679,6 +679,16 @@ fn create_lapis(prefs: &Preferences) -> Result<String> {
     }
     Ok("created".into())
 }
+/// A deck for new cards with the Lapis note type ready for it. An existing deck stays as it is.
+fn create_deck(prefs: &Preferences, deck: &str) -> Result<()> {
+    let deck = deck.trim();
+    if !valid_name(deck) {
+        return Err(AnkiError::Invalid);
+    }
+    create_lapis(prefs)?;
+    call(prefs, "createDeck", json!({ "deck": deck }))?;
+    Ok(())
+}
 fn escaped(s: &str) -> String {
     // Lapis embeds some fields in JS template literals. Escape JS delimiters too,
     // as HTML entities that render as their original text on the finished card.
@@ -1903,6 +1913,15 @@ pub async fn create_anki_lapis(preferences: Preferences) -> Result<String> {
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = OPERATIONS.lock().map_err(|_| AnkiError::Busy)?;
         create_lapis(&preferences)
+    })
+    .await
+    .map_err(|_| AnkiError::Unavailable)?
+}
+#[tauri::command]
+pub async fn create_anki_deck(preferences: Preferences, deck: String) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = OPERATIONS.lock().map_err(|_| AnkiError::Busy)?;
+        create_deck(&preferences, &deck)
     })
     .await
     .map_err(|_| AnkiError::Unavailable)?

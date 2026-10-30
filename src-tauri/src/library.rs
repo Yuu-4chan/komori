@@ -21,7 +21,7 @@ use crate::{
     title_series::{self, TitledBook},
 };
 
-const SCHEMA_VERSION: i64 = 7;
+const SCHEMA_VERSION: i64 = 8;
 const COVER_RESOLVER_VERSION: i64 = 2;
 const CATALOG_FILE_NAME: &str = "library.sqlite3";
 
@@ -497,9 +497,25 @@ pub(crate) fn open_catalog(path: &Path) -> Result<Connection, String> {
             }
         }
         transaction
-            .pragma_update(None, "user_version", SCHEMA_VERSION)
+            .pragma_update(None, "user_version", 7)
             .map_err(storage_error)?;
         transaction.commit().map_err(storage_error)?;
+    }
+    if version < 8 {
+        // Word audio's new default for readers who still have the old one saved, once, so
+        // removing it later stays removed.
+        connection
+            .execute_batch(&format!(
+                r#"BEGIN;
+                 UPDATE preferences
+                   SET value = json_set(value, '$.wordAudioSources',
+                     json('[{{"kind":"jpod101"}},{{"kind":"commons"}}]'))
+                   WHERE name = 'appearance' AND json_valid(value)
+                     AND json_extract(value, '$.wordAudioSources') = '[{{"kind":"jpod101"}}]';
+                 PRAGMA user_version = {SCHEMA_VERSION};
+                 COMMIT;"#
+            ))
+            .map_err(storage_error)?;
     }
     // Additive Komori-owned book state. Created without a version bump so an older Komori,
     // which ignores the table, keeps opening the catalog; removal cascades to it.

@@ -118,6 +118,7 @@ pub fn run() {
             anki::save_anki_preferences,
             anki::discover_anki,
             anki::create_anki_lapis,
+            anki::create_anki_deck,
             anki::create_anki_note,
             anki::check_anki_note,
             anki::get_anki_pending_requests,

@@ -3,7 +3,6 @@ import { useLayoutEffect, useRef } from "react";
 import { AnkiSettings } from "../features/anki/AnkiSettings";
 import { version } from "../../package.json";
 import {
-  CardsIcon,
   ChartBarIcon,
   ChatTextIcon,
   GearSixIcon,
@@ -16,6 +15,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { AppThemeSettings } from "../features/appearance/AppThemeSettings";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { DictionarySources } from "../features/dictionary/DictionarySources";
+import { AnkiIcon } from "../features/anki/AnkiIcon";
 import { DiscordIcon } from "../features/discord/DiscordIcon";
 import { DiscordSettings } from "../features/discord/DiscordSettings";
 import { WordAudioSettings } from "../features/dictionary/WordAudioSettings";
@@ -68,7 +68,7 @@ const sections = [
     id: "anki",
     label: "settings.anki",
     description: "settings.ankiDescription",
-    icon: CardsIcon,
+    icon: AnkiIcon,
   },
   {
     id: "discord",
@@ -96,7 +96,8 @@ const movedSections: Record<string, SectionId> = {
 export function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t, rich } = useI18n();
-  const { lookupLanguage, setLookupLanguage } = useAppearance();
+  const { lookupLanguage, setLookupLanguage, starterDefinitions, setStarterDefinitions } =
+    useAppearance();
   const requested = searchParams.get("section") ?? "";
   const activeSection =
     sections.find(({ id }) => id === (movedSections[requested] ?? requested)) ?? sections[0];
@@ -196,7 +197,7 @@ export function SettingsPage() {
           {section === "popup" && (
             <ReaderPopupSettings onDictionarySettings={() => setSection("dictionary")} />
           )}
-          {section === "anki" && <AnkiSettings />}
+          {section === "anki" && <AnkiSettings lookupLanguage={lookupLanguage} />}
           {section === "discord" && <DiscordSettings />}
           {section === "dictionary" && (
             <>
@@ -216,6 +217,8 @@ export function SettingsPage() {
               <DictionarySources
                 lookupLanguage={lookupLanguage}
                 onLookupLanguageChange={setLookupLanguage}
+                starterDefinitions={starterDefinitions}
+                onStarterDefinitionsChange={setStarterDefinitions}
               />
               <WordAudioSettings />
             </>

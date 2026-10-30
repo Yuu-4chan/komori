@@ -1448,9 +1448,8 @@ publisher colors, use a soft yellow note highlight.
 ## Lookup language
 
 The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko`, `zh`, `de` or `ru`, default `ja`; anything else is dropped, so
-older records read as Japanese) is the language every lookup reads text in. Settings > Reader
-popup's Scanning and results card chooses it as Lookup language, first in the card, and so does the same select
-on Settings > Dictionary, which lists that language's dictionaries; the Reader popup, its
+older records read as Japanese) is the language every lookup reads text in. Settings >
+Dictionary chooses it as Lookup language, above that language's dictionaries; the Reader popup, its
 child popups, the Dictionary page, Anki and word audio follow it at once. The frontend sends
 `language` to `lookup_terms` and `lookup_kanji` only when it is not Japanese, and native code
 reads it as `Language` (`src-tauri/src/dictionary/language.rs`), Japanese when absent.
@@ -1551,7 +1550,7 @@ readings differ only in spacing (nǐhǎo, nǐ hǎo).
 Each dictionary belongs to one lookup language, the store's `language` column, and only that
 language's lookups use it. An import goes to the language Settings > Dictionary shows, unless its
 `index.json` declares a supported source language: one whose primary subtag, in any case, is a
-language's two- or three-letter code (`en`, `en-US`, `eng`). Starter downloads are Japanese.
+language's two- or three-letter code (`en`, `en-US`, `eng`). Starter downloads declare theirs or are Japanese.
 Moving a dictionary to another language keeps its rows, position and source choices. When some
 dictionary belongs to another language, every role (definitions, frequency, pitch) is narrowed to
 the lookup language's, after the reader's own source choices; a role's selection naming other
@@ -1591,7 +1590,7 @@ A term's glossary is read as definitions before it shows or goes to Anki: some d
 cross-reference with a lone `▶` and give its target as a deinflection entry, `[target, [rules]]`,
 whose rules repeat the headword, so the marker is dropped and the entry reads as its target. The
 Dictionary page's description, empty state and no-results hint name kanji, kana and the Japanese
-starter dictionaries only when the lookup language is Japanese. These
+its curated starter dictionaries only when the lookup language is Japanese. These
 dictionaries have no source role: turning one off in Settings hides it. Anki's `{{ipa}}` field holds
 them joined by commas.
 
@@ -1656,6 +1655,13 @@ without a starter workflow keep the ordinary source management.
 `get_starter_dictionaries`, `download_starter_dictionary`,
 `dismiss_starter_dictionaries` and `open_starter_information` expose only curated
 IDs, public descriptions, phases and byte counts, never download URLs or paths.
+Each source names its lookup language and definitions language; Settings shows the lookup
+language's, for the appearance record's `starterDefinitions` when that language has it, else the
+interface language, else English. Wiktionary dictionaries and their IPA pronunciations (`wty-*`, from
+the `daxida/wty-release` Hugging Face dataset) are listed where they exist at 1 MB or more, at one
+pinned commit with each file's SHA-256; they may redirect once to an `.hf.co` CDN host. Sources are
+appended only, as saved statuses go by position.
+
 The native catalog (`src-tauri/src/dictionary/starter.rs`) pins each GitHub-hosted
 source to a release and its SHA-256 digest. Sources are appended to the catalog,
 since the journal stores each status by position; a journal saved with fewer sources
@@ -1795,9 +1801,16 @@ Each Dictionary entry has a pronunciation button (Voice) beside the headword. It
 
 `src-tauri/src/word_audio.rs` owns recorded word audio; the frontend never supplies a URL to fetch. The appearance record stores `wordAudioSources`, an ordered list of at most 8 unique sources (default `[{kind: "jpod101"}]`): `jpod101` (JapanesePod101's audio endpoint, sending only the kana for a kana-only word), `url` (answers with the audio itself) or `list` (answers with JSON `{"audioSources":[{"url"}]}`, of which the first 8 http(s) URLs are tried). Custom URLs are http(s) with a host, at most 2048 characters without controls, and may contain `{term}`, `{reading}` and `{language}` (the lookup language's code, such as `ja` or `en`), filled percent-encoded. Native and frontend validation drop an invalid stored list, and saves reject it; an obsolete `wordAudioVoice` field in a stored record is ignored. Settings > Dictionary > Word audio lists the sources with Move up/down (also Alt+ArrowUp/Down on a row) and Remove, then New source (JapanesePod101 only when it is not listed, Audio URL, Audio list URL), URL and Add source.
 
+Wikimedia Commons, the other default source, is asked through its API for Wiktionary's recordings by exact file name (`Fr-maison.ogg`, `En-us-house.ogg`), then searched plainly for Lingua Libre's (`LL-Q150 (fra)-Name-maison.wav`), keeping names that end in the word. Regex searches are avoided: Commons throttles them heavily. Catalog version 8 adds it once to records still holding the old default of JapanesePod101 alone, so removing it later stays removed.
+
 `find(sources, term, reading, language)` tries the sources in order, skipping JapanesePod101 outside Japanese (Settings offers it only for Japanese), with reqwest over rustls: 5 s to connect, 10 s per request, at most 4 redirects, audio up to 4 MB and lists up to 256 KB. A response counts only when its bytes are MP3, AAC, Ogg (including Opus), WAV, FLAC, WebM or MP4 audio by their leading bytes; JapanesePod101's "audio not available" clip is refused by its SHA-256. Terms and readings are at most 256 characters without controls. The last 16 recordings found stay in memory, per word, sources and language. `get_word_audio` returns `{mime, data}` (base64) or null and never a URL, error detail or source; the frontend plays the bytes from a `blob:` URL (CSP `media-src blob:`) and revokes it when playback ends.
 
 ## Anki cards
+
+Settings → Anki's New deck calls `create_anki_deck`: it creates the Lapis note type if missing (a
+customized Lapis is refused, as ever), then the deck through AnkiConnect's `createDeck`, which leaves
+an existing deck as it is. The deck and Lapis become the configuration, with Lapis's default fields
+unless a Lapis mapping is saved, and are saved at once when nothing needs review.
 
 Settings → Anki loads the saved configuration and tests the local connection on
 entry. A separate badge shows Checking, Connected, Disconnected or Not checked;

@@ -1,15 +1,21 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 
 /**
- * Where recorded word audio comes from, tried in order: JapanesePod101, a URL answering with the
- * audio itself, or a URL answering with an audio list
+ * Where recorded word audio comes from, tried in order: JapanesePod101, Wikimedia Commons, a URL
+ * answering with the audio itself, or a URL answering with an audio list
  * (`{"audioSources":[{"url":…}]}`). URLs may use `{term}`, `{reading}`
  * and `{language}`. Native code makes every request; keep in step with `word_audio.rs`.
  */
 export type WordAudioSource =
-  { kind: "jpod101" } | { kind: "url"; url: string } | { kind: "list"; url: string };
+  | { kind: "jpod101" }
+  | { kind: "commons" }
+  | { kind: "url"; url: string }
+  | { kind: "list"; url: string };
 
-export const defaultWordAudioSources: WordAudioSource[] = [{ kind: "jpod101" }];
+export const defaultWordAudioSources: WordAudioSource[] = [
+  { kind: "jpod101" },
+  { kind: "commons" },
+];
 export const maxWordAudioSources = 8;
 const maxUrl = 2048;
 
@@ -27,7 +33,8 @@ export function validWordAudioUrl(url: string): boolean {
 }
 
 export const sameWordAudioSource = (a: WordAudioSource, b: WordAudioSource): boolean =>
-  a.kind === b.kind && (a.kind === "jpod101" || a.url === (b as { url: string }).url);
+  a.kind === b.kind &&
+  (a.kind === "jpod101" || a.kind === "commons" || a.url === (b as { url: string }).url);
 
 /** Saved sources, when every one is valid and none repeats; otherwise undefined. */
 export function normalizeWordAudioSources(value: unknown): WordAudioSource[] | undefined {
@@ -38,7 +45,7 @@ export function normalizeWordAudioSources(value: unknown): WordAudioSource[] | u
     const { kind, url } = entry as { kind?: unknown; url?: unknown };
     const keys = Object.keys(entry).length;
     let source: WordAudioSource;
-    if (kind === "jpod101" && keys === 1) source = { kind };
+    if ((kind === "jpod101" || kind === "commons") && keys === 1) source = { kind };
     else if (
       (kind === "url" || kind === "list") &&
       keys === 2 &&

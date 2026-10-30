@@ -31,6 +31,7 @@ const JPOD101: &str = "https://assets.languagepod101.com/dictionary/japanese/aud
 /// JapanesePod101 answers a word it has no recording of with this clip ("the audio for this
 /// clip is currently not available").
 const JPOD101_MISSING: &str = "ae6398b5a27bc8c0a771df6c907ade794be15518174773c58c7c7ddd17098906";
+const COMMONS: &str = "https://commons.wikimedia.org/w/api.php";
 /// What `encodeURIComponent` leaves as is, as audio servers expect.
 const COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'-')
@@ -48,6 +49,9 @@ const COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
 pub(crate) enum AudioSource {
     #[serde(rename = "jpod101")]
     JapanesePod101,
+    /// Wikimedia Commons' pronunciation recordings, for every language.
+    #[serde(rename = "commons")]
+    Commons,
     /// A URL answering with the audio itself.
     Url { url: String },
     /// A URL answering with an audio list: `{"audioSources":[{"url":…}]}`.
@@ -57,7 +61,7 @@ pub(crate) enum AudioSource {
 impl AudioSource {
     fn template(&self) -> Option<&str> {
         match self {
-            Self::JapanesePod101 => None,
+            Self::JapanesePod101 | Self::Commons => None,
             Self::Url { url } | Self::List { url } => Some(url),
         }
     }
@@ -65,7 +69,7 @@ impl AudioSource {
 
 /// The sources new readers start with.
 pub(crate) fn default_sources() -> Vec<AudioSource> {
-    vec![AudioSource::JapanesePod101]
+    vec![AudioSource::JapanesePod101, AudioSource::Commons]
 }
 
 /// A source URL is http(s), bounded, and may use `{term}`, `{reading}` and `{language}`.
@@ -115,6 +119,145 @@ fn jpod101_url(term: &str, reading: &str) -> Url {
         }
     }
     url
+}
+
+/// The file names Wiktionary's recordings use for a word, in order of preference.
+fn commons_names(term: &str, language: Language) -> Vec<String> {
+    if term.contains(['|', '#', '<', '>', '[', ']', '{', '}', '_']) {
+        return Vec::new();
+    }
+    let code = language.code();
+    let prefix = code[..1].to_uppercase() + &code[1..];
+    let regions: &[&str] = match language {
+        Language::English => &["us-", "uk-", "au-", ""],
+        Language::French => &["", "fr-", "ca-"],
+        Language::Spanish => &["", "es-", "mx-"],
+        Language::Portuguese => &["", "br-", "pt-"],
+        Language::Chinese => &["", "cn-"],
+        _ => &[""],
+    };
+    regions
+        .iter()
+        .map(|region| format!("File:{prefix}-{region}{term}.ogg"))
+        .collect()
+}
+
+/// A plain search for Lingua Libre's recordings, whose names end in the word.
+fn commons_search(term: &str, language: Language) -> Option<String> {
+    if term.contains(['"', '\\']) {
+        return None;
+    }
+    let item = match language {
+        Language::Japanese => "5287",
+        Language::English => "1860",
+        Language::French => "150",
+        Language::Portuguese => "5146",
+        Language::Italian => "652",
+        Language::Spanish => "1321",
+        Language::Korean => "9176",
+        Language::Chinese => "9192",
+        Language::German => "188",
+        Language::Russian => "7737",
+    };
+    Some(format!(r#"intitle:"LL-Q{item}" intitle:"{term}.wav""#))
+}
+
+/// The titles and URLs of the files in a Commons response, most relevant first.
+fn commons_pages(bytes: &[u8]) -> Vec<(String, String)> {
+    let Ok(value) = serde_json::from_slice::<Value>(bytes) else {
+        return Vec::new();
+    };
+    let mut pages: Vec<&Value> = value
+        .pointer("/query/pages")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flat_map(|pages| pages.values())
+        .collect();
+    pages.sort_by_key(|page| {
+        page.get("index")
+            .and_then(Value::as_i64)
+            .unwrap_or(i64::MAX)
+    });
+    pages
+        .into_iter()
+        .filter_map(|page| {
+            let title = page.get("title")?.as_str()?;
+            let url = page.pointer("/imageinfo/0/url")?.as_str()?;
+            (url.len() <= MAX_URL).then(|| (title.to_owned(), url.to_owned()))
+        })
+        .take(MAX_LIST_ENTRIES)
+        .collect()
+}
+
+/// The URLs of the named files, in the order of the names.
+fn commons_named(pages: Vec<(String, String)>, names: &[String]) -> Vec<String> {
+    let mut named: Vec<_> = pages
+        .into_iter()
+        .filter_map(|(title, url)| Some((names.iter().position(|name| *name == title)?, url)))
+        .collect();
+    named.sort_by_key(|(position, _)| *position);
+    named.into_iter().map(|(_, url)| url).collect()
+}
+
+/// The URLs of the recordings of exactly this word; a longer name ending in it comes last.
+fn commons_recordings(pages: Vec<(String, String)>, term: &str) -> Vec<String> {
+    let ending = format!("-{}.wav", term.to_lowercase());
+    let mut recordings: Vec<_> = pages
+        .into_iter()
+        .filter(|(title, _)| title.to_lowercase().ends_with(&ending))
+        .collect();
+    recordings.sort_by_key(|(title, _)| {
+        title
+            .split_once(")-")
+            .map_or(0, |(_, name)| name.matches('-').count())
+    });
+    recordings.into_iter().map(|(_, url)| url).collect()
+}
+
+async fn from_commons(client: &Client, api: &str, term: &str, language: Language) -> Option<Audio> {
+    let names = commons_names(term, language);
+    if !names.is_empty() {
+        let titles = names.join("|");
+        let parameters = [("titles", titles.as_str())];
+        for url in commons_named(commons_query(client, api, &parameters).await, &names) {
+            if let Some(audio) = audio_at(client, &url).await {
+                return Some(audio);
+            }
+        }
+    }
+    let search = commons_search(term, language)?;
+    let parameters = [
+        ("generator", "search"),
+        ("gsrnamespace", "6"),
+        ("gsrlimit", "20"),
+        ("gsrsearch", search.as_str()),
+    ];
+    for url in commons_recordings(commons_query(client, api, &parameters).await, term) {
+        if let Some(audio) = audio_at(client, &url).await {
+            return Some(audio);
+        }
+    }
+    None
+}
+
+async fn commons_query(
+    client: &Client,
+    api: &str,
+    parameters: &[(&str, &str)],
+) -> Vec<(String, String)> {
+    let common = [
+        ("action", "query"),
+        ("format", "json"),
+        ("prop", "imageinfo"),
+        ("iiprop", "url"),
+    ];
+    let Ok(url) = Url::parse_with_params(api, common.iter().chain(parameters)) else {
+        return Vec::new();
+    };
+    match body(client, url.as_str(), MAX_LIST).await {
+        Some(list) => commons_pages(&list),
+        None => Vec::new(),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -171,7 +314,11 @@ fn client() -> Option<Client> {
         .connect_timeout(Duration::from_secs(5))
         .timeout(Duration::from_secs(10))
         .redirect(Policy::limited(4))
-        .user_agent(concat!("Komori/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!(
+            "Komori/",
+            env!("CARGO_PKG_VERSION"),
+            " (https://github.com/Yuu-4chan/komori)"
+        ))
         .build()
         .ok()
 }
@@ -240,6 +387,7 @@ async fn from_source(
             let audio = audio_at(client, jpod101_url(term, reading).as_str()).await?;
             (format!("{:x}", Sha256::digest(&audio.bytes)) != JPOD101_MISSING).then_some(audio)
         }
+        AudioSource::Commons => from_commons(client, COMMONS, term, language).await,
         AudioSource::Url { url } => audio_at(client, &expand(url, term, reading, language)).await,
         AudioSource::List { url } => {
             let list = body(client, &expand(url, term, reading, language), MAX_LIST).await?;
@@ -390,6 +538,120 @@ mod tests {
     }
 
     #[test]
+    fn commons_names_a_word_for_its_language() {
+        assert_eq!(
+            commons_names("maison", Language::French),
+            [
+                "File:Fr-maison.ogg",
+                "File:Fr-fr-maison.ogg",
+                "File:Fr-ca-maison.ogg"
+            ]
+        );
+        assert_eq!(commons_names("дом", Language::Russian), ["File:Ru-дом.ogg"]);
+        assert_eq!(
+            commons_names("house", Language::English)[0],
+            "File:En-us-house.ogg"
+        );
+        assert!(commons_names("a|b", Language::French).is_empty());
+        assert_eq!(
+            commons_search("学校", Language::Chinese).unwrap(),
+            r#"intitle:"LL-Q9192" intitle:"学校.wav""#
+        );
+        assert_eq!(commons_search("a\"b", Language::French), None);
+    }
+
+    #[test]
+    fn commons_tries_wiktionary_names_then_recordings_of_the_exact_word() {
+        let ogg = {
+            let mut bytes = b"OggS".to_vec();
+            bytes.extend([1; 64]);
+            bytes
+        };
+        let page = |id: u32, index: u32, title: &str, url: &str| {
+            format!(
+                r#""{id}":{{"index":{index},"title":"{title}","imageinfo":[{{"url":"{url}"}}]}}"#
+            )
+        };
+        let address = serve(vec![
+            ("/first", ogg.clone(), "200 OK"),
+            ("/second", mp3(2), "200 OK"),
+        ]);
+
+        // Wiktionary's names go in the order asked for, whatever the response's order.
+        let names = commons_names("maison", Language::French);
+        let pages = vec![
+            ("File:Fr-ca-maison.ogg".to_owned(), "/ca".to_owned()),
+            ("File:Other.ogg".to_owned(), "/other".to_owned()),
+            ("File:Fr-maison.ogg".to_owned(), "/plain".to_owned()),
+        ];
+        assert_eq!(commons_named(pages, &names), ["/plain", "/ca"]);
+
+        // The local server cannot tell its two queries apart, so the list is used for both.
+        let named = format!(
+            r#"{{"query":{{"pages":{{{}}}}}}}"#,
+            page(1, 1, "File:Fr-maison.ogg", &format!("{address}/first"))
+        );
+        let api = serve(vec![("/", named.into_bytes(), "200 OK")]);
+        let audio = run(from_commons(
+            &client().unwrap(),
+            &api,
+            "maison",
+            Language::French,
+        ))
+        .unwrap();
+        assert_eq!(audio.bytes, ogg);
+        assert_eq!(audio.mime, "audio/ogg");
+
+        // A recording of a longer phrase is not this word, and a hyphenated name ending in it is last.
+        let listed = format!(
+            r#"{{"query":{{"pages":{{{},{},{},{}}}}}}}"#,
+            page(
+                1,
+                1,
+                "File:LL-Q150 (fra)-A-Maison Blanche.wav",
+                &format!("{address}/none")
+            ),
+            page(
+                2,
+                2,
+                "File:LL-Q150 (fra)-B-Puy-de-Maison.wav",
+                &format!("{address}/first")
+            ),
+            page(
+                3,
+                3,
+                "File:LL-Q150 (fra)-C-maison.wav",
+                &format!("{address}/second")
+            ),
+            r#""4":{"index":4,"title":"File:No file.wav"}"#,
+        );
+        assert_eq!(
+            commons_recordings(commons_pages(listed.as_bytes()), "maison"),
+            [format!("{address}/second"), format!("{address}/first")]
+        );
+        let api = serve(vec![("/", listed.into_bytes(), "200 OK")]);
+        let audio = run(from_commons(
+            &client().unwrap(),
+            &api,
+            "maison",
+            Language::French,
+        ))
+        .unwrap();
+        assert_eq!(audio.bytes, mp3(2));
+
+        let empty = serve(vec![("/", br#"{"batchcomplete":""}"#.to_vec(), "200 OK")]);
+        assert_eq!(
+            run(from_commons(
+                &client().unwrap(),
+                &empty,
+                "maison",
+                Language::French
+            )),
+            None
+        );
+    }
+
+    #[test]
     fn sources_validate_urls_placeholders_duplicates_and_count() {
         let url = |url: &str| AudioSource::Url { url: url.into() };
         assert!(valid_sources(&default_sources()));
@@ -423,7 +685,7 @@ mod tests {
         ));
         assert_eq!(
             serde_json::to_value(default_sources()).unwrap(),
-            serde_json::json!([{"kind": "jpod101"}])
+            serde_json::json!([{"kind": "jpod101"}, {"kind": "commons"}])
         );
         assert!(serde_json::from_value::<AudioSource>(serde_json::json!({"kind": "url"})).is_err());
     }

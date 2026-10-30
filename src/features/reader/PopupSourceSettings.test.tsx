@@ -439,7 +439,7 @@ describe("real lookup preview", () => {
     expect(screen.getByRole("button", { name: "Show dictionary names" })).toBeEnabled();
     expect(screen.getByLabelText("Reading position")).toBeDisabled();
     expect(
-      screen.getByText("The Dictionary style always shows readings above their kanji as furigana."),
+      screen.getByText("The Dictionary style always shows readings above their words."),
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(store.save).toHaveBeenLastCalledWith(

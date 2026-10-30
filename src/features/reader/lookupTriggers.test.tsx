@@ -187,27 +187,15 @@ describe("Lookup trigger preferences", () => {
           </MemoryRouter>,
         );
       const view = mount();
-      const select = await screen.findByLabelText(t("popupSettings.lookupLanguage"));
-      expect(select).toHaveValue("ja");
-      expect(Array.from((select as HTMLSelectElement).options, (option) => option.text)).toEqual([
-        t("lookupLanguage.ja"),
-        t("lookupLanguage.en"),
-        t("lookupLanguage.fr"),
-        t("lookupLanguage.pt"),
-        t("lookupLanguage.it"),
-        t("lookupLanguage.es"),
-        t("lookupLanguage.ko"),
-        t("lookupLanguage.zh"),
-        t("lookupLanguage.de"),
-        t("lookupLanguage.ru"),
-      ]);
-      expect(screen.getByRole("button", { name: t("popupSettings.cjkOnly") })).toBeInTheDocument();
-      fireEvent.change(select, { target: { value: "en" } });
-      await waitFor(() => expect(saved.lookupLanguage).toBe("en"));
-      expect(screen.queryByRole("button", { name: t("popupSettings.cjkOnly") })).toBeNull();
+      // Settings > Dictionary chooses the language; this card only follows it.
+      expect(
+        await screen.findByRole("button", { name: t("popupSettings.cjkOnly") }),
+      ).toBeInTheDocument();
+      expect(screen.queryByLabelText(t("popupSettings.lookupLanguage"))).toBeNull();
       view.unmount();
+      saved.lookupLanguage = "en";
       mount();
-      expect(await screen.findByLabelText(t("popupSettings.lookupLanguage"))).toHaveValue("en");
+      await screen.findByText(t("popupSettings.title"));
       expect(screen.queryByRole("button", { name: t("popupSettings.cjkOnly") })).toBeNull();
       cleanup();
     }

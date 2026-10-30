@@ -64,9 +64,13 @@ type ListState =
 export function DictionarySources({
   lookupLanguage = defaultLookupLanguage,
   onLookupLanguageChange,
+  starterDefinitions,
+  onStarterDefinitionsChange,
 }: {
   lookupLanguage?: LookupLanguage;
   onLookupLanguageChange?: (language: LookupLanguage) => void;
+  starterDefinitions?: LookupLanguage | "";
+  onStarterDefinitionsChange?: (language: LookupLanguage) => void;
 }) {
   const operation = useBulkOperation("dictionaries");
   const starter = useStarterDictionaries();
@@ -509,8 +513,11 @@ export function DictionarySources({
           </div>
         ) : null}
 
-        {list.kind === "loaded" && language === "ja" && (
+        {list.kind === "loaded" && (
           <StarterDictionaries
+            language={language}
+            savedDefinitions={starterDefinitions}
+            onDefinitionsChange={onStarterDefinitionsChange}
             empty={dictionaries.length === 0}
             installed={installedTitles}
             busy={busy}

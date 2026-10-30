@@ -29,6 +29,7 @@ vi.mock("./ankiApi", async (importOriginal) => ({
   cachedAnki: vi.fn(),
   discoverAnki: vi.fn(),
   saveAnki: vi.fn(),
+  createDeck: vi.fn(),
   createLapis: vi.fn(),
   createNote: vi.fn(),
   checkNote: vi.fn(),
@@ -983,6 +984,36 @@ describe("Anki setup", () => {
     expect(screen.getByLabelText("Picture template")).toHaveValue("{{picture}}");
     expect(api.saveAnki).not.toHaveBeenCalled();
     expect(api.createNote).not.toHaveBeenCalled();
+  });
+  it("creates a deck with Lapis, named for the lookup language, and saves the choice", async () => {
+    vi.mocked(api.createDeck).mockResolvedValue(undefined);
+    view(<AnkiSettings />);
+    await screen.findByRole("button", { name: "Test connection" });
+    fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
+    fireEvent.click(await screen.findByRole("button", { name: "New deck…" }));
+    const name = screen.getByLabelText("Deck name");
+    expect(name).toHaveValue("Japanese");
+    fireEvent.change(name, { target: { value: "   " } });
+    expect(screen.getByRole("button", { name: "Create deck" })).toBeDisabled();
+    fireEvent.change(name, { target: { value: "Korean" } });
+    vi.mocked(api.discoverAnki).mockResolvedValue({
+      ...discovery,
+      decks: ["Default", "Korean"],
+      deckIds: { ...discovery.deckIds, Korean: 77 },
+      models: ["Basic", "Lapis"],
+      modelIds: { ...discovery.modelIds, Lapis: 88 },
+      fields: ["Expression", "MainDefinition"],
+      lapis: "compatible",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create deck" }));
+    await screen.findByText("Korean is ready.");
+    expect(vi.mocked(api.createDeck).mock.calls[0][1]).toBe("Korean");
+    expect(screen.getByLabelText("Deck")).toHaveValue("Korean");
+    expect(screen.getByLabelText("Note type")).toHaveValue("Lapis");
+    expect(screen.getByLabelText("Expression template")).toHaveValue("{{expression}}");
+    expect(api.saveAnki).toHaveBeenCalledWith(
+      expect.objectContaining({ deck: "Korean", deckId: 77, model: "Lapis" }),
+    );
   });
   it("requires renewed discovery after failed Lapis creation", async () => {
     vi.mocked(api.createLapis).mockRejectedValue("unavailable");
