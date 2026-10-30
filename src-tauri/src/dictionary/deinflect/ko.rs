@@ -12,7 +12,8 @@
 //! The Korean deinflection rules: Yomitan's Korean transforms (verb and adjective endings, with
 //! their intermediate tense and honorific endings), translated to Rust. As in Yomitan, they
 //! work on the text split into its letters (jamo), so 먹었다 is ㅁㅓㄱㅇㅓㅆㄷㅏ, and every
-//! candidate is joined back into syllables.
+//! candidate is joined back into syllables. Noun particles, which Yomitan's rules leave out, come
+//! after them (see `PARTICLES`).
 
 use std::sync::LazyLock;
 
@@ -24,7 +25,7 @@ pub(crate) const V: u32 = 1;
 pub(crate) const ADJ: u32 = 1 << 1;
 /// The particle 이다 (`ida`).
 pub(crate) const IDA: u32 = 1 << 2;
-/// Nouns (`n`), which nothing inflects to, so a noun is never a verb's dictionary form.
+/// Nouns (`n`), which only particles lead to, so a noun is never a verb's dictionary form.
 pub(crate) const N: u32 = 1 << 15;
 /// The intermediate endings a final ending can follow: past, future, and the honorific and
 /// formal ones.
@@ -41,7 +42,7 @@ const JAO: u32 = 1 << 12;
 const JAB: u32 = 1 << 13;
 const DO: u32 = 1 << 14;
 /// The word classes a term's rules can name.
-pub(crate) const DICTIONARY_FORMS: u32 = V | ADJ | IDA;
+pub(crate) const DICTIONARY_FORMS: u32 = V | ADJ | IDA | N;
 
 /// Korean endings stack, so a word has more candidates than other languages allow.
 const MAX_CANDIDATES: usize = 512;
@@ -2740,8 +2741,96 @@ const YOMITAN: &[Rule] = &[
 
 static RULES: LazyLock<RuleSet<'static>> = LazyLock::new(|| RuleSet::new(YOMITAN, &[]));
 
+/// What a particle's noun must end in: most particles have one form after a final consonant and
+/// another after a vowel (학생은, 학교는).
+#[derive(Clone, Copy, PartialEq)]
+enum Before {
+    Any,
+    Consonant,
+    Vowel,
+    /// 로 and its compounds also follow a final ㄹ (서울로), where 으로 does not.
+    VowelOrRieul,
+    ConsonantNotRieul,
+}
+
+/// The particles and plural marker that attach to a noun, named as Korean's endings are.
+#[rustfmt::skip]
+const PARTICLES: &[(&str, Before)] = &[
+    ("-에게서", Before::Any), ("-에서부터", Before::Any), ("-한테서", Before::Any), ("-에서", Before::Any),
+    ("-에게", Before::Any), ("-한테", Before::Any), ("-께서", Before::Any), ("-까지", Before::Any),
+    ("-부터", Before::Any), ("-마다", Before::Any), ("-보다", Before::Any), ("-처럼", Before::Any),
+    ("-밖에", Before::Any), ("-조차", Before::Any), ("-마저", Before::Any), ("-하고", Before::Any),
+    ("-같이", Before::Any), ("-대로", Before::Any), ("-에다", Before::Any), ("-의", Before::Any),
+    ("-에", Before::Any), ("-께", Before::Any), ("-도", Before::Any), ("-만", Before::Any),
+    ("-뿐", Before::Any), ("-요", Before::Any), ("-들", Before::Any),
+    ("-으로서", Before::ConsonantNotRieul), ("-으로써", Before::ConsonantNotRieul),
+    ("-으로", Before::ConsonantNotRieul), ("-이라도", Before::Consonant), ("-이나", Before::Consonant),
+    ("-이랑", Before::Consonant), ("-은", Before::Consonant), ("-이", Before::Consonant),
+    ("-을", Before::Consonant), ("-과", Before::Consonant), ("-아", Before::Consonant),
+    ("-로서", Before::VowelOrRieul), ("-로써", Before::VowelOrRieul), ("-로", Before::VowelOrRieul),
+    ("-라도", Before::Vowel), ("-나", Before::Vowel), ("-랑", Before::Vowel), ("-는", Before::Vowel),
+    ("-가", Before::Vowel), ("-를", Before::Vowel), ("-와", Before::Vowel), ("-야", Before::Vowel),
+];
+
+/// Particles can stack (사람들에게는: 들, 에게, 는).
+const MAX_PARTICLES: usize = 3;
+
+/// Whether a noun ending in `last` takes a particle of this form. Text that is not Hangul (a word
+/// in hanja) says nothing against it.
+fn takes(last: char, before: Before) -> bool {
+    let code = u32::from(last);
+    if !(FIRST_SYLLABLE..=LAST_SYLLABLE).contains(&code) {
+        return true;
+    }
+    let last_consonant = (code - FIRST_SYLLABLE) % 28;
+    match before {
+        Before::Any => true,
+        Before::Consonant => last_consonant != 0,
+        Before::Vowel => last_consonant == 0,
+        Before::VowelOrRieul => last_consonant == 0 || last_consonant == RIEUL,
+        Before::ConsonantNotRieul => last_consonant != 0 && last_consonant != RIEUL,
+    }
+}
+
+/// The nouns `text` may be with particles attached, fewest particles first.
+fn without_particles(text: &str) -> Vec<Candidate> {
+    let mut found: Vec<Candidate> = Vec::new();
+    let mut level = vec![(text.to_owned(), Vec::new())];
+    for _ in 0..MAX_PARTICLES {
+        let mut next = Vec::new();
+        for (word, inflections) in &level {
+            for &(name, before) in PARTICLES {
+                let Some(noun) = word.strip_suffix(&name[1..]) else {
+                    continue;
+                };
+                if !noun
+                    .chars()
+                    .next_back()
+                    .is_some_and(|last| takes(last, before))
+                {
+                    continue;
+                }
+                let mut names: Vec<&'static str> = vec![name];
+                names.extend(inflections.iter().copied());
+                next.push((noun.to_owned(), names));
+            }
+        }
+        for (noun, names) in &next {
+            if !found.iter().any(|candidate| &candidate.text == noun) {
+                found.push(Candidate {
+                    text: noun.clone(),
+                    classes: N,
+                    inflections: names.clone(),
+                });
+            }
+        }
+        level = next;
+    }
+    found
+}
+
 /// The forms `text` may be an inflection of (see `deinflect_bounded`), each joined back into
-/// syllables.
+/// syllables, then the nouns it may be with particles attached.
 pub(crate) fn deinflect(text: &str) -> Vec<Candidate> {
     deinflect_bounded(&disassemble(text), &RULES, MAX_STEPS, MAX_CANDIDATES)
         .into_iter()
@@ -2749,6 +2838,7 @@ pub(crate) fn deinflect(text: &str) -> Vec<Candidate> {
             text: assemble(&candidate.text),
             ..candidate
         })
+        .chain(without_particles(text))
         .collect()
 }
 
@@ -2788,6 +2878,8 @@ const PAIRS: &[(char, [char; 2])] = &[
 ];
 const FIRST_SYLLABLE: u32 = 0xac00;
 const LAST_SYLLABLE: u32 = 0xd7a3;
+/// The final consonant ㄹ's place among a syllable's finals.
+const RIEUL: u32 = 8;
 
 fn push_letter(letters: &mut String, letter: char) {
     match PAIRS.iter().find(|(pair, _)| *pair == letter) {
@@ -2945,6 +3037,50 @@ mod tests {
                     .collect::<Vec<_>>()
             );
         }
+    }
+
+    #[test]
+    fn nouns_are_found_under_their_particles() {
+        let names = |text: &str, form: &str| {
+            deinflect(text)
+                .into_iter()
+                .find(|candidate| candidate.text == form && candidate.classes == N)
+                .map(|candidate| candidate.inflections)
+        };
+        for (text, noun, particles) in [
+            ("전차는", "전차", vec!["-는"]),
+            ("운수가", "운수", vec!["-가"]),
+            ("값으로", "값", vec!["-으로"]),
+            ("서울로", "서울", vec!["-로"]),
+            ("학교로", "학교", vec!["-로"]),
+            ("때에는", "때", vec!["-에", "-는"]),
+            ("사람들에게는", "사람", vec!["-들", "-에게", "-는"]),
+            ("親家는", "親家", vec!["-는"]),
+        ] {
+            assert_eq!(names(text, noun), Some(particles), "{text}");
+        }
+        // Each form follows only its own kind of ending, so verbs stay out of it.
+        for (text, noun) in [
+            ("먹는", "먹"),
+            ("학교은", "학교"),
+            ("학생는", "학생"),
+            ("서울으로", "서울"),
+        ] {
+            assert_eq!(names(text, noun), None, "{text}");
+        }
+        // A word that is only a particle has no noun.
+        assert_eq!(names("의", ""), None);
+        // Verb forms still come first.
+        let candidates = deinflect("가는");
+        let verb = candidates
+            .iter()
+            .position(|item| item.text == "가다")
+            .unwrap();
+        let noun = candidates
+            .iter()
+            .position(|item| item.text == "가" && item.classes == N)
+            .unwrap();
+        assert!(verb < noun);
     }
 
     #[test]

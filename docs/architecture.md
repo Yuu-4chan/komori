@@ -1514,8 +1514,10 @@ future, honorific and formal endings (classes `p`, `f`, `eusi` and the others, n
 forms). As in Yomitan the rules work on the text split into letters, each two-letter vowel and
 final consonant in both (먹었다 → ㅁㅓㄱㅇㅓㅆㄷㅏ, 괜찮다 → ㄱㅗㅐㄴㅊㅏㄴㅎㄷㅏ), and each candidate is
 joined back into syllables: an initial consonant with its vowel, then a final consonant no vowel
-follows. Endings stack, so Korean keeps up to 512 candidates. Its classes are `v`, `adj` and
-`ida`. Chinese (`zh`, also declared as `zho`, `chi`, `cmn` or `yue`) is one language for both
+follows. Endings stack, so Korean keeps up to 512 candidates. Its classes are `v`, `adj`, `ida` and
+`n`. Yomitan's rules have no noun particles, so after their candidates Komori adds the nouns the text
+may be with up to three particles attached (전차는, 사람들에게는), each form only after the ending it
+follows (은 after a final consonant, 는 after a vowel, 로 also after ㄹ). Chinese (`zh`, also declared as `zho`, `chi`, `cmn` or `yue`) is one language for both
 scripts, since its dictionaries list traditional and simplified headwords; it has no
 inflections, so a lookup matches the scanned text's starts exactly. Neither Japanese nor Chinese
 spaces its words; Korean does. On the Dictionary page a Chinese or Korean headword's reading
