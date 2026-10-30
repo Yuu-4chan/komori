@@ -170,7 +170,7 @@ function LookupEntryContent({
                 {start}
               </span>
             ) : null}
-            {group.deinflection ? (
+            {group.deinflection?.inflections.length ? (
               <span
                 title={t("lookupEntry.inflected", {
                   inflections: inflectionNames(group.deinflection.inflections),

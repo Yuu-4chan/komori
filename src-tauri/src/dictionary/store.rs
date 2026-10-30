@@ -174,6 +174,11 @@ pub struct Deinflection {
     inflections: Vec<String>,
 }
 
+/// The definition tag marking a form entry (see `TermMatch::is_form_entry`).
+const FORM_ENTRY_TAG: &str = "non-lemma";
+/// How many of a form entry's names a lookup shows; a German adjective form has dozens.
+const MAX_FORM_NAMES: usize = 3;
+
 /// One imported kanji row, with its dictionary.
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -449,13 +454,26 @@ impl TermGroup {
     /// Adds the transcriptions of one `ipa` metadata row for this group's reading, or for a row
     /// naming the headword as its reading, as dictionaries do for a word without one.
     fn add_transcriptions(&mut self, data: &Value, language: Language) {
-        let reading = data["reading"].as_str();
-        if reading != Some(self.reading.as_str()) && reading != Some(self.expression.as_str()) {
+        let Some(reading) = data["reading"].as_str().map(reading_key) else {
+            return;
+        };
+        if reading != reading_key(&self.reading) && reading != reading_key(&self.expression) {
             return;
         }
         for transcription in data["transcriptions"].as_array().into_iter().flatten() {
             let text = transcription["ipa"].as_str().unwrap_or_default();
-            if language == Language::Chinese {
+            let tagged = |name: &str| {
+                transcription["tags"]
+                    .as_array()
+                    .is_some_and(|tags| tags.iter().any(|tag| tag == name))
+            };
+            if tagged("zh_pron") || tagged("Sinological-IPA") {
+                // These rows list every dialect and romanization; Standard Mandarin's IPA is the
+                // one that adds to the entry's pinyin.
+                if text.starts_with('/') && tagged("Standard-Chinese") {
+                    self.add_transcription(text);
+                }
+            } else if language == Language::Chinese {
                 // Chinese "ipa" is pinyin: its commas are the phrase's own, and most of it repeats
                 // the reading, in a script `ɡ`.
                 let bare = |text: &str| text.replace([' ', '-', ','], "").replace('ɡ', "g");
@@ -464,7 +482,13 @@ impl TermGroup {
                 }
             } else {
                 for text in text.split([',', '|']) {
-                    self.add_transcription(text);
+                    // Korean "ipa" can be Hangul, which says nothing new when it repeats the word.
+                    let text = text.trim();
+                    if language != Language::Korean
+                        || (text != self.reading && text != self.expression)
+                    {
+                        self.add_transcription(text);
+                    }
                 }
             }
         }
@@ -472,6 +496,7 @@ impl TermGroup {
 
     /// Adds one transcription, unless it is a part of the word's: dictionaries list the endings of
     /// other forms in the same data (`ʃ(ə)val,` then `o`; `-lɛndɪʃ`), which name no whole word.
+    /// A phonetic `[x]` after a phonemic `/x/` only says the same word again in more detail.
     fn add_transcription(&mut self, text: &str) {
         let text = text.trim_matches(|c: char| c == ',' || c == '|' || c.is_whitespace());
         let letters = |text: &str| text.chars().filter(|c| c.is_alphabetic()).count();
@@ -484,11 +509,81 @@ impl TermGroup {
             && letters(text) * 2 >= whole
             && !text.starts_with('-')
             && !text.ends_with('-')
+            && !(text.starts_with('[')
+                && self
+                    .transcriptions
+                    .last()
+                    .is_some_and(|last| last.starts_with('/')))
             && !self.transcriptions.iter().any(|seen| seen == text)
         {
             self.transcriptions.push(text.to_owned());
         }
     }
+}
+
+/// A reading as groups and `ipa` rows compare it: dictionaries space it (nǐhǎo, nǐ hǎo) and mark its
+/// stress (собака, соба́ка) differently without it being another word.
+fn reading_key(reading: &str) -> String {
+    reading.replace([' ', '\u{301}'], "")
+}
+
+impl TermMatch {
+    /// Whether this row is a form entry: its glossary only names the dictionary forms it is an
+    /// inflection of, as `[lemma, [inflection names]]`.
+    fn is_form_entry(&self) -> bool {
+        self.definition_tags
+            .split_whitespace()
+            .any(|tag| tag == FORM_ENTRY_TAG)
+    }
+}
+
+/// Adds the dictionary forms a form entry names to `lemmas`, each once, with its first few
+/// inflection names. Names that are not an inflection, and those cut off in the source's
+/// extraction (`present gerund participle and`), are left out.
+fn add_form_lemmas(
+    term: &TermMatch,
+    lemmas: &mut Vec<Deinflection>,
+    limits: GlossaryLimits,
+) -> Result<(), String> {
+    let glossary = parse_glossary(&term.stored, limits.glossary)?;
+    for target in glossary.as_array().into_iter().flatten() {
+        let Some(form) = target[0].as_str() else {
+            continue;
+        };
+        let position = lemmas
+            .iter()
+            .position(|lemma| lemma.form == form)
+            .unwrap_or_else(|| {
+                lemmas.push(Deinflection {
+                    form: form.to_owned(),
+                    inflections: Vec::new(),
+                });
+                lemmas.len() - 1
+            });
+        let inflections = &mut lemmas[position].inflections;
+        for name in target[1].as_array().into_iter().flatten() {
+            let name = name.as_str().unwrap_or_default();
+            if inflections.len() < MAX_FORM_NAMES
+                && !name.is_empty()
+                && !name.ends_with(" and")
+                && !["alt-of", "alternative", "redirected", "▶"]
+                    .iter()
+                    .any(|other| name.contains(other))
+                && !inflections.iter().any(|seen| seen == name)
+            {
+                inflections.push(name.to_owned());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Removes form entries from `groups`, and the groups they leave empty.
+fn drop_form_entries(groups: &mut Vec<TermGroup>) {
+    for group in groups.iter_mut() {
+        group.terms.retain(|term| !term.is_form_entry());
+    }
+    groups.retain(|group| !group.terms.is_empty());
 }
 
 /// Which of the terms an exact lookup finds it keeps.
@@ -656,8 +751,7 @@ fn exact_groups(
         if expression != query && reading != query {
             continue;
         }
-        // Dictionaries space a reading differently (nǐhǎo, nǐ hǎo) without it being another word.
-        let key = (expression.clone(), reading.replace(' ', ""));
+        let key = (expression.clone(), reading_key(&reading));
         let position = *positions.entry(key).or_insert_with(|| {
             groups.push(TermGroup {
                 expression,
@@ -1148,8 +1242,8 @@ fn frequency_number(data: &Value) -> Option<f64> {
 }
 
 /// Appends `start`'s unseen exact groups, those of each of its `variants` that matches exactly in
-/// turn, then its inflected groups, each variant's in candidate order, each group naming `start`;
-/// then, in Japanese, applies the stable kana tiers to that start, and leads it with its first
+/// turn, then the entries its form entries name, then its inflected groups, each variant's in
+/// candidate order, each group naming `start`; then, in Japanese, applies the stable kana tiers to that start, and leads it with its first
 /// ranked group (see `lead_with_ranked_group`) before the caller enforces its limit.
 #[allow(clippy::too_many_arguments)]
 fn add_start_groups(
@@ -1176,16 +1270,49 @@ fn add_start_groups(
             groups.push(group);
         }
     };
-    for (variant, _) in variants.iter().filter(|(_, exact)| *exact) {
-        add(
-            exact_groups(connection, variant, TermFilter::All, sources, limits)?,
-            None,
-        );
-    }
-    for form in variants
+    let forms = variants
         .iter()
         .flat_map(|(variant, _)| language.deinflect(variant))
-    {
+        .collect::<Vec<_>>();
+    let mut lemmas = Vec::new();
+    for (variant, _) in variants.iter().filter(|(_, exact)| *exact) {
+        let mut found = exact_groups(connection, variant, TermFilter::All, sources, limits)?;
+        for term in found.iter().flat_map(|group| &group.terms) {
+            if term.is_form_entry() {
+                add_form_lemmas(term, &mut lemmas, limits)?;
+            }
+        }
+        drop_form_entries(&mut found);
+        add(found, None);
+    }
+    let mut resolved = false;
+    for lemma in &mut lemmas {
+        let mut found = exact_groups(connection, &lemma.form, TermFilter::All, sources, limits)?;
+        drop_form_entries(&mut found);
+        // A rule candidate's own names are translated, where the dictionary's are its own wording.
+        if let Some(form) = forms.iter().find(|form| {
+            let filter = TermFilter::Classes(language, form.classes & language.dictionary_forms());
+            form.text == lemma.form
+                && found
+                    .iter()
+                    .flat_map(|group| &group.terms)
+                    .any(|term| filter.keeps(&term.rules, &term.definition_tags))
+        }) {
+            lemma.inflections = form.inflections.iter().map(|&name| name.into()).collect();
+        }
+        resolved |= !found.is_empty();
+        add(found, Some(lemma));
+    }
+    // Entries that point nowhere still say what they point at.
+    if !lemmas.is_empty() && !resolved {
+        for (variant, _) in variants.iter().filter(|(_, exact)| *exact) {
+            add(
+                exact_groups(connection, variant, TermFilter::All, sources, limits)?,
+                None,
+            );
+        }
+    }
+    for form in forms {
         let classes = form.classes & language.dictionary_forms();
         if classes == 0 {
             continue;
@@ -1220,10 +1347,9 @@ fn add_start_groups(
                 form: text.to_owned(),
                 inflections: form.inflections.iter().map(|&name| name.into()).collect(),
             };
-            add(
-                exact_groups(connection, text, filter, sources, limits)?,
-                Some(&deinflection),
-            );
+            let mut found = exact_groups(connection, text, filter, sources, limits)?;
+            drop_form_entries(&mut found);
+            add(found, Some(&deinflection));
         }
     }
     if language.is_japanese() {
@@ -4529,6 +4655,84 @@ mod tests {
     }
 
     #[test]
+    fn form_entries_lead_to_the_entries_they_name() {
+        let directory = tempdir().unwrap();
+        let words = fixture_with(
+            directory.path(),
+            "words.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"words","revision":"1","format":3}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["mouse","","n","n",0,["a rodent"],1,""],
+                        ["cat","","n","n",0,["a feline"],2,""],
+                        ["leaf","","n","n",0,["of a tree"],3,""],
+                        ["leave","","v","v",0,["to go"],4,""],
+                        ["mice","","non-lemma","",0,[["mouse",["plural"]]],5,""],
+                        ["cats","","non-lemma","",0,[["cat",["alt-of"]]],6,""],
+                        ["leaves","","non-lemma","",0,[["leaf",["plural","plural"]],["leave",["third-person"]]],7,""],
+                        ["left","","non-lemma","",0,[["leave",["a","b","a","c","d"]]],12,""],
+                        ["ran","","non-lemma","",0,[["leave",["past past participle simple and","alternative"]]],8,""],
+                        ["ghost","","non-lemma","",0,[["nowhere",["plural"]]],9,""],
+                        ["hide","","n","n",0,["an animal skin"],10,""],
+                        ["hide","","non-lemma","",0,[["mouse",["plural"]]],11,""]]"#,
+                ),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        let (status, _) = import_one_into(&mut connection, &words, Language::English);
+        assert_eq!(status, ImportStatus::Imported);
+        let look = |query: &str| {
+            let sources =
+                language_sources(&connection, &SourcePolicy::default(), Language::English).unwrap();
+            lookup_longest_start_in(
+                &connection,
+                query,
+                &sources,
+                Language::English,
+                None,
+                GLOSSARY_LIMITS,
+            )
+            .unwrap()
+            .groups
+            .into_iter()
+            .map(|group| {
+                let deinflection = group.deinflection.map(|item| item.inflections);
+                (group.expression, group.text, deinflection)
+            })
+            .collect::<Vec<_>>()
+        };
+        let group = |expression: &str, text: &str, names: &[&str]| {
+            (
+                expression.to_owned(),
+                text.to_owned(),
+                Some(names.iter().map(ToString::to_string).collect::<Vec<_>>()),
+            )
+        };
+        assert_eq!(look("mice"), [group("mouse", "mice", &["plural"])]);
+        // The rule set's own name replaces the dictionary's, and it stays one group.
+        assert_eq!(look("cats"), [group("cat", "cats", &["plural"])]);
+        // Each form keeps its first names, once; names that say nothing leave none.
+        let leaves = look("leaves");
+        assert_eq!(leaves[0], group("leaf", "leaves", &["plural"]));
+        assert_eq!(leaves[1].0, "leave");
+        assert_eq!(look("left"), [group("leave", "left", &["a", "b", "c"])]);
+        assert_eq!(look("ran"), [group("leave", "ran", &[])]);
+        // A target no entry has stays as the entry's own text.
+        assert_eq!(
+            look("ghost"),
+            [("ghost".to_owned(), "ghost".to_owned(), None)]
+        );
+        // A real entry of the same spelling comes first, without the form entry's row.
+        let hide = look("hide");
+        assert_eq!(hide[0], ("hide".to_owned(), "hide".to_owned(), None));
+        assert_eq!(hide[1], group("mouse", "hide", &["plural"]));
+    }
+
+    #[test]
     fn entries_carry_their_languages_enabled_transcriptions() {
         let directory = tempdir().unwrap();
         let archive = |name: &str, bank: &str, data: &str| {
@@ -4550,6 +4754,10 @@ mod tests {
             r#"[["Kind","Kind","n","n",0,["child"],1,""],
                 ["pass","pass","n","n",0,["passport"],2,""],
                 ["谷歌","gǔ gē","","",0,["Google"],3,""],
+                ["falar","","","",0,["to speak"],5,""],
+                ["собака","собака","","",0,["dog"],6,""],
+                ["먹다","","","",0,["to eat"],7,""],
+                ["你好","nǐhǎo","","",0,["hello"],8,""],
                 ["一心一意","yīxīn","","",0,["wholeheartedly"],4,""]]"#,
         );
         let sounds = archive(
@@ -4561,6 +4769,10 @@ mod tests {
                 ["Kind","ipa",{"reading":"Kind","transcriptions":[{"ipa":"kɪnd | kɪndɐ, kɪ-","tags":[]}]}],
                 ["Kind","ipa",{"reading":"other","transcriptions":[{"ipa":"nope","tags":[]}]}],
                 ["pass","ipa",{"reading":"pass","transcriptions":[{"ipa":"pass","tags":[]}]}],
+                ["falar","ipa",{"reading":"falar","transcriptions":[{"ipa":"/faˈlaʁ/","tags":[]},{"ipa":"[faˈlah]","tags":[]},{"ipa":"/faˈlaɾ/","tags":[]}]}],
+                ["собака","ipa",{"reading":"соба́ка","transcriptions":[{"ipa":"sɐˈbakə","tags":[]}]}],
+                ["먹다","ipa",{"reading":"먹다","transcriptions":[{"ipa":"먹다, 먹따","tags":[]}]}],
+                ["你好","ipa",{"reading":"nǐ hǎo","transcriptions":[{"ipa":"nǐ hǎo","tags":["zh_pron","Mandarin","Pinyin"]},{"ipa":"ㄋㄧˇ ㄏㄠˇ","tags":["zh_pron","Mandarin","Standard-Chinese"]},{"ipa":"/ni²¹ xɑʊ̯²¹/","tags":["Mandarin","Standard-Chinese","Sinological-IPA"]},{"ipa":"/nei̯¹³ hou̯³⁵/","tags":["Cantonese","Sinological-IPA"]}]}],
                 ["谷歌","ipa",{"reading":"谷歌","transcriptions":[{"ipa":"ɡǔɡē","tags":[]}]}],
                 ["一心一意","ipa",{"reading":"一心一意","transcriptions":[{"ipa":"yīxīn, yīyì","tags":[]}]}]]"#,
         );
@@ -4601,10 +4813,33 @@ mod tests {
             transcriptions(&connection, "pass", Language::German),
             some(&["pass"])
         );
+        // A phonetic value after a phonemic one is left out.
+        assert_eq!(
+            transcriptions(&connection, "falar", Language::German),
+            some(&["/faˈlaʁ/", "/faˈlaɾ/"])
+        );
+        // A row's reading can differ from the group's in stress.
+        assert_eq!(
+            transcriptions(&connection, "собака", Language::German),
+            some(&["sɐˈbakə"])
+        );
+        // Korean Hangul repeating the word adds nothing.
+        connection
+            .execute("UPDATE dictionaries SET language = 'ko'", [])
+            .unwrap();
+        assert_eq!(
+            transcriptions(&connection, "먹다", Language::Korean),
+            some(&["먹따"])
+        );
         // Chinese pinyin repeating the reading adds nothing; a phrase's stays whole.
         connection
             .execute("UPDATE dictionaries SET language = 'zh'", [])
             .unwrap();
+        // A row of every dialect keeps Standard Mandarin's IPA, whatever spacing its reading has.
+        assert_eq!(
+            transcriptions(&connection, "你好", Language::Chinese),
+            some(&["/ni²¹ xɑʊ̯²¹/"])
+        );
         assert_eq!(
             transcriptions(&connection, "谷歌", Language::Chinese),
             some(&[])
@@ -8755,11 +8990,14 @@ mod tests {
                                 .map(|each| each.inflections.join("+"))
                                 .unwrap_or_default();
                             format!(
-                                "{}[{}]({}){{{}}}",
+                                "{}[{}]({}){{{}}}<{}>#{}f:{}",
                                 group.expression,
                                 group.reading,
                                 inflections,
-                                group.pitches.len()
+                                group.pitches.len(),
+                                group.transcriptions.join(" "),
+                                group.terms.len(),
+                                group.frequencies.len()
                             )
                         })
                         .collect::<Vec<_>>()

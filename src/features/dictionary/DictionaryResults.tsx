@@ -101,7 +101,9 @@ export function DictionaryResultsHeader({
             <>
               {" "}
               <span>→</span> <strong>{lookup.deinflection.form}</strong>{" "}
-              <span>({inflectionNames(lookup.deinflection.inflections)})</span>
+              {lookup.deinflection.inflections.length > 0 && (
+                <span>({inflectionNames(lookup.deinflection.inflections)})</span>
+              )}
             </>
           )}
           {lookup.matched !== lookup.query && (

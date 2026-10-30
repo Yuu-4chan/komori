@@ -1568,11 +1568,21 @@ furigana fields hold the expression, the archive's reading for an entry without 
 
 Every entry shows its pronunciations after its headword and reading, in every popup style and on
 the Dictionary page, from the term `ipa` metadata of the lookup language's enabled dictionaries:
-up to four, each once, for the group's reading or a row naming the headword as its reading. Commas
-and `|` separate alternatives. Dictionaries list the endings of other forms in the same data, so a
+up to four, each once, for the group's reading or a row naming the headword as its reading, compared
+without spaces and stress marks. Commas and `|` separate alternatives. A phonetic `[x]` directly after
+a phonemic `/x/` is dropped. Dictionaries list the endings of other forms in the same data, so a
 value without a letter, starting or ending in `-`, or under half the first's letters is dropped.
 Chinese `ipa` metadata is pinyin: its commas belong to the phrase, and a value repeating the reading
-(ignoring spaces, hyphens and the script `ɡ`) is dropped. They show between slashes, except in Chinese.
+(ignoring spaces, hyphens and the script `ɡ`) is dropped; values tagged `zh_pron` or `Sinological-IPA` list
+every dialect and romanization, and of those only Standard Mandarin's `/…/` values are kept. Korean `ipa` metadata can be
+Hangul: a value repeating the word is dropped. They show between slashes, except Chinese and Hangul.
+
+A term tagged `non-lemma` is a form entry: its glossary only names its dictionary forms, as
+`[lemma, [inflection names]]`. A lookup never shows it as an entry when a form it names has one: it
+lists those entries after the query's real ones, as inflected from the lemma, before any rule-based
+result. Their inflection names are a rule candidate's when one reaches the same word and class
+(translated), otherwise the dictionary's own first three, without its `alt-of`, `alternative`,
+`redirected` and truncated `… and` names. A form entry whose targets have no entry shows as itself.
 
 A term's glossary is read as definitions before it shows or goes to Anki: some dictionaries mark a
 cross-reference with a lone `▶` and give its target as a deinflection entry, `[target, [rules]]`,

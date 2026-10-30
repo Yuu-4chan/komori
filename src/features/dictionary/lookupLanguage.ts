@@ -35,5 +35,7 @@ export const readsBeside = (language: LookupLanguage) => language === "zh" || la
  */
 export const transcriptionText = (language: LookupLanguage, transcriptions: string[]) =>
   transcriptions
-    .map((text) => (language === "zh" || /^[/[]/.test(text) ? text : `/${text}/`))
+    .map((text) =>
+      language === "zh" || /^[/[]|\p{Script=Hangul}/u.test(text) ? text : `/${text}/`,
+    )
     .join(", ");
