@@ -456,7 +456,7 @@ impl TermFilter {
     fn keeps(self, rules: &str, definition_tags: &str) -> bool {
         match self {
             Self::All => true,
-            Self::Classes(language, classes) => language.word_classes(rules) & classes != 0,
+            Self::Classes(language, classes) => language.rules_allow(rules, classes),
             Self::SuruNoun => {
                 (ja::word_classes(rules) | ja::word_classes(definition_tags)) & VS != 0
             }
@@ -605,7 +605,8 @@ fn exact_groups(
         if expression != query && reading != query {
             continue;
         }
-        let key = (expression.clone(), reading.clone());
+        // Dictionaries space a reading differently (nǐhǎo, nǐ hǎo) without it being another word.
+        let key = (expression.clone(), reading.replace(' ', ""));
         let position = *positions.entry(key).or_insert_with(|| {
             groups.push(TermGroup {
                 expression,
@@ -4443,6 +4444,38 @@ mod tests {
     }
 
     #[test]
+    fn readings_differing_only_in_spacing_are_one_group() {
+        let directory = tempdir().unwrap();
+        let words = fixture_with(
+            directory.path(),
+            "words.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Words","revision":"1","format":3}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["你好","nǐhǎo","","",0,["hello"],1,""],
+                        ["你好","nǐ hǎo","","",0,["hi"],2,""],
+                        ["好","hǎo","","",0,["good"],3,""],
+                        ["好","hào","","",0,["to like"],4,""]]"#,
+                ),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        assert_eq!(
+            import_paths(&mut connection, &[words])[0].status,
+            ImportStatus::Imported
+        );
+        let groups = lookup_from_store(&connection, "你好").unwrap();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].reading, "nǐhǎo");
+        assert_eq!(groups[0].terms.len(), 2);
+        assert_eq!(lookup_from_store(&connection, "好").unwrap().len(), 2);
+    }
+
+    #[test]
     fn the_rest_of_the_japanese_transforms_look_up_their_dictionary_forms() {
         let directory = tempdir().unwrap();
         let words = fixture_with(
@@ -5459,11 +5492,11 @@ mod tests {
                 titles.iter().map(|&title| title.to_owned()).collect(),
             )
         };
-        // An inflection reaches only terms of its word class, and a start must end a word, so
-        // walked is never also look's lo or wal.
+        // An inflection reaches terms of its word class and terms naming none, and a start must
+        // end a word, so walked is never also look's lo or wal.
         assert_eq!(
             english_groups("walked"),
-            [group("walked", "walk", &["past"], &["English"])]
+            [group("walked", "walk", &["past"], &["English", "English"])]
         );
         assert_eq!(
             english_groups("looked"),
@@ -8475,6 +8508,78 @@ mod tests {
             assert_eq!(Sha256::digest(std::fs::read(path).unwrap()), hash);
         }
         println!("{} archives: disable/enable, reorder/reopen, remove two, compact ({size_before} → {size_after} bytes), reimport; SHA-256 unchanged", paths.len());
+    }
+
+    /// Follows the plan file `KOMORI_LANGUAGE_PLAN` against the store `KOMORI_DICTIONARY_DATABASE`:
+    /// a line `import<TAB>code<TAB>path` imports an archive into a language and `look<TAB>code<TAB>
+    /// query<TAB>form` looks up a query, printing `ok` or `MISS` for whether its first group is
+    /// `form`, then what it found. Every archive's bytes must stay unchanged.
+    #[test]
+    #[ignore = "requires explicit real dictionary archives; run with --release"]
+    fn real_language_lookups() {
+        let plan =
+            std::fs::read_to_string(std::env::var_os("KOMORI_LANGUAGE_PLAN").unwrap()).unwrap();
+        let database = std::env::var_os("KOMORI_DICTIONARY_DATABASE").unwrap();
+        let mut connection = open_store(Path::new(&database)).unwrap();
+        for line in plan.lines() {
+            let fields: Vec<&str> = line.split('\t').collect();
+            match fields.as_slice() {
+                ["import", code, path] => {
+                    let before = Sha256::digest(std::fs::read(path).unwrap());
+                    let started = Instant::now();
+                    let language = Language::from_code(code).unwrap();
+                    let (status, title) =
+                        import_one_into(&mut connection, Path::new(path), language);
+                    assert_eq!(before, Sha256::digest(std::fs::read(path).unwrap()));
+                    println!(
+                        "import {code} {} {status:?} {:.1} s",
+                        title.unwrap_or_default(),
+                        started.elapsed().as_secs_f64()
+                    );
+                }
+                ["look", code, query, form] => {
+                    let language = Language::from_code(code).unwrap();
+                    let sources =
+                        language_sources(&connection, &SourcePolicy::default(), language).unwrap();
+                    let lookup = lookup_longest_start_in(
+                        &connection,
+                        query,
+                        &sources,
+                        language,
+                        None,
+                        GLOSSARY_LIMITS,
+                    )
+                    .unwrap();
+                    let first = lookup.groups.first().map(|group| group.expression.as_str());
+                    let found = lookup
+                        .groups
+                        .iter()
+                        .take(6)
+                        .map(|group| {
+                            let inflections = group
+                                .deinflection
+                                .as_ref()
+                                .map(|each| each.inflections.join("+"))
+                                .unwrap_or_default();
+                            format!(
+                                "{}[{}]({}){{{}}}",
+                                group.expression,
+                                group.reading,
+                                inflections,
+                                group.pitches.len()
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    let verdict = if first == Some(*form) { "ok  " } else { "MISS" };
+                    println!(
+                        "{verdict} {code} {query} -> {form} : text={} {found}",
+                        lookup.text
+                    );
+                }
+                _ => panic!("bad plan line: {line}"),
+            }
+        }
     }
 
     /// Imports `KOMORI_DICTIONARY_SAMPLES` (`|`-separated archive paths) into a temporary store,

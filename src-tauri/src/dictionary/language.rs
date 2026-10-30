@@ -132,6 +132,17 @@ impl Language {
         }
     }
 
+    /// Whether a term with these rules can be a dictionary form of one of `classes`. Japanese
+    /// dictionaries name every inflecting word's class, so a term must name one. Other languages'
+    /// dictionaries often name none, or none Komori knows (`idiom`), which says nothing against it.
+    pub(crate) fn rules_allow(self, rules: &str, classes: u32) -> bool {
+        if self.is_japanese() {
+            return self.word_classes(rules) & classes != 0;
+        }
+        let named = self.word_classes(&common_class_names(rules));
+        named == 0 || named & classes != 0
+    }
+
     /// The word classes a term's rules can name.
     pub(crate) fn dictionary_forms(self) -> u32 {
         match self {
@@ -153,7 +164,7 @@ impl Language {
     /// first letter capitalized, and lowercased with its first letter capitalized (Running:
     /// running; london: London; NASA: nasa, Nasa); in French and Italian, then also all of those
     /// for the text without the elided word that begins it (l'homme: homme; dell'Italia: Italia).
-    /// Russian then also tries each without its stress marks, with ё as е, and with е as ё.
+    /// Russian then also tries each without its stress marks, with ё as е, and with each one е as ё (a word has one ё).
     /// Japanese and Chinese try only the text.
     pub(crate) fn variants(self, text: &str) -> Vec<String> {
         let mut variants = vec![text.to_owned()];
@@ -182,8 +193,22 @@ impl Language {
             for variant in variants.clone() {
                 let plain = variant.replace('\u{301}', "");
                 let with_e = plain.replace('ё', "е").replace('Ё', "Е");
-                let with_yo = plain.replace('е', "ё").replace('Е', "Ё");
-                for respelled in [plain, with_e, with_yo] {
+                let with_yo = plain
+                    .char_indices()
+                    .filter_map(|(at, letter)| {
+                        let yo = match letter {
+                            'е' => "ё",
+                            'Е' => "Ё",
+                            _ => return None,
+                        };
+                        Some(format!(
+                            "{}{yo}{}",
+                            &plain[..at],
+                            &plain[at + letter.len_utf8()..]
+                        ))
+                    })
+                    .collect::<Vec<_>>();
+                for respelled in [plain, with_e].into_iter().chain(with_yo) {
                     if !variants.contains(&respelled) {
                         variants.push(respelled);
                     }
@@ -222,6 +247,24 @@ impl Language {
     pub(crate) fn is_japanese(self) -> bool {
         self == Self::Japanese
     }
+}
+
+/// `rules` with dictionaries' other names for the common word classes written as the rule tables
+/// name them (`vt`, `masc-n`, `名詞`: `v`, `n`, `n`).
+fn common_class_names(rules: &str) -> String {
+    rules
+        .split_whitespace()
+        .map(|rule| match rule {
+            "vt" | "vi" | "vr" | "vt/vi" | "verb" | "overg" | "onoverg" | "動詞" | "동사"
+            | "타동사" | "자동사" | "타∙자동사" | "자∙타동사" => "v",
+            "noun" | "masc-n" | "fem-n" | "neut-n" | "pl-n" | "prop-n" | "masc/fem-n"
+            | "masc/neut-n" | "npl" | "SUBST" | "znw" | "名詞" | "명사" | "의존명사" => "n",
+            "adjective" | "bn" | "形容詞" | "형용사" => "adj",
+            "adverb" | "bijw" | "副詞" | "부사" => "adv",
+            other => other,
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// `text` with its first letter capitalized.
@@ -294,6 +337,9 @@ mod tests {
         assert!(Language::Russian
             .variants("молоко\u{301}")
             .contains(&"молоко".to_owned()));
+        assert!(Language::Russian
+            .variants("еще")
+            .contains(&"ещё".to_owned()));
     }
 
     #[test]
@@ -343,6 +389,26 @@ mod tests {
         ] {
             assert_eq!(Language::declared(tag), None, "{tag:?}");
         }
+    }
+
+    #[test]
+    fn rules_allow_a_class_they_name_or_say_nothing_against() {
+        use deinflect::{en, ko, ru};
+        for rules in ["vt", "imperfective verb", "타동사", "動詞", "v"] {
+            assert!(Language::Russian.rules_allow(rules, ru::V), "{rules}");
+            assert!(!Language::Russian.rules_allow(rules, ru::N), "{rules}");
+        }
+        for rules in ["masc-n", "feminine noun", "SUBST", "名詞", "명사"] {
+            assert!(Language::English.rules_allow(rules, en::N), "{rules}");
+            assert!(!Language::English.rules_allow(rules, en::V), "{rules}");
+        }
+        assert!(!Language::Korean.rules_allow("명사", ko::V));
+        for rules in ["", "idiom", "abbv"] {
+            assert!(Language::English.rules_allow(rules, en::V), "{rules}");
+        }
+        assert!(!Language::Japanese.rules_allow("", deinflect::ja::V1));
+        assert!(!Language::Japanese.rules_allow("vt", deinflect::ja::V1));
+        assert!(Language::Japanese.rules_allow("v1 vt", deinflect::ja::V1));
     }
 
     #[test]

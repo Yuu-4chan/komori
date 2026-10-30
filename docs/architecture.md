@@ -1534,8 +1534,15 @@ declensions, adjective endings with their short, comparative and superlative for
 -о, and regular verbs' present and past tenses, imperatives, gerunds and participles. -ся/-сь is
 removed first to class `VF` (a verb form, never a dictionary form), which the verb endings
 continue from. Irregular forms rely on the dictionaries' own form entries. A Russian lookup also
-tries each spelling without its stress marks (U+0301), with ё as е and with е as ё. Its classes
+tries each spelling without its stress marks (U+0301), with ё as е and with each one е as ё. Its classes
 are `v`, `n` and `adj`.
+
+A candidate from a language's rules must be a term its rules allow. Japanese dictionaries name
+every inflecting word's class, so a term must name the candidate's. Other languages' dictionaries
+vary, so their rules are read with the common other names for verbs, nouns, adjectives and adverbs
+(`vt`, `masc-n`, `SUBST`, `名詞`, `동사`), and a term naming no class Komori knows is allowed: many
+dictionaries name none. A word's entries from different dictionaries are one group when their
+readings differ only in spacing (nǐhǎo, nǐ hǎo).
 
 Each dictionary belongs to one lookup language, the store's `language` column, and only that
 language's lookups use it. An import goes to the language Settings > Dictionary shows, unless its

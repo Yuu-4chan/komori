@@ -121,6 +121,23 @@ static RULES_LIST: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     for &(list, base) in PRESENTS {
         rules.extend(endings(PRESENT, "", list, base, VF, V));
     }
+    // A reflexive verb's own forms, since dictionaries list it with its -ся (учусь: учиться).
+    for &(list, base) in PRESENTS {
+        let base: &'static str = format!("{base}ся").leak();
+        for ending in list {
+            let reflexive = if ending.ends_with(['у', 'ю', 'е']) {
+                "сь"
+            } else {
+                "ся"
+            };
+            let form: &'static str = format!("{ending}{reflexive}").leak();
+            rules.push(rule(PRESENT, form, base, 0, V));
+        }
+    }
+    rules.extend(endings(IMPERATIVE, "", &["йся", "йтесь"], "ться", 0, V));
+    rules.extend(endings(IMPERATIVE, "", &["ись", "итесь"], "иться", 0, V));
+    rules.extend(endings(GERUND, "", &["ясь", "вшись"], "ться", 0, V));
+    rules.extend(endings(GERUND, "", &["ясь", "ась"], "иться", 0, V));
     rules.extend(endings(PAST, "л", &["", "а", "о", "и"], "ть", VF, V));
     rules.extend(endings(
         PAST,
@@ -207,6 +224,10 @@ mod tests {
             ("читала", "читать", &[PAST]),
             ("училась", "учиться", &[PAST]),
             ("учусь", "учить", &[PRESENT, REFLEXIVE]),
+            ("учусь", "учиться", &[PRESENT]),
+            ("улыбается", "улыбаться", &[PRESENT]),
+            ("улыбайся", "улыбаться", &[IMPERATIVE]),
+            ("смеялся", "смеяться", &[PAST]),
             ("читай", "читать", &[IMPERATIVE]),
             ("говори", "говорить", &[IMPERATIVE]),
             ("прочитав", "прочитать", &[GERUND]),

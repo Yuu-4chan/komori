@@ -148,6 +148,35 @@ const ENCLITICS: &[&str] = &[
 
 static TABLE: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     let mut rules = Vec::new();
+    // Nouns and adjectives first: casas and animais are far more often casa and animal than
+    // casar and animar, and many dictionaries name no word class to tell them apart.
+    rules.extend([
+        rule(PLURAL, "s", "", N | ADJ, N | ADJ),
+        rule(PLURAL, "es", "", N | ADJ, N | ADJ),
+        rule(PLURAL, "ões", "ão", N | ADJ, N | ADJ),
+        rule(PLURAL, "ães", "ão", N | ADJ, N | ADJ),
+        rule(PLURAL, "ãos", "ão", N | ADJ, N | ADJ),
+        rule(PLURAL, "ais", "al", N | ADJ, N | ADJ),
+        rule(PLURAL, "éis", "el", N | ADJ, N | ADJ),
+        rule(PLURAL, "eis", "il", N | ADJ, N | ADJ),
+        rule(PLURAL, "óis", "ol", N | ADJ, N | ADJ),
+        rule(PLURAL, "uis", "ul", N | ADJ, N | ADJ),
+        rule(PLURAL, "is", "il", N | ADJ, N | ADJ),
+        rule(PLURAL, "ns", "m", N | ADJ, N | ADJ),
+        rule(FEMININE, "a", "o", N | ADJ, N | ADJ),
+        rule(FEMININE, "ora", "or", N | ADJ, N | ADJ),
+        rule(FEMININE, "esa", "ês", N | ADJ, N | ADJ),
+        rule(FEMININE, "ã", "ão", N | ADJ, N | ADJ),
+        rule(FEMININE, "ona", "ão", N | ADJ, N | ADJ),
+        rule(FEMININE, "eia", "eu", N | ADJ, N | ADJ),
+        rule(DIMINUTIVE, "inho", "o", N | ADJ, N | ADJ),
+        rule(DIMINUTIVE, "inha", "a", N | ADJ, N | ADJ),
+        rule(DIMINUTIVE, "zinho", "", N | ADJ, N | ADJ),
+        rule(DIMINUTIVE, "zinha", "", N | ADJ, N | ADJ),
+        rule(SUPERLATIVE, "íssimo", "o", ADJ, ADJ),
+        rule(SUPERLATIVE, "íssima", "a", ADJ, ADJ),
+        rule(ADVERB, "mente", "", ADV, ADJ),
+    ]);
     for (name, groups) in TENSES {
         for (group, base) in groups.iter().zip(["ar", "er", "ir"]) {
             rules.extend(endings(name, "", group, base, VF, V));
@@ -179,33 +208,6 @@ static TABLE: LazyLock<Vec<Rule>> = LazyLock::new(|| {
         ));
     }
     rules.extend(endings(PRONOUN, "", ENCLITICS, "", 0, V | VF));
-    rules.extend([
-        rule(PLURAL, "s", "", N | ADJ, N | ADJ),
-        rule(PLURAL, "es", "", N | ADJ, N | ADJ),
-        rule(PLURAL, "ões", "ão", N | ADJ, N | ADJ),
-        rule(PLURAL, "ães", "ão", N | ADJ, N | ADJ),
-        rule(PLURAL, "ãos", "ão", N | ADJ, N | ADJ),
-        rule(PLURAL, "ais", "al", N | ADJ, N | ADJ),
-        rule(PLURAL, "éis", "el", N | ADJ, N | ADJ),
-        rule(PLURAL, "eis", "il", N | ADJ, N | ADJ),
-        rule(PLURAL, "óis", "ol", N | ADJ, N | ADJ),
-        rule(PLURAL, "uis", "ul", N | ADJ, N | ADJ),
-        rule(PLURAL, "is", "il", N | ADJ, N | ADJ),
-        rule(PLURAL, "ns", "m", N | ADJ, N | ADJ),
-        rule(FEMININE, "a", "o", N | ADJ, N | ADJ),
-        rule(FEMININE, "ora", "or", N | ADJ, N | ADJ),
-        rule(FEMININE, "esa", "ês", N | ADJ, N | ADJ),
-        rule(FEMININE, "ã", "ão", N | ADJ, N | ADJ),
-        rule(FEMININE, "ona", "ão", N | ADJ, N | ADJ),
-        rule(FEMININE, "eia", "eu", N | ADJ, N | ADJ),
-        rule(DIMINUTIVE, "inho", "o", N | ADJ, N | ADJ),
-        rule(DIMINUTIVE, "inha", "a", N | ADJ, N | ADJ),
-        rule(DIMINUTIVE, "zinho", "", N | ADJ, N | ADJ),
-        rule(DIMINUTIVE, "zinha", "", N | ADJ, N | ADJ),
-        rule(SUPERLATIVE, "íssimo", "o", ADJ, ADJ),
-        rule(SUPERLATIVE, "íssima", "a", ADJ, ADJ),
-        rule(ADVERB, "mente", "", ADV, ADJ),
-    ]);
     rules
 });
 

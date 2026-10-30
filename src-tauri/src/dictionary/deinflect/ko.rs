@@ -24,6 +24,8 @@ pub(crate) const V: u32 = 1;
 pub(crate) const ADJ: u32 = 1 << 1;
 /// The particle 이다 (`ida`).
 pub(crate) const IDA: u32 = 1 << 2;
+/// Nouns (`n`), which nothing inflects to, so a noun is never a verb's dictionary form.
+pub(crate) const N: u32 = 1 << 15;
 /// The intermediate endings a final ending can follow: past, future, and the honorific and
 /// formal ones.
 const P: u32 = 1 << 3;
@@ -46,7 +48,7 @@ const MAX_CANDIDATES: usize = 512;
 
 /// The word classes a term's space-separated rules name.
 pub(crate) fn word_classes(rules: &str) -> u32 {
-    named_classes(rules, &[("v", V), ("adj", ADJ), ("ida", IDA)])
+    named_classes(rules, &[("v", V), ("adj", ADJ), ("ida", IDA), ("n", N)])
 }
 
 /// Yomitan's rules, in its transform order.

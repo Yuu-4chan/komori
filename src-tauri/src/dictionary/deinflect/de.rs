@@ -226,7 +226,12 @@ static RULES: LazyLock<RuleSet<'static>> = LazyLock::new(|| RuleSet::new(&YOMITA
 
 /// The forms `text` may be an inflection of (see `deinflect_bounded`).
 pub(crate) fn deinflect(text: &str) -> Vec<Candidate> {
-    deinflect_bounded(text, &RULES, MAX_STEPS, MAX_CANDIDATES)
+    let mut candidates = deinflect_bounded(text, &RULES, MAX_STEPS, MAX_CANDIDATES);
+    // A past participle's two steps are one inflection to the reader.
+    for candidate in &mut candidates {
+        candidate.inflections.dedup();
+    }
+    candidates
 }
 
 #[cfg(test)]
@@ -252,12 +257,8 @@ mod tests {
     #[test]
     fn inflected_forms_reach_their_dictionary_forms() {
         check(&[
-            ("gemacht", "machen", &[PAST_PARTICIPLE, PAST_PARTICIPLE]),
-            (
-                "aufgemacht",
-                "aufmachen",
-                &[PAST_PARTICIPLE, PAST_PARTICIPLE],
-            ),
+            ("gemacht", "machen", &[PAST_PARTICIPLE]),
+            ("aufgemacht", "aufmachen", &[PAST_PARTICIPLE]),
             ("gesehen", "sehen", &[PAST_PARTICIPLE]),
             ("anzufangen", "anfangen", &[ZU_INFINITIVE]),
             ("Bildung", "Bilden", &[NOMINALIZATION]),
