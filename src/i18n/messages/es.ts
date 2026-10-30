@@ -144,9 +144,9 @@ export const es: MessageCatalog = {
   "autoscroll.hint": "Haz clic o pulsa Esc para detenerlo.",
   "librarySettings.cardSize": "Tamaño de las tarjetas",
   "librarySettings.cardSizeHint": "El ancho mínimo de la tarjeta de un libro.",
-  "librarySettings.seriesFromTitles": "Series a partir de títulos",
+  "librarySettings.seriesFromTitles": "Series automáticas",
   "librarySettings.seriesFromTitlesHint":
-    "Los volúmenes numerados con el mismo título, como «Título 01» y «Título 02», forman una serie cuando los libros no indican ninguna.",
+    "Los nombres de archivo numerados, como «Harry Potter 1» y «Harry Potter 2», forman primero una serie; después la serie del propio libro y luego los títulos numerados.",
   "unit.px": "px",
   "operation.busy": "Hay otra operación en curso. Inténtalo de nuevo cuando termine.",
   "operation.failed":

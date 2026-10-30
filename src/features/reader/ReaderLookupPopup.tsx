@@ -121,7 +121,7 @@ export function ReaderLookupPopup({
     lookupLanguage,
   } = appearance;
   const dictionaryStyle = readerPopupStyle === "dictionary";
-  const font = usePopupFont(readerPopupFont);
+  const font = usePopupFont(readerPopupFont, lookupLanguage);
   const [state, setState] = useState<LookupState>({ status: "loading" });
   const canPlayAudio = useWordAudioAvailable();
   const revision = useDictionaryRevision();

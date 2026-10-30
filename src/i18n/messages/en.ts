@@ -153,9 +153,9 @@ export const en = {
   "autoscroll.hint": "Click or press Escape to stop.",
   "librarySettings.cardSize": "Card size",
   "librarySettings.cardSizeHint": "The narrowest a book card may be.",
-  "librarySettings.seriesFromTitles": "Series from titles",
+  "librarySettings.seriesFromTitles": "Automatic series",
   "librarySettings.seriesFromTitlesHint":
-    "Numbered volumes sharing a title, like “Title 01” and “Title 02”, form a series when the books name none.",
+    "Numbered file names, like “Harry Potter 1” and “Harry Potter 2”, make a series first; then a book's own series, then numbered titles.",
   "unit.px": "px",
 
   // Bulk operations

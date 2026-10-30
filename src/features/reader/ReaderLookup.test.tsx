@@ -43,7 +43,11 @@ vi.mock("../anki/ankiApi", async (original) => ({
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
     isMaximized: async () => false,
+    isMinimized: async () => false,
+    isFocused: async () => true,
+    isVisible: async () => true,
     onResized: async () => () => {},
+    onFocusChanged: async () => () => {},
   }),
 }));
 
@@ -1666,7 +1670,7 @@ describe("Reader lookup popup", () => {
     await within(popup).findByText("reading books; reading");
     expect(popup).toHaveClass("reader-lookup--dictionary");
     expect(popup.style.getPropertyValue("--popup-font")).toBe(
-      '"Yu Mincho", "Komori Google zen-old-mincho", serif',
+      '"Yu Mincho", "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
     );
     const [entry, shorter] = within(popup).getAllByRole("article");
     expect(entry).toHaveAccessibleName("読書 (どくしょ)");
@@ -1747,7 +1751,7 @@ describe("Reader lookup popup", () => {
     expect(within(popup).queryByRole("button", { name: "Open 本 in dictionary" })).toBeNull();
     // The default popup font is the included Zen Old Mincho.
     expect(popup.style.getPropertyValue("--popup-font")).toBe(
-      '"Komori Google zen-old-mincho", serif',
+      '"Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
     );
 
     kanjiMock.mockResolvedValue({ entries: [], frequencies: [] });

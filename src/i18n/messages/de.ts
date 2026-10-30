@@ -145,9 +145,9 @@ export const de: MessageCatalog = {
   "autoscroll.hint": "Zum Beenden klicken oder Esc drücken.",
   "librarySettings.cardSize": "Kartengröße",
   "librarySettings.cardSizeHint": "Die Mindestbreite einer Buchkarte.",
-  "librarySettings.seriesFromTitles": "Reihen aus Titeln",
+  "librarySettings.seriesFromTitles": "Automatische Reihen",
   "librarySettings.seriesFromTitlesHint":
-    "Nummerierte Bände mit gleichem Titel, etwa „Titel 01“ und „Titel 02“, bilden eine Reihe, wenn die Bücher keine nennen.",
+    "Nummerierte Dateinamen wie „Harry Potter 1“ und „Harry Potter 2“ bilden zuerst eine Reihe; dann die eigene Reihe des Buchs, dann nummerierte Titel.",
   "unit.px": "px",
   "operation.busy": "Ein anderer Vorgang läuft noch. Versuche es erneut, wenn er beendet ist.",
   "operation.failed":

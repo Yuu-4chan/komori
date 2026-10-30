@@ -144,9 +144,9 @@ export const ja: MessageCatalog = {
   "autoscroll.hint": "クリックかEscで止まります。",
   "librarySettings.cardSize": "表紙の大きさ",
   "librarySettings.cardSizeHint": "本の表紙の最小の幅。",
-  "librarySettings.seriesFromTitles": "タイトルからシリーズ",
+  "librarySettings.seriesFromTitles": "シリーズの自動作成",
   "librarySettings.seriesFromTitlesHint":
-    "シリーズのない本は、「タイトル01」と「タイトル02」のように番号だけが違う巻でシリーズになります。",
+    "「Harry Potter 1」「Harry Potter 2」のように番号付きのファイル名を最優先でシリーズにします。次に本のシリーズ情報、その次に番号付きのタイトルを使います。",
   "unit.px": "px",
   "operation.busy": "別の処理を実行中です。終わってからもう一度お試しください。",
   "operation.failed":

@@ -34,7 +34,12 @@ import { OperationNotice } from "../operations/OperationNotice";
 import { StarterDictionaries } from "./StarterDictionaries";
 import { starterActive, useStarterDictionaries } from "./useStarterDictionaries";
 import { dictionariesChanged } from "./sourcePolicy";
-import { defaultLookupLanguage, lookupLanguages, type LookupLanguage } from "./lookupLanguage";
+import {
+  type DefinitionLanguage,
+  defaultLookupLanguage,
+  lookupLanguages,
+  type LookupLanguage,
+} from "./lookupLanguage";
 import {
   importDictionaries,
   listDictionaries,
@@ -69,8 +74,8 @@ export function DictionarySources({
 }: {
   lookupLanguage?: LookupLanguage;
   onLookupLanguageChange?: (language: LookupLanguage) => void;
-  starterDefinitions?: LookupLanguage | "";
-  onStarterDefinitionsChange?: (language: LookupLanguage) => void;
+  starterDefinitions?: DefinitionLanguage | "";
+  onStarterDefinitionsChange?: (language: DefinitionLanguage) => void;
 }) {
   const operation = useBulkOperation("dictionaries");
   const starter = useStarterDictionaries();

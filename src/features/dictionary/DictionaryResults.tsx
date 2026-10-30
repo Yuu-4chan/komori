@@ -236,12 +236,13 @@ function usePronunciation(expression: string, reading: string, canPlay: boolean)
   const [state, setState] = useState<PronunciationState>("idle");
   const owner = useRef({});
 
-  useEffect(
-    () => () => {
+  // Each word starts over: another word can have a recording this one lacked.
+  useEffect(() => {
+    setState("idle");
+    return () => {
       if (activePronunciation?.owner === owner.current) stopPronunciation();
-    },
-    [],
-  );
+    };
+  }, [expression, reading]);
 
   async function playRecording(blob: Blob, pronunciation: Pronunciation): Promise<boolean> {
     const url = URL.createObjectURL(blob);
@@ -294,8 +295,8 @@ function usePronunciation(expression: string, reading: string, canPlay: boolean)
 }
 
 /**
- * The headword's audio button: plays its recording, shows playback, says when no source has the
- * word, and is disabled when there is no source to ask.
+ * The headword's audio button: plays its recording and shows playback. It is disabled while
+ * asking the sources, when none has the word, and when there is no source to ask.
  */
 export function PronunciationButton({
   expression,
@@ -322,7 +323,7 @@ export function PronunciationButton({
       aria-label={t("dictionaryResults.play", { expression })}
       aria-pressed={active}
       className={`dictionary-audio-button${active ? " dictionary-audio-button--playing" : ""}`}
-      disabled={!canPlay}
+      disabled={!canPlay || state === "loading" || state === "missing"}
       onClick={() => void play()}
       title={label}
       type="button"

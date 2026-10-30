@@ -451,12 +451,12 @@ describe("real lookup preview", () => {
     const font = screen.getByRole("combobox", { name: "Font" });
     expect(font).toHaveValue("Zen Old Mincho");
     expect(preview.style.getPropertyValue("--popup-font")).toBe(
-      '"Komori Google zen-old-mincho", serif',
+      '"Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
     );
     fireEvent.change(font, { target: { value: "Yu Mincho" } });
     fireEvent.keyDown(font, { key: "Enter" });
     expect(preview.style.getPropertyValue("--popup-font")).toBe(
-      '"Yu Mincho", "Komori Google zen-old-mincho", serif',
+      '"Yu Mincho", "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
     );
     await waitFor(() =>
       expect(store.save).toHaveBeenLastCalledWith(

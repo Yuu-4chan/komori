@@ -1269,14 +1269,7 @@
 /* The popup sets its chosen font; the Dictionary page keeps the serif headword. */
 .lookup-entry__expression {
   color: var(--text-primary);
-  font-family: var(
-    --popup-font,
-    "Noto Serif JP",
-    "Yu Mincho",
-    "YuMincho",
-    "Hiragino Mincho ProN",
-    serif
-  );
+  font-family: var(--popup-font, var(--font-lookup));
   font-size: 38px;
   font-weight: 600;
   line-height: 1.1;
@@ -1319,14 +1312,7 @@
 }
 .lookup-entry__reading {
   color: var(--text-muted);
-  font-family: var(
-    --popup-font,
-    "Noto Serif JP",
-    "Yu Mincho",
-    "YuMincho",
-    "Hiragino Mincho ProN",
-    serif
-  );
+  font-family: var(--popup-font, var(--font-lookup));
   font-size: 20px;
 }
 .lookup-entry .dictionary-audio-button {

@@ -336,7 +336,7 @@ export function groupPageLink(key: string): string {
 
 /** The words a series name can end in before a volume's number: `Vol. 2`, `Ep.05`, `第3巻`. */
 const VOLUME_WORD =
-  /(?:(?<![\p{L}\p{N}])(?:vol(?:ume)?|ep(?:isode)?|book|part|tome|tomo|livro|parte)|第)$/iu;
+  /(?:(?<![\p{L}\p{N}])(?:v|vol(?:ume)?|ep(?:isode)?|book|part|tome|tomo|livro|parte)|第)$/iu;
 
 /** Numbers, separators and opening brackets ending a name, but not a title's own `！` or `？`. */
 const TRAILING = /(?:(?![!?！？‼⁉⁈⁇])[\s\p{N}\p{Po}\p{Ps}\p{Pi}\p{Pc}])+$/u;
@@ -349,6 +349,10 @@ const OPENING: Record<string, string> = { ">": "<", "＞": "＜", "﹥": "﹤" }
 
 /** A letter of a script that separates its words with spaces. */
 const SPACED_LETTER = /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}]/u;
+
+/** Whether two characters read the same, full-width (`４`) or not (`4`). */
+const sameCharacter = (a: string, b: string) =>
+  a === b || a.normalize("NFKC") === b.normalize("NFKC");
 
 /**
  * The series name several titles share, from how they begin: `Cat Tales 1` and `Cat Tales 2`
@@ -365,7 +369,8 @@ export function seriesFromTitles(titles: readonly string[]): string {
   let length = first.length;
   for (const title of rest) {
     let index = 0;
-    while (index < length && index < title.length && title[index] === first[index]) index += 1;
+    while (index < length && index < title.length && sameCharacter(title[index], first[index]))
+      index += 1;
     length = index;
   }
   let stem = first.slice(0, length).join("");

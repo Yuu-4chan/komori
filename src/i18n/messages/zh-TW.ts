@@ -138,9 +138,9 @@ export const zhTW: MessageCatalog = {
   "autoscroll.hint": "按一下或按Esc停止。",
   "librarySettings.cardSize": "封面大小",
   "librarySettings.cardSizeHint": "圖書封面的最小寬度。",
-  "librarySettings.seriesFromTitles": "從標題識別系列",
+  "librarySettings.seriesFromTitles": "自動識別系列",
   "librarySettings.seriesFromTitlesHint":
-    "沒有系列的書中，像「標題01」和「標題02」這樣只有編號不同的各卷會組成一個系列。",
+    "優先依帶編號的檔名（如「Harry Potter 1」「Harry Potter 2」）組成系列；其次是書中的系列資訊，最後是帶編號的標題。",
   "unit.px": "px",
   "operation.busy": "另一項操作仍在進行中。請在其完成後重試。",
   "operation.failed": "Komori無法完成此操作。請檢查當前列表後再重試。",

@@ -12,6 +12,8 @@ import {
   fontPairStack,
   popupFontFaces,
   popupFontStack,
+  bookAsianFont,
+  defaultAsianFont,
   sameFontPair,
   isReaderFontChoice,
   googleFontFiles,
@@ -82,7 +84,7 @@ it("restricts Asian aliases to CJK while keeping ordered glyph fallback and fixe
     downloaded: ["zen-old-mincho"],
   };
   expect(fontPairStack(pair)).toBe(
-    '"Komori Asian", "Arial", "Komori Google zen-old-mincho", serif',
+    '"Komori Asian", "Arial", "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
   );
   const faces = fontPairFaces(pair);
   expect(faces).toContain("unicode-range: U+1100-11FF,U+2E80-9FFF");
@@ -486,12 +488,35 @@ it("sets the popup in its chosen font over the included Zen Old Mincho, declarin
     readerPopupStyle: "standard",
     readerPopupFont: { source: "google", id: "zen-old-mincho" },
   });
-  expect(popupFontStack(defaultPopupFont)).toBe('"Komori Google zen-old-mincho", serif');
+  expect(popupFontStack(defaultPopupFont)).toBe(
+    '"Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
+  );
+  // Chinese and Korean lookups leave the default Japanese font for a system font.
+  expect(popupFontStack(defaultPopupFont, "zh")).toBe(
+    '"Microsoft YaHei", "Komori Google zen-old-mincho", "Microsoft JhengHei", "Malgun Gothic", serif',
+  );
+  expect(popupFontStack(defaultPopupFont, "ko").startsWith('"Malgun Gothic", ')).toBe(true);
+  expect(
+    popupFontStack({ source: "system", family: "Yu Mincho" }, "zh").startsWith('"Yu Mincho", '),
+  ).toBe(true);
+  expect(bookAsianFont(defaultAsianFont, "zh-Hans")).toEqual({
+    source: "google",
+    id: "noto-sans-sc",
+  });
+  expect(bookAsianFont(defaultAsianFont, "zh")).toEqual({ source: "google", id: "noto-sans-sc" });
+  expect(bookAsianFont(defaultAsianFont, "zh-Hant")).toEqual({
+    source: "system",
+    family: "Microsoft JhengHei",
+  });
+  expect(bookAsianFont(defaultAsianFont, "ko")).toEqual({ source: "google", id: "noto-sans-kr" });
+  expect(bookAsianFont(defaultAsianFont, "ja")).toBe(defaultAsianFont);
+  const ownFont = { source: "system", family: "Yu Mincho" } as const;
+  expect(bookAsianFont(ownFont, "zh")).toBe(ownFont);
   expect(popupFontStack({ source: "system", family: "Yu Mincho" })).toBe(
-    '"Yu Mincho", "Komori Google zen-old-mincho", serif',
+    '"Yu Mincho", "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
   );
   expect(popupFontStack({ source: "preset", id: "sans-serif" })).toBe(
-    'sans-serif, "Komori Google zen-old-mincho", serif',
+    'sans-serif, "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
   );
   const zen = googleFontFiles.find((f) => f.id === "zen-old-mincho")!;
   // The popup is in Komori's own window: no script aliases, only the fonts it names.

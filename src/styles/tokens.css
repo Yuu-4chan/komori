@@ -66,7 +66,11 @@
 
   --font-interface:
     "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", "Yu Gothic UI", "Yu Gothic", Meiryo,
-    sans-serif;
+    "Microsoft YaHei UI", "Microsoft JhengHei UI", "Malgun Gothic", sans-serif;
+  --font-lookup-ja:
+    "Noto Serif JP", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "Microsoft YaHei",
+    "Microsoft JhengHei", "Malgun Gothic", serif;
+  --font-lookup: var(--font-lookup-ja);
   --font-size-1: 0.6875rem;
   --font-size-2: 0.8125rem;
   --font-size-3: 0.9375rem;
@@ -135,4 +139,31 @@
     --page-padding-inline: 4.5rem;
     --page-padding-block: 3.75rem;
   }
+}
+
+/* Chinese and Korean text in its own script's system font: the Japanese fonts first in the stacks
+   above lack many of their characters, and their stand-ins look thinner than the rest. */
+:root:lang(zh-CN) {
+  --font-interface:
+    "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft JhengHei UI", "Malgun Gothic", "Yu Gothic UI", sans-serif;
+}
+:root:lang(zh-TW) {
+  --font-interface:
+    "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", "Microsoft JhengHei UI",
+    "Microsoft YaHei UI", "Malgun Gothic", "Yu Gothic UI", sans-serif;
+}
+:root:lang(ko) {
+  --font-interface:
+    "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", "Malgun Gothic", "Microsoft YaHei UI",
+    "Yu Gothic UI", sans-serif;
+}
+[lang|="zh"] {
+  --font-lookup: "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif;
+}
+[lang|="ko"] {
+  --font-lookup: "Malgun Gothic", "Microsoft YaHei", serif;
+}
+[lang|="ja"] {
+  --font-lookup: var(--font-lookup-ja);
 }

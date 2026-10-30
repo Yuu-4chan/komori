@@ -7,12 +7,15 @@ import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 import { getLibraryBook } from "../features/library/libraryApi";
 import { ReaderPage } from "./ReaderPage";
 
+const { opened } = vi.hoisted(() => ({ opened: [] as string[] }));
+
 vi.mock("../features/library/libraryApi", () => ({
   getLibraryBook: vi.fn(),
 }));
 vi.mock("../features/reader/epubRenderer", () => ({
   epubRendererFactory: vi.fn(() => () => ({
-    mount: async (host: HTMLElement) => {
+    mount: async (host: HTMLElement, ...rest: unknown[]) => {
+      opened.push(JSON.stringify(rest));
       host.textContent = "EPUB content";
       return "ready" as const;
     },
@@ -50,6 +53,19 @@ describe("catalog Reader route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lookupMock.mockImplementation(async (id) => (id === book.id ? book : null));
+    opened.length = 0;
+  });
+
+  it.each([
+    ["zh", "noto-sans-sc"],
+    ["ko", "noto-sans-kr"],
+    ["ja", "noto-sans-jp"],
+  ])("opens a book in %s in its own included font", async (language, font) => {
+    lookupMock.mockResolvedValue({ ...book, language });
+    renderRoute();
+    await screen.findByText("Reader ready");
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toContain(`"asian":{"source":"google","id":"${font}"}`);
   });
 
   it("resolves a direct ID route and shows safe identity, cover and EPUB content", async () => {

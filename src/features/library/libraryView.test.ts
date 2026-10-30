@@ -244,6 +244,8 @@ describe("language names", () => {
 describe("series from titles", () => {
   it("names the series titles begin with, without volume numbers and words", () => {
     expect(seriesFromTitles(["Cat Tales 1", "Cat Tales 2"])).toBe("Cat Tales");
+    expect(seriesFromTitles(["８６ Tales 1", "86 Tales ２"])).toBe("８６ Tales");
+    expect(seriesFromTitles(["Title v01", "Title v02"])).toBe("Title");
     expect(seriesFromTitles(["幼女戦記07", "幼女戦記08"])).toBe("幼女戦記");
     expect(seriesFromTitles(["Foo Vol. 1", "Foo Vol. 2", "Foo Vol. 3"])).toBe("Foo");
     expect(seriesFromTitles(["作品 第1巻", "作品 第2巻"])).toBe("作品");

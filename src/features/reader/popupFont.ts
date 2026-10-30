@@ -15,12 +15,12 @@ const styleId = "komori-popup-fonts";
  * files are served without caching, and each new popup reuses the faces already loaded. The
  * Reader calls it too, so the faces load before its first popup.
  */
-export function usePopupFont(choice: ReaderFontChoice): string {
+export function usePopupFont(choice: ReaderFontChoice, language?: string): string {
   const { fonts } = useReaderFonts();
   const downloaded = fonts.filter((f) => f.source === "google" && f.available).map((f) => f.id);
   const uploaded = fonts.filter((f) => f.source === "uploaded" && f.available) as UploadedFont[];
   const faces = popupFontFaces(choice, downloaded, uploaded);
-  const stack = popupFontStack(choice);
+  const stack = popupFontStack(choice, language);
   useEffect(() => {
     let style = document.getElementById(styleId);
     if (!style) {

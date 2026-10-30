@@ -12,7 +12,7 @@ export function AnkiIcon({ size = "1em", weight: _weight, ...props }: AnkiIconPr
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="-3 -1.8 30 30"
       fill="currentColor"
       focusable="false"
       {...props}

@@ -40,7 +40,9 @@ import {
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   defaultLookupLanguage,
+  isDefinitionLanguage,
   isLookupLanguage,
+  type DefinitionLanguage,
   type LookupLanguage,
 } from "../dictionary/lookupLanguage";
 import {
@@ -182,7 +184,7 @@ export interface AppearancePreferences
   /** The language lookups deinflect and choose dictionaries for. */
   lookupLanguage: LookupLanguage;
   /** The language of the starter dictionaries offered; empty follows the interface language. */
-  starterDefinitions: LookupLanguage | "";
+  starterDefinitions: DefinitionLanguage | "";
   /** The language of Komori's own interface; books and dictionaries keep theirs. */
   interfaceLanguage: InterfaceLanguage;
   /** The window and tray icon; the executable keeps the default. */
@@ -509,7 +511,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(isLookupPopupStyle(readerPopupStyle) && { readerPopupStyle }),
     ...(isReaderFontChoice(readerPopupFont) && { readerPopupFont }),
     ...(isLookupLanguage(lookupLanguage) && { lookupLanguage }),
-    ...(isLookupLanguage(starterDefinitions) && { starterDefinitions }),
+    ...(isDefinitionLanguage(starterDefinitions) && { starterDefinitions }),
     ...(isInterfaceLanguage(interfaceLanguage) && { interfaceLanguage }),
     ...(isAppIcon(appIcon) && { appIcon }),
     ...(isAppTheme(theme) && { theme }),

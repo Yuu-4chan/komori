@@ -1658,7 +1658,7 @@ IDs, public descriptions, phases and byte counts, never download URLs or paths.
 Each source names its lookup language and definitions language; Settings shows the lookup
 language's, for the appearance record's `starterDefinitions` when that language has it, else the
 interface language, else English. Wiktionary dictionaries and their IPA pronunciations (`wty-*`, from
-the `daxida/wty-release` Hugging Face dataset) are listed where they exist at 1 MB or more, at one
+the `daxida/wty-release` Hugging Face dataset) are listed for each lookup language and any of the 20 definitions languages they exist in, where the dictionary is at least 100 KB and its IPA 50 KB (smaller ones hold almost nothing), at one
 pinned commit with each file's SHA-256; they may redirect once to an `.hf.co` CDN host. Sources are
 appended only, as saved statuses go by position.
 

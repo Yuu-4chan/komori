@@ -6,7 +6,12 @@ import { Select } from "../../components/ui/Select";
 import { starterActive, type StarterEntry, useStarterDictionaries } from "./useStarterDictionaries";
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
 import type { InterfaceLanguage } from "../../i18n/languages";
-import { isLookupLanguage, lookupLanguages, type LookupLanguage } from "./lookupLanguage";
+import {
+  definitionLanguages,
+  isLookupLanguage,
+  type DefinitionLanguage,
+  type LookupLanguage,
+} from "./lookupLanguage";
 
 /** Komori's own words for the sources it offers; the native catalog's are the fallback. */
 const starterText: Record<string, { name?: MessageKey; description: MessageKey }> = {
@@ -24,10 +29,15 @@ const starterName = (entry: StarterEntry) => {
   const key = starterText[entry.id]?.name;
   return key ? i18n().t(key) : entry.name;
 };
-const starterDescription = (entry: StarterEntry) => {
+/** A language's name, from Komori's own words or else the system's for the interface language. */
+const languageName = (code: string | null, interfaceLanguage: InterfaceLanguage): string => {
+  if (!code) return "";
+  if (isLookupLanguage(code)) return i18n().t(`lookupLanguage.${code}`);
+  return new Intl.DisplayNames([interfaceLanguage], { type: "language" }).of(code) ?? code;
+};
+const starterDescription = (entry: StarterEntry, interfaceLanguage: InterfaceLanguage) => {
   const { t } = i18n();
-  const language = (code: string | null) =>
-    isLookupLanguage(code) ? t(`lookupLanguage.${code}`) : "";
+  const language = (code: string | null) => languageName(code, interfaceLanguage);
   if (entry.id.startsWith("wty-")) {
     return pronunciation(entry)
       ? t("starter.wiktionaryIpaDescription", { language: language(entry.language) })
@@ -54,8 +64,8 @@ export function StarterDictionaries({
   /** The lookup language whose dictionaries are offered. */
   language: LookupLanguage;
   /** The saved language of the definitions offered; empty follows the interface language. */
-  savedDefinitions?: LookupLanguage | "";
-  onDefinitionsChange?: (language: LookupLanguage) => void;
+  savedDefinitions?: DefinitionLanguage | "";
+  onDefinitionsChange?: (language: DefinitionLanguage) => void;
   empty: boolean;
   /** Titles of the installed dictionaries; a removed download is offered again. */
   installed: readonly string[];
@@ -68,7 +78,7 @@ export function StarterDictionaries({
   const [actionError, setActionError] = useState(false);
   const { t, language: interfaceLanguage } = useI18n();
   const offered = snapshot?.entries.filter((entry) => entry.language === language) ?? [];
-  const definitionChoices = lookupLanguages.filter((code) =>
+  const definitionChoices = definitionLanguages.filter((code) =>
     offered.some((entry) => entry.definitions === code),
   );
   // The saved choice, then the interface language, then English, where this language has it.
@@ -126,10 +136,9 @@ export function StarterDictionaries({
               <Select
                 label={t("starter.definitions")}
                 value={definitions}
-                options={definitionChoices.map((value) => ({
-                  value,
-                  label: t(`lookupLanguage.${value}`),
-                }))}
+                options={definitionChoices
+                  .map((value) => ({ value, label: languageName(value, interfaceLanguage) }))
+                  .sort((a, b) => a.label.localeCompare(b.label, interfaceLanguage))}
                 onChange={(value) => onDefinitionsChange?.(value)}
               />
             </div>
@@ -150,7 +159,7 @@ export function StarterDictionaries({
               >
                 <div>
                   <h4 id={`starter-${entry.id}`}>{name}</h4>
-                  <span>{starterDescription(entry)}</span>
+                  <span>{starterDescription(entry, interfaceLanguage)}</span>
                   <small>
                     {entry.attribution}{" "}
                     <button

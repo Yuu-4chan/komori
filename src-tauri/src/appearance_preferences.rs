@@ -26,6 +26,10 @@ use crate::word_audio::AudioSource;
 
 /// The languages lookups deinflect and choose dictionaries for (`dictionary::language`).
 const LOOKUP_LANGUAGES: [&str; 10] = ["ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru"];
+const DEFINITION_LANGUAGES: [&str; 20] = [
+    "ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru", "cs", "el", "id", "ku", "ms", "nl",
+    "pl", "th", "tr", "vi",
+];
 const POPUP_SHORTCUTS: [&str; 3] = ["shift-enter", "alt-x", "ctrl-space"];
 const POPUP_MOUSE_TRIGGERS: [&str; 4] = ["left", "double", "shift-right", "middle"];
 const POPUP_CLOSE_BEHAVIORS: [&str; 3] = ["escape-outside", "outside", "persistent"];
@@ -626,7 +630,7 @@ impl AppearancePreferences {
             && self
                 .starter_definitions
                 .as_deref()
-                .is_none_or(|value| LOOKUP_LANGUAGES.contains(&value))
+                .is_none_or(|value| DEFINITION_LANGUAGES.contains(&value))
             && self
                 .reader_popup_shortcut_preset
                 .as_deref()
@@ -808,7 +812,7 @@ impl AppearancePreferences {
             reader_popup_hover_lookup: flag("readerPopupHoverLookup"),
             reader_popup_cjk_only: flag("readerPopupCjkOnly"),
             lookup_language: choice("lookupLanguage", &LOOKUP_LANGUAGES),
-            starter_definitions: choice("starterDefinitions", &LOOKUP_LANGUAGES),
+            starter_definitions: choice("starterDefinitions", &DEFINITION_LANGUAGES),
             reader_popup_shortcut_preset: choice("readerPopupShortcutPreset", &POPUP_SHORTCUTS),
             reader_popup_mouse_trigger: choice("readerPopupMouseTrigger", &POPUP_MOUSE_TRIGGERS),
             reader_popup_close_behavior: choice("readerPopupCloseBehavior", &POPUP_CLOSE_BEHAVIORS),

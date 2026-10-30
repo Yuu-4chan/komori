@@ -104,6 +104,26 @@ describe("Voice with word audio", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
   });
 
+  it("is disabled while asking the sources and stays so when none has the word", async () => {
+    let answer: (value: null) => void = () => undefined;
+    vi.mocked(invoke).mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    const user = userEvent.setup();
+    const { rerender } = render(<PronunciationButton canPlay expression="読む" reading="よむ" />);
+    await user.click(screen.getByRole("button"));
+    expect(screen.getByRole("button")).toBeDisabled();
+    expect(screen.getByRole("button")).toHaveAttribute("aria-busy", "true");
+    answer(null);
+    await waitFor(() =>
+      expect(screen.getByRole("button")).toHaveAttribute("title", "No audio for 読む"),
+    );
+    expect(screen.getByRole("button")).toBeDisabled();
+    expect(invoke).toHaveBeenCalledTimes(1);
+
+    // Another word can have a recording.
+    rerender(<PronunciationButton canPlay expression="詠む" reading="よむ" />);
+    expect(screen.getByRole("button")).toBeEnabled();
+  });
+
   it("says when no source has the word, and plays nothing without sources", async () => {
     vi.mocked(invoke).mockResolvedValue(null);
     const user = userEvent.setup();

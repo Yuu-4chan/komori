@@ -144,9 +144,9 @@ export const ru: MessageCatalog = {
   "autoscroll.hint": "Щёлкните или нажмите Esc, чтобы остановить.",
   "librarySettings.cardSize": "Размер карточек",
   "librarySettings.cardSizeHint": "Минимальная ширина карточки книги.",
-  "librarySettings.seriesFromTitles": "Серии по названиям",
+  "librarySettings.seriesFromTitles": "Автоматические серии",
   "librarySettings.seriesFromTitlesHint":
-    "Пронумерованные тома с одинаковым названием, например «Название 01» и «Название 02», образуют серию, если в книгах она не указана.",
+    "Сначала серию образуют пронумерованные имена файлов, например «Harry Potter 1» и «Harry Potter 2»; затем серия из самой книги, затем пронумерованные названия.",
   "unit.px": "пкс",
   "operation.busy": "Выполняется другая операция. Повторите попытку после её завершения.",
   "operation.failed":

@@ -583,6 +583,7 @@ pub(crate) fn list_from_catalog(connection: &Connection) -> Result<Vec<LibraryBo
             &books
                 .iter()
                 .map(|book| TitledBook {
+                    file_name: Some(&book.file_name),
                     title: book.title.as_deref(),
                     series: book.series.as_deref(),
                     series_index: book.series_index,
@@ -613,10 +614,7 @@ fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<Lib
         )
         .optional()
         .map_err(storage_error)?;
-    if let Some(book) = book
-        .as_mut()
-        .filter(|book| book.series.is_none() && !book.series_manual)
-    {
+    if let Some(book) = book.as_mut().filter(|book| !book.series_manual) {
         if appearance_preferences::series_from_titles(connection) {
             if let Some((series, index)) = series_from_catalog_titles(connection, id)? {
                 book.series = Some(series);
@@ -627,7 +625,7 @@ fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<Lib
     Ok(book)
 }
 
-/// The series one book's title names among every title in the catalog, read without the
+/// The series one book's file name or title names among the whole catalog's, read without the
 /// rest of each book so the Reader opens as quickly as before.
 fn series_from_catalog_titles(
     connection: &Connection,
@@ -635,7 +633,7 @@ fn series_from_catalog_titles(
 ) -> Result<Option<(String, f64)>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT books.id, books.title,
+            "SELECT books.id, books.title, books.file_name,
                     CASE WHEN manual.book_id IS NULL THEN details.series
                          ELSE manual.series END,
                     CASE WHEN manual.book_id IS NULL THEN details.series_index
@@ -652,9 +650,10 @@ fn series_from_catalog_titles(
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, Option<String>>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, Option<f64>>(3)?,
-                row.get::<_, bool>(4)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, Option<f64>>(4)?,
+                row.get::<_, bool>(5)?,
             ))
         })
         .map_err(storage_error)?
@@ -666,7 +665,8 @@ fn series_from_catalog_titles(
     let books: Vec<TitledBook<'_>> = rows
         .iter()
         .map(
-            |(_, title, series, series_index, series_manual)| TitledBook {
+            |(_, title, file_name, series, series_index, series_manual)| TitledBook {
+                file_name: Some(file_name),
                 title: title.as_deref(),
                 series: series.as_deref(),
                 series_index: *series_index,

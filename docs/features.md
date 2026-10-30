@@ -17,9 +17,11 @@ three, while the Reader keeps it for bookmarks.
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;
 grid/list, search, status filters, Cards details, sort and direction, which order groups too; grouping by series
-or language as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Series from titles in Settings > General, on
-by default, puts numbered volumes sharing a title (`Title 01`, `Title 02`) in a series when
-the books name none, with （上）/（下） parts and volumes whose title adds a subtitle
+or language as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Automatic series in Settings > General, on
+by default, makes series in this order: what you set by hand, then numbered file names
+(`Harry Potter 1.epub`, `Harry Potter 2.epub`, ignoring a copy's `(1)` and notes such as `(2020)`),
+then a book's own series, then numbered volumes sharing a title (`Title 01`, `Title 02`), full-width
+or not, with （上）/（下） parts and volumes whose title adds a subtitle
 (`Title～Subtitle～01`), keeping a title's own ＜＞ and ！？ in the series name; Mark as completed from a card's menu or the selection; per-card selection boxes
 (Continue reading stays while selecting) with bulk removal,
 relink and import with native progress. Drop EPUB files from Windows Explorer anywhere
@@ -54,7 +56,8 @@ back. The search stays in the top bar even in an empty Library.
   custom themes), Background image (Choose/Replace, Remove, saved blur 0–40 px),
   Typography (editable Western and Asian font dropdowns holding only usable fonts of
   their own collection: installed presets, included and downloaded Google families,
-  added fonts and installed families; defaults Georgia and the included Noto Sans JP;
+  added fonts and installed families; defaults Georgia and the included Noto Sans JP, which a Chinese or Korean book replaces
+  with the included Noto Sans SC or KR (Traditional Chinese: Microsoft JhengHei) until another is chosen;
   Zen Old Mincho, Klee One and Noto Sans JP, SC and KR come with the installer; the
   adjacent + opens a floating manager on Asian, Western or Added fonts tabs for
   TTF/OTF imports up to 100 MB and 93 Google families with separate weights or variable ranges;
@@ -116,7 +119,8 @@ right on its kanji over a thin rule, then each dictionary's definitions right un
 tinted label, numbered ①, ② when it has more than one. It leaves out voice, tags, notes, pitch, frequency, Anki and Open in
 Dictionary; triggers, child popups, size, colors, corners, text size and line height
 are the popup's own settings. The popup's headwords, readings and definitions, in either
-style, use the chosen popup font, by default the included Zen Old Mincho.
+style, use the chosen popup font, by default the included Zen Old Mincho, or Microsoft YaHei,
+Microsoft JhengHei or Malgun Gothic when looking up Chinese or Korean.
 
 ## Dictionary
 
@@ -177,7 +181,7 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   Scanning and results.
 - **Dictionary.** One lookup language's dictionaries at a time (a Lookup language row picks
   which; each dictionary belongs to one language, the one it was added to unless it declares
-  another, and existing ones are Japanese). Add dictionaries (and, when empty, starter downloads: Wiktionary dictionaries and IPA pronunciations for every language, with Definitions in choosing their language, saved, following the interface language until chosen; for Japanese also five curated open dictionaries: two Japanese–English dictionaries, a word frequency list, a kanji dictionary and a proper-name dictionary, credited in `ACKNOWLEDGEMENTS.md`), the sources in
+  another, and existing ones are Japanese). Add dictionaries (and, when empty, starter downloads: Wiktionary dictionaries and IPA pronunciations for every lookup language, with definitions in up to 20 languages, with Definitions in choosing their language, saved, following the interface language until chosen; for Japanese also five curated open dictionaries: two Japanese–English dictionaries, a word frequency list, a kanji dictionary and a proper-name dictionary, credited in `ACKNOWLEDGEMENTS.md`), the sources in
   lookup order with a selection box, ≡ handle and Remove on each row; choosing rows shows
   Select all, Move to… (another language), Remove and ✕ to clear it. Word audio lists the recording sources in order
   (JapanesePod101, for Japanese only, and Wikimedia Commons, for every language, by default; audio URLs and audio list URLs with `{term}`,
@@ -193,7 +197,7 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   and Idle after 5 minutes without reading or using the page, or with nothing to show.
 
 The application and Reader themes default to Hojicha. The Library initially sorts
-by Title and shows Series, Language, Last read and Unique kanji, with series from titles. Reader popup mouse
+by Title and shows Series, Language, Last read and Unique kanji, with automatic series. Reader popup mouse
 selection defaults off, with 0 ms scan delay, 5 results and 5 child popup levels.
 The Reader shows its clock and book position/percentage, with chapter
 position/percentage off.

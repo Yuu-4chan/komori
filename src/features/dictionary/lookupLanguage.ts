@@ -17,6 +17,24 @@ export const lookupLanguages = [
 export type LookupLanguage = (typeof lookupLanguages)[number];
 export const defaultLookupLanguage: LookupLanguage = "ja";
 
+/** The languages starter dictionaries can have their definitions in, a wider set than lookups. */
+export const definitionLanguages = [
+  ...lookupLanguages,
+  "cs",
+  "el",
+  "id",
+  "ku",
+  "ms",
+  "nl",
+  "pl",
+  "th",
+  "tr",
+  "vi",
+] as const;
+export type DefinitionLanguage = (typeof definitionLanguages)[number];
+export const isDefinitionLanguage = (value: unknown): value is DefinitionLanguage =>
+  definitionLanguages.some((language) => language === value);
+
 export const isLookupLanguage = (value: unknown): value is LookupLanguage =>
   lookupLanguages.includes(value as LookupLanguage);
 

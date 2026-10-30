@@ -279,6 +279,8 @@ describe("starter dictionaries for each language", () => {
         entry("wty-ko-en-ipa", "ko", "en"),
         entry("wty-ko-zh", "ko", "zh"),
         entry("wty-fr-en", "fr", "en"),
+        entry("wty-en-vi", "en", "vi"),
+        entry("wty-en-de", "en", "de"),
       ],
     },
     error: false,
@@ -307,6 +309,11 @@ describe("starter dictionaries for each language", () => {
     view.rerender(<StarterDictionaries {...props} language="fr" savedDefinitions="zh" />);
     expect(rows()).toEqual(["starter-wty-fr-en"]);
     expect(screen.queryByLabelText("Definitions in")).toBeNull();
+    // Definitions can be in a language lookups don't have, named by the system.
+    view.rerender(<StarterDictionaries {...props} language="en" savedDefinitions="vi" />);
+    expect(rows()).toEqual(["starter-wty-en-vi"]);
+    expect(screen.getByText("English words with definitions in Vietnamese.")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Vietnamese" })).toBeInTheDocument();
     // Sources without definitions stay listed.
     view.rerender(<StarterDictionaries {...props} language="ja" />);
     expect(rows()).toEqual(["starter-jitendex", "starter-jiten"]);

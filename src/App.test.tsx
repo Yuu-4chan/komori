@@ -843,8 +843,8 @@ describe("Komori foundation", () => {
     await user.clear(size);
     await user.type(size, "999{Enter}");
     expect(size).toHaveValue("480");
-    // Series from titles is on until turned off.
-    const titles = screen.getByRole("button", { name: "Series from titles" });
+    // Automatic series is on until turned off.
+    const titles = screen.getByRole("button", { name: "Automatic series" });
     expect(titles).toHaveAttribute("aria-pressed", "true");
     await user.click(titles);
     await waitFor(() =>
