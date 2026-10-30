@@ -780,15 +780,16 @@ pub(crate) fn import_paths_with_progress(
 }
 
 fn import_one(connection: &mut Connection, path: &Path) -> Result<&'static str, String> {
-    if !path
+    let canonical = path
+        .canonicalize()
+        .map_err(|error| format!("Cannot access the source file: {error}"))?;
+    // Read from the full name: Windows can hand over a long path as `REFORM~1.EPU`.
+    if !canonical
         .extension()
         .is_some_and(|extension| extension.eq_ignore_ascii_case("epub"))
     {
         return Err(crate::failure::CHOOSE_EPUB.into());
     }
-    let canonical = path
-        .canonicalize()
-        .map_err(|error| format!("Cannot access the source file: {error}"))?;
     let source =
         File::open(&canonical).map_err(|error| format!("Cannot read the source file: {error}"))?;
     if !source
@@ -1576,6 +1577,33 @@ pub(crate) mod tests {
         assert_eq!(
             source.metadata().unwrap().modified().unwrap(),
             original_modified
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn import_takes_a_long_file_handed_over_by_its_short_name() {
+        let directory = tempdir().unwrap();
+        let source = directory
+            .path()
+            .join("A very long book file name for its short form.epub");
+        fixture(&source, Some("Long Name"), None, false);
+        let listed = std::process::Command::new("cmd")
+            .args(["/d", "/c", "for %I in (*.epub) do @echo %~sI"])
+            .current_dir(directory.path())
+            .output()
+            .unwrap();
+        let short = String::from_utf8_lossy(&listed.stdout).trim().to_owned();
+        // A volume can have short names turned off, and then Windows never hands one over.
+        if !short.contains('~') {
+            return;
+        }
+        let mut connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        let results = import_paths(&mut connection, &[PathBuf::from(short)]);
+        assert_eq!(results[0].status, "imported");
+        assert_eq!(
+            list_from_catalog(&connection).unwrap()[0].file_name,
+            "A very long book file name for its short form.epub"
         );
     }
 

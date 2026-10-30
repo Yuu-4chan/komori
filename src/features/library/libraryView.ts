@@ -360,7 +360,8 @@ const sameCharacter = (a: string, b: string) =>
  * `86─エイティシックス─`. Volume numbers and words, parts such as `（上）`, separators and
  * opening brackets before where the titles differ are left out, and so is a word they differ
  * within; a closing bracket, `！` or `？` stays, as does a dash or symbol that closes one
- * opening earlier in the name (`＜インフィニット・ストラトス＞`).
+ * opening earlier in the name (`＜インフィニット・ストラトス＞`). A dash after a space only
+ * separates (`Bing - An - Vol 3`).
  * Empty for fewer than two titles, or when they share no name.
  */
 export function seriesFromTitles(titles: readonly string[]): string {
@@ -387,8 +388,8 @@ export function seriesFromTitles(titles: readonly string[]): string {
     if (
       end &&
       /[\p{Pd}\p{S}]/u.test(end) &&
-      !earlier.includes(end) &&
-      !earlier.includes(OPENING[end] ?? end)
+      ((!OPENING[end] && /\s$/u.test(earlier)) ||
+        (!earlier.includes(end) && !earlier.includes(OPENING[end] ?? end)))
     )
       next = earlier;
     if (next === stem) break;

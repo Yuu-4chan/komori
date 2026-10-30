@@ -53,6 +53,8 @@ static COPY_MARK: LazyLock<Regex> =
 static FILE_NOTE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\s*(?:\[([^\[\]]*)\]|\(([^()]*)\))$").unwrap());
 static YEAR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^(?:19|20)\d\d$").unwrap());
+/// A file's checksum, as release groups add: `[CFEE3F0A]`.
+static CHECKSUM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[0-9A-Fa-f]{8}$").unwrap());
 static LEADING_NOTE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\s*\[[^\[\]]*\]\s*").unwrap());
 static EXTENSION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\.epub$").unwrap());
@@ -69,7 +71,8 @@ struct Reading<'a> {
 ///
 /// A series set by hand is never changed. Numbered file names come first, so what the reader
 /// named their files wins over the book's metadata; then the book's own series stays; then
-/// numbered titles can name books with neither. See `name_series` for what makes a series.
+/// numbered titles can name books with neither. See `name_series` for what makes a series. A
+/// series a file name gives reads as the books' titles spell it, as a file can't have a `:`.
 pub(crate) fn series_from_titles(books: &[TitledBook<'_>]) -> Vec<Option<(String, f64)>> {
     let file_titles: Vec<Option<String>> = books
         .iter()
@@ -101,6 +104,7 @@ pub(crate) fn series_from_titles(books: &[TitledBook<'_>]) -> Vec<Option<(String
         .collect();
     let mut from_files = name_series(&readings);
     from_files.truncate(books.len());
+    spell_as_titles(books, &mut from_files);
 
     let readings: Vec<Reading<'_>> = books
         .iter()
@@ -128,9 +132,54 @@ pub(crate) fn series_from_titles(books: &[TitledBook<'_>]) -> Vec<Option<(String
         .collect()
 }
 
+/// Gives each series named by file names the spelling most of its books' titles have for the
+/// same words (`Re-ZERO` for `Re:ZERO`, `Bing - An` for `Bing: An`), unless a book has its own
+/// series by the file names' spelling.
+fn spell_as_titles(books: &[TitledBook<'_>], named: &mut [Option<(String, f64)>]) {
+    let mut counts: HashMap<(String, String), usize> = HashMap::new();
+    for (book, named) in books.iter().zip(named.iter()) {
+        let Some((series, _)) = named else { continue };
+        let Some((spelling, _)) = book
+            .title
+            .and_then(|title| volume_candidates(title).into_iter().next())
+        else {
+            continue;
+        };
+        if words_key(&spelling) == words_key(series) {
+            *counts.entry((series.clone(), spelling)).or_default() += 1;
+        }
+    }
+    let mut spellings: HashMap<String, (usize, String)> = HashMap::new();
+    for ((series, spelling), count) in counts {
+        let best = spellings.entry(series).or_default();
+        if count > best.0 || (count == best.0 && spelling < best.1) {
+            *best = (count, spelling);
+        }
+    }
+    for (series, _) in named.iter_mut().flatten() {
+        let Some((_, spelling)) = spellings.get(series.as_str()) else {
+            continue;
+        };
+        if !books
+            .iter()
+            .any(|book| book.series == Some(series.as_str()))
+        {
+            spelling.clone_into(series);
+        }
+    }
+}
+
+/// A series name's letters and digits alone, for comparing a file's spelling with a title's.
+fn words_key(name: &str) -> String {
+    comparison_key(name)
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect()
+}
+
 /// The title a file name reads as: without its extension, a copy's mark, or bracketed notes such
-/// as a year or a group, and with `_` or `.` between words read as spaces. A note holding a
-/// number other than a year stays, as it can be the volume (`Title [v2]`).
+/// as a year, a group or a checksum, and with `_` or `.` between words read as spaces. A note
+/// holding another number stays, as it can be the volume (`Title [v2]`).
 fn file_title(file_name: &str) -> Option<String> {
     let mut name = EXTENSION.replace(file_name.trim(), "").into_owned();
     loop {
@@ -140,7 +189,11 @@ fn file_title(file_name: &str) -> Option<String> {
                 .get(1)
                 .or(note.get(2))
                 .map_or("", |inner| inner.as_str());
-            if !inner.chars().any(|c| c.is_ascii_digit()) || YEAR.is_match(inner.trim()) {
+            let inner = inner.trim();
+            if !inner.chars().any(|c| c.is_ascii_digit())
+                || YEAR.is_match(inner)
+                || CHECKSUM.is_match(inner)
+            {
                 next.truncate(note.get(0).unwrap().start());
             }
         }
@@ -360,7 +413,8 @@ fn volume_candidates(title: &str) -> Vec<(String, f64)> {
 
 /// The series name a title's start gives: volume words, parts, numbers, separators, and
 /// opening brackets at its end are left out, and so is a dash or symbol unless it closes one
-/// opening earlier in the name (`─エイティシックス─`, `＜インフィニット・ストラトス＞`).
+/// opening earlier in the name (`─エイティシックス─`, `＜インフィニット・ストラトス＞`). A dash
+/// after a space only separates (`Bing - An - Vol 3`).
 /// `None` without a letter.
 fn series_name(start: &str) -> Option<String> {
     let mut stem = start.trim().to_owned();
@@ -381,7 +435,8 @@ fn series_name(start: &str) -> Option<String> {
                 same => same,
             };
             let earlier = &next[..mark.start()];
-            if !earlier.contains(mark.as_str()) && !earlier.contains(opening) {
+            let separator = opening == mark.as_str() && earlier.ends_with(char::is_whitespace);
+            if separator || (!earlier.contains(mark.as_str()) && !earlier.contains(opening)) {
                 next.truncate(mark.start());
             }
         }
@@ -507,6 +562,57 @@ mod tests {
             series_index: series.map(|(_, index)| index),
             series_manual: false,
         }
+    }
+
+    #[test]
+    fn release_file_names_lead_and_read_as_their_titles_spell_the_series() {
+        let books = [
+            filed(
+                "Re-ZERO -Starting Life- - Vol 15 [Yen Press][Kobo][38DDB429].epub",
+                "Re:ZERO -Starting Life-, Vol. 15",
+                None,
+            ),
+            // Its title reads apart from the others, but its file name doesn't.
+            filed(
+                "Re-ZERO -Starting Life- - Vol 16 [Yen Press][Kobo][A99CED40].epub",
+                "Re:ZERO: -Starting Life-, Vol. 16",
+                None,
+            ),
+            filed(
+                "Re-ZERO -Starting Life- - Vol 17 [Yen Press][Kobo][A9C4DC5D].epub",
+                "Re:ZERO -Starting Life-, Vol. 17",
+                None,
+            ),
+            filed(
+                "Case File - Bing An - Volume 03 [Seven Seas].epub",
+                "Case File: Bing An Vol. 3",
+                None,
+            ),
+            filed(
+                "Case File - Bing An - Volume 04 [Seven Seas].epub",
+                "Case File: Bing An Vol. 4",
+                None,
+            ),
+            // Titles that read as other words leave the file names' spelling.
+            filed("Perle - Joachim - Volume 01 [M].epub", "Perle Vol. I", None),
+            filed(
+                "Perle - Joachim - Volume 02 [M].epub",
+                "Perle Vol. II",
+                None,
+            ),
+        ];
+        assert_eq!(
+            series_from_titles(&books),
+            [
+                volume("Re:ZERO -Starting Life-", 15.0),
+                volume("Re:ZERO -Starting Life-", 16.0),
+                volume("Re:ZERO -Starting Life-", 17.0),
+                volume("Case File: Bing An", 3.0),
+                volume("Case File: Bing An", 4.0),
+                volume("Perle - Joachim", 1.0),
+                volume("Perle - Joachim", 2.0),
+            ]
+        );
     }
 
     #[test]
