@@ -1337,6 +1337,11 @@ export const it: MessageCatalog = {
   "dailyEdit.hint":
     "Imposta il totale di questo libro per la giornata. Sono consentite frazioni di minuto. La posizione di lettura e l’avanzamento del libro non cambiano.",
   "dailyEdit.saving": "Salvataggio dell’attività giornaliera…",
+  "dictionaryPage.descriptionOther": "Cerca nei dizionari importati.",
+  "dictionaryPage.noDictionariesHintOther": "Importa archivi ZIP per questa lingua.",
+  "dictionaryPage.emptyDescriptionOther": "Inserisci una parola.",
+  "dictionaryPage.noMatchesHintOther":
+    "Controlla l'ortografia oppure aggiungi un altro dizionario nelle impostazioni.",
   "dictionaryPage.description": "Cerca nei dizionari importati per parola, lettura o kanji.",
   "dictionaryPage.noDictionaries": "Ancora nessun dizionario",
   "dictionaryPage.noDictionariesHint":

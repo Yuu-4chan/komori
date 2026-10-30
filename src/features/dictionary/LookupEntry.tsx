@@ -23,7 +23,7 @@ import {
   TagList,
   inflectionNames,
 } from "./DictionaryResults";
-import { GlossaryText } from "./GlossaryText";
+import { GlossaryText, termGlossaries } from "./GlossaryText";
 
 // Frequency chips and headword tags shown before "+N more", so a long list does not push
 // definitions away.
@@ -321,8 +321,7 @@ function DictionaryLookupEntryContent({
 
 /** A definition's glossaries, with its consecutive plain glosses run together on one line. */
 function senseGlossaries(term: TermMatch): unknown[] {
-  const glossaries: unknown[] = Array.isArray(term.glossary) ? term.glossary : [term.glossary];
-  return glossaries.reduce<unknown[]>((items, glossary) => {
+  return termGlossaries(term.glossary).reduce<unknown[]>((items, glossary) => {
     if (glossary === "") return items;
     const last = items.length - 1;
     if (typeof glossary === "string" && typeof items[last] === "string")
@@ -375,7 +374,7 @@ function LookupDefinition({
   const [open, setOpen] = useState(true);
   const bodyId = useId();
   const { t } = useI18n();
-  const glossaries = Array.isArray(term.glossary) ? term.glossary : [term.glossary];
+  const glossaries = useMemo(() => termGlossaries(term.glossary), [term.glossary]);
   return (
     <li className={`lookup-definition${open ? "" : " lookup-definition--closed"}`}>
       <button

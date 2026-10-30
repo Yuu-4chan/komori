@@ -1294,6 +1294,11 @@ export const de: MessageCatalog = {
   "dailyEdit.hint":
     "Lege die Tagessumme dieses Buchs fest. Bruchteile von Minuten sind erlaubt. Leseposition und Buchfortschritt bleiben gleich.",
   "dailyEdit.saving": "Tägliche Aktivität wird gespeichert…",
+  "dictionaryPage.descriptionOther": "Durchsuche deine importierten Wörterbücher.",
+  "dictionaryPage.noDictionariesHintOther": "Importiere ZIP-Archive für diese Sprache.",
+  "dictionaryPage.emptyDescriptionOther": "Gib ein Wort ein.",
+  "dictionaryPage.noMatchesHintOther":
+    "Prüfe die Schreibweise oder füge in den Einstellungen ein weiteres Wörterbuch hinzu.",
   "dictionaryPage.description":
     "Durchsuche deine importierten Wörterbücher nach Wort, Lesung oder Kanji.",
   "dictionaryPage.noDictionaries": "Noch keine Wörterbücher",

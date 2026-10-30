@@ -1407,6 +1407,11 @@ describe("Dictionary page", () => {
       await user.type(input, "I");
       await user.click(screen.getByRole("button", { name: /^Search$/ }));
       expect(await screen.findByText("No matches")).toBeInTheDocument();
+      expect(
+        screen.getByText("Check the spelling, or add another dictionary in Settings."),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Search your imported dictionaries.")).toBeInTheDocument();
+      expect(document.body).not.toHaveTextContent(/kanji/i);
       expect(lookupMock).toHaveBeenLastCalledWith("I", undefined, undefined, "en");
       // A one-letter query is not a kanji outside Japanese.
       expect(kanjiMock).not.toHaveBeenCalled();

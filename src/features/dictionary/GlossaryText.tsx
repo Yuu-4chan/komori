@@ -511,6 +511,22 @@ function renderNodes(nodes: GlossaryNode[], context: RenderContext): ReactNode {
   });
 }
 
+/**
+ * A term's glossaries as definitions. Some dictionaries mark a cross-reference with a lone `▶` and
+ * give its target as a deinflection entry, `[target, [rules]]`, whose rules repeat the headword.
+ */
+export function termGlossaries(value: unknown): unknown[] {
+  return (Array.isArray(value) ? value : [value]).flatMap((glossary: unknown) => {
+    if (glossary === "▶") return [];
+    const deinflection =
+      Array.isArray(glossary) &&
+      glossary.length === 2 &&
+      typeof glossary[0] === "string" &&
+      Array.isArray(glossary[1]);
+    return [deinflection ? (glossary[0] as string) : glossary];
+  });
+}
+
 export function GlossaryText({
   value,
   onSearchTerm,
@@ -559,7 +575,7 @@ export function glossaryCardContent(value: unknown): GlossaryCardNode[][] {
     });
   }
   // LookupDefinition presents each top-level glossary separately, without an invented sense list.
-  return (Array.isArray(value) ? value : [value])
+  return termGlossaries(value)
     .map((entry) => content(readNodes(entry)))
     .filter((nodes) => nodes.length > 0);
 }
@@ -599,7 +615,7 @@ export function glossaryPlainText(value: unknown): string {
       })
       .join("");
   }
-  return plain(readNodes(value))
+  return plain(readNodes(termGlossaries(value)))
     .replace(/[ \t]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")

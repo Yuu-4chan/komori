@@ -1279,6 +1279,11 @@ export const ptBR: MessageCatalog = {
   "dailyEdit.hint":
     "Define o total deste livro no dia. Frações de minuto são permitidas. A posição de leitura e o progresso do livro não mudam.",
   "dailyEdit.saving": "Salvando a atividade diária…",
+  "dictionaryPage.descriptionOther": "Pesquise nos dicionários importados.",
+  "dictionaryPage.noDictionariesHintOther": "Importe arquivos ZIP para este idioma.",
+  "dictionaryPage.emptyDescriptionOther": "Digite uma palavra.",
+  "dictionaryPage.noMatchesHintOther":
+    "Confira a grafia ou adicione outro dicionário nas Configurações.",
   "dictionaryPage.description":
     "Pesquise nos dicionários importados por palavra, leitura ou kanji.",
   "dictionaryPage.noDictionaries": "Nenhum dicionário ainda",

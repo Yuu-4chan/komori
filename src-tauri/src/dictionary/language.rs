@@ -162,8 +162,9 @@ impl Language {
     /// `text` and the other spellings a lookup also tries, each once: in a language that spaces
     /// its words, with its typographic apostrophes as ASCII ones, then also lowercased, with its
     /// first letter capitalized, and lowercased with its first letter capitalized (Running:
-    /// running; london: London; NASA: nasa, Nasa); in French and Italian, then also all of those
-    /// for the text without the elided word that begins it (l'homme: homme; dell'Italia: Italia).
+    /// running; london: London; NASA: nasa, Nasa); in French, Italian and Portuguese, then also all
+    /// of those for the text without the elided word that begins it (l'homme: homme; dell'Italia:
+    /// Italia; d'água: água).
     /// Russian then also tries each without its stress marks, with ё as е, and with each one е as ё (a word has one ё).
     /// Japanese and Chinese try only the text.
     pub(crate) fn variants(self, text: &str) -> Vec<String> {
@@ -218,7 +219,7 @@ impl Language {
         variants
     }
 
-    /// `text` without the elided word that begins it (l', d', qu'; dell', un'), when more
+    /// `text` without the elided word that begins it (l', d', qu'; dell', un'; d', n'), when more
     /// follows it.
     fn without_elision(self, text: &str) -> Option<String> {
         let words: &[&str] = match self {
@@ -230,6 +231,7 @@ impl Language {
                 "l", "dell", "all", "dall", "nell", "sull", "coll", "un", "quest", "quell", "c",
                 "n", "d", "s", "m", "t", "v",
             ],
+            Self::Portuguese => &["d", "n"],
             _ => return None,
         };
         let (word, rest) = text.split_once(['\'', '\u{2019}'])?;
@@ -319,7 +321,7 @@ mod tests {
         );
         assert_eq!(
             Language::Portuguese.variants("d'água"),
-            ["d'água", "D'água"]
+            ["d'água", "D'água", "água", "Água"]
         );
         assert_eq!(Language::Japanese.variants("Running"), ["Running"]);
         assert_eq!(

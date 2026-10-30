@@ -1202,6 +1202,10 @@ export const ja: MessageCatalog = {
   "dailyEdit.hint":
     "この本のこの日の合計を設定します。分は小数でも入力できます。読書位置と本の進み具合は変わりません。",
   "dailyEdit.saving": "日ごとの記録を保存しています…",
+  "dictionaryPage.descriptionOther": "取り込んだ辞書を検索します。",
+  "dictionaryPage.noDictionariesHintOther": "この言語のZIPアーカイブを取り込んでください。",
+  "dictionaryPage.emptyDescriptionOther": "語を入力してください。",
+  "dictionaryPage.noMatchesHintOther": "つづりを確認するか、設定で別の辞書を追加してください。",
   "dictionaryPage.description": "取り込んだ辞書を語、読み、漢字で検索します。",
   "dictionaryPage.noDictionaries": "辞書はまだありません",
   "dictionaryPage.noDictionariesHint":

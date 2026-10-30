@@ -1495,8 +1495,8 @@ take only the scanned text or a verb a pronoun was removed from (class `VF`, nev
 form), so a dictionary form never takes a second tense. Irregular verbs come from the
 dictionaries' own form entries, as in English. Every language but Japanese spaces its words, so
 its starts end at word boundaries and are tried with the same apostrophe and capitalization
-spellings as English; French and Italian also try a start without the elided word that begins it
-(l', d', qu'; dell', un'), so l'homme finds homme. Their classes are `v`, `n`, `adj` and `adv`
+spellings as English; French, Italian and Portuguese also try a start without the elided word that
+begins it (l', d', qu'; dell', un'; d', n'), so l'homme finds homme. Their classes are `v`, `n`, `adj` and `adv`
 (French also `aux`).
 
 Spanish (`deinflect/es.rs`) is Yomitan's `ext/js/language/es/spanish-transforms.js` at commit
@@ -1572,7 +1572,13 @@ up to four, each once, for the group's reading or a row naming the headword as i
 and `|` separate alternatives. Dictionaries list the endings of other forms in the same data, so a
 value without a letter, starting or ending in `-`, or under half the first's letters is dropped.
 Chinese `ipa` metadata is pinyin: its commas belong to the phrase, and a value repeating the reading
-(ignoring spaces, hyphens and the script `ɡ`) is dropped. They show between slashes, except in Chinese. These
+(ignoring spaces, hyphens and the script `ɡ`) is dropped. They show between slashes, except in Chinese.
+
+A term's glossary is read as definitions before it shows or goes to Anki: some dictionaries mark a
+cross-reference with a lone `▶` and give its target as a deinflection entry, `[target, [rules]]`,
+whose rules repeat the headword, so the marker is dropped and the entry reads as its target. The
+Dictionary page's description, empty state and no-results hint name kanji, kana and the Japanese
+starter dictionaries only when the lookup language is Japanese. These
 dictionaries have no source role: turning one off in Settings hides it. Anki's `{{ipa}}` field holds
 them joined by commas.
 

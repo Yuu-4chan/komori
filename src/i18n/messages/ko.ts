@@ -1192,6 +1192,10 @@ export const ko: MessageCatalog = {
   "dailyEdit.hint":
     "이 책의 그날 합계를 정합니다. 분은 소수로도 입력할 수 있습니다. 읽던 위치와 책 진행률은 그대로입니다.",
   "dailyEdit.saving": "일별 활동을 저장하는 중…",
+  "dictionaryPage.descriptionOther": "가져온 사전을 검색합니다.",
+  "dictionaryPage.noDictionariesHintOther": "이 언어의 ZIP 압축 파일을 가져오세요.",
+  "dictionaryPage.emptyDescriptionOther": "단어를 입력하세요.",
+  "dictionaryPage.noMatchesHintOther": "철자를 확인하거나, 설정에서 다른 사전을 추가하세요.",
   "dictionaryPage.description": "가져온 사전을 단어, 읽기, 한자로 검색합니다.",
   "dictionaryPage.noDictionaries": "아직 사전이 없습니다",
   "dictionaryPage.noDictionariesHint":

@@ -1369,6 +1369,11 @@ export const ru: MessageCatalog = {
   "dailyEdit.hint":
     "Задайте итог этой книги за день. Допускаются дробные минуты. Позиция чтения и прогресс книги не меняются.",
   "dailyEdit.saving": "Сохранение активности за день…",
+  "dictionaryPage.descriptionOther": "Ищите в импортированных словарях.",
+  "dictionaryPage.noDictionariesHintOther": "Импортируйте ZIP-архивы для этого языка.",
+  "dictionaryPage.emptyDescriptionOther": "Введите слово.",
+  "dictionaryPage.noMatchesHintOther":
+    "Проверьте написание или добавьте другой словарь в настройках.",
   "dictionaryPage.description": "Ищите в импортированных словарях по слову, чтению или кандзи.",
   "dictionaryPage.noDictionaries": "Словарей пока нет",
   "dictionaryPage.noDictionariesHint":

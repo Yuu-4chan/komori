@@ -1304,6 +1304,10 @@ export const en = {
   "dailyEdit.saving": "Saving daily activity…",
 
   // Dictionary page
+  "dictionaryPage.descriptionOther": "Search your imported dictionaries.",
+  "dictionaryPage.noDictionariesHintOther": "Import ZIP archives for this language.",
+  "dictionaryPage.emptyDescriptionOther": "Enter a word.",
+  "dictionaryPage.noMatchesHintOther": "Check the spelling, or add another dictionary in Settings.",
   "dictionaryPage.description": "Search your imported dictionaries by word, reading, or kanji.",
   "dictionaryPage.noDictionaries": "No dictionaries yet",
   "dictionaryPage.noDictionariesHint":

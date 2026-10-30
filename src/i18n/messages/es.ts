@@ -1340,6 +1340,10 @@ export const es: MessageCatalog = {
   "dailyEdit.hint":
     "Define el total de este libro para el día. Se admiten fracciones de minuto. La posición de lectura y el progreso del libro no cambian.",
   "dailyEdit.saving": "Guardando la actividad diaria…",
+  "dictionaryPage.descriptionOther": "Busca en tus diccionarios importados.",
+  "dictionaryPage.noDictionariesHintOther": "Importa archivos ZIP para este idioma.",
+  "dictionaryPage.emptyDescriptionOther": "Introduce una palabra.",
+  "dictionaryPage.noMatchesHintOther": "Revisa la ortografía o añade otro diccionario en Ajustes.",
   "dictionaryPage.description":
     "Busca en tus diccionarios importados por palabra, lectura o kanji.",
   "dictionaryPage.noDictionaries": "Todavía no hay diccionarios",
