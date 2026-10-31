@@ -168,7 +168,6 @@ export const fr: MessageCatalog = {
   "operation.processed": "{completed} / {total} traités.",
   "operation.removeFailures":
     "{failed} n’ont pas pu être retirés. Les retraits réussis ont été conservés.",
-  "operation.reclaimed": "Espace libéré récupéré.",
   "operation.entry": "Entrée {id}",
   "operation.alreadyRemoved": "Déjà retiré.",
   "operation.couldNotRemove": "Impossible de le retirer.",

@@ -166,7 +166,6 @@ export const ru: MessageCatalog = {
   "operation.progress": "Ход операции",
   "operation.processed": "Обработано: {completed} / {total}.",
   "operation.removeFailures": "Не удалось убрать: {failed}. Успешно убранные элементы не вернутся.",
-  "operation.reclaimed": "Освобождённое место возвращено.",
   "operation.entry": "Запись {id}",
   "operation.alreadyRemoved": "Уже убрано.",
   "operation.couldNotRemove": "Не удалось убрать.",

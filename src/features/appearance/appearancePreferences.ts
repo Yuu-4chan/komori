@@ -611,7 +611,9 @@ export function defaultAppearanceStore(): AppearancePreferencesStore | null {
       return normalizeAppearancePreferences(await invoke<unknown>("get_appearance_preferences"));
     },
     async save(preferences) {
-      await invoke("save_appearance_preferences", { preferences });
+      // Native answers false when it refuses the record; that is a failed write, kept to retry.
+      if (!(await invoke<boolean>("save_appearance_preferences", { preferences })))
+        throw new Error("Preferences were refused.");
     },
     installDefaults: monitorReaderSize,
   };

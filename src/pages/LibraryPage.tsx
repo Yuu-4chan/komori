@@ -12,7 +12,7 @@ import {
   WarningCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { commandTarget, shortcutCommand } from "../features/reader/shortcuts";
@@ -25,6 +25,7 @@ import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { useShellSearchSlot } from "../components/layout/shellSlots";
 import { EmptyState } from "../components/ui/EmptyState";
 import { NoticeClose, useNoticeTimeout } from "../components/ui/NoticeClose";
+import { resolveReaderTheme, type ReaderThemeColors } from "../features/reader/readerThemes";
 import { useAppearance, type LibraryDisplay } from "../features/appearance/AppearanceProvider";
 import {
   LibraryBookCard,
@@ -151,7 +152,7 @@ function LibraryContent({ group }: { group: string | null }) {
   const [bulkFailures, setBulkFailures] = useState<BulkFailure[]>([]);
   const availableBookIds = useMemo(() => library.books.map((book) => book.id), [library.books]);
   const selection = useSelection(availableBookIds);
-  const { library: savedDisplay, updateLibrary } = useAppearance();
+  const { library: savedDisplay, updateLibrary, readerTheme, readerCustomThemes } = useAppearance();
   // A group's own page keeps a sort of its own, so neither changes the other's.
   const display = useMemo<LibraryDisplay>(
     () =>
@@ -704,7 +705,10 @@ function LibraryContent({ group }: { group: string | null }) {
       )}
       {searchSlot ? createPortal(search, searchSlot) : search}
       <h1 className="visually-hidden">{t("shell.library")}</h1>
-      <div className="library-notices">
+      <div
+        className="library-notices"
+        style={noticeColors(resolveReaderTheme(readerTheme, readerCustomThemes))}
+      >
         <OperationNotice
           operation={operation}
           items={library.books.map((book) => ({ id: book.id, title: book.title ?? book.fileName }))}
@@ -1011,6 +1015,19 @@ function relinkNoticeFor(result: RelinkResult): RelinkNoticeState {
         message: result.message ? failureText(result.message, t) : t("library.relinkFailedMessage"),
       };
   }
+}
+
+/** The Library's notices wear the Reader theme, through the tokens they already use. */
+function noticeColors({ background, text, selection, footerText }: ReaderThemeColors) {
+  return {
+    "--surface-raised": background,
+    "--surface-subtle": selection,
+    "--text-primary": text,
+    "--text-secondary": footerText,
+    "--text-muted": footerText,
+    "--border-subtle": selection,
+    "--accent-strong": footerText,
+  } as CSSProperties;
 }
 
 function RelinkNotice({ notice, onClose }: { notice: RelinkNoticeState; onClose: () => void }) {

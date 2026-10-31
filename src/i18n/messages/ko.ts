@@ -163,7 +163,6 @@ export const ko: MessageCatalog = {
   "operation.progress": "작업 진행률",
   "operation.processed": "{completed} / {total}개를 처리했습니다.",
   "operation.removeFailures": "{failed}개를 제거하지 못했습니다. 제거된 항목은 그대로 유지됩니다.",
-  "operation.reclaimed": "확보된 공간을 회수했습니다.",
   "operation.entry": "항목 {id}",
   "operation.alreadyRemoved": "이미 제거되었습니다.",
   "operation.couldNotRemove": "제거하지 못했습니다.",

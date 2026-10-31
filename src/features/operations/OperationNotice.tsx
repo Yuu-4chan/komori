@@ -110,7 +110,6 @@ export function OperationNotice({
             total: operation.total ?? 0,
           })}
           {failed > 0 ? ` ${t("operation.removeFailures", { failed })}` : ""}
-          {batch?.maintenance?.status === "compacted" ? ` ${t("operation.reclaimed")}` : ""}
           {error ? <p>{error}</p> : null}
           {unsuccessful.length > 0 ? (
             <ul>

@@ -166,7 +166,6 @@ export const ja: MessageCatalog = {
   "operation.progress": "処理の進み具合",
   "operation.processed": "{completed} / {total}件を処理しました。",
   "operation.removeFailures": "{failed}件を削除できませんでした。削除できたものはそのままです。",
-  "operation.reclaimed": "空いた容量を回収しました。",
   "operation.entry": "項目{id}",
   "operation.alreadyRemoved": "すでに削除されています。",
   "operation.couldNotRemove": "削除できませんでした。",

@@ -168,7 +168,6 @@ export const ptBR: MessageCatalog = {
   "operation.processed": "{completed} / {total} processados.",
   "operation.removeFailures":
     "{failed} não puderam ser removidos. As remoções bem-sucedidas foram mantidas.",
-  "operation.reclaimed": "Espaço liberado recuperado.",
   "operation.entry": "Item {id}",
   "operation.alreadyRemoved": "Já removido.",
   "operation.couldNotRemove": "Não foi possível remover.",

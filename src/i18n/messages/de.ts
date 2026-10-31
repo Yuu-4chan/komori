@@ -168,7 +168,6 @@ export const de: MessageCatalog = {
   "operation.processed": "{completed} / {total} verarbeitet.",
   "operation.removeFailures":
     "{failed} konnten nicht entfernt werden. Erfolgreiche Entfernungen bleiben bestehen.",
-  "operation.reclaimed": "Freier Speicherplatz zurückgewonnen.",
   "operation.entry": "Eintrag {id}",
   "operation.alreadyRemoved": "Bereits entfernt.",
   "operation.couldNotRemove": "Konnte nicht entfernt werden.",

@@ -158,7 +158,6 @@ export const zhCN: MessageCatalog = {
   "operation.progress": "操作进度",
   "operation.processed": "已处理{completed} / {total}。",
   "operation.removeFailures": "{failed}项无法移除。已成功移除的项保持不变。",
-  "operation.reclaimed": "已回收释放的空间。",
   "operation.entry": "条目{id}",
   "operation.alreadyRemoved": "已被移除。",
   "operation.couldNotRemove": "无法移除。",

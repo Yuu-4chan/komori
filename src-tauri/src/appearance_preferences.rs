@@ -654,7 +654,8 @@ impl AppearancePreferences {
             && self
                 .starter_definitions
                 .as_deref()
-                .is_none_or(|value| DEFINITION_LANGUAGES.contains(&value))
+                // Empty until a reader chooses, which the frontend sends along with the rest.
+                .is_none_or(|value| value.is_empty() || DEFINITION_LANGUAGES.contains(&value))
             && self
                 .reader_popup_shortcut_preset
                 .as_deref()
@@ -1164,6 +1165,23 @@ fn save_to(connection: &Connection, preferences: &AppearancePreferences) -> Resu
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn saves_while_no_starter_definitions_are_chosen() {
+        let directory = tempfile::tempdir().unwrap();
+        let connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        let chosen: AppearancePreferences = serde_json::from_value(serde_json::json!({
+            "starterDefinitions": "",
+            "libraryCardSize": 200,
+            "librarySeriesFromTitles": false,
+        }))
+        .unwrap();
+        assert!(save_to(&connection, &chosen).unwrap());
+        let saved = load_from(&connection).unwrap();
+        assert_eq!(saved.library_card_size, Some(200));
+        assert_eq!(saved.library_series_from_titles, Some(false));
+        assert_eq!(saved.starter_definitions, None);
+    }
+
     #[test]
     fn fonts_picked_for_a_language_are_kept_and_invalid_ones_dropped() {
         let kept = AppearancePreferences::from_stored(&serde_json::json!({

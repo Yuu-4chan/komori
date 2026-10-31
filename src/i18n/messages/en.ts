@@ -177,7 +177,6 @@ export const en = {
   "operation.progress": "Operation progress",
   "operation.processed": "{completed} / {total} processed.",
   "operation.removeFailures": "{failed} could not be removed. Successful removals were kept.",
-  "operation.reclaimed": "Freed space reclaimed.",
   "operation.entry": "Entry {id}",
   "operation.alreadyRemoved": "Already removed.",
   "operation.couldNotRemove": "Could not be removed.",

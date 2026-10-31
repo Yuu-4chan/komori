@@ -167,7 +167,6 @@ export const es: MessageCatalog = {
   "operation.processed": "{completed} / {total} procesados.",
   "operation.removeFailures":
     "No se pudieron quitar {failed}. Las eliminaciones correctas se mantuvieron.",
-  "operation.reclaimed": "Espacio liberado recuperado.",
   "operation.entry": "Entrada {id}",
   "operation.alreadyRemoved": "Ya se quitó.",
   "operation.couldNotRemove": "No se pudo quitar.",

@@ -167,7 +167,6 @@ export const it: MessageCatalog = {
   "operation.processed": "{completed} / {total} elaborati.",
   "operation.removeFailures":
     "{failed} non sono stati rimossi. Le rimozioni riuscite sono state mantenute.",
-  "operation.reclaimed": "Spazio liberato recuperato.",
   "operation.entry": "Voce {id}",
   "operation.alreadyRemoved": "Già rimosso.",
   "operation.couldNotRemove": "Impossibile rimuoverlo.",

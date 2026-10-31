@@ -104,7 +104,7 @@ it("reconciles the final count from per-item results, preserves outcomes through
   await runBulkOperation("library", "remove_books");
   render(<Observer />);
   expect(screen.getByRole("status")).toHaveTextContent(
-    "2 / 2 processed. 1 could not be removed. Successful removals were kept. Freed space reclaimed.",
+    "2 / 2 processed. 1 could not be removed. Successful removals were kept.",
   );
   vi.mocked(invoke).mockResolvedValueOnce({ canceled: true, results: [] });
   await act(async () => {
@@ -157,7 +157,7 @@ it("clears a finished outcome once the page showing it is left, but keeps one fi
     return <OperationNotice operation={useBulkOperation("dictionaries")} />;
   }
   const revisit = render(<Dictionaries />);
-  expect(screen.getByRole("status")).toHaveTextContent("1 / 1 processed. Freed space reclaimed.");
+  expect(screen.getByRole("status")).toHaveTextContent("1 / 1 processed.");
   revisit.unmount();
   await act(() => new Promise((done) => setTimeout(done, 0)));
   render(<Dictionaries />);
