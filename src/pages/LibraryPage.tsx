@@ -24,7 +24,7 @@ import { Card } from "../components/ui/Card";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { useShellSearchSlot } from "../components/layout/shellSlots";
 import { EmptyState } from "../components/ui/EmptyState";
-import { NoticeClose } from "../components/ui/NoticeClose";
+import { NoticeClose, useNoticeTimeout } from "../components/ui/NoticeClose";
 import { useAppearance, type LibraryDisplay } from "../features/appearance/AppearanceProvider";
 import {
   LibraryBookCard,
@@ -704,40 +704,45 @@ function LibraryContent({ group }: { group: string | null }) {
       )}
       {searchSlot ? createPortal(search, searchSlot) : search}
       <h1 className="visually-hidden">{t("shell.library")}</h1>
-      <OperationNotice
-        operation={operation}
-        items={library.books.map((book) => ({ id: book.id, title: book.title ?? book.fileName }))}
-      />
+      <div className="library-notices">
+        <OperationNotice
+          operation={operation}
+          items={library.books.map((book) => ({ id: book.id, title: book.title ?? book.fileName }))}
+        />
 
-      {imports.error ? (
-        <div className="library-notice" role="alert">
-          <span>{t("library.importFailed", { error: failureText(imports.error, t) })}</span>
-          <NoticeClose onClose={imports.dismiss} />
-        </div>
-      ) : null}
-      {imports.result ? <ImportNotice result={imports.result} onClose={imports.dismiss} /> : null}
-      {completeError ? (
-        <div className="library-notice" role="alert">
-          <span>{t("library.completeFailed", { error: failureText(completeError, t) })}</span>
-          <NoticeClose onClose={() => setCompleteError(null)} />
-        </div>
-      ) : null}
-      {relinkNotice ? <RelinkNotice notice={relinkNotice} /> : null}
-      {bulkFailures.length > 0 ? (
-        <div className="library-notice library-notice--error" role="alert">
-          <WarningCircleIcon aria-hidden="true" />
-          <div>
-            <strong>{tp("library.removeFailures", bulkFailures.length)}</strong>
-            <ul>
-              {bulkFailures.map((failure) => (
-                <li key={failure.id}>
-                  <strong>{failure.title}:</strong> {failureText(failure.message, t)}
-                </li>
-              ))}
-            </ul>
+        {imports.error ? (
+          <div className="library-notice" role="alert">
+            <span>{t("library.importFailed", { error: failureText(imports.error, t) })}</span>
+            <NoticeClose onClose={imports.dismiss} />
           </div>
-        </div>
-      ) : null}
+        ) : null}
+        {imports.result ? <ImportNotice result={imports.result} onClose={imports.dismiss} /> : null}
+        {completeError ? (
+          <div className="library-notice" role="alert">
+            <span>{t("library.completeFailed", { error: failureText(completeError, t) })}</span>
+            <NoticeClose onClose={() => setCompleteError(null)} />
+          </div>
+        ) : null}
+        {relinkNotice ? (
+          <RelinkNotice notice={relinkNotice} onClose={() => setRelinkNotice(null)} />
+        ) : null}
+        {bulkFailures.length > 0 ? (
+          <div className="library-notice library-notice--error" role="alert">
+            <WarningCircleIcon aria-hidden="true" />
+            <div>
+              <strong>{tp("library.removeFailures", bulkFailures.length)}</strong>
+              <ul>
+                {bulkFailures.map((failure) => (
+                  <li key={failure.id}>
+                    <strong>{failure.title}:</strong> {failureText(failure.message, t)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <NoticeClose onClose={() => setBulkFailures([])} />
+          </div>
+        ) : null}
+      </div>
 
       <section className="library-collection" aria-labelledby="library-collection-title">
         <div className="library-section-heading">
@@ -1008,8 +1013,9 @@ function relinkNoticeFor(result: RelinkResult): RelinkNoticeState {
   }
 }
 
-function RelinkNotice({ notice }: { notice: RelinkNoticeState }) {
+function RelinkNotice({ notice, onClose }: { notice: RelinkNoticeState; onClose: () => void }) {
   const isError = ["invalid", "duplicate", "error"].includes(notice.kind);
+  useNoticeTimeout(notice.kind === "success", onClose);
   return (
     <div
       className={`library-notice${isError ? " library-notice--error" : ""}`}
@@ -1026,6 +1032,7 @@ function RelinkNotice({ notice }: { notice: RelinkNoticeState }) {
         <strong>{notice.title}</strong>
         <p>{notice.message}</p>
       </div>
+      <NoticeClose onClose={onClose} />
     </div>
   );
 }
@@ -1035,6 +1042,7 @@ function ImportNotice({ result, onClose }: { result: ImportBatch; onClose: () =>
   const existing = result.results.filter((item) => item.status === "alreadyImported").length;
   const failures = result.results.filter((item) => item.status === "failed");
   const { t } = useI18n();
+  useNoticeTimeout(failures.length === 0, onClose);
   return (
     <div className="library-notice" role="status">
       <div>

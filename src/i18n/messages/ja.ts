@@ -152,6 +152,8 @@ export const ja: MessageCatalog = {
   "operation.failed":
     "この処理を完了できませんでした。現在の一覧を確認してからもう一度お試しください。",
   "operation.working": "処理中…",
+  "operation.stop": "中止",
+  "operation.stopping": "中止しています…",
   "operation.reclaiming": "容量を回収中…",
   "operation.reclaimingProgress": "容量を回収中… {completed} / {total}",
   "operation.picking": "ファイルを選択…",

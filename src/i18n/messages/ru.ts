@@ -152,6 +152,8 @@ export const ru: MessageCatalog = {
   "operation.failed":
     "Komori не удалось завершить операцию. Проверьте текущий список, прежде чем повторить попытку.",
   "operation.working": "Выполняется…",
+  "operation.stop": "Остановить",
+  "operation.stopping": "Остановка…",
   "operation.reclaiming": "Освобождение места…",
   "operation.reclaimingProgress": "Освобождение места… {completed} / {total}",
   "operation.picking": "Выберите файлы…",

@@ -90,10 +90,11 @@ pub async fn add_library_folder(
     catalog: State<'_, CatalogState>,
     operation_id: Option<String>,
 ) -> Result<AddFolderResult, String> {
+    let window = app.clone();
     let mut progress = BatchProgress::for_app(app, operation_id)?;
     progress.phase("picking");
     let language = interface_text::language(&catalog.database);
-    let selected = rfd::AsyncFileDialog::new()
+    let selected = crate::library::window_picker(&window)
         .set_title(interface_text::text(language, Text::AddBookFolder))
         .pick_folder()
         .await
@@ -365,6 +366,9 @@ fn scan_paths(
     progress.start(pending.len());
     let mut results = Vec::new();
     for (file, key, stamp) in pending {
+        if progress.stopped() {
+            break;
+        }
         let result = import_paths(connection, std::slice::from_ref(&file)).remove(0);
         // Count the committed import even if recording the scan stamp subsequently fails.
         progress.completed_one();

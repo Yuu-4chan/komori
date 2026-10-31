@@ -152,6 +152,8 @@ export const es: MessageCatalog = {
   "operation.failed":
     "Komori no pudo terminar esta operación. Revisa la lista actual antes de volver a intentarlo.",
   "operation.working": "Procesando…",
+  "operation.stop": "Detener",
+  "operation.stopping": "Deteniendo…",
   "operation.reclaiming": "Recuperando espacio…",
   "operation.reclaimingProgress": "Recuperando espacio… {completed} / {total}",
   "operation.picking": "Elige archivos…",

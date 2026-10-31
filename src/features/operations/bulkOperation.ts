@@ -22,6 +22,8 @@ export interface BulkProgress {
 export interface BulkOperation extends BulkProgress {
   command: string;
   active: boolean;
+  /** Asked to stop, and finishing the item it is on. */
+  stopping?: boolean;
   result?: unknown;
   error?: string;
 }
@@ -60,6 +62,31 @@ export function viewBulkOperation(operation: BulkOperation): () => void {
       });
     }, 0);
   };
+}
+function publishOperation(
+  operationId: string,
+  change: (operation: BulkOperation) => BulkOperation | null,
+) {
+  (Object.keys(states) as Store[]).forEach((store) => {
+    const current = states[store];
+    if (current?.operationId === operationId) publish(store, change(current));
+  });
+}
+/** Closes a finished operation's outcome. */
+export function dismissBulkOperation(operation: BulkOperation): void {
+  publishOperation(operation.operationId, (current) => (current.active ? current : null));
+}
+/** The commands that add books one at a time, which can stop between two of them. */
+export const libraryImportCommands = [
+  "import_books",
+  "import_dropped_books",
+  "scan_library_folders",
+  "add_library_folder",
+];
+/** Stops adding books after the current one; the ones added so far stay. */
+export function stopBulkOperation(operation: BulkOperation): void {
+  publishOperation(operation.operationId, (current) => ({ ...current, stopping: true }));
+  void invoke("stop_bulk_operation", { operationId: operation.operationId }).catch(() => {});
 }
 export function bulkOperationActive(store: Store): boolean {
   return states[store]?.active ?? false;
@@ -146,6 +173,7 @@ export async function runBulkOperation<T>(
 export function operationLabel(operation: BulkOperation | null): string {
   const { t } = i18n();
   if (!operation) return t("operation.working");
+  if (operation.stopping) return t("operation.stopping");
   if (operation.command.startsWith("compact_")) return t("operation.reclaiming");
   const progress = { completed: operation.completed, total: operation.total ?? 0 };
   if (operation.phase === "reclaiming") return t("operation.reclaimingProgress", progress);

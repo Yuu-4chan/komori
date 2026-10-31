@@ -145,6 +145,8 @@ export const zhCN: MessageCatalog = {
   "operation.busy": "另一项操作仍在进行中。请在其完成后重试。",
   "operation.failed": "Komori无法完成此操作。请检查当前列表后再重试。",
   "operation.working": "处理中…",
+  "operation.stop": "停止",
+  "operation.stopping": "正在停止…",
   "operation.reclaiming": "正在回收空间…",
   "operation.reclaimingProgress": "正在回收空间… {completed} / {total}",
   "operation.picking": "选择文件…",

@@ -50,6 +50,11 @@ windows-sys = { version = "0.61", features = [
   "Win32_UI_WindowsAndMessaging",
 ] }
 
+# Development builds decode covers and read archives at close to their real speed; without this,
+# adding a book takes fifteen times as long as in a release.
+[profile.dev.package."*"]
+opt-level = 2
+
 [dev-dependencies]
 tempfile = "3"
 

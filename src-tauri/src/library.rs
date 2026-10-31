@@ -166,16 +166,26 @@ pub async fn get_library_book(
     .map_err(|error| format!("Library task failed: {error}"))?
 }
 
+/// A file picker on top of Komori's window, which waits for it, so it can't end up lost behind.
+pub(crate) fn window_picker(app: &AppHandle) -> rfd::AsyncFileDialog {
+    let picker = rfd::AsyncFileDialog::new();
+    match app.get_webview_window("main") {
+        Some(window) => picker.set_parent(&window),
+        None => picker,
+    }
+}
+
 #[tauri::command]
 pub async fn import_books(
     app: AppHandle,
     catalog: State<'_, CatalogState>,
     operation_id: Option<String>,
 ) -> Result<ImportBatch, String> {
+    let window = app.clone();
     let mut progress = BatchProgress::for_app(app, operation_id)?;
     progress.phase("picking");
     let language = interface_text::language(&catalog.database);
-    let selected = rfd::AsyncFileDialog::new()
+    let selected = window_picker(&window)
         .set_title(interface_text::text(language, Text::ImportEpubs))
         .add_filter(interface_text::text(language, Text::EpubBooks), &["epub"])
         .pick_files()
@@ -597,8 +607,18 @@ pub(crate) fn list_from_catalog(connection: &Connection) -> Result<Vec<LibraryBo
                 book.series_index = Some(index);
             }
         }
+    } else {
+        books.iter_mut().for_each(without_automatic_series);
     }
     Ok(books)
+}
+
+/// With Automatic series off, only a series set by hand shows, not even the book's own.
+fn without_automatic_series(book: &mut LibraryBook) {
+    if !book.series_manual {
+        book.series = None;
+        book.series_index = None;
+    }
 }
 
 fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<LibraryBook>, String> {
@@ -620,6 +640,8 @@ fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<Lib
                 book.series = Some(series);
                 book.series_index = Some(index);
             }
+        } else {
+            without_automatic_series(book);
         }
     }
     Ok(book)
@@ -754,29 +776,30 @@ pub(crate) fn import_paths_with_progress(
     progress: &mut BatchProgress,
 ) -> Vec<ImportResult> {
     progress.start(paths.len());
-    paths
-        .iter()
-        .map(|path| {
-            let file_name = path
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "Selected file".into());
-            let result = match import_one(connection, path) {
-                Ok(status) => ImportResult {
-                    file_name,
-                    status,
-                    message: None,
-                },
-                Err(message) => ImportResult {
-                    file_name,
-                    status: "failed",
-                    message: Some(message),
-                },
-            };
-            progress.completed_one();
-            result
-        })
-        .collect()
+    let mut results = Vec::with_capacity(paths.len());
+    for path in paths {
+        if progress.stopped() {
+            break;
+        }
+        let file_name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "Selected file".into());
+        results.push(match import_one(connection, path) {
+            Ok(status) => ImportResult {
+                file_name,
+                status,
+                message: None,
+            },
+            Err(message) => ImportResult {
+                file_name,
+                status: "failed",
+                message: Some(message),
+            },
+        });
+        progress.completed_one();
+    }
+    results
 }
 
 fn import_one(connection: &mut Connection, path: &Path) -> Result<&'static str, String> {
@@ -2409,6 +2432,53 @@ pub(crate) mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(book.series, None);
+
+        // Off leaves out a book's own series too, until it is on again.
+        let lone = id_of("Lone Book 01");
+        connection
+            .execute(
+                "UPDATE book_details SET series = 'Own', series_index = 2 WHERE book_id = ?1",
+                [&lone],
+            )
+            .unwrap();
+        assert_eq!(shown(&connection)["Lone Book 01"], (None, None));
+        let book = get_book_from_catalog(&connection, &lone).unwrap().unwrap();
+        assert_eq!(book.series, None);
+        connection
+            .execute(
+                "UPDATE preferences SET value = ?1",
+                [r#"{"librarySeriesFromTitles":true}"#],
+            )
+            .unwrap();
+        assert_eq!(
+            shown(&connection)["Lone Book 01"],
+            (Some("Own".to_owned()), Some(2.0))
+        );
+    }
+
+    #[test]
+    fn stopping_an_import_keeps_what_it_added_and_skips_the_rest() {
+        let directory = tempdir().unwrap();
+        let mut connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        let sources: Vec<PathBuf> = ["one", "two", "three"]
+            .iter()
+            .map(|name| {
+                let source = directory.path().join(format!("{name}.epub"));
+                fixture(&source, Some(name), None, false);
+                source
+            })
+            .collect();
+        let id = uuid::Uuid::new_v4().to_string();
+        let stopping = id.clone();
+        let mut progress = BatchProgress::new(id, move |value| {
+            if value.completed == 1 {
+                crate::bulk_progress::stop_bulk_operation(stopping.clone());
+            }
+        });
+        let results = import_paths_with_progress(&mut connection, &sources, &mut progress);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].status, "imported");
+        assert_eq!(list_from_catalog(&connection).unwrap().len(), 1);
     }
 
     #[test]

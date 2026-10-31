@@ -110,6 +110,7 @@ pub fn run() {
             reader_background::remove_reader_background,
             reader_fonts::check_system_font,
             reader_fonts::font_supports_book,
+            bulk_progress::stop_bulk_operation,
             reader_fonts::list_system_fonts,
             reader_fonts::list_reader_fonts,
             reader_fonts::imports::import_reader_fonts,

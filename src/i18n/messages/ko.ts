@@ -149,6 +149,8 @@ export const ko: MessageCatalog = {
   "operation.failed":
     "Komori가 이 작업을 마치지 못했습니다. 현재 목록을 확인한 뒤 다시 시도하세요.",
   "operation.working": "작업 중…",
+  "operation.stop": "중지",
+  "operation.stopping": "중지하는 중…",
   "operation.reclaiming": "공간을 회수하는 중…",
   "operation.reclaimingProgress": "공간을 회수하는 중… {completed} / {total}",
   "operation.picking": "파일 선택…",

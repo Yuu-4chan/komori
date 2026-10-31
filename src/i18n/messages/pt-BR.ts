@@ -153,6 +153,8 @@ export const ptBR: MessageCatalog = {
   "operation.failed":
     "O Komori não conseguiu concluir esta operação. Confira a lista atual antes de tentar novamente.",
   "operation.working": "Trabalhando…",
+  "operation.stop": "Parar",
+  "operation.stopping": "Parando…",
   "operation.reclaiming": "Recuperando espaço…",
   "operation.reclaimingProgress": "Recuperando espaço… {completed} / {total}",
   "operation.picking": "Escolha os arquivos…",

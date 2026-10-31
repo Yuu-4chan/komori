@@ -153,6 +153,8 @@ export const fr: MessageCatalog = {
   "operation.failed":
     "Komori n’a pas pu terminer cette opération. Vérifiez la liste actuelle avant de réessayer.",
   "operation.working": "En cours…",
+  "operation.stop": "Arrêter",
+  "operation.stopping": "Arrêt en cours…",
   "operation.reclaiming": "Récupération de l’espace…",
   "operation.reclaimingProgress": "Récupération de l’espace… {completed} / {total}",
   "operation.picking": "Choisissez des fichiers…",

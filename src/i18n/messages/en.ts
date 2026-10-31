@@ -163,6 +163,8 @@ export const en = {
   "operation.failed":
     "Komori could not finish this operation. Check the current list before trying again.",
   "operation.working": "Working…",
+  "operation.stop": "Stop",
+  "operation.stopping": "Stopping…",
   "operation.reclaiming": "Reclaiming space…",
   "operation.reclaimingProgress": "Reclaiming space… {completed} / {total}",
   "operation.picking": "Choose files…",

@@ -57,7 +57,7 @@ it("subscribes before invoking, retains ownership across routes, and ignores sta
     running = runBulkOperation("library", "remove_books", { ids: ["one", "two", "three"] });
   });
   expect(invoke).not.toHaveBeenCalled();
-  expect(screen.getByRole("button")).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Add books" })).toBeDisabled();
   subscribed.resolve(stop);
   await waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
   const operationId = (vi.mocked(invoke).mock.calls[0][1] as Record<string, unknown>)
@@ -77,7 +77,7 @@ it("subscribes before invoking, retains ownership across routes, and ignores sta
   progress(operationId, 3, 3, "reclaiming");
   progress(operationId, 2, 3);
   expect(screen.getByRole("status")).toHaveTextContent("Reclaiming space… 3 / 3");
-  expect(screen.getByRole("button")).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Add books" })).toBeDisabled();
   await act(async () => {
     reply.resolve({
       results: [
@@ -89,7 +89,7 @@ it("subscribes before invoking, retains ownership across routes, and ignores sta
     });
     await running;
   });
-  expect(screen.getByRole("button")).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Add books" })).toBeEnabled();
   expect(screen.getByRole("alert")).toHaveTextContent("Removals were kept");
   expect(stop).toHaveBeenCalledTimes(1);
   progress(operationId, 0, null, "picking");
@@ -127,7 +127,7 @@ it("does not mutate without a listener and hides command diagnostics while relea
     );
   });
   expect(invoke).not.toHaveBeenCalled();
-  expect(screen.getByRole("button")).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Add books" })).toBeEnabled();
   expect(screen.getByRole("alert")).not.toHaveTextContent("private path");
   vi.mocked(invoke).mockRejectedValueOnce(new Error("private database"));
   await act(async () => {
@@ -162,4 +162,30 @@ it("clears a finished outcome once the page showing it is left, but keeps one fi
   await act(() => new Promise((done) => setTimeout(done, 0)));
   render(<Dictionaries />);
   expect(screen.queryByRole("status")).not.toBeInTheDocument();
+});
+
+it("hides what comes before any progress, and stops adding books from the notice", async () => {
+  const reply = deferred<unknown>();
+  vi.mocked(invoke).mockImplementation((command) =>
+    command === "import_books" ? reply.promise : Promise.resolve(undefined),
+  );
+  render(<Observer />);
+  let running!: Promise<unknown>;
+  act(() => {
+    running = runBulkOperation("library", "import_books");
+  });
+  await waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
+  const operationId = (vi.mocked(invoke).mock.calls[0][1] as Record<string, unknown>)
+    .operationId as string;
+  progress(operationId, 0, null, "picking");
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  progress(operationId, 1, 3);
+  act(() => screen.getByRole("button", { name: "Stop" }).click());
+  expect(invoke).toHaveBeenCalledWith("stop_bulk_operation", { operationId });
+  expect(screen.getByRole("status")).toHaveTextContent("Stopping…");
+  expect(screen.getByRole("button", { name: "Stop" })).toBeDisabled();
+  await act(async () => {
+    reply.resolve({ canceled: false, results: [] });
+    await running;
+  });
 });
