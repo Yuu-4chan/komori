@@ -361,7 +361,8 @@ const sameCharacter = (a: string, b: string) =>
  * opening brackets before where the titles differ are left out, and so is a word they differ
  * within; a closing bracket, `！` or `？` stays, as does a dash or symbol that closes one
  * opening earlier in the name (`＜インフィニット・ストラトス＞`). A dash after a space only
- * separates (`Bing - An - Vol 3`).
+ * separates (`Bing - An - Vol 3`), and an opening bracket heading the name that it never
+ * closes is left out.
  * Empty for fewer than two titles, or when they share no name.
  */
 export function seriesFromTitles(titles: readonly string[]): string {
@@ -395,6 +396,7 @@ export function seriesFromTitles(titles: readonly string[]): string {
     if (next === stem) break;
     stem = next;
   }
+  if (!/[\p{Pe}\p{Pf}]/u.test(stem)) stem = stem.replace(/^[\p{Ps}\p{Pi}]\s*/u, "");
   return /\p{L}/u.test(stem) ? stem : "";
 }
 

@@ -22,7 +22,7 @@ use crate::{
 };
 
 const SCHEMA_VERSION: i64 = 8;
-const COVER_RESOLVER_VERSION: i64 = 2;
+const COVER_RESOLVER_VERSION: i64 = 3;
 const CATALOG_FILE_NAME: &str = "library.sqlite3";
 
 #[derive(Debug)]

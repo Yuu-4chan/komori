@@ -246,6 +246,10 @@ describe("series from titles", () => {
     expect(seriesFromTitles(["Cat Tales 1", "Cat Tales 2"])).toBe("Cat Tales");
     expect(seriesFromTitles(["８６ Tales 1", "86 Tales ２"])).toBe("８６ Tales");
     expect(seriesFromTitles(["Title v01", "Title v02"])).toBe("Title");
+    expect(seriesFromTitles(["『八男って！ 26』BOOK", "『八男って！ 27』BOOK"])).toBe("八男って！");
+    expect(seriesFromTitles(["「ロウきゅーぶ！」1", "「ロウきゅーぶ！」2"])).toBe(
+      "「ロウきゅーぶ！」",
+    );
     expect(seriesFromTitles(["Bing - An - Volume 03", "Bing - An - Volume 04"])).toBe("Bing - An");
     expect(seriesFromTitles(["幼女戦記07", "幼女戦記08"])).toBe("幼女戦記");
     expect(seriesFromTitles(["Foo Vol. 1", "Foo Vol. 2", "Foo Vol. 3"])).toBe("Foo");

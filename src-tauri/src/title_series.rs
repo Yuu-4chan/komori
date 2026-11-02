@@ -39,6 +39,16 @@ static VOLUME_WORD: LazyLock<Regex> = LazyLock::new(|| {
     )
     .unwrap()
 });
+/// A volume word right before a number: `Vol 13 - 2002` is volume 13, not 2002.
+static NUMBERED: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(?:(?:^|[^\p{L}\p{N}])(?:v|vol(?:ume)?|ep(?:isode)?|book|part|tome|tomo|livro|parte)[.\s]*|第)$",
+    )
+    .unwrap()
+});
+/// An opening bracket heading a name that never closes it: `『八男って…！ 26』BOOK☆WALKER…`.
+static UNCLOSED_OPENING: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[\p{Ps}\p{Pi}]\s*([^\p{Pe}\p{Pf}]*)$").unwrap());
 static CLOSING_MARK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\p{Pd}\p{S}]$").unwrap());
 /// One part of a volume split in two or three, closing a title: `（上）`, `〈下〉`, `前編`, `中巻`.
 static PART: LazyLock<Regex> = LazyLock::new(|| {
@@ -105,6 +115,14 @@ pub(crate) fn series_from_titles(books: &[TitledBook<'_>]) -> Vec<Option<(String
     let mut from_files = name_series(&readings);
     from_files.truncate(books.len());
     spell_as_titles(books, &mut from_files);
+    for (book, named) in books.iter().zip(from_files.iter_mut()) {
+        if named
+            .as_ref()
+            .is_some_and(|(series, _)| spells_a_reading(series, book.title))
+        {
+            *named = None;
+        }
+    }
 
     let readings: Vec<Reading<'_>> = books
         .iter()
@@ -169,6 +187,15 @@ fn spell_as_titles(books: &[TitledBook<'_>], named: &mut [Option<(String, f64)>]
     }
 }
 
+/// Whether a series a file name gives only spells, in katakana, the reading of a title written
+/// otherwise, as some libraries name files (`ハチナンッテソレハナイデショウ30` for
+/// `八男って、それはないでしょう！ 30`); the title then names the series.
+fn spells_a_reading(series: &str, title: Option<&str>) -> bool {
+    let katakana = |c: char| matches!(c, '\u{30A0}'..='\u{30FF}' | '\u{FF66}'..='\u{FF9F}');
+    series.chars().all(|c| katakana(c) || !c.is_alphabetic())
+        && title.is_some_and(|title| title.chars().any(|c| c.is_alphabetic() && !katakana(c)))
+}
+
 /// A series name's letters and digits alone, for comparing a file's spelling with a title's.
 fn words_key(name: &str) -> String {
     comparison_key(name)
@@ -179,7 +206,8 @@ fn words_key(name: &str) -> String {
 
 /// The title a file name reads as: without its extension, a copy's mark, or bracketed notes such
 /// as a year, a group or a checksum, and with `_` or `.` between words read as spaces. A note
-/// holding another number stays, as it can be the volume (`Title [v2]`).
+/// holding another number stays, as it can be the volume (`Title [v2]`), and the store and
+/// edition tags titles drop go.
 fn file_title(file_name: &str) -> Option<String> {
     let mut name = EXTENSION.replace(file_name.trim(), "").into_owned();
     loop {
@@ -206,8 +234,8 @@ fn file_title(file_name: &str) -> Option<String> {
     if !name.contains(char::is_whitespace) && name.matches('.').count() >= 2 {
         name = name.replace('.', " ");
     }
-    let name = name.trim();
-    (!name.is_empty()).then(|| name.to_owned())
+    // Store and edition tags go as from titles: `【電子版限定特典付き】Title 3`.
+    crate::title_cleaning::clean(&name)
 }
 
 /// A series name for comparing only: full-width letters, digits and signs read as their usual
@@ -356,14 +384,14 @@ fn name_series(books: &[Reading<'_>]) -> Vec<Option<(String, f64)>> {
 }
 
 /// Every series name and volume a title can be read as, the likeliest first: from its last
-/// number back to its first, then a closing Roman numeral, then a closing part (`（上）` is 1,
+/// number back to its first, those after a volume word before the others, then a closing Roman numeral, then a closing part (`（上）` is 1,
 /// `（中）` 2, `（下）` 3), then a heading number.
 fn volume_candidates(title: &str) -> Vec<(String, f64)> {
-    let mut candidates: Vec<(String, f64)> = NUMBER
-        .find_iter(title)
-        .collect::<Vec<_>>()
+    let mut numbers: Vec<_> = NUMBER.find_iter(title).collect();
+    numbers.reverse();
+    numbers.sort_by_key(|number| !NUMBERED.is_match(&title[..number.start()]));
+    let mut candidates: Vec<(String, f64)> = numbers
         .into_iter()
-        .rev()
         .filter_map(|number| {
             Some((
                 series_name(&title[..number.start()])?,
@@ -414,7 +442,8 @@ fn volume_candidates(title: &str) -> Vec<(String, f64)> {
 /// The series name a title's start gives: volume words, parts, numbers, separators, and
 /// opening brackets at its end are left out, and so is a dash or symbol unless it closes one
 /// opening earlier in the name (`─エイティシックス─`, `＜インフィニット・ストラトス＞`). A dash
-/// after a space only separates (`Bing - An - Vol 3`).
+/// after a space only separates (`Bing - An - Vol 3`), and an opening bracket heading the name
+/// that it never closes is left out.
 /// `None` without a letter.
 fn series_name(start: &str) -> Option<String> {
     let mut stem = start.trim().to_owned();
@@ -444,6 +473,12 @@ fn series_name(start: &str) -> Option<String> {
             break;
         }
         stem = next;
+    }
+    if let Some(name) = UNCLOSED_OPENING
+        .captures(&stem)
+        .map(|name| name[1].to_owned())
+    {
+        stem = name;
     }
     LETTER.is_match(&stem).then_some(stem)
 }
@@ -612,6 +647,77 @@ mod tests {
                 volume("Perle - Joachim", 1.0),
                 volume("Perle - Joachim", 2.0),
             ]
+        );
+    }
+
+    #[test]
+    fn a_number_after_a_volume_word_is_the_volume_before_a_later_year() {
+        let books = [
+            filed(
+                "Baccano! - Vol 01 - 1930 - The Rolling Bootlegs.epub",
+                "Baccano! Vol. 1: The Rolling Bootlegs",
+                None,
+            ),
+            filed(
+                "Baccano! - Vol 13 - 2002 - B - Blood Sabbath.epub",
+                "Baccano! Vol. 13: 2002 [B Side] Blood Sabbath",
+                None,
+            ),
+        ];
+        assert_eq!(
+            series_from_titles(&books),
+            [volume("Baccano!", 1.0), volume("Baccano!", 13.0)]
+        );
+    }
+
+    #[test]
+    fn file_names_spelling_a_reading_leave_the_series_to_the_titles() {
+        let books = [
+            filed(
+                "ハチナンッテソレハナイデショウ029 - Y.A.epub",
+                "八男って、それはないでしょう！ 29",
+                None,
+            ),
+            filed(
+                "ハチナンッテソレハナイデショウ030 - Y.A.epub",
+                "八男って、それはないでしょう！ 30",
+                None,
+            ),
+            filed(
+                "ソードアートオンライン01.epub",
+                "ソードアート・オンライン 1",
+                None,
+            ),
+            filed(
+                "ソードアートオンライン02.epub",
+                "ソードアート・オンライン 2",
+                None,
+            ),
+        ];
+        assert_eq!(
+            series_from_titles(&books),
+            [
+                volume("八男って、それはないでしょう！", 29.0),
+                volume("八男って、それはないでしょう！", 30.0),
+                volume("ソードアート・オンライン", 1.0),
+                volume("ソードアート・オンライン", 2.0),
+            ]
+        );
+    }
+
+    #[test]
+    fn file_names_drop_the_tags_titles_drop() {
+        let books = [
+            filed(
+                "【電子版限定特典付き】才女のお世話 1.epub",
+                "才女のお世話 1",
+                None,
+            ),
+            filed("才女のお世話 2.epub", "才女のお世話 2", None),
+        ];
+        assert_eq!(
+            series_from_titles(&books),
+            [volume("才女のお世話", 1.0), volume("才女のお世話", 2.0)]
         );
     }
 
@@ -975,6 +1081,11 @@ mod tests {
                 Some("運命に愛されて。<運命に愛されて。>"),
             ),
             ("ギブあっぷ！", Some("ギブあっぷ！")),
+            (
+                "『八男って、それはないでしょう！ ",
+                Some("八男って、それはないでしょう！"),
+            ),
+            ("「ロウきゅーぶ！」", Some("「ロウきゅーぶ！」")),
             (
                 "だれがわたしの百合なのか!? ",
                 Some("だれがわたしの百合なのか!?"),

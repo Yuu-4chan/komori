@@ -24,6 +24,10 @@ const SCHEME: &str = "komori-cover";
 const MAX_WIDTH: u32 = 400;
 const MAX_HEIGHT: u32 = 600;
 const JPEG_QUALITY: u8 = 85;
+// A cover too large to cache is kept at about a large print's size.
+const LARGE_WIDTH: u32 = 2_400;
+const LARGE_HEIGHT: u32 = 3_600;
+const LARGE_JPEG_QUALITY: u8 = 90;
 // Cached covers are at most 4 MiB, but compressed pixels can claim far larger images.
 const MAX_DIMENSION: u32 = 12_000;
 const MAX_DECODE_BYTES: u64 = 256 * 1024 * 1024;
@@ -61,15 +65,35 @@ pub(crate) fn thumbnail(mime: &str, bytes: &[u8]) -> Option<CoverImage> {
     }
 }
 
-/// The shrunken cover, `None` when the original is already fit to show, or why it cannot be read.
-fn shrink(mime: &str, bytes: &[u8]) -> ImageResult<Option<CoverImage>> {
+/// A book's cover image too large to cache, as a JPEG of at most `max_bytes`; `None` when it
+/// does not decode within the limits.
+pub(crate) fn fit_large_cover(bytes: &[u8], max_bytes: usize) -> Option<Vec<u8>> {
+    let image = decode(bytes).ok()?;
+    let image = if image.width() > LARGE_WIDTH || image.height() > LARGE_HEIGHT {
+        image.thumbnail(LARGE_WIDTH, LARGE_HEIGHT)
+    } else {
+        image
+    };
+    let mut output = Vec::new();
+    JpegEncoder::new_with_quality(&mut output, LARGE_JPEG_QUALITY)
+        .encode_image(&flatten(image))
+        .ok()?;
+    (output.len() <= max_bytes).then_some(output)
+}
+
+fn decode(bytes: &[u8]) -> ImageResult<DynamicImage> {
     let mut reader = ImageReader::new(Cursor::new(bytes)).with_guessed_format()?;
     let mut limits = Limits::default();
     limits.max_image_width = Some(MAX_DIMENSION);
     limits.max_image_height = Some(MAX_DIMENSION);
     limits.max_alloc = Some(MAX_DECODE_BYTES);
     reader.limits(limits);
-    let image = reader.decode()?;
+    reader.decode()
+}
+
+/// The shrunken cover, `None` when the original is already fit to show, or why it cannot be read.
+fn shrink(mime: &str, bytes: &[u8]) -> ImageResult<Option<CoverImage>> {
+    let image = decode(bytes)?;
     let fits = image.width() <= MAX_WIDTH && image.height() <= MAX_HEIGHT;
     if fits
         && matches!(

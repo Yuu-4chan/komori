@@ -19,7 +19,7 @@ A Calibre-like Library of real covers and progress: Continue reading (books read
 grid/list, search, status filters, Cards details, sort and direction, which order groups too; grouping by series
 or language as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Automatic series in Settings > General, on
 by default, makes series in this order: what you set by hand, then numbered file names
-(`Harry Potter 1.epub`, `Harry Potter 2.epub`, ignoring a copy's `(1)` and notes such as `(2020)` or a checksum, and spelled as the books' titles spell the same words),
+(`Harry Potter 1.epub`, `Harry Potter 2.epub`, ignoring a copy's `(1)`, notes such as `(2020)` or a checksum, and the store tags titles drop, such as `【電子版限定特典付き】`, spelled as the books' titles spell the same words, taking the number after `Vol`, `Volume` or `第` before a later year, as in `Baccano! - Vol 13 - 2002`, and leaving to the titles file names that only spell a Japanese title's katakana reading),
 then a book's own series, then numbered volumes sharing a title (`Title 01`, `Title 02`), full-width
 or not, with （上）/（下） parts and volumes whose title adds a subtitle
 (`Title～Subtitle～01`), keeping a title's own ＜＞ and ！？ in the series name, and off leaves only series set by hand; Stop on the adding notice ends an import between two books, keeping those already added; Mark as completed from a card's menu or the selection; per-card selection boxes
