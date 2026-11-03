@@ -17,7 +17,6 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon"] }
 base64 = "0.22"
 flate2 = "1"
-rfd = "0.17"
 roxmltree = "0.21"
 rusqlite = { version = "0.37", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
@@ -27,14 +26,19 @@ ttf-parser = "0.25"
 uuid = { version = "1", features = ["v4"] }
 zip = { version = "8.6", default-features = false, features = ["deflate"] }
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "tiff"] }
-tauri-plugin-single-instance = "~2.3.6"
-tauri-plugin-updater = { version = "~2.12.0", default-features = false, features = ["rustls-tls"] }
-# Word audio uses the HTTP client and TLS the updater already brings.
+# Word audio uses the HTTP client and TLS the updater brings on the PC.
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 percent-encoding = "2"
 # Series from titles needs Unicode punctuation classes; Tauri already brings the crate.
 regex = "1.13"
+
+# The PC's file dialogs, single window and updater; Android has its own document picker and
+# updates through the release, not in the app.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+rfd = "0.17"
+tauri-plugin-single-instance = "~2.3.6"
+tauri-plugin-updater = { version = "~2.12.0", default-features = false, features = ["rustls-tls"] }
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.38.2"

@@ -14,6 +14,22 @@ scrolling page. Application pages switch with Ctrl+D/S/G from Library,
 Dictionary, Settings and Statistics; Ctrl+B returns to the Library from the latter
 three, while the Reader keeps it for bookmarks.
 
+## Android
+
+Komori on an Android phone (Android 10 and later) has its own frame: page headers with the
+brand and the gear to Settings, a floating dock (Dictionary, Library, Statistics) above the
+gesture bar, and Back closing an open sheet before it leaves the page. The Library shows the
+count of books, search, Add books (the system document picker, several EPUBs at once), the
+book to continue and a grid of covers with progress; books stay where they are, and a moved
+or deleted one offers Relink and Remove. The Reader is read by touch: tap the sides to turn
+a page (in the book's page progression), swipe in paginated view, scroll in continuous view,
+and tap the middle, the clock or the footer for the controls: Back, the title, a bookmark
+toggle, Appearance (theme, font size, line height, page margin, writing and view mode), the
+chapter with a position slider, and the Chapters sheet. The status and navigation bars hide
+while reading. Reopening Komori after Android ends it opens the last book where it was.
+Statistics is the PC page in two columns; Settings has General (language, application
+theme) and About.
+
 ## Library
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;

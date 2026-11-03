@@ -28,4 +28,5 @@ pub(crate) const DICTIONARY_NEWER: &str = "failure.dictionaryNewer";
 
 pub(crate) const UPDATE_CHECK: &str = "failure.updateCheck";
 pub(crate) const UPDATE_INSTALL: &str = "failure.updateInstall";
+#[cfg_attr(mobile, allow(dead_code))]
 pub(crate) const UPDATE_GONE: &str = "failure.updateGone";

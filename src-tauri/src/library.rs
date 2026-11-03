@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+#[cfg(desktop)]
 use crate::interface_text::{self, Text};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
@@ -178,9 +179,15 @@ pub async fn get_library_book(
     .map_err(|error| format!("Library task failed: {error}"))?
 }
 
+/// What a book picker hands over: a file path on the PC, a granted document on Android.
+#[cfg(desktop)]
+type PickedBook = PathBuf;
+#[cfg(mobile)]
+type PickedBook = crate::android::Document;
+
 /// A file picker on top of Komori's window, which waits for it, so it can't end up lost behind.
-pub(crate) fn window_picker(app: &AppHandle) -> rfd::AsyncFileDialog {
-    let picker = rfd::AsyncFileDialog::new();
+pub(crate) fn window_picker(app: &AppHandle) -> crate::file_dialog::AsyncFileDialog {
+    let picker = crate::file_dialog::AsyncFileDialog::new();
     match app.get_webview_window("main") {
         Some(window) => picker.set_parent(&window),
         None => picker,
@@ -193,15 +200,22 @@ pub async fn import_books(
     catalog: State<'_, CatalogState>,
     operation_id: Option<String>,
 ) -> Result<ImportBatch, String> {
+    #[cfg(desktop)]
     let window = app.clone();
     let mut progress = BatchProgress::for_app(app, operation_id)?;
     progress.phase("picking");
-    let language = interface_text::language(&catalog.database);
-    let selected = window_picker(&window)
-        .set_title(interface_text::text(language, Text::ImportEpubs))
-        .add_filter(interface_text::text(language, Text::EpubBooks), &["epub"])
-        .pick_files()
-        .await;
+    #[cfg(desktop)]
+    let selected: Option<Vec<PickedBook>> = {
+        let language = interface_text::language(&catalog.database);
+        window_picker(&window)
+            .set_title(interface_text::text(language, Text::ImportEpubs))
+            .add_filter(interface_text::text(language, Text::EpubBooks), &["epub"])
+            .pick_files()
+            .await
+            .map(|files| files.iter().map(|file| file.path().to_path_buf()).collect())
+    };
+    #[cfg(mobile)]
+    let selected: Option<Vec<PickedBook>> = crate::android::pick_books(true).await?;
 
     let Some(selected) = selected else {
         return Ok(ImportBatch {
@@ -210,10 +224,6 @@ pub async fn import_books(
         });
     };
 
-    let paths: Vec<PathBuf> = selected
-        .iter()
-        .map(|file| file.path().to_path_buf())
-        .collect();
     let database = catalog.database.clone();
     let write_lock = Arc::clone(&catalog.write_lock);
     tauri::async_runtime::spawn_blocking(move || {
@@ -221,9 +231,13 @@ pub async fn import_books(
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut connection = open_catalog(&database)?;
+        #[cfg(desktop)]
+        let results = import_paths_with_progress(&mut connection, &selected, &mut progress);
+        #[cfg(mobile)]
+        let results = import_documents_with_progress(&mut connection, &selected, &mut progress);
         Ok(ImportBatch {
             canceled: false,
-            results: import_paths_with_progress(&mut connection, &paths, &mut progress),
+            results,
         })
     })
     .await
@@ -235,13 +249,20 @@ pub async fn relink_book(
     catalog: State<'_, CatalogState>,
     id: String,
 ) -> Result<RelinkResult, String> {
-    let language = interface_text::language(&catalog.database);
-    let selected = rfd::AsyncFileDialog::new()
-        .set_title(interface_text::text(language, Text::RelinkEpub))
-        .add_filter(interface_text::text(language, Text::EpubBooks), &["epub"])
-        .pick_file()
-        .await
-        .map(|file| file.path().to_path_buf());
+    #[cfg(desktop)]
+    let selected: Option<PickedBook> = {
+        let language = interface_text::language(&catalog.database);
+        crate::file_dialog::AsyncFileDialog::new()
+            .set_title(interface_text::text(language, Text::RelinkEpub))
+            .add_filter(interface_text::text(language, Text::EpubBooks), &["epub"])
+            .pick_file()
+            .await
+            .map(|file| file.path().to_path_buf())
+    };
+    #[cfg(mobile)]
+    let selected: Option<PickedBook> = crate::android::pick_books(false)
+        .await?
+        .and_then(|documents| documents.into_iter().next());
     let database = catalog.database.clone();
     tauri::async_runtime::spawn_blocking(move || relink_selection(&database, &id, selected))
         .await
@@ -267,6 +288,8 @@ pub async fn remove_book(
         let outcome = remove_book_from_catalog(&connection, &id);
         progress.completed_one();
         let results = outcome?;
+        #[cfg(mobile)]
+        release_unlinked(&connection);
         let maintenance = reclaim(
             &mut progress,
             results,
@@ -297,13 +320,16 @@ pub async fn remove_books(
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let connection = open_catalog(&database)?;
-        Ok(remove_and_reclaim(
+        let removed = remove_and_reclaim(
             &connection,
             &database,
             ids,
             &mut progress,
             COMPACTION_MINIMUM_FREE,
-        ))
+        );
+        #[cfg(mobile)]
+        release_unlinked(&connection);
+        Ok(removed)
     })
     .await
     .map_err(|error| format!("Bulk remove task failed: {error}"))?
@@ -782,7 +808,7 @@ impl BookProgress {
 /// large Libraries slow to list (and invites an antivirus scan of each file); the Reader still
 /// opens and validates a source before reading it.
 fn source_availability(source_path: &str) -> &'static str {
-    match std::fs::metadata(source_path) {
+    match crate::book_source::metadata(source_path) {
         Ok(metadata) if metadata.is_file() => "available",
         Ok(_) => "unreadable",
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => "missing",
@@ -799,17 +825,53 @@ pub(crate) fn import_paths_with_progress(
     paths: &[PathBuf],
     progress: &mut BatchProgress,
 ) -> Vec<ImportResult> {
-    progress.start(paths.len());
-    let mut results = Vec::with_capacity(paths.len());
-    for path in paths {
+    import_each(
+        connection,
+        paths,
+        progress,
+        |path| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "Selected file".into())
+        },
+        |connection, path| import_one(connection, path),
+    )
+}
+
+/// Imports the documents picked on the phone, then gives back the permission of each one that
+/// did not become a book.
+#[cfg(mobile)]
+fn import_documents_with_progress(
+    connection: &mut Connection,
+    documents: &[crate::android::Document],
+    progress: &mut BatchProgress,
+) -> Vec<ImportResult> {
+    let results = import_each(
+        connection,
+        documents,
+        progress,
+        |document| document.name.clone(),
+        import_document,
+    );
+    release_unlinked(connection);
+    results
+}
+
+fn import_each<T>(
+    connection: &mut Connection,
+    picked: &[T],
+    progress: &mut BatchProgress,
+    file_name: impl Fn(&T) -> String,
+    import: impl Fn(&mut Connection, &T) -> Result<&'static str, String>,
+) -> Vec<ImportResult> {
+    progress.start(picked.len());
+    let mut results = Vec::with_capacity(picked.len());
+    for book in picked {
         if progress.stopped() {
             break;
         }
-        let file_name = path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "Selected file".into());
-        results.push(match import_one(connection, path) {
+        let file_name = file_name(book);
+        results.push(match import(connection, book) {
             Ok(status) => ImportResult {
                 file_name,
                 status,
@@ -826,27 +888,111 @@ pub(crate) fn import_paths_with_progress(
     results
 }
 
+/// Gives back the read permission of every phone document the catalog no longer links.
+#[cfg(mobile)]
+fn release_unlinked(connection: &Connection) {
+    let sources = connection
+        .prepare("SELECT source_path FROM books")
+        .and_then(|mut statement| {
+            statement
+                .query_map([], |row| row.get(0))?
+                .collect::<Result<Vec<String>, _>>()
+        });
+    // Without the catalog's list, every permission stays.
+    if let Ok(sources) = sources {
+        crate::android::keep_only(&sources);
+    }
+}
+
+fn has_epub_extension(name: &Path) -> bool {
+    name.extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("epub"))
+}
+
 fn import_one(connection: &mut Connection, path: &Path) -> Result<&'static str, String> {
     let canonical = path
         .canonicalize()
         .map_err(|error| format!("Cannot access the source file: {error}"))?;
     // Read from the full name: Windows can hand over a long path as `REFORM~1.EPU`.
-    if !canonical
-        .extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("epub"))
-    {
+    if !has_epub_extension(&canonical) {
         return Err(crate::failure::CHOOSE_EPUB.into());
     }
     let source =
         File::open(&canonical).map_err(|error| format!("Cannot read the source file: {error}"))?;
-    if !source
+    let file_name = canonical
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Untitled.epub".into());
+    import_source(
+        connection,
+        source,
+        canonical.to_string_lossy().into_owned(),
+        file_name,
+    )
+}
+
+/// Imports a document picked on the phone; its link is the book's private source.
+#[cfg(mobile)]
+fn import_document(
+    connection: &mut Connection,
+    document: &crate::android::Document,
+) -> Result<&'static str, String> {
+    if !has_epub_extension(Path::new(&document.name)) {
+        return Err(crate::failure::CHOOSE_EPUB.into());
+    }
+    let source = crate::book_source::open(&document.uri)
+        .map_err(|error| format!("Cannot read the source file: {error}"))?;
+    // Android's picker hands a file over under another link once its media index learns of it.
+    let stamp = source
         .metadata()
-        .map_err(|error| error.to_string())?
-        .is_file()
-    {
+        .ok()
+        .and_then(|metadata| book_details::stamp(&metadata));
+    if let Some(stamp) = stamp {
+        if reads_same_file(connection, &document.name, &stamp)? {
+            return Ok("alreadyImported");
+        }
+    }
+    import_source(
+        connection,
+        source,
+        document.uri.clone(),
+        document.name.clone(),
+    )
+}
+
+/// Whether a book still reads a file of this name, size and modification time (`stamp`).
+#[cfg(any(mobile, test))]
+fn reads_same_file(connection: &Connection, file_name: &str, stamp: &str) -> Result<bool, String> {
+    let sources = connection
+        .prepare(
+            "SELECT books.source_path FROM books
+               JOIN book_details AS details ON details.book_id = books.id
+              WHERE books.file_name = ?1 AND details.source_stamp = ?2",
+        )
+        .and_then(|mut statement| {
+            statement
+                .query_map([file_name, stamp], |row| row.get(0))?
+                .collect::<Result<Vec<String>, _>>()
+        })
+        .map_err(storage_error)?;
+    Ok(sources
+        .iter()
+        .any(|source| book_details::source_stamp(source).as_deref() == Some(stamp)))
+}
+
+/// Adds the opened `source` as a book, unless the catalog already links `private_path`.
+fn import_source(
+    connection: &mut Connection,
+    source: File,
+    private_path: String,
+    file_name: String,
+) -> Result<&'static str, String> {
+    // A stream some providers hand over is no file, and an EPUB needs random access.
+    let source_metadata = source.metadata().map_err(|error| error.to_string())?;
+    if !source_metadata.is_file() {
         return Err(crate::failure::NOT_A_FILE.into());
     }
-    let private_path = canonical.to_string_lossy().into_owned();
+    let stamp = book_details::stamp(&source_metadata);
     let exists: bool = connection
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM books WHERE source_path = ?1)",
@@ -859,10 +1005,6 @@ fn import_one(connection: &mut Connection, path: &Path) -> Result<&'static str, 
     }
 
     let metadata = epub::read(source)?;
-    let file_name = canonical
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "Untitled.epub".into());
     let cover_diagnostic = metadata.cover_diagnostic.code().to_string();
     let thumbnail = metadata
         .cover
@@ -900,7 +1042,6 @@ fn import_one(connection: &mut Connection, path: &Path) -> Result<&'static str, 
     if let Some(thumbnail) = thumbnail {
         covers::store_thumbnail(&transaction, &id, 0, &thumbnail)?;
     }
-    let stamp = book_details::source_stamp(&canonical);
     book_details::store(&transaction, &id, &metadata.details, stamp.as_deref())?;
     transaction.commit().map_err(storage_error)?;
     Ok("imported")
@@ -909,47 +1050,34 @@ fn import_one(connection: &mut Connection, path: &Path) -> Result<&'static str, 
 fn relink_selection(
     database: &Path,
     id: &str,
-    selected: Option<PathBuf>,
+    selected: Option<PickedBook>,
 ) -> Result<RelinkResult, String> {
-    let Some(path) = selected else {
+    let Some(picked) = selected else {
         return Ok(RelinkResult {
             status: "canceled",
             message: None,
         });
     };
     let mut connection = open_catalog(database)?;
-    relink_one(&mut connection, id, &path)
+    #[cfg(desktop)]
+    let relinked = relink_one(&mut connection, id, &picked);
+    #[cfg(mobile)]
+    let relinked = relink_document(&mut connection, id, &picked);
+    // The old document, or a refused new one, gives its permission back.
+    #[cfg(mobile)]
+    release_unlinked(&connection);
+    relinked
 }
 
+#[cfg(desktop)]
 pub(crate) fn relink_one(
     connection: &mut Connection,
     id: &str,
     path: &Path,
 ) -> Result<RelinkResult, String> {
-    let target_exists: bool = connection
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM books WHERE id = ?1)",
-            [id],
-            |row| row.get(0),
-        )
-        .map_err(storage_error)?;
-    if !target_exists {
-        return Ok(RelinkResult {
-            status: "failed",
-            message: Some(crate::failure::BOOK_GONE.into()),
-        });
+    if let Some(refused) = relink_refusal(connection, id, path)? {
+        return Ok(refused);
     }
-
-    if !path
-        .extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("epub"))
-    {
-        return Ok(RelinkResult {
-            status: "invalid",
-            message: Some(crate::failure::CHOOSE_EPUB.into()),
-        });
-    }
-
     let canonical = match path.canonicalize() {
         Ok(path) => path,
         Err(_) => return Ok(read_failed_relink_result()),
@@ -958,8 +1086,78 @@ pub(crate) fn relink_one(
         Ok(source) => source,
         Err(_) => return Ok(read_failed_relink_result()),
     };
-    match source.metadata() {
-        Ok(metadata) if metadata.is_file() => {}
+    let file_name = canonical
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Untitled.epub".into());
+    relink_source(
+        connection,
+        id,
+        source,
+        canonical.to_string_lossy().into_owned(),
+        file_name,
+    )
+}
+
+/// Relinks a book to a document picked on the phone.
+#[cfg(mobile)]
+fn relink_document(
+    connection: &mut Connection,
+    id: &str,
+    document: &crate::android::Document,
+) -> Result<RelinkResult, String> {
+    if let Some(refused) = relink_refusal(connection, id, Path::new(&document.name))? {
+        return Ok(refused);
+    }
+    let Ok(source) = crate::book_source::open(&document.uri) else {
+        return Ok(read_failed_relink_result());
+    };
+    relink_source(
+        connection,
+        id,
+        source,
+        document.uri.clone(),
+        document.name.clone(),
+    )
+}
+
+/// A relink refused before its source is read: the book is gone, or the pick is no EPUB.
+fn relink_refusal(
+    connection: &Connection,
+    id: &str,
+    name: &Path,
+) -> Result<Option<RelinkResult>, String> {
+    let target_exists: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM books WHERE id = ?1)",
+            [id],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if !target_exists {
+        return Ok(Some(RelinkResult {
+            status: "failed",
+            message: Some(crate::failure::BOOK_GONE.into()),
+        }));
+    }
+    if !has_epub_extension(name) {
+        return Ok(Some(RelinkResult {
+            status: "invalid",
+            message: Some(crate::failure::CHOOSE_EPUB.into()),
+        }));
+    }
+    Ok(None)
+}
+
+fn relink_source(
+    connection: &mut Connection,
+    id: &str,
+    source: File,
+    private_path: String,
+    file_name: String,
+) -> Result<RelinkResult, String> {
+    let stamp = match source.metadata() {
+        Ok(metadata) if metadata.is_file() => book_details::stamp(&metadata),
         Ok(_) => {
             return Ok(RelinkResult {
                 status: "invalid",
@@ -967,7 +1165,7 @@ pub(crate) fn relink_one(
             });
         }
         Err(_) => return Ok(read_failed_relink_result()),
-    }
+    };
     let metadata = match epub::read(source) {
         Ok(metadata) => metadata,
         Err(_) => {
@@ -978,7 +1176,6 @@ pub(crate) fn relink_one(
         }
     };
 
-    let private_path = canonical.to_string_lossy().into_owned();
     let duplicate: bool = connection
         .query_row(
             "SELECT EXISTS(
@@ -992,10 +1189,6 @@ pub(crate) fn relink_one(
         return Ok(duplicate_relink_result());
     }
 
-    let file_name = canonical
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "Untitled.epub".into());
     let cover_diagnostic = metadata.cover_diagnostic.code().to_string();
     let thumbnail = metadata
         .cover
@@ -1052,7 +1245,6 @@ pub(crate) fn relink_one(
         covers::store_thumbnail(&transaction, id, revision, &thumbnail)?;
     }
     // The new source's own details replace the old; a series set by hand stays.
-    let stamp = book_details::source_stamp(&canonical);
     book_details::store(&transaction, id, &metadata.details, stamp.as_deref())?;
     transaction.commit().map_err(storage_error)?;
     Ok(RelinkResult {
@@ -1126,7 +1318,7 @@ fn backfill_missing_covers_in_chunks(
         let resolved: Vec<_> = books
             .iter()
             .filter_map(|(id, source_path)| {
-                let metadata = epub::read(File::open(source_path).ok()?).ok()?;
+                let metadata = epub::read(crate::book_source::open(source_path).ok()?).ok()?;
                 Some((id, metadata))
             })
             .collect();
@@ -1590,6 +1782,37 @@ pub(crate) mod tests {
         let results = import_paths(&mut connection, std::slice::from_ref(&source));
         assert_eq!(results[0].status, "alreadyImported");
         assert_eq!(results[0].message, None);
+    }
+
+    #[test]
+    fn a_book_still_reading_the_same_file_is_found_by_its_name_size_and_time() {
+        let directory = tempdir().unwrap();
+        let linked = directory.path().join("linked");
+        let other = directory.path().join("other");
+        std::fs::create_dir_all(&linked).unwrap();
+        std::fs::create_dir_all(&other).unwrap();
+        let linked = linked.join("same.epub");
+        let other = other.join("same.epub");
+        fixture(&linked, Some("Same"), None, false);
+        std::fs::copy(&linked, &other).unwrap();
+        let modified = linked.metadata().unwrap().modified().unwrap();
+        File::options()
+            .write(true)
+            .open(&other)
+            .unwrap()
+            .set_modified(modified)
+            .unwrap();
+        let mut connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        import_paths(&mut connection, std::slice::from_ref(&linked));
+
+        // The phone's picker can hand the linked file over under another link.
+        let stamp = book_details::source_stamp(other.to_str().unwrap()).unwrap();
+        assert!(reads_same_file(&connection, "same.epub", &stamp).unwrap());
+        assert!(!reads_same_file(&connection, "renamed.epub", &stamp).unwrap());
+        assert!(!reads_same_file(&connection, "same.epub", "1:1").unwrap());
+        // A book whose file is gone reads no file.
+        std::fs::remove_file(&linked).unwrap();
+        assert!(!reads_same_file(&connection, "same.epub", &stamp).unwrap());
     }
 
     #[test]

@@ -10,9 +10,12 @@ const environment = {
   [pathKey]: `${cargoBin}${delimiter}${process.env[pathKey] ?? ""}`,
 };
 
+// `tauri android build` and `tauri android dev` build as `tauri build` and `tauri dev` do.
+const command = process.argv[2] === "android" ? process.argv[3] : process.argv[2];
+
 // Built executables name source files in panic locations; record them relative to the
 // repository and the Cargo home instead of the paths of the machine that built them.
-if (process.argv[2] === "build") {
+if (command === "build") {
   const cargoHome = process.env.CARGO_HOME ?? join(homedir(), ".cargo");
   const existing =
     process.env.CARGO_ENCODED_RUSTFLAGS?.split("\x1f") ??
@@ -26,7 +29,7 @@ if (process.argv[2] === "build") {
 }
 
 // A development build shows the installer's fonts from where the build fetches them.
-if (process.argv[2] === "dev")
+if (command === "dev")
   spawnSync(process.execPath, ["scripts/reader-fonts.mjs", "--optional"], { stdio: "inherit" });
 
 const child = spawn(process.execPath, [cliPath, ...process.argv.slice(2)], {

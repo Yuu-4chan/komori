@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import { useContext, type ReactNode } from "react";
+
+import { MobileHeaderContext } from "./mobileHeader";
 
 interface PageHeaderProps {
   actions?: ReactNode;
@@ -7,6 +9,8 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ actions, description, title }: PageHeaderProps) {
+  const MobileHeader = useContext(MobileHeaderContext);
+  if (MobileHeader) return <MobileHeader actions={actions} title={title} />;
   return (
     <header className="page-header">
       <div>

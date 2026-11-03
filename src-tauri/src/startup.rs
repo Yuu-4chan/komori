@@ -206,7 +206,7 @@ fn startup_book(connection: &Connection) -> Result<Option<String>, String> {
         .optional()
         .map_err(storage_error)?;
     Ok(path
-        .filter(|path| std::fs::metadata(path).is_ok_and(|metadata| metadata.is_file()))
+        .filter(|path| crate::book_source::metadata(path).is_ok_and(|metadata| metadata.is_file()))
         .map(|_| id))
 }
 

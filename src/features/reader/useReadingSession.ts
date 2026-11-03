@@ -1,6 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isAndroid } from "../../app/platform";
 import { registerWindowFlush, watchWindowVisibility } from "../../app/windowLifecycle";
 
 import {
@@ -103,7 +104,7 @@ export function useReadingSession(
     let minimized = false;
     let windowShown = true;
     // Native focus covers the entire window, including EPUB iframes and native dialogs.
-    let focused = !isTauri();
+    let focused = !isTauri() || isAndroid;
     const shown = () =>
       document.visibilityState !== "hidden" && !minimized && windowShown && focused;
     focusedRef.current = shown();
@@ -203,6 +204,8 @@ export function useReadingSession(
 
 /** Use native window focus rather than DOM blur, which also fires on entering a book iframe. */
 function watchFocus(changed: (focused: boolean) => void): () => void {
+  // On the phone the page is on screen whenever it is visible; Tauri reports no window focus.
+  if (isAndroid) return () => {};
   if (!isTauri()) {
     const focus = () => changed(true);
     const blur = () => changed(false);

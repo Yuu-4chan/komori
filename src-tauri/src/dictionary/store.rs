@@ -1593,7 +1593,7 @@ pub async fn import_dictionaries(
     let mut progress = BatchProgress::for_app(app, operation_id)?;
     progress.phase("picking");
     let language = interface_text::language(&catalog.database);
-    let selected = rfd::AsyncFileDialog::new()
+    let selected = crate::file_dialog::AsyncFileDialog::new()
         .set_title(interface_text::text(language, Text::AddDictionaries))
         .add_filter(
             interface_text::text(language, Text::DictionaryArchives),

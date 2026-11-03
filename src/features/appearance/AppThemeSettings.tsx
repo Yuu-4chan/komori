@@ -1,6 +1,7 @@
 import { PaintBrushIcon } from "@phosphor-icons/react";
 import type { CSSProperties } from "react";
 
+import { isAndroid } from "../../app/platform";
 import { appIcons, appIconSvg } from "../../brand/appIcons";
 import logo from "../../brand/komori.svg?raw";
 import { Card } from "../../components/ui/Card";
@@ -108,27 +109,30 @@ export function AppThemeSettings() {
               onChange={setInterfaceLanguage}
             />
           </div>
-          <div className="settings-field app-icon-field">
-            <span className="app-icon-field__label" id="app-icon-label">
-              {t("appearance.appIcon")}
-            </span>
-            <div className="app-icon-grid" role="radiogroup" aria-labelledby="app-icon-label">
-              {appIcons.map(({ id }) => (
-                <button
-                  aria-checked={appIcon === id}
-                  aria-label={t(`appIcon.${id}`)}
-                  className="app-icon-option"
-                  key={id}
-                  onClick={() => setAppIcon(id)}
-                  role="radio"
-                  title={t(`appIcon.${id}`)}
-                  type="button"
-                >
-                  <img alt="" src={appIconImages.get(id)} />
-                </button>
-              ))}
+          {/* The phone's launcher keeps the icon the APK was installed with. */}
+          {isAndroid ? null : (
+            <div className="settings-field app-icon-field">
+              <span className="app-icon-field__label" id="app-icon-label">
+                {t("appearance.appIcon")}
+              </span>
+              <div className="app-icon-grid" role="radiogroup" aria-labelledby="app-icon-label">
+                {appIcons.map(({ id }) => (
+                  <button
+                    aria-checked={appIcon === id}
+                    aria-label={t(`appIcon.${id}`)}
+                    className="app-icon-option"
+                    key={id}
+                    onClick={() => setAppIcon(id)}
+                    role="radio"
+                    title={t(`appIcon.${id}`)}
+                    type="button"
+                  >
+                    <img alt="" src={appIconImages.get(id)} />
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="app-theme-grid" role="radiogroup" aria-label={t("appearance.theme")}>
           {appPresetThemes.map((preset) => (

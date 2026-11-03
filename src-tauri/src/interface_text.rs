@@ -8,7 +8,10 @@ pub(crate) const LANGUAGES: [&str; 11] = [
     "en", "ja", "zh-CN", "zh-TW", "ko", "de", "es", "fr", "it", "pt-BR", "ru",
 ];
 
+/// The tray's items and the PC's file dialog titles are not shown on Android, which has no tray
+/// and names its own document picker.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(mobile, allow(dead_code))]
 pub(crate) enum Text {
     ShowKomori,
     Quit,

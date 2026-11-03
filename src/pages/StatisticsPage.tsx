@@ -11,10 +11,11 @@ import {
   GaugeIcon,
   TextAaIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { i18n, useI18n } from "../i18n/i18n";
 
+import { MobileHeaderContext } from "../components/layout/mobileHeader";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
@@ -78,6 +79,7 @@ type Loaded = { books: LibraryBook[]; sessions: StoredReadingSession[] };
 
 export function StatisticsPage() {
   const navigate = useNavigate();
+  const MobileHeader = useContext(MobileHeaderContext);
   const { statisticsEnabled } = useAppearance();
   const { t, tp, language } = useI18n();
   const [range, setRange] = useState<StatisticsRange>("month");
@@ -145,7 +147,22 @@ export function StatisticsPage() {
   );
   const selected = days.find((day) => dayKey(day.date) === selectedDay) ?? days[0];
 
-  const header = (
+  const rangeMenu = (
+    <MenuButton
+      icon={<CalendarBlankIcon aria-hidden="true" size={17} />}
+      label={t("statistics.range")}
+      onChange={setRange}
+      options={rangeOptions.map((option) => ({
+        value: option.value,
+        label: t(option.label),
+        description: t(option.description),
+      }))}
+      value={range}
+    />
+  );
+  const header = MobileHeader ? (
+    <MobileHeader title={t("shell.statistics")} />
+  ) : (
     <header className="statistics-header">
       <div className="statistics-header__identity">
         <button
@@ -161,17 +178,7 @@ export function StatisticsPage() {
           <p>{t("statistics.description")}</p>
         </div>
       </div>
-      <MenuButton
-        icon={<CalendarBlankIcon aria-hidden="true" size={17} />}
-        label={t("statistics.range")}
-        onChange={setRange}
-        options={rangeOptions.map((option) => ({
-          value: option.value,
-          label: t(option.label),
-          description: t(option.description),
-        }))}
-        value={range}
-      />
+      {rangeMenu}
     </header>
   );
 
@@ -219,16 +226,28 @@ export function StatisticsPage() {
             })
           : t("statistics.allTracked");
 
+  const activityHeading = (
+    <SectionHeading
+      description={rangeDescription}
+      id="statistics-activity"
+      title={t("statistics.activity")}
+    />
+  );
+
   return (
     <div className="page page--statistics">
       {header}
 
       <section className="statistics-section" aria-labelledby="statistics-activity">
-        <SectionHeading
-          description={rangeDescription}
-          id="statistics-activity"
-          title={t("statistics.activity")}
-        />
+        {MobileHeader ? (
+          // On the phone the range sits beside the heading it changes.
+          <div className="mobile-statistics-heading">
+            {activityHeading}
+            {rangeMenu}
+          </div>
+        ) : (
+          activityHeading
+        )}
         {statisticsEnabled ? null : (
           <p className="statistics-note statistics-note--off" role="note">
             {t("statistics.off")}{" "}
@@ -290,7 +309,8 @@ export function StatisticsPage() {
         <div className="statistics-card__heading statistics-card__heading--activity">
           <div>
             <h2 id="daily-activity">{t("statistics.daily")}</h2>
-            <span>{t("statistics.dailyHint")}</span>
+            {/* A day's activity is edited by right-click, which the phone does not offer. */}
+            {MobileHeader ? null : <span>{t("statistics.dailyHint")}</span>}
           </div>
           <MonthSwitcher
             first={firstMonth}

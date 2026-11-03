@@ -529,7 +529,7 @@ pub async fn export_backup(catalog: State<'_, CatalogState>) -> Result<ExportRes
         interface_text::text(language, Text::BackupFileName),
         local_date()
     );
-    let selected = rfd::AsyncFileDialog::new()
+    let selected = crate::file_dialog::AsyncFileDialog::new()
         .set_title(interface_text::text(language, Text::ExportBackup))
         .add_filter(
             interface_text::text(language, Text::KomoriBackup),
@@ -584,7 +584,7 @@ pub async fn open_backup_file(
     backups: State<'_, BackupState>,
 ) -> Result<BackupPreview, String> {
     let language = interface_text::language(&catalog.database);
-    let selected = rfd::AsyncFileDialog::new()
+    let selected = crate::file_dialog::AsyncFileDialog::new()
         .set_title(interface_text::text(language, Text::ImportBackup))
         .add_filter(
             interface_text::text(language, Text::KomoriBackup),

@@ -32,9 +32,12 @@ struct Source {
     description: &'static str,
     attribution: &'static str,
     page: &'static str,
+    #[cfg_attr(not(windows), allow(dead_code))]
     url: &'static str,
+    #[cfg_attr(not(windows), allow(dead_code))]
     asset_repository: Option<&'static str>,
     /// Hugging Face answers from its CDN.
+    #[cfg_attr(not(windows), allow(dead_code))]
     hugging_face: bool,
     hash: Option<&'static str>,
     title_prefix: &'static str,
@@ -798,6 +801,7 @@ fn verify(path: &Path, s: &Source) -> Result<(), String> {
 // GitHub releases may redirect once to their repository-specific signed asset path, and Hugging
 // Face to its CDN; both downloads are checked against a pinned hash.
 // Jiten's published API endpoint has no redirect allowance.
+#[cfg_attr(not(windows), allow(dead_code))]
 fn allowed_redirect(s: &Source, url: &str) -> bool {
     if s.hugging_face {
         return url

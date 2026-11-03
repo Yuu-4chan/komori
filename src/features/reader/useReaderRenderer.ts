@@ -709,12 +709,25 @@ export function useReaderRenderer(
     locator: ReaderBookmarkLocator,
     onSettled: (succeeded: boolean) => void,
   ): boolean {
+    return jumpTo("goToBookmark", (renderer) => renderer.goToBookmark!(locator), onSettled);
+  }
+
+  /** Shows the page at a book offset in the book's unit, as the phone's progress slider does. */
+  function goToOffset(offset: number, onSettled: (succeeded: boolean) => void): boolean {
+    return jumpTo("goToOffset", (renderer) => renderer.goToOffset!(offset), onSettled);
+  }
+
+  function jumpTo(
+    method: "goToBookmark" | "goToOffset",
+    go: (renderer: ReaderRenderer) => Promise<boolean>,
+    onSettled: (succeeded: boolean) => void,
+  ): boolean {
     const active = activeRef.current;
     if (
       !active?.ready ||
       active.factory !== factory ||
       active.navigationPending ||
-      !active.renderer.goToBookmark
+      !active.renderer[method]
     )
       return false;
     active.navigationPending = true;
@@ -723,9 +736,9 @@ export function useReaderRenderer(
     void (async () => {
       let succeeded = false;
       try {
-        succeeded = await active.renderer.goToBookmark!(locator);
+        succeeded = await go(active.renderer);
       } catch {
-        /* The bookmark remains manageable after a failed resolution. */
+        /* A bookmark remains manageable after a failed resolution. */
       } finally {
         active.navigationPending = false;
         if (activeRef.current === active) {
@@ -823,6 +836,7 @@ export function useReaderRenderer(
     captureBookmark,
     captureNote,
     goToBookmark,
+    goToOffset,
     searchBook,
     goToSearchResult: (id: string, signal: AbortSignal, settled: (success: boolean) => void) =>
       jumpToResult("goToSearchResult", id, signal, settled),

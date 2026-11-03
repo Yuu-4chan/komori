@@ -1,0 +1,749 @@
+/* Komori on the phone, after the Komori Mobile draft. Android reports the status bar, the
+   display cutout and the gesture bar as --safe-area-* (see system.ts); until it does, the
+   WebView's own insets stand in. */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --stable-area-top: var(--safe-area-top);
+  --stable-area-right: var(--safe-area-right);
+  --stable-area-bottom: var(--safe-area-bottom);
+  --stable-area-left: var(--safe-area-left);
+  --mobile-gutter: 1.25rem;
+  --mobile-control: 2.75rem;
+  --mobile-dock-height: 3.75rem;
+  --mobile-dock-gap: 1.25rem;
+  --mobile-dock-space: calc(
+    var(--safe-area-bottom) + var(--mobile-dock-height) + var(--mobile-dock-gap) + 1.5rem
+  );
+}
+
+/* The phone draws no scroll bars, where the PC's would take room; Android's WebView ignores
+   `scrollbar-width`. */
+::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-main);
+}
+
+/* The status bar stays clear of the page scrolling under it. */
+.mobile-shell::before {
+  content: "";
+  position: fixed;
+  z-index: 10;
+  inset: 0 0 auto;
+  height: var(--safe-area-top);
+  background: var(--surface-main);
+  pointer-events: none;
+}
+
+.mobile-shell__content {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Every page in the frame, its own and the PC's, takes the phone's gutters and leaves room for
+   the dock. */
+.mobile-page,
+.mobile-shell .page {
+  width: 100%;
+  max-width: none;
+  min-height: 100%;
+  margin: 0;
+  padding: calc(var(--safe-area-top) + 0.75rem) calc(var(--safe-area-right) + var(--mobile-gutter))
+    var(--mobile-dock-space) calc(var(--safe-area-left) + var(--mobile-gutter));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Header: the brand or Back, the title, Settings and the page's own actions. */
+.mobile-header {
+  min-height: var(--mobile-control);
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.mobile-header__brand {
+  width: 2.5rem;
+  height: 1.75rem;
+  flex: none;
+}
+
+.mobile-header__title {
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-header h1 {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-header .library-summary {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+}
+
+.mobile-round-button {
+  width: var(--mobile-control);
+  height: var(--mobile-control);
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  font-size: 1.25rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mobile-round-button--accent {
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+  border-color: transparent;
+}
+
+.mobile-round-button:disabled {
+  opacity: 0.6;
+}
+
+.mobile-round-button:focus-visible,
+.mobile-dock__item:focus-visible,
+.mobile-row:focus-visible,
+.mobile-tile:focus-visible,
+.mobile-continue:focus-visible,
+.mobile-sheet-row:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The page's actions beside Settings, such as the Statistics range, take its round size. */
+.mobile-header .menu-button {
+  height: var(--mobile-control);
+  border-radius: var(--radius-pill);
+}
+
+/* The dock floats above the gesture bar with the three destinations. */
+.mobile-dock {
+  position: fixed;
+  bottom: calc(var(--safe-area-bottom) + var(--mobile-dock-gap));
+  left: 50%;
+  z-index: 20;
+  padding: 0.3125rem;
+  display: flex;
+  gap: 0.125rem;
+  background: color-mix(in srgb, var(--surface-card) 92%, transparent);
+  border: 1px solid var(--border-soft);
+  border-radius: 1.375rem;
+  box-shadow: var(--shadow-float);
+  transform: translateX(-50%);
+  backdrop-filter: blur(16px);
+}
+
+.mobile-dock[hidden] {
+  display: none;
+}
+
+.mobile-dock__item {
+  width: 5.25rem;
+  padding: 0.5rem 0 0.4375rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1875rem;
+  color: var(--text-secondary);
+  border-radius: 1.0625rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.mobile-dock__item svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.mobile-dock__item--active {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+/* Library */
+.mobile-notices:empty {
+  display: none;
+}
+
+.mobile-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-search .book-search {
+  height: var(--mobile-control);
+  padding: 0 1rem;
+  background: var(--surface-card);
+  border-color: var(--border-soft);
+  border-radius: var(--radius-pill);
+}
+
+.mobile-search .book-search input {
+  font-size: 0.9375rem;
+}
+
+.mobile-library__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-section-heading {
+  margin: 0.25rem 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.mobile-section-heading small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.mobile-library__none {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.mobile-continue {
+  padding: 0.75rem;
+  display: flex;
+  gap: 0.875rem;
+  color: inherit;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.9375rem;
+  text-decoration: none;
+}
+
+.mobile-continue .library-book__cover {
+  width: 4.375rem;
+  flex: none;
+  aspect-ratio: 70 / 104;
+  border-radius: 0.375rem;
+}
+
+.mobile-continue__copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.mobile-continue__copy strong,
+.mobile-continue__copy span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-continue__copy strong {
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.mobile-continue__copy > div > span {
+  margin-top: 0.125rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.mobile-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.mobile-chips:empty {
+  display: none;
+}
+
+.mobile-chips span {
+  height: 1.375rem;
+  padding: 0 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+}
+
+.mobile-continue__count {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-progress__bar {
+  height: 0.3125rem;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
+  border-radius: var(--radius-pill);
+}
+
+.mobile-progress__bar > span {
+  height: 100%;
+  display: block;
+  background: var(--progress-fill);
+  border-radius: inherit;
+}
+
+.mobile-progress__percent {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-library__grid {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.125rem 0.75rem;
+  list-style: none;
+}
+
+.mobile-tile {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mobile-tile .library-book__cover {
+  margin-bottom: 0.25rem;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 12px color-mix(in srgb, #0c1224 14%, transparent);
+}
+
+.mobile-tile--missing .library-book__cover img {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.mobile-tile__missing {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--warning);
+  font-size: 1.75rem;
+}
+
+.mobile-tile__title,
+.mobile-tile__author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-tile__title {
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.mobile-tile__author {
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+
+.mobile-tile .mobile-progress {
+  gap: 0.375rem;
+}
+
+.mobile-tile .mobile-progress__bar {
+  height: 0.25rem;
+}
+
+.mobile-tile .mobile-progress__percent {
+  font-size: 0.625rem;
+}
+
+.mobile-page .empty-state {
+  margin: auto;
+  padding: 2rem 1rem;
+}
+
+/* Sheets rise from the bottom over a dimmed page. */
+.mobile-sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: rgba(8, 9, 14, 0.5);
+  animation: mobile-fade var(--duration-normal) var(--ease-out);
+}
+
+.mobile-sheet {
+  max-height: calc(100% - var(--safe-area-top) - 2rem);
+  padding: 0.5rem calc(var(--safe-area-right) + 1.125rem) calc(var(--safe-area-bottom) + 1.125rem)
+    calc(var(--safe-area-left) + 1.125rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  color: var(--text-primary);
+  background: var(--surface-main);
+  border-radius: 1.625rem 1.625rem 0 0;
+  box-shadow: var(--shadow-float);
+  animation: mobile-rise var(--duration-normal) var(--ease-out);
+}
+
+.mobile-sheet__handle {
+  width: 2.25rem;
+  height: 0.25rem;
+  margin: 0 auto 0.25rem;
+  flex: none;
+  background: var(--border-medium);
+  border-radius: var(--radius-pill);
+}
+
+.mobile-sheet-row {
+  min-height: 3.25rem;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mobile-sheet-row svg {
+  font-size: 1.25rem;
+}
+
+.mobile-sheet-row--danger {
+  color: var(--danger);
+}
+
+.mobile-sheet-row:disabled {
+  opacity: 0.6;
+}
+
+.mobile-missing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.mobile-missing__book {
+  margin-bottom: 0.375rem;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.mobile-missing__book .library-book__cover {
+  width: 3.5rem;
+  flex: none;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.375rem;
+}
+
+.mobile-missing__book div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mobile-missing__book strong {
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.mobile-missing__book span {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+@keyframes mobile-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes mobile-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* Settings: grouped rows, each opening its section. */
+.mobile-group {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+}
+
+.mobile-row {
+  min-height: 3.5rem;
+  padding: 0 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.mobile-row + .mobile-row {
+  box-shadow:
+    inset 3.625rem 1px 0 var(--surface-card),
+    inset 0 1px 0 var(--border-soft);
+}
+
+.mobile-row__icon {
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+  border-radius: 0.5625rem;
+  font-size: 1.125rem;
+}
+
+.mobile-row__label {
+  flex: 1;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.mobile-row__chevron {
+  color: var(--text-muted);
+}
+
+.mobile-settings__version {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.mobile-settings .settings-card {
+  padding: 1rem;
+  border-radius: 1rem;
+}
+
+.mobile-settings .settings-card__heading {
+  display: none;
+}
+
+.mobile-settings .app-theme-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mobile-about {
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.mobile-about__brand {
+  width: 5rem;
+  height: 3.5rem;
+}
+
+.mobile-about p {
+  margin: 0;
+}
+
+/* Statistics: two columns of compact tiles. */
+.mobile-shell .statistics-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+
+.mobile-shell .statistics-metric {
+  padding: 0.75rem;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border-radius: 0.9375rem;
+}
+
+.mobile-shell .statistics-metric__icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.625rem;
+}
+
+.mobile-shell .statistics-metric__icon svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.mobile-shell .statistics-metric strong {
+  font-size: 1.1875rem;
+}
+
+.mobile-shell .statistics-metric > div > span {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.mobile-shell .statistics-metric small {
+  font-size: 0.6875rem;
+}
+
+.mobile-statistics-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-statistics-heading .statistics-section-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Daily activity: the month beside the heading, and a calendar of small days, each with its
+   number and its dot. */
+.mobile-shell .statistics-card__heading--activity {
+  min-height: 0;
+  padding: 0.875rem 0.875rem 0.75rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.mobile-shell .statistics-card__heading--activity h2 {
+  font-size: 1rem;
+}
+
+.mobile-shell .statistics-month-switcher {
+  gap: 0.25rem;
+}
+
+.mobile-shell .statistics-month-switcher button {
+  border-radius: 999px;
+}
+
+.mobile-shell .statistics-month-switcher strong {
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+
+.mobile-shell .statistics-activity-layout {
+  padding-inline: 0.875rem;
+  gap: 0.75rem;
+}
+
+.mobile-shell .statistics-calendar {
+  padding: 0.625rem;
+  border-radius: 0.75rem;
+}
+
+.mobile-shell .statistics-calendar__weekdays span {
+  font-size: 0.625rem;
+}
+
+.mobile-shell .statistics-calendar__grid {
+  gap: 0.3125rem;
+}
+
+.mobile-shell .statistics-calendar__day,
+.mobile-shell .statistics-calendar__blank {
+  min-height: 2.25rem;
+  border-radius: 0.5rem;
+}
+
+.mobile-shell .statistics-calendar__day {
+  padding: 0.25rem 0.3125rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.mobile-shell .statistics-calendar__day span {
+  font-size: 0.6875rem;
+}
+
+.mobile-shell .statistics-calendar__day i {
+  width: 0.375rem;
+  height: 0.375rem;
+  align-self: flex-end;
+}
+
+/* Completion: as tall as its books' dots. */
+.mobile-shell .completion-card {
+  min-height: 0;
+}

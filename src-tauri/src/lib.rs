@@ -1,11 +1,14 @@
 #[cfg(windows)]
 mod alt_menu;
+#[cfg(mobile)]
+mod android;
 mod anki;
 mod app_icon;
 mod appearance_preferences;
 mod backup;
 mod book_details;
 mod book_image_export;
+mod book_source;
 mod bookmarks;
 mod bulk_progress;
 mod clipboard;
@@ -17,6 +20,7 @@ mod epub;
 mod event_target;
 mod external_link;
 mod failure;
+mod file_dialog;
 mod interface_text;
 mod library;
 mod library_drop;
@@ -33,6 +37,7 @@ mod title_cleaning;
 mod title_series;
 mod updates;
 mod window_lifecycle;
+#[cfg(desktop)]
 mod window_size;
 mod word_audio;
 
@@ -40,13 +45,19 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        // One Komori at a time: opening it again, even from a shortcut while it waits in the
-        // tray, shows the running window instead of a second copy writing the same catalog.
+    let builder = tauri::Builder::default();
+    // One Komori at a time: opening it again, even from a shortcut while it waits in the tray,
+    // shows the running window instead of a second copy writing the same catalog. Android runs
+    // one Komori by itself and updates through the release, not in the app.
+    #[cfg(desktop)]
+    let builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             window_lifecycle::second_launch(app)
         }))
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build());
+    #[cfg(mobile)]
+    let builder = builder.plugin(android::init());
+    builder
         .manage(updates::UpdateState::default())
         .manage(reader_content::ReaderArchives::default())
         .register_asynchronous_uri_scheme_protocol("komori-book", reader_content::serve_book)
@@ -59,7 +70,20 @@ pub fn run() {
         .setup(|app| {
             let catalog = library::initialize_catalog(app.handle())?;
             #[cfg_attr(not(windows), allow(unused_variables))]
+            #[cfg(desktop)]
             let window = window_size::create_main_window(app.handle(), &catalog.database)?;
+            // The phone has one full-screen window; the system decides its size.
+            #[cfg(mobile)]
+            let window = tauri::WebviewWindowBuilder::from_config(
+                app.handle(),
+                app.config()
+                    .app
+                    .windows
+                    .first()
+                    .ok_or("Komori has no main window configuration")?,
+            )
+            .and_then(tauri::WebviewWindowBuilder::build)
+            .map_err(|error| format!("Komori window could not be created: {error}"))?;
             app.manage(library_drop::LibraryDropState::default());
             library_drop::install(&window);
             window_lifecycle::install(app.handle(), &catalog.database);
@@ -175,6 +199,12 @@ pub fn run() {
             discord_presence::set_discord_activity,
             discord_presence::set_discord_browsing,
             window_lifecycle::finish_window_close,
+            #[cfg(mobile)]
+            android::leave_app,
+            #[cfg(mobile)]
+            android::window_insets,
+            #[cfg(mobile)]
+            android::show_system_bars,
             backup::get_backup_settings,
             backup::save_backup_settings,
             backup::export_backup,

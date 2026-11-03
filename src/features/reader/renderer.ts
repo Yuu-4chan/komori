@@ -73,6 +73,8 @@ export interface ReaderRenderer {
   setNoteHighlights?(notes: readonly import("./notes").ReaderNote[]): void;
   /** Resolve a saved place, checking its section content before moving. No fallback jump. */
   goToBookmark?(locator: ReaderBookmarkLocator): Promise<boolean>;
+  /** Show the page at a book offset in the book's progress unit, once the book is counted. */
+  goToOffset?(offset: number): Promise<boolean>;
   /** Literal readable-text search. Destinations remain session-local and adapter-owned. */
   searchBook?(
     query: string,

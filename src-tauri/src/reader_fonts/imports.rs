@@ -145,7 +145,7 @@ pub(crate) struct ImportResult {
 #[tauri::command]
 pub(crate) async fn import_reader_fonts(app: tauri::AppHandle) -> Result<ImportResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let paths = rfd::FileDialog::new()
+        let paths = crate::file_dialog::FileDialog::new()
             .set_title("Add Reader fonts")
             .add_filter("Fonts", &["ttf", "otf"])
             .pick_files();

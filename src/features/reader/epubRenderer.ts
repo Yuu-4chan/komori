@@ -1779,6 +1779,39 @@ class EpubRenderer implements ReaderRenderer {
     }
   }
 
+  async goToOffset(offset: number): Promise<boolean> {
+    if (this.sectionsLoading) await this.sectionsLoaded();
+    const counts = this.progressCounts;
+    const locator = counts && offsetLocator(counts, offset);
+    const rendition = this.rendition;
+    const book = this.book;
+    if (
+      !locator ||
+      !rendition ||
+      !book ||
+      !this.ready ||
+      this.disposed ||
+      this.turnPending ||
+      this.layoutPending
+    )
+      return false;
+    this.turnPending = true;
+    this.onPageTurnsChanged?.(unavailable);
+    try {
+      this.jumpedEntryId = undefined;
+      this.reflowAnchor = undefined;
+      if (!(await this.restore(rendition, book, locator)) || this.disposed) return false;
+      await this.refreshPageTurns();
+      await this.publishLocation();
+      return !this.disposed;
+    } catch {
+      return false;
+    } finally {
+      this.turnPending = false;
+      if (!this.disposed) await this.refreshPageTurns();
+    }
+  }
+
   async goToContentsEntry(entryId: string): Promise<boolean> {
     // A jump finds the rest of a continuous book laid out, as a book always shows whole.
     if (this.sectionsLoading) await this.sectionsLoaded();
@@ -5902,6 +5935,19 @@ function fractionOffset(
   if (before === undefined) return undefined;
   const length = counts.lengths[spineIndex] ?? 0;
   return Math.min(counts.total, before + Math.min(length, Math.round(progress * length)));
+}
+
+/** The linear section holding a book offset and how far into it the offset lies. */
+function offsetLocator(counts: BookProgressCounts, offset: number): ReaderLocator | undefined {
+  let spineIndex: number | undefined;
+  counts.lengths.forEach((length, index) => {
+    const before = counts.before[index];
+    if (length > 0 && before !== undefined && before <= offset) spineIndex = index;
+  });
+  if (spineIndex === undefined) return undefined;
+  const length = counts.lengths[spineIndex]!;
+  const into = offset - counts.before[spineIndex]!;
+  return { spineIndex, progress: Math.min(1, Math.max(0, into / length)) };
 }
 
 /** A displayed section's point from an EPUB.js page CFI: its range start or end. */

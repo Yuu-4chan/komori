@@ -1,0 +1,516 @@
+/* The Reader on the phone: the book fills the screen, laid out in the area the system bars
+ * leave when shown, so hiding them moves nothing. */
+.reader-shell--mobile {
+  --mobile-reader-top: calc(max(0.875rem, var(--stable-area-top)) + 2.125rem);
+  --mobile-reader-bottom: calc(max(0.75rem, var(--stable-area-bottom)) + 2rem);
+}
+
+.reader-shell--mobile .reader-viewport__host {
+  inset: var(--mobile-reader-top) var(--stable-area-right) var(--mobile-reader-bottom)
+    var(--stable-area-left);
+}
+
+/* The clock and session time above the book, the position below; both show the controls. */
+.mobile-reader__status,
+.mobile-reader__footer {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  max-width: calc(100% - 2 * var(--mobile-gutter));
+  min-height: 1.75rem;
+  padding: 0 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(-50%);
+  color: var(--reader-footer-text);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-reader__status {
+  top: max(0.875rem, var(--safe-area-top));
+}
+
+.mobile-reader__footer {
+  bottom: max(0.75rem, var(--safe-area-bottom));
+}
+
+.mobile-reader__status .reader-reading-status-top {
+  position: static;
+  min-height: 0;
+  padding: 0;
+  transform: none;
+  color: inherit;
+  background: none;
+  border: 0;
+  backdrop-filter: none;
+  font-size: inherit;
+}
+
+.mobile-reader__status:focus-visible,
+.mobile-reader__footer:focus-visible,
+.mobile-reader-controls__button:focus-visible,
+.mobile-reader-tool:focus-visible,
+.mobile-reader-theme:focus-visible,
+.mobile-chapter:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The controls, in the Reader theme's colors, over the book. */
+.mobile-reader-controls {
+  --mobile-reader-surface: color-mix(in srgb, var(--reader-ink) 4%, var(--reader-page));
+  --mobile-reader-line: color-mix(in srgb, var(--reader-ink) 12%, var(--reader-page));
+  --mobile-reader-tile: color-mix(in srgb, var(--reader-ink) 9%, var(--reader-page));
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  color: var(--reader-ink);
+  animation: mobile-fade var(--duration-fast) var(--ease-out);
+}
+
+.mobile-reader-controls__backdrop {
+  position: absolute;
+  inset: 0;
+  background: none;
+  border: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-reader-controls__header {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  padding: calc(var(--stable-area-top) + 0.25rem) calc(var(--stable-area-right) + 0.625rem) 0.625rem
+    calc(var(--stable-area-left) + 0.625rem);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--mobile-reader-surface);
+  border-bottom: 1px solid var(--mobile-reader-line);
+}
+
+.mobile-reader-controls__button {
+  width: var(--mobile-control);
+  height: var(--mobile-control);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.mobile-reader-controls__button:disabled {
+  opacity: 0.5;
+}
+
+.mobile-reader-controls__title {
+  min-width: 0;
+  flex: 1;
+  padding-inline-start: 0.125rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-reader-controls__title > span {
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-reader-controls__title > small {
+  overflow: hidden;
+  color: var(--reader-footer-text);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-reader-controls__panel {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 1rem calc(var(--stable-area-right) + 1rem) calc(var(--stable-area-bottom) + 1.25rem)
+    calc(var(--stable-area-left) + 1rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  background: var(--mobile-reader-surface);
+  border-top: 1px solid var(--mobile-reader-line);
+  border-radius: 1.5rem 1.5rem 0 0;
+}
+
+.mobile-reader-controls__chapter {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-reader-controls__chapter > span:first-child {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-reader-chip {
+  height: 1.375rem;
+  padding: 0 0.5rem;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  background: var(--mobile-reader-tile);
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-reader-controls__slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent-action);
+}
+
+.mobile-reader-controls__counts {
+  display: flex;
+  justify-content: space-between;
+  color: var(--reader-footer-text);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-reader-controls__tools {
+  margin-top: 0.25rem;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.mobile-reader-tool {
+  height: 3.875rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3125rem;
+  color: inherit;
+  background: var(--mobile-reader-tile);
+  border: 0;
+  border-radius: 0.875rem;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* The Chapters sheet: the book, its chapters along a line of reading, and the place now. */
+.mobile-sheet.mobile-sheet--tall {
+  height: calc(100% - var(--safe-area-top) - 0.75rem);
+  max-height: none;
+  overflow: hidden;
+}
+
+.mobile-sheet__close {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+}
+
+.mobile-chapters__book {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+}
+
+.mobile-chapters__cover {
+  width: 4rem;
+  flex: none;
+}
+
+.mobile-chapters__title {
+  min-width: 0;
+  flex: 1;
+  padding-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+}
+
+.mobile-chapters__title > strong {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.mobile-chapters__title > span {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.mobile-chapters__heading,
+.mobile-reader-appearance__heading h2 {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.mobile-chapters__list {
+  min-height: 0;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+
+.mobile-chapter {
+  --mobile-chapter-line: var(--border-medium);
+  --mobile-chapter-line-after: var(--border-medium);
+  position: relative;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.375rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* The line of reading: accent up to the current chapter. */
+.mobile-chapter__dot {
+  position: relative;
+  width: 0.875rem;
+  align-self: stretch;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-chapter__dot::before {
+  content: "";
+  position: absolute;
+  top: -0.375rem;
+  bottom: -0.375rem;
+  left: calc(50% - 1px);
+  width: 2px;
+  background: linear-gradient(var(--mobile-chapter-line) 50%, var(--mobile-chapter-line-after) 50%);
+}
+
+li:first-child > .mobile-chapter .mobile-chapter__dot::before {
+  top: 50%;
+  background: var(--mobile-chapter-line-after);
+}
+
+li:last-child > .mobile-chapter .mobile-chapter__dot::before {
+  bottom: 50%;
+  background: var(--mobile-chapter-line);
+}
+
+li:only-child > .mobile-chapter .mobile-chapter__dot::before {
+  display: none;
+}
+
+.mobile-chapter__dot::after {
+  content: "";
+  position: relative;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  box-sizing: border-box;
+  background: var(--surface-main);
+  border: 1.5px solid var(--border-medium);
+  border-radius: 50%;
+}
+
+.mobile-chapter--past {
+  --mobile-chapter-line: var(--accent-action);
+  --mobile-chapter-line-after: var(--accent-action);
+}
+
+.mobile-chapter--current {
+  --mobile-chapter-line: var(--accent-action);
+}
+
+.mobile-chapter--past .mobile-chapter__dot::after {
+  width: 0.5625rem;
+  height: 0.5625rem;
+  background: var(--accent-action);
+  border: 0;
+}
+
+.mobile-chapter--current .mobile-chapter__dot::after {
+  width: 0.5625rem;
+  height: 0.5625rem;
+  border: 2.5px solid var(--accent-action);
+}
+
+.mobile-chapter__label {
+  min-width: 0;
+  flex: 1;
+  font-size: 0.875rem;
+}
+
+.mobile-chapter--future .mobile-chapter__label {
+  color: var(--text-secondary);
+}
+
+.mobile-chapter--current .mobile-chapter__label {
+  font-weight: 600;
+}
+
+.mobile-chapter__at {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-chapter:disabled {
+  cursor: default;
+}
+
+.mobile-chapters__now {
+  padding: 0.75rem 0.875rem;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-xs);
+}
+
+.mobile-chapters__now .mobile-reader-chip {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.mobile-chapters__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The appearance sheet leaves the book in view, so each change shows in it. */
+.mobile-sheet-layer:has(> .mobile-reader-appearance) {
+  background: none;
+}
+
+.mobile-reader-appearance__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-reader-appearance__heading h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.0625rem;
+}
+
+.mobile-reader-themes {
+  margin: 0 calc(-1.125rem - var(--safe-area-right)) 0 calc(-1.125rem - var(--safe-area-left));
+  padding: 0.125rem calc(1.125rem + var(--safe-area-right)) 0.125rem
+    calc(1.125rem + var(--safe-area-left));
+  display: flex;
+  flex: none;
+  gap: 0.625rem;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+}
+
+.mobile-reader-theme {
+  width: 3.5rem;
+  flex: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3125rem;
+  color: var(--text-secondary);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mobile-reader-theme__preview {
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.875rem;
+  font-size: 1.125rem;
+}
+
+.mobile-reader-theme[aria-pressed="true"] {
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.mobile-reader-theme[aria-pressed="true"] .mobile-reader-theme__preview {
+  border: 2px solid var(--accent-action);
+}
+
+.mobile-reader-theme small {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-reader-appearance__rows {
+  padding: 0.25rem 0.875rem;
+}
+
+.mobile-reader-appearance__rows .stepper-field {
+  min-height: 3.5rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mobile-reader-appearance__rows .stepper-field + .stepper-field {
+  border-top: 1px solid var(--border-soft);
+}
+
+.mobile-reader-appearance .segmented-control {
+  width: 100%;
+  grid-auto-columns: minmax(0, 1fr);
+}

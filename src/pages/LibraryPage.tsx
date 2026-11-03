@@ -3,7 +3,6 @@ import {
   ArrowLeftIcon,
   BooksIcon,
   CheckCircleIcon,
-  LinkSimpleIcon,
   MagnifyingGlassIcon,
   PencilSimpleIcon,
   PlusIcon,
@@ -25,7 +24,7 @@ import { Card } from "../components/ui/Card";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { useShellSearchSlot } from "../components/layout/shellSlots";
 import { EmptyState } from "../components/ui/EmptyState";
-import { NoticeClose, useNoticeTimeout } from "../components/ui/NoticeClose";
+import { NoticeClose } from "../components/ui/NoticeClose";
 import { resolveReaderTheme, type ReaderThemeColors } from "../features/reader/readerThemes";
 import { useAppearance, type LibraryDisplay } from "../features/appearance/AppearanceProvider";
 import {
@@ -43,6 +42,12 @@ import { useLibraryImport } from "../features/library/libraryImport";
 import { useLibraryDrop } from "../features/library/useLibraryDrop";
 import { useBulkOperation, operationLabel } from "../features/operations/bulkOperation";
 import { OperationNotice } from "../features/operations/OperationNotice";
+import {
+  ImportNotice,
+  RelinkNotice,
+  relinkNoticeFor,
+  type RelinkNoticeState,
+} from "../features/library/LibraryNotices";
 import { LibrarySearch, LibraryToolbar } from "../features/library/LibraryToolbar";
 import {
   isLibraryReturn,
@@ -78,9 +83,7 @@ import {
   setBookSeries,
   editBooks,
   type BookEdit,
-  type ImportBatch,
   type LibraryBook,
-  type RelinkResult,
 } from "../features/library/libraryApi";
 import { useSelection } from "../features/selection/useSelection";
 import { selectAllKey, selectionKeyTarget } from "../features/selection/selectionKeyboard";
@@ -92,12 +95,6 @@ type LibraryState =
 
 interface BulkFailure {
   id: string;
-  title: string;
-  message: string;
-}
-
-interface RelinkNoticeState {
-  kind: "success" | "canceled" | "invalid" | "duplicate" | "error";
   title: string;
   message: string;
 }
@@ -1045,49 +1042,6 @@ function LibraryContent({ group }: { group: string | null }) {
   );
 }
 
-function relinkNoticeFor(result: RelinkResult): RelinkNoticeState {
-  const { t } = i18n();
-  switch (result.status) {
-    case "canceled":
-      return {
-        kind: "canceled",
-        title: t("library.relinkCanceled"),
-        message: t("library.relinkCanceledMessage"),
-      };
-    case "invalid":
-      return {
-        kind: "invalid",
-        title: t("library.relinkInvalid"),
-        message: result.message
-          ? failureText(result.message, t)
-          : t("library.relinkInvalidMessage"),
-      };
-    case "duplicate":
-      return {
-        kind: "duplicate",
-        title: t("library.relinkDuplicate"),
-        message: result.message
-          ? failureText(result.message, t)
-          : t("library.relinkDuplicateMessage"),
-      };
-    case "readFailed":
-      return {
-        kind: "error",
-        title: t("library.relinkUnreadable"),
-        message: result.message
-          ? failureText(result.message, t)
-          : t("library.relinkUnreadableMessage"),
-      };
-    case "failed":
-    default:
-      return {
-        kind: "error",
-        title: t("library.relinkFailed"),
-        message: result.message ? failureText(result.message, t) : t("library.relinkFailedMessage"),
-      };
-  }
-}
-
 /** The Library's notices wear the Reader theme, through the tokens they already use. */
 function noticeColors({ background, text, selection, footerText }: ReaderThemeColors) {
   return {
@@ -1099,61 +1053,6 @@ function noticeColors({ background, text, selection, footerText }: ReaderThemeCo
     "--border-subtle": selection,
     "--accent-strong": footerText,
   } as CSSProperties;
-}
-
-function RelinkNotice({ notice, onClose }: { notice: RelinkNoticeState; onClose: () => void }) {
-  const isError = ["invalid", "duplicate", "error"].includes(notice.kind);
-  useNoticeTimeout(notice.kind === "success", onClose);
-  return (
-    <div
-      className={`library-notice${isError ? " library-notice--error" : ""}`}
-      role={isError ? "alert" : "status"}
-    >
-      {notice.kind === "success" ? (
-        <CheckCircleIcon aria-hidden="true" />
-      ) : notice.kind === "canceled" ? (
-        <LinkSimpleIcon aria-hidden="true" />
-      ) : (
-        <WarningCircleIcon aria-hidden="true" />
-      )}
-      <div>
-        <strong>{notice.title}</strong>
-        <p>{notice.message}</p>
-      </div>
-      <NoticeClose onClose={onClose} />
-    </div>
-  );
-}
-
-function ImportNotice({ result, onClose }: { result: ImportBatch; onClose: () => void }) {
-  const imported = result.results.filter((item) => item.status === "imported").length;
-  const existing = result.results.filter((item) => item.status === "alreadyImported").length;
-  const failures = result.results.filter((item) => item.status === "failed");
-  const { t } = useI18n();
-  useNoticeTimeout(failures.length === 0, onClose);
-  return (
-    <div className="library-notice" role="status">
-      <div>
-        <strong>
-          {t("library.imported", { count: imported })}
-          {existing > 0 ? ` · ${t("library.alreadyImported", { count: existing })}` : ""}
-          {failures.length > 0
-            ? ` · ${t("library.importFailures", { count: failures.length })}`
-            : ""}
-        </strong>
-        {failures.length > 0 ? (
-          <ul>
-            {failures.map((item, index) => (
-              <li key={`${item.fileName}-${index}`}>
-                <strong>{item.fileName}:</strong> {item.message && failureText(item.message, t)}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-      <NoticeClose onClose={onClose} />
-    </div>
-  );
 }
 
 function errorMessage(error: unknown): string {

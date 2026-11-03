@@ -1,16 +1,22 @@
 //! A close first lets the renderer flush Reader state. Closing to tray keeps the same webview;
 //! Quit bypasses the tray choice and exits. A native deadline also handles an unavailable webview.
-use std::{path::PathBuf, sync::Mutex};
+#[cfg(desktop)]
+use std::path::PathBuf;
+use std::sync::Mutex;
+#[cfg(desktop)]
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, Manager, State, WindowEvent,
 };
+use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
+#[cfg(desktop)]
 use crate::interface_text::{self, Text};
 
-/// What happens to the main window, decided apart from Tauri so it can be tested.
+/// What happens to the main window, decided apart from Tauri so it can be tested. Android has
+/// no tray and no second launch.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(mobile, allow(dead_code))]
 enum Event {
     /// The window was asked to close; `keep_in_tray` when closing to tray is on and the tray
     /// exists.
@@ -85,12 +91,18 @@ impl Decisions {
 pub(crate) struct Lifecycle {
     decisions: Mutex<Decisions>,
     /// The catalog, whose appearance record names the tray menu's language.
+    #[cfg(desktop)]
     database: Mutex<Option<PathBuf>>,
     /// The tray menu's Show and Quit items, renamed when the interface language changes.
+    #[cfg(desktop)]
     tray_items: Mutex<Option<(MenuItem<tauri::Wry>, MenuItem<tauri::Wry>)>>,
 }
 
 /// Names the tray menu's items in `language`; nothing happens without a tray.
+#[cfg(mobile)]
+pub(crate) fn relabel_tray(_app: &AppHandle, _language: &str) {}
+
+#[cfg(desktop)]
 pub(crate) fn relabel_tray(app: &AppHandle, language: &str) {
     let Some(lifecycle) = app.try_state::<Lifecycle>() else {
         return;
@@ -161,12 +173,14 @@ fn apply(app: &AppHandle, event: Event) -> bool {
 }
 
 /// A second Komori launch shows this one's window instead.
+#[cfg(desktop)]
 pub(crate) fn second_launch(app: &AppHandle) {
     apply(app, Event::SecondLaunch);
 }
 
 pub(crate) fn show(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        #[cfg(desktop)]
         if window.is_minimized().unwrap_or(false) {
             let _ = window.unminimize();
         }
@@ -176,6 +190,22 @@ pub(crate) fn show(app: &AppHandle) {
     }
 }
 
+#[cfg(mobile)]
+pub(crate) fn ensure_tray(_app: &AppHandle, _visible: bool) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(desktop)]
+fn has_tray(app: &AppHandle) -> bool {
+    app.tray_by_id("komori").is_some()
+}
+
+#[cfg(mobile)]
+fn has_tray(_app: &AppHandle) -> bool {
+    false
+}
+
+#[cfg(desktop)]
 pub(crate) fn ensure_tray(app: &AppHandle, visible: bool) -> Result<(), String> {
     if app.tray_by_id("komori").is_none() && visible {
         let lifecycle = app.state::<Lifecycle>();
@@ -256,6 +286,7 @@ pub(crate) fn ensure_tray(app: &AppHandle, visible: bool) -> Result<(), String> 
 
 pub(crate) fn install(app: &AppHandle, database: &std::path::Path) {
     app.manage(Lifecycle {
+        #[cfg(desktop)]
         database: Mutex::new(Some(database.to_path_buf())),
         ..Lifecycle::default()
     });
@@ -274,7 +305,7 @@ pub(crate) fn install(app: &AppHandle, database: &std::path::Path) {
             let keep_in_tray = crate::startup::load(&database)
                 .unwrap_or_default()
                 .minimize_to_tray
-                && handle.tray_by_id("komori").is_some();
+                && has_tray(&handle);
             let token = uuid::Uuid::new_v4().to_string();
             apply(
                 &handle,

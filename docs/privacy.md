@@ -16,6 +16,8 @@ Komori keeps its data in `%APPDATA%\app.komori.reader`:
 
 The embedded browser engine (WebView2) keeps its own cache in `%LOCALAPPDATA%\app.komori.reader\EBWebView`.
 
+On Android the same files are in Komori's private app storage, which other apps cannot read. Books stay where they are on the phone: Komori keeps Android's read permission for each EPUB you pick, and gives it back when the book leaves the Library.
+
 When **Launch at startup** is on, Komori adds a `Komori` value under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`; turning it off, or uninstalling Komori, removes it.
 
 Komori never moves, copies or rewrites your EPUB files or dictionary archives: it reads them read-only. Exported backups are written only to the file you choose. Komori writes no log files.

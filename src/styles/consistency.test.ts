@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import mobile from "../mobile/mobile.css?raw";
+import mobileReader from "../mobile/mobileReader.css?raw";
 import components from "./components.css?raw";
 import dictionary from "./dictionary.css?raw";
 import globals from "./globals.css?raw";
@@ -10,7 +12,18 @@ import shell from "./shell.css?raw";
 import statistics from "./statistics.css?raw";
 import tokens from "./tokens.css?raw";
 
-const sheets = { components, dictionary, globals, library, pages, reader, shell, statistics };
+const sheets = {
+  components,
+  dictionary,
+  globals,
+  library,
+  pages,
+  reader,
+  shell,
+  statistics,
+  mobile,
+  mobileReader,
+};
 
 /** Each rule's selector and declarations, ignoring comments and at-rule wrappers. */
 function rules(css: string): { selector: string; body: string }[] {
@@ -50,6 +63,11 @@ describe("shared control finish", () => {
     );
     expect(overrides).toEqual([]);
     expect(globals).toMatch(/::-webkit-scrollbar-thumb\s*\{/);
+  });
+
+  it("draws no scroll bars on the phone, whose WebView ignores scrollbar-width", () => {
+    const bar = rules(mobile).find(({ selector }) => selector === "::-webkit-scrollbar");
+    expect(bar?.body).toMatch(/display:\s*none;/);
   });
 });
 

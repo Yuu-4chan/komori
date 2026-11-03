@@ -4,8 +4,11 @@
 
 use crate::failure;
 use serde::Serialize;
+#[cfg(desktop)]
 use std::sync::Mutex;
+#[cfg(desktop)]
 use tauri::{AppHandle, State};
+#[cfg(desktop)]
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 /// Release notes longer than this are cut; the full changelog stays on the release page.
@@ -13,16 +16,18 @@ const NOTES_LIMIT: usize = 20_000;
 
 /// The update the last check found, kept so installing never trusts a frontend-supplied version.
 #[derive(Default)]
-pub struct UpdateState(Mutex<Option<Update>>);
+pub struct UpdateState(#[cfg(desktop)] Mutex<Option<Update>>);
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(mobile, allow(dead_code))]
 pub struct AvailableUpdate {
     version: String,
     current_version: String,
     notes: String,
 }
 
+#[cfg_attr(mobile, allow(dead_code))]
 fn notes(body: Option<&str>) -> String {
     let body = body.unwrap_or_default().trim();
     match body.char_indices().nth(NOTES_LIMIT) {
@@ -31,6 +36,7 @@ fn notes(body: Option<&str>) -> String {
     }
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn check_for_update(
     app: AppHandle,
@@ -49,6 +55,7 @@ pub async fn check_for_update(
 
 /// Downloads the update the last check found, verifies its signature and starts its installer.
 /// On Windows the installer replaces Komori, so the process exits once it starts.
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn install_update(app: AppHandle, state: State<'_, UpdateState>) -> Result<(), String> {
     let update = state
@@ -62,6 +69,19 @@ pub async fn install_update(app: AppHandle, state: State<'_, UpdateState>) -> Re
         .await
         .map_err(|_| failure::UPDATE_INSTALL)?;
     app.restart();
+}
+
+/// Android updates with the release, not from inside the app; its shell never asks.
+#[cfg(mobile)]
+#[tauri::command]
+pub async fn check_for_update() -> Result<Option<AvailableUpdate>, String> {
+    Err(failure::UPDATE_CHECK.into())
+}
+
+#[cfg(mobile)]
+#[tauri::command]
+pub async fn install_update() -> Result<(), String> {
+    Err(failure::UPDATE_INSTALL.into())
 }
 
 #[cfg(test)]

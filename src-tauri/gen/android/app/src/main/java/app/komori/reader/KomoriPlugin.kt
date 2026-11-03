@@ -1,0 +1,231 @@
+package app.komori.reader
+
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.os.ParcelFileDescriptor
+import android.provider.OpenableColumns
+import android.webkit.WebView
+import androidx.activity.result.ActivityResult
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import app.tauri.annotation.ActivityCallback
+import app.tauri.annotation.Command
+import app.tauri.annotation.InvokeArg
+import app.tauri.annotation.TauriPlugin
+import app.tauri.plugin.Invoke
+import app.tauri.plugin.JSArray
+import app.tauri.plugin.JSObject
+import app.tauri.plugin.Plugin
+import java.io.FileNotFoundException
+
+@InvokeArg
+class PickArgs {
+  var multiple: Boolean = false
+}
+
+@InvokeArg
+class DocumentArgs {
+  lateinit var uri: String
+}
+
+@InvokeArg
+class AssetArgs {
+  lateinit var path: String
+}
+
+@InvokeArg
+class SystemBarsArgs {
+  var shown: Boolean = true
+}
+
+@InvokeArg
+class KeepArgs {
+  var uris: List<String> = emptyList()
+}
+
+/**
+ * Komori's own Android plugin, called only from the native core (`src-tauri/src/android.rs`).
+ * Books are linked, never copied: the picker's read permission is kept, and each read opens the
+ * original document read-only and hands its descriptor to the native core.
+ */
+@TauriPlugin
+class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
+  private var webView: WebView? = null
+
+  /**
+   * Komori draws under the status bar, the display cutout and the gesture bar; the page keeps
+   * its controls clear of them. Each change reaches it as a `komori-insets` event.
+   */
+  override fun load(webView: WebView) {
+    super.load(webView)
+    this.webView = webView
+    ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
+      val script = "window.dispatchEvent(new CustomEvent('komori-insets', { detail: ${cssInsets(insets)} }))"
+      view.post { webView.evaluateJavascript(script, null) }
+      ViewCompat.onApplyWindowInsets(view, insets)
+    }
+  }
+
+  /** The current insets, in CSS pixels. */
+  @Command
+  fun insets(invoke: Invoke) {
+    val view = webView
+    val insets = view?.let { ViewCompat.getRootWindowInsets(it) }
+    invoke.resolve(if (insets == null) JSObject() else cssInsets(insets))
+  }
+
+  /** Hides the status and navigation bars while reading; a swipe from an edge shows them. */
+  @Command
+  fun systemBars(invoke: Invoke) {
+    val shown = invoke.parseArgs(SystemBarsArgs::class.java).shown
+    activity.runOnUiThread {
+      val controller = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+      controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      if (shown) controller.show(WindowInsetsCompat.Type.systemBars())
+      else controller.hide(WindowInsetsCompat.Type.systemBars())
+      invoke.resolve()
+    }
+  }
+
+  /**
+   * The bars' and cutout's insets as they are now, and `stable`, as they are with the bars
+   * shown: the Reader lays the book out in the stable area, so hiding the bars moves nothing.
+   */
+  private fun cssInsets(insets: WindowInsetsCompat): JSObject {
+    val cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+    val shown = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+    val stable = Insets.max(insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()), cutout)
+    val density = activity.resources.displayMetrics.density
+    fun css(sides: Insets) = JSObject().apply {
+      put("top", (sides.top / density).toDouble())
+      put("right", (sides.right / density).toDouble())
+      put("bottom", (sides.bottom / density).toDouble())
+      put("left", (sides.left / density).toDouble())
+    }
+    return css(shown).apply { put("stable", css(stable)) }
+  }
+
+  @Command
+  fun pick(invoke: Invoke) {
+    val args = invoke.parseArgs(PickArgs::class.java)
+    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+      addCategory(Intent.CATEGORY_OPENABLE)
+      // Many providers list EPUBs as plain binary files.
+      type = "*/*"
+      putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/epub+zip", "application/octet-stream"))
+      putExtra(Intent.EXTRA_ALLOW_MULTIPLE, args.multiple)
+    }
+    startActivityForResult(invoke, intent, "picked")
+  }
+
+  @ActivityCallback
+  fun picked(invoke: Invoke, result: ActivityResult) {
+    val data = result.data
+    if (result.resultCode != Activity.RESULT_OK || data == null) {
+      invoke.resolve(JSObject().apply { put("canceled", true) })
+      return
+    }
+    val uris = mutableListOf<Uri>()
+    val clip = data.clipData
+    if (clip != null) {
+      for (index in 0 until clip.itemCount) uris.add(clip.getItemAt(index).uri)
+    } else {
+      data.data?.let { uris.add(it) }
+    }
+    val documents = JSArray()
+    for (uri in uris) {
+      // A provider that cannot keep the permission is still read now; the book then shows as
+      // missing after a restart, with Relink.
+      try {
+        activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      } catch (_: SecurityException) {
+      }
+      documents.put(JSObject().apply {
+        put("uri", uri.toString())
+        put("name", displayName(uri))
+      })
+    }
+    invoke.resolve(JSObject().apply {
+      put("canceled", false)
+      put("documents", documents)
+    })
+  }
+
+  @Command
+  fun open(invoke: Invoke) {
+    val args = invoke.parseArgs(DocumentArgs::class.java)
+    try {
+      val descriptor = activity.contentResolver.openFileDescriptor(Uri.parse(args.uri), "r")
+      if (descriptor == null) {
+        invoke.reject("The document could not be opened.", "unreadable")
+        return
+      }
+      invoke.resolve(JSObject().apply { put("fd", descriptor.detachFd()) })
+    } catch (error: FileNotFoundException) {
+      invoke.reject(error.message, "missing")
+    } catch (error: SecurityException) {
+      invoke.reject(error.message, "denied")
+    } catch (error: Exception) {
+      invoke.reject(error.message, "unreadable")
+    }
+  }
+
+  /**
+   * An asset the APK keeps uncompressed, such as an included Reader font: a descriptor of the APK
+   * and where in it the asset is.
+   */
+  @Command
+  fun openAsset(invoke: Invoke) {
+    val args = invoke.parseArgs(AssetArgs::class.java)
+    try {
+      activity.assets.openFd(args.path).use { asset ->
+        invoke.resolve(JSObject().apply {
+          put("fd", ParcelFileDescriptor.dup(asset.fileDescriptor).detachFd())
+          put("offset", asset.startOffset)
+          put("length", asset.length)
+        })
+      }
+    } catch (error: Exception) {
+      invoke.reject(error.message, "missing")
+    }
+  }
+
+  /** Gives back the permission of every document the catalog no longer links. */
+  @Command
+  fun keepOnly(invoke: Invoke) {
+    val kept = invoke.parseArgs(KeepArgs::class.java).uris.toSet()
+    for (permission in activity.contentResolver.persistedUriPermissions) {
+      if (permission.uri.toString() in kept) continue
+      try {
+        activity.contentResolver.releasePersistableUriPermission(
+          permission.uri,
+          Intent.FLAG_GRANT_READ_URI_PERMISSION,
+        )
+      } catch (_: SecurityException) {
+      }
+    }
+    invoke.resolve()
+  }
+
+  /** Back from the Library leaves Komori as Android's own apps do: to the background. */
+  @Command
+  fun leave(invoke: Invoke) {
+    invoke.resolve()
+    activity.moveTaskToBack(true)
+  }
+
+  private fun displayName(uri: Uri): String {
+    try {
+      activity.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+        ?.use { cursor ->
+          if (cursor.moveToFirst() && !cursor.isNull(0)) return cursor.getString(0)
+        }
+    } catch (_: Exception) {
+    }
+    return uri.lastPathSegment?.substringAfterLast('/') ?: "Untitled.epub"
+  }
+}

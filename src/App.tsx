@@ -45,6 +45,22 @@ const ReaderPage = lazy(() =>
 );
 const reader = <ReaderPage />;
 
+// On the phone Komori draws its own frame, Library and Settings. The condition is fixed when the
+// frontend is built, so the PC build leaves the mobile module out.
+const mobile =
+  import.meta.env.TAURI_ENV_PLATFORM === "android"
+    ? {
+        Shell: lazy(() => import("./mobile").then((module) => ({ default: module.MobileShell }))),
+        System: lazy(() => import("./mobile").then((module) => ({ default: module.MobileSystem }))),
+        Library: lazy(() =>
+          import("./mobile").then((module) => ({ default: module.MobileLibraryPage })),
+        ),
+        Settings: lazy(() =>
+          import("./mobile").then((module) => ({ default: module.MobileSettingsPage })),
+        ),
+      }
+    : null;
+
 // `/dictionary?q=<text>` opens the Dictionary page searching that text, as the Reader's lookup
 // popup does; each query opens the page afresh.
 function DictionaryRoute() {
@@ -71,13 +87,14 @@ export function App() {
             already showing a page, keeps that page instead of revealing a fallback, which
             React would hold on screen for at least 300 ms. Only a first render shows it. */}
         <Suspense fallback={<div className="reader-shell" aria-busy="true" />}>
+          {mobile ? <mobile.System /> : null}
           <Routes>
             <Route index element={<StartupRoute />} />
-            <Route element={<AppShell />}>
-              <Route path="library" element={<LibraryPage />} />
+            <Route element={mobile ? <mobile.Shell /> : <AppShell />}>
+              <Route path="library" element={mobile ? <mobile.Library /> : <LibraryPage />} />
               <Route path="dictionary" element={<DictionaryRoute />} />
               <Route path="statistics" element={<StatisticsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings" element={mobile ? <mobile.Settings /> : <SettingsPage />} />
               <Route path="*" element={<Navigate replace to="/library" />} />
             </Route>
             <Route path="reader" element={reader} />

@@ -347,7 +347,7 @@ fn scan_paths(
     let mut pending = Vec::new();
     for file in files {
         let key = file.to_string_lossy().into_owned();
-        let stamp = source_stamp(&file);
+        let stamp = source_stamp(&key);
         let met: Option<(Option<String>, bool)> = connection
             .query_row(
                 "SELECT stamp, in_library FROM library_folder_files WHERE path = ?1",
