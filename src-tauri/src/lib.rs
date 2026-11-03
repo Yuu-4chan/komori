@@ -143,7 +143,7 @@ pub fn run() {
             library_folders::scan_library_folders,
             book_details::set_book_series,
             book_details::reset_book_series,
-            book_details::set_book_title,
+            book_details::edit_books,
             reader_content::prepare_book_content,
             reading_position::get_reading_position,
             reading_position::save_reading_position,

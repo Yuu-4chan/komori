@@ -5,6 +5,7 @@ import {
   CheckCircleIcon,
   LinkSimpleIcon,
   MagnifyingGlassIcon,
+  PencilSimpleIcon,
   PlusIcon,
   UploadSimpleIcon,
   StackIcon,
@@ -44,7 +45,7 @@ import { useBulkOperation, operationLabel } from "../features/operations/bulkOpe
 import { OperationNotice } from "../features/operations/OperationNotice";
 import { LibrarySearch, LibraryToolbar } from "../features/library/LibraryToolbar";
 import { isLibraryReturn, libraryCache, type ScrollPlace } from "../features/library/libraryCache";
-import { RenameDialog } from "../features/library/RenameDialog";
+import { BookEditDialog } from "../features/library/BookEditDialog";
 import { SeriesDialog, type SeriesChoice } from "../features/library/SeriesDialog";
 import {
   bookTitle,
@@ -70,7 +71,8 @@ import {
   removeBooks,
   resetBookSeries,
   setBookSeries,
-  setBookTitle,
+  editBooks,
+  type BookEdit,
   type ImportBatch,
   type LibraryBook,
   type RelinkResult,
@@ -142,9 +144,9 @@ function LibraryContent({ group }: { group: string | null }) {
   const [relinkNotice, setRelinkNotice] = useState<RelinkNoticeState | null>(null);
   const [removeTarget, setRemoveTarget] = useState<LibraryBook | null>(null);
   const [unreadTarget, setUnreadTarget] = useState<LibraryBook | null>(null);
-  const [renameTarget, setRenameTarget] = useState<LibraryBook | null>(null);
-  const [renaming, setRenaming] = useState(false);
-  const [renameError, setRenameError] = useState<string | null>(null);
+  const [editTargets, setEditTargets] = useState<LibraryBook[] | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [markingUnread, setMarkingUnread] = useState(false);
   const [unreadError, setUnreadError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
@@ -204,7 +206,7 @@ function LibraryContent({ group }: { group: string | null }) {
     bulkRemoving ||
     markingUnread ||
     seriesBusy ||
-    Boolean(removeTarget || unreadTarget || renameTarget || bulkRemoveOpen || seriesOpen);
+    Boolean(removeTarget || unreadTarget || editTargets || bulkRemoveOpen || seriesOpen);
   const dragging = useLibraryDrop(dropBusy, imports.drop, imports.failDrop);
 
   useEffect(() => {
@@ -355,7 +357,7 @@ function LibraryContent({ group }: { group: string | null }) {
     bulkRemoveOpen ||
     removeTarget !== null ||
     unreadTarget !== null ||
-    renameTarget !== null ||
+    editTargets !== null ||
     seriesOpen;
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -499,23 +501,24 @@ function LibraryContent({ group }: { group: string | null }) {
     }
   }
 
-  const requestRename = useCallback((book: LibraryBook) => {
-    setRenameError(null);
-    setRenameTarget(book);
+  const requestEdit = useCallback((book: LibraryBook) => {
+    setEditError(null);
+    setEditTargets([book]);
   }, []);
 
-  async function saveTitle(title: string) {
-    if (!renameTarget) return;
-    setRenaming(true);
-    setRenameError(null);
+  async function saveEdits(edits: BookEdit[]) {
+    const several = (editTargets?.length ?? 0) > 1;
+    setEditing(true);
+    setEditError(null);
     try {
-      await setBookTitle(renameTarget.id, title);
+      await editBooks(edits);
       await refresh();
-      setRenameTarget(null);
+      setEditTargets(null);
+      if (several) cancelSelection();
     } catch (error) {
-      setRenameError(errorMessage(error));
+      setEditError(errorMessage(error));
     } finally {
-      setRenaming(false);
+      setEditing(false);
     }
   }
 
@@ -667,7 +670,7 @@ function LibraryContent({ group }: { group: string | null }) {
         details={details}
         onRelink={relink}
         onRemove={requestRemoval}
-        onRename={requestRename}
+        onEdit={requestEdit}
         onMarkUnread={requestUnread}
         onMarkCompleted={requestCompleted}
         relinkDisabled={relinkingId !== null || Boolean(operation?.active)}
@@ -682,7 +685,7 @@ function LibraryContent({ group }: { group: string | null }) {
       relink,
       relinkingId,
       requestRemoval,
-      requestRename,
+      requestEdit,
       requestUnread,
       requestCompleted,
       selection.active,
@@ -921,6 +924,26 @@ function LibraryContent({ group }: { group: string | null }) {
               </button>
               <button
                 className="library-selection-bar__button"
+                disabled={selection.selectedCount === 0 || Boolean(operation?.active)}
+                onClick={() => {
+                  // In the order shown; any selected book no longer shown follows.
+                  const byId = new Map(library.books.map((book) => [book.id, book]));
+                  const shown = orderedIds.filter((id) => selection.selectedIds.has(id));
+                  const shownSet = new Set(shown);
+                  const ids = [
+                    ...shown,
+                    ...[...selection.selectedIds].filter((id) => !shownSet.has(id)),
+                  ];
+                  setEditError(null);
+                  setEditTargets(ids.flatMap((id) => byId.get(id) ?? []));
+                }}
+                type="button"
+              >
+                <PencilSimpleIcon aria-hidden="true" size={16} />
+                {t("libraryCard.editMenu")}
+              </button>
+              <button
+                className="library-selection-bar__button"
                 disabled={!canComplete || completing || Boolean(operation?.active)}
                 onClick={() =>
                   void markCompleted([...selection.selectedIds]).then(
@@ -956,13 +979,12 @@ function LibraryContent({ group }: { group: string | null }) {
             document.body,
           )
         : null}
-      <RenameDialog
-        book={renameTarget}
-        key={renameTarget?.id ?? ""}
-        busy={renaming}
-        error={renameError}
-        onCancel={() => setRenameTarget(null)}
-        onConfirm={(title) => void saveTitle(title)}
+      <BookEditDialog
+        books={editTargets}
+        busy={editing}
+        error={editError}
+        onCancel={() => setEditTargets(null)}
+        onConfirm={(edits) => void saveEdits(edits)}
       />
       <SeriesDialog
         busy={seriesBusy}

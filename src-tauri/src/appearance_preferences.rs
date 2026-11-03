@@ -167,10 +167,11 @@ const APP_THEMES: [&str; 9] = [
 ];
 /// The Library's saved view choices. Keep in step with `src/features/library/libraryView.ts`.
 const LIBRARY_VIEWS: [&str; 2] = ["grid", "list"];
-const LIBRARY_SORTS: [&str; 6] = [
+const LIBRARY_SORTS: [&str; 7] = [
     "recent",
     "added",
     "title",
+    "author",
     "progress",
     "characters",
     "words",
@@ -186,7 +187,7 @@ fn valid_library_card_size(size: i64) -> bool {
     (100..=480).contains(&size) && size % 10 == 0
 }
 const LIBRARY_FILTERS: [&str; 4] = ["all", "reading", "completed", "not-started"];
-const LIBRARY_GROUPS: [&str; 3] = ["none", "series", "language"];
+const LIBRARY_GROUPS: [&str; 4] = ["none", "series", "language", "author"];
 /// The most custom Reader themes kept, and the longest name, in characters.
 const READER_CUSTOM_THEME_LIMIT: usize = 32;
 const READER_THEME_NAME_MAX_CHARS: usize = 40;
@@ -3212,6 +3213,14 @@ mod tests {
             assert!(save_to(&connection, &preferences(theme, "#2f8f83", 200, 20)).unwrap());
         }
         assert!(save_to(&connection, &chosen).unwrap());
+        let by_author = AppearancePreferences {
+            library_sort: Some("author".into()),
+            library_group: Some("author".into()),
+            ..chosen.clone()
+        };
+        assert!(save_to(&connection, &by_author).unwrap());
+        assert_eq!(load_from(&connection).unwrap(), by_author);
+        assert!(save_to(&connection, &chosen).unwrap());
 
         for invalid in [
             AppearancePreferences {
@@ -3233,7 +3242,7 @@ mod tests {
                 ..chosen.clone()
             },
             AppearancePreferences {
-                library_sort: Some("author".into()),
+                library_sort: Some("publisher".into()),
                 ..chosen.clone()
             },
             AppearancePreferences {
@@ -3241,7 +3250,7 @@ mod tests {
                 ..chosen.clone()
             },
             AppearancePreferences {
-                library_group: Some("author".into()),
+                library_group: Some("publisher".into()),
                 ..chosen.clone()
             },
             AppearancePreferences {
@@ -3279,8 +3288,8 @@ mod tests {
                             "text": "#eeeeee"
                         },
                         "libraryView": "list",
-                        "librarySort": "author",
-                        "libraryGroupSort": "author",
+                        "librarySort": "publisher",
+                        "libraryGroupSort": "publisher",
                         "libraryGroupSortReversed": "yes",
                         "libraryFilter": "completed",
                         "libraryCardSeries": "yes",

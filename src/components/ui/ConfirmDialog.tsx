@@ -24,6 +24,8 @@ interface ConfirmDialogProps {
   /** Where focus returns on close, for an opener disabled while the dialog's content loads. */
   returnFocus?: HTMLElement | null;
   title: string;
+  /** Wider, for a list. */
+  wide?: boolean;
 }
 
 export function ConfirmDialog({
@@ -42,6 +44,7 @@ export function ConfirmDialog({
   open,
   returnFocus,
   title,
+  wide = false,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const { t } = useI18n();
@@ -74,7 +77,7 @@ export function ConfirmDialog({
     <dialog
       aria-describedby={descriptionId}
       aria-labelledby={titleId}
-      className="confirm-dialog"
+      className={wide ? "confirm-dialog confirm-dialog--wide" : "confirm-dialog"}
       onCancel={(event) => {
         event.preventDefault();
         if (!busy) onCancel();

@@ -18,7 +18,7 @@ import {
   resetBookSeries,
   scanLibraryFolders,
   setBookSeries,
-  setBookTitle,
+  editBooks,
 } from "../features/library/libraryApi";
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 import type { AppearancePreferences } from "../features/appearance/appearancePreferences";
@@ -49,7 +49,7 @@ vi.mock("../features/library/libraryApi", () => ({
   removeBooks: vi.fn(),
   setBookSeries: vi.fn(),
   resetBookSeries: vi.fn(),
-  setBookTitle: vi.fn(),
+  editBooks: vi.fn(),
   scanLibraryFolders: vi.fn(async () => []),
   onLibraryDetailsUpdated: vi.fn(() => () => {}),
 }));
@@ -971,19 +971,22 @@ describe("Library page", () => {
     expect(screen.queryByText("Completed")).not.toBeInTheDocument();
   });
 
-  it("renames a book in Komori and shows its original title again", async () => {
+  it("edits a book's title and author in Komori and shows its own again", async () => {
     const user = userEvent.setup();
-    const renamed = {
+    const edited = {
       ...catalogBook,
       title: "The Right Title",
       ownTitle: "A Quiet Book",
       titleManual: true,
+      author: "Right Author",
+      ownAuthor: "An Author",
+      authorManual: true,
     };
     listMock
       .mockResolvedValueOnce([catalogBook])
-      .mockResolvedValueOnce([renamed])
+      .mockResolvedValueOnce([edited])
       .mockResolvedValueOnce([catalogBook]);
-    vi.mocked(setBookTitle).mockResolvedValue();
+    vi.mocked(editBooks).mockResolvedValue();
     renderPage(
       <MemoryRouter>
         <LibraryPage />
@@ -991,32 +994,47 @@ describe("Library page", () => {
     );
     await screen.findAllByRole("heading", { name: "A Quiet Book" });
     await user.click(screen.getAllByRole("button", { name: "More actions for A Quiet Book" })[0]);
-    await user.click(screen.getByRole("menuitem", { name: "Rename…" }));
-    let dialog = screen.getByRole("dialog", { name: "Rename" });
-    // A book never renamed has only its title to edit.
-    expect(within(dialog).queryByRole("radio")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Edit…" }));
+    let dialog = screen.getByRole("dialog", { name: "Title and author" });
+    expect(within(dialog).getByText("quiet.epub")).toBeInTheDocument();
+    // A book never edited has nothing to return to.
+    expect(within(dialog).queryByRole("button", { name: "Use the original" })).toBeNull();
     const title = within(dialog).getByRole<HTMLInputElement>("textbox", { name: "Title" });
-    expect(title).toHaveValue("A Quiet Book");
     // The title opens focused and selected, ready to type over.
     expect(title).toHaveFocus();
     expect([title.selectionStart, title.selectionEnd]).toEqual([0, "A Quiet Book".length]);
-    await user.clear(title);
-    expect(within(dialog).getByRole("button", { name: "Rename" })).toBeDisabled();
-    await user.type(title, "  The Right   Title {Enter}");
-    await waitFor(() => expect(setBookTitle).toHaveBeenCalledWith("book-1", "The Right Title"));
+    expect(within(dialog).getByRole("textbox", { name: "Author" })).toHaveValue("An Author");
+    expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
+    await user.keyboard("  The Right   Title ");
+    const author = within(dialog).getByRole("textbox", { name: "Author" });
+    await user.clear(author);
+    await user.type(author, "Right Author{Enter}");
+    await waitFor(() =>
+      expect(editBooks).toHaveBeenCalledWith([
+        { id: "book-1", title: "The Right Title", author: "Right Author" },
+      ]),
+    );
     await screen.findAllByRole("heading", { name: "The Right Title" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await user.click(
       screen.getAllByRole("button", { name: "More actions for The Right Title" })[0],
     );
-    await user.click(screen.getByRole("menuitem", { name: "Rename…" }));
-    dialog = screen.getByRole("dialog", { name: "Rename" });
-    await user.click(within(dialog).getByRole("radio", { name: /Original title/ }));
-    expect(within(dialog).getByText("A Quiet Book")).toBeInTheDocument();
-    expect(within(dialog).getByRole("textbox", { name: "Title" })).toBeDisabled();
-    await user.click(within(dialog).getByRole("button", { name: "Rename" }));
-    await waitFor(() => expect(setBookTitle).toHaveBeenLastCalledWith("book-1", ""));
+    await user.click(screen.getByRole("menuitem", { name: "Edit…" }));
+    dialog = screen.getByRole("dialog", { name: "Title and author" });
+    const [restoreTitle, restoreAuthor] = within(dialog).getAllByRole("button", {
+      name: "Use the original",
+    });
+    await user.click(restoreTitle!);
+    await user.click(restoreAuthor!);
+    expect(within(dialog).getByRole("textbox", { name: "Title" })).toHaveValue("A Quiet Book");
+    expect(within(dialog).getByRole("textbox", { name: "Author" })).toHaveValue("An Author");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(editBooks).toHaveBeenLastCalledWith([
+        { id: "book-1", title: "A Quiet Book", author: "" },
+      ]),
+    );
     await screen.findAllByRole("heading", { name: "A Quiet Book" });
   });
 
@@ -1936,6 +1954,56 @@ describe("Library page", () => {
         await user.click(screen.getByRole("radio", { name: /No series/ }));
         await user.click(screen.getByRole("button", { name: "Save series" }));
         await waitFor(() => expect(setBookSeries).toHaveBeenLastCalledWith(["vol-2"], null));
+      });
+
+      it("retitles several books from the first one's new title, numbered, with one author", async () => {
+        const user = userEvent.setup();
+        vi.mocked(editBooks).mockResolvedValue();
+        await showLibrary(user);
+        await user.click(screen.getByRole("checkbox", { name: "Select Plain Book" }));
+        await user.click(screen.getByRole("checkbox", { name: "Select Cat Tales 2" }));
+        await user.click(screen.getByRole("checkbox", { name: "Select Cat Tales 1" }));
+        await user.click(screen.getByRole("button", { name: "Edit…" }));
+        const dialog = screen.getByRole("dialog", { name: "Title and author" });
+        expect(within(dialog).getByText("3 books selected")).toBeInTheDocument();
+        // In the order shown, each starting from its own title.
+        const titles = () => within(dialog).getAllByRole("textbox", { name: "Title" });
+        expect(titles().map((field) => (field as HTMLInputElement).value)).toEqual([
+          "Cat Tales 1",
+          "Cat Tales 2",
+          "Plain Book",
+        ]);
+        expect(titles()[0]).toHaveFocus();
+        // The others follow the first, numbered by series, then by place.
+        await user.keyboard("Neko Stories Vol. 01");
+        expect(titles().map((field) => (field as HTMLInputElement).value)).toEqual([
+          "Neko Stories Vol. 01",
+          "Neko Stories Vol. 02",
+          "Neko Stories Vol. 03",
+        ]);
+        // One fixed by hand stops following.
+        await user.clear(titles()[2]!);
+        await user.type(titles()[2]!, "Plain Book");
+        await user.type(titles()[0]!, "{Backspace}5");
+        expect(titles().map((field) => (field as HTMLInputElement).value)).toEqual([
+          "Neko Stories Vol. 05",
+          "Neko Stories Vol. 02",
+          "Plain Book",
+        ]);
+        const author = within(dialog).getByRole("textbox", { name: "Author" });
+        expect(author).toHaveValue("An Author");
+        await user.clear(author);
+        await user.type(author, "Neko");
+        await user.click(within(dialog).getByRole("button", { name: "Save" }));
+        await waitFor(() =>
+          expect(editBooks).toHaveBeenCalledWith([
+            { id: "vol-1", title: "Neko Stories Vol. 05", author: "Neko" },
+            { id: "vol-2", title: "Neko Stories Vol. 02", author: "Neko" },
+            { id: "plain", author: "Neko" },
+          ]),
+        );
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+        expect(screen.queryByText(/selected$/)).not.toBeInTheDocument();
       });
     });
   });

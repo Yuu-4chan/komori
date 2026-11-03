@@ -16,8 +16,8 @@ three, while the Reader keeps it for bookmarks.
 ## Library
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;
-grid/list, search, status filters, Cards details, sort and direction, which order groups too; grouping by series
-or language as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Automatic series in Settings > General, on
+grid/list, search, status filters, Cards details, sort (Author sorts by name, then title) and direction, which order groups too; grouping by series,
+language or first author (`A & B`, `A／B` and `A、B` group under A) as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Automatic series in Settings > General, on
 by default, makes series in this order: what you set by hand, then numbered file names
 (`Harry Potter 1.epub`, `Harry Potter 2.epub`, ignoring a copy's `(1)`, notes such as `(2020)` or a checksum, and the store tags titles drop, such as `【電子版限定特典付き】`, spelled as the books' titles spell the same words, taking the number after `Vol`, `Volume` or `第` before a later year, as in `Baccano! - Vol 13 - 2002`, and leaving to the titles file names that only spell a Japanese title's katakana reading),
 then a book's own series, then numbered volumes sharing a title (`Title 01`, `Title 02`), full-width
@@ -29,9 +29,13 @@ on the Library to add them; a drag overlay shows the accepted file type or a bus
 operation, and imports report progress and per-file outcomes. Authors show in full, wrapping long names.
 Titles drop store, edition and bonus tags in brackets, such as 【電子版】, (Kindle版), (HJ文庫), (学研ムック), [雑誌], 【単行本版特典ペーパー付き】 or
 (Light Novel), in full- or half-width brackets (even mixed, as in （電子版)), keeping a title's own
-bracketed words such as （上）. Rename… in a card's menu shows the book under a title of your own, kept
-through title cleaning, relink, backups and restores and used by search, sort, series, the Reader,
-statistics, Anki and Discord; Original title returns to the book's own. The EPUB is never changed.
+bracketed words such as （上）. Edit… in a card's menu or the selection shows books under a title and author of your own, kept
+through title cleaning, relink, backups and restores and used by search, sort, groups, series, the
+Reader, statistics, Anki and Discord; Use the original returns to the book's own, and the EPUB is
+never changed. With several books, typing the first title retitles the rest the same way, each with
+its own volume number (its series number, else the number its title or file name ends in, else its
+place), written as the first title writes it (`Vol. 01`, `０３`); a title changed by hand stops
+following, and one Author field sets every book's author.
 Words take the place of characters for western books everywhere (sort, summary, cards,
 Statistics). Book folders and the card size are in Settings > General; removing a folder
 forgets the books it met that are no longer in the Library, so adding it again brings them

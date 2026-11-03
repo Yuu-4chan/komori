@@ -42,7 +42,13 @@ pub struct LibraryBook {
     own_title: Option<String>,
     /// Whether the title was set by hand.
     title_manual: bool,
+    /// The author set by hand, or else the book's own.
     author: Option<String>,
+    /// The book's own author, only when one was set by hand.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    own_author: Option<String>,
+    /// Whether the author was set by hand.
+    author_manual: bool,
     file_name: String,
     imported_at: String,
     availability: &'static str,
@@ -565,7 +571,7 @@ pub(crate) fn open_catalog(path: &Path) -> Result<Connection, String> {
 
 const BOOK_COLUMNS: &str = "books.id, books.source_path, books.file_name,
                             coalesce(named.title, books.title),
-                            books.author, books.imported_at, length(books.cover_bytes) IS NOT NULL,
+                            coalesce(authored.author, books.author), books.imported_at, length(books.cover_bytes) IS NOT NULL,
                             progress.unit, progress.current_units, progress.total_units,
                             nullif(max(coalesce(progress.updated_at, ''),
                                        coalesce(position.updated_at, '')), ''),
@@ -577,13 +583,16 @@ const BOOK_COLUMNS: &str = "books.id, books.source_path, books.file_name,
                             manual.book_id IS NOT NULL, details.characters,
                             details.unique_kanji, details.words,
                             CASE WHEN named.book_id IS NULL THEN NULL ELSE books.title END,
-                            named.book_id IS NOT NULL";
+                            named.book_id IS NOT NULL,
+                            CASE WHEN authored.book_id IS NULL THEN NULL ELSE books.author END,
+                            authored.book_id IS NOT NULL";
 const BOOK_SOURCE: &str = "books
      LEFT JOIN book_progress AS progress ON progress.book_id = books.id
      LEFT JOIN reading_positions AS position ON position.book_id = books.id
      LEFT JOIN book_details AS details ON details.book_id = books.id
      LEFT JOIN book_series AS manual ON manual.book_id = books.id
-     LEFT JOIN book_titles AS named ON named.book_id = books.id";
+     LEFT JOIN book_titles AS named ON named.book_id = books.id
+     LEFT JOIN book_authors AS authored ON authored.book_id = books.id";
 
 fn list_sql() -> String {
     format!(
@@ -726,6 +735,8 @@ fn library_book_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LibraryBoo
         own_title: row.get(19)?,
         title_manual: row.get(20)?,
         author: row.get(4)?,
+        own_author: row.get(21)?,
+        author_manual: row.get(22)?,
         imported_at: row.get(5)?,
         availability: source_availability(&source_path),
         has_cover,
@@ -1946,6 +1957,8 @@ pub(crate) mod tests {
             title: Some("Book".into()),
             own_title: None,
             title_manual: false,
+            own_author: None,
+            author_manual: false,
             author: Some("Author".into()),
             file_name: "book.epub".into(),
             imported_at: "2026-09-23T00:00:00Z".into(),

@@ -63,6 +63,11 @@ const groupOptions: { value: LibraryGroup; label: MessageKey; description: Messa
     label: "libraryToolbar.group.language",
     description: "libraryToolbar.group.languageHint",
   },
+  {
+    value: "author",
+    label: "libraryToolbar.group.author",
+    description: "libraryToolbar.group.authorHint",
+  },
 ];
 
 const sortOptions: { value: LibrarySort; label: MessageKey; description: MessageKey }[] = [
@@ -80,6 +85,11 @@ const sortOptions: { value: LibrarySort; label: MessageKey; description: Message
     value: "title",
     label: "libraryToolbar.sort.title",
     description: "libraryToolbar.sort.titleHint",
+  },
+  {
+    value: "author",
+    label: "libraryToolbar.sort.author",
+    description: "libraryToolbar.sort.authorHint",
   },
   {
     value: "progress",
@@ -254,7 +264,9 @@ export function LibraryToolbar({ display, onDisplayChange, grouping = true }: Li
                   ? "libraryToolbar.groupByNothing"
                   : display.group === "series"
                     ? "libraryToolbar.groupBySeries"
-                    : "libraryToolbar.groupByLanguage",
+                    : display.group === "author"
+                      ? "libraryToolbar.groupByAuthor"
+                      : "libraryToolbar.groupByLanguage",
               )}
             />
             {open === "group" ? (

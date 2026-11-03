@@ -183,6 +183,10 @@
   overflow: visible;
 }
 
+.confirm-dialog--wide {
+  width: min(calc(100vw - 2rem), 40rem);
+}
+
 .confirm-dialog::backdrop {
   background: color-mix(in srgb, #0c1328 48%, transparent);
   backdrop-filter: blur(3px);

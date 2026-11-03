@@ -11,7 +11,12 @@ export interface LibraryBook {
   ownTitle?: string | null;
   /** Whether the title was set by hand. */
   titleManual?: boolean;
+  /** The author set by hand, or else the book's own. */
   author: string | null;
+  /** The book's own author, when one was set by hand. */
+  ownAuthor?: string | null;
+  /** Whether the author was set by hand. */
+  authorManual?: boolean;
   fileName: string;
   importedAt: string;
   availability: "available" | "missing" | "unreadable";
@@ -224,13 +229,20 @@ export async function setBookSeries(ids: string[], series: string | null): Promi
   return result.updated;
 }
 
+/** A book's title and author to show; one left out stays, a blank one shows the book's own. */
+export interface BookEdit {
+  id: string;
+  title?: string;
+  author?: string;
+}
+
 /**
- * Shows the book under this title in Komori; a blank title, or the book's own, shows its own
- * again. The EPUB is never changed.
+ * Shows the books under these titles and authors in Komori, all or none; the EPUBs are never
+ * changed.
  */
-export async function setBookTitle(id: string, title: string): Promise<void> {
+export async function editBooks(edits: BookEdit[]): Promise<void> {
   requireDesktop();
-  await invoke<{ updated: number }>("set_book_title", { id, title });
+  await invoke<{ updated: number }>("edit_books", { edits });
 }
 
 /** Lets the books follow their own metadata's series again. */
