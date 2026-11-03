@@ -354,6 +354,56 @@ describe("Library page", () => {
     expect(order.lastIndexOf("top")).toBeLessThan(order.indexOf("page"));
     expect(order.lastIndexOf("page")).toBeLessThan(order.indexOf("dock"));
   });
+  it("searches and adds books from another page by opening the Library", async () => {
+    const user = userEvent.setup();
+    listMock.mockResolvedValue([catalogBook]);
+    importMock.mockResolvedValue({ canceled: true, results: [] });
+    const app = () =>
+      renderPage(
+        <MemoryRouter initialEntries={["/dictionary"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/library" element={<LibraryPage />} />
+              <Route path="/dictionary" element={<h1>Dictionary page</h1>} />
+              <Route path="/settings" element={<h1>Settings page</h1>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+    const { unmount } = app();
+    // The top bar is the same on every page: search, Settings and Add books.
+    expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
+    await user.click(screen.getByRole("searchbox", { name: "Search books" }));
+    await user.keyboard("q");
+    // The Library opens searching, its field focused to keep typing.
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Dictionary page" })).not.toBeInTheDocument(),
+    );
+    const search = screen.getByRole<HTMLInputElement>("searchbox", { name: "Search books" });
+    expect(search).toHaveValue("q");
+    expect(search).toHaveFocus();
+    await user.keyboard("uiet");
+    expect(search).toHaveValue("quiet");
+    expect(await screen.findAllByRole("heading", { name: "A Quiet Book" })).not.toHaveLength(0);
+    unmount();
+
+    // An IME's composition stays on the page until it is committed.
+    app();
+    const field = screen.getByRole("searchbox", { name: "Search books" });
+    fireEvent.compositionStart(field);
+    fireEvent.change(field, { target: { value: "しず" } });
+    expect(screen.getByRole("heading", { name: "Dictionary page" })).toBeInTheDocument();
+    fireEvent.compositionEnd(field);
+    expect(await screen.findByRole("searchbox", { name: "Search books" })).toHaveValue("しず");
+    expect(screen.queryByRole("heading", { name: "Dictionary page" })).not.toBeInTheDocument();
+
+    // Add books opens the Library, which shows what the import added.
+    await user.click(screen.getByRole("link", { name: "Settings" }));
+    await user.click(screen.getByRole("button", { name: "Add books" }));
+    expect(importMock).toHaveBeenCalledOnce();
+    expect(await screen.findAllByRole("heading", { name: "A Quiet Book" })).not.toHaveLength(0);
+  });
+
   it("keeps search in an empty Library and Ctrl+F focuses it", async () => {
     renderPage(
       <MemoryRouter>

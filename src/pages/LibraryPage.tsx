@@ -44,7 +44,12 @@ import { useLibraryDrop } from "../features/library/useLibraryDrop";
 import { useBulkOperation, operationLabel } from "../features/operations/bulkOperation";
 import { OperationNotice } from "../features/operations/OperationNotice";
 import { LibrarySearch, LibraryToolbar } from "../features/library/LibraryToolbar";
-import { isLibraryReturn, libraryCache, type ScrollPlace } from "../features/library/libraryCache";
+import {
+  isLibraryReturn,
+  libraryCache,
+  librarySearchFrom,
+  type ScrollPlace,
+} from "../features/library/libraryCache";
 import { BookEditDialog } from "../features/library/BookEditDialog";
 import { SeriesDialog, type SeriesChoice } from "../features/library/SeriesDialog";
 import {
@@ -185,7 +190,9 @@ function LibraryContent({ group }: { group: string | null }) {
       ),
     [onGroupPage, updateLibrary],
   );
-  const [query, setQuery] = useState("");
+  // A search typed in the top bar on another page continues here.
+  const [searchedElsewhere] = useState(() => librarySearchFrom(location.state));
+  const [query, setQuery] = useState(searchedElsewhere);
   const searchSlot = useShellSearchSlot();
   const details: CardDetails = useMemo(
     () => ({
@@ -704,7 +711,9 @@ function LibraryContent({ group }: { group: string | null }) {
   );
 
   // The search stays in the top bar even when the Library is empty.
-  const search = <LibrarySearch onQueryChange={setQuery} query={query} />;
+  const search = (
+    <LibrarySearch focused={searchedElsewhere !== ""} onQueryChange={setQuery} query={query} />
+  );
   const ready = library.status === "ready";
   const hasBooks = ready && library.books.length > 0;
   // Books in progress head the whole Library's books, and stay while selecting so a book chosen

@@ -4,7 +4,9 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { navigationItems } from "../../app/navigation";
 import { BrandMark } from "../../brand/BrandMark";
+import { librarySearchState } from "../../features/library/libraryCache";
 import { LibraryImportContext, useLibraryImport } from "../../features/library/libraryImport";
+import { LibrarySearch } from "../../features/library/LibraryToolbar";
 import { ShellSearchSlot } from "./shellSlots";
 import { WindowControls } from "./WindowControls";
 import { shortcutCommand } from "../../features/reader/shortcuts";
@@ -24,9 +26,10 @@ const discordPages: Record<string, DiscordPage> = {
 
 /**
  * The application frame. Its top bar is the window's title bar: it drags the window, holds the
- * brand, the page's search, Settings (marked while open) and, on the Library, Add books, and
- * the window controls, and its controls float over the page once it scrolls. Below it the page
- * scrolls, and a floating dock of destinations sits at the bottom, the current one larger.
+ * brand, the Library's search, Settings (marked while open), Add books, and the window controls,
+ * and its controls float over the page once it scrolls. On other pages, searching or adding
+ * books opens the Library to show it. Below it the page scrolls, and a floating dock of
+ * destinations sits at the bottom, the current one larger.
  */
 export function AppShell() {
   const [searchSlot, setSearchSlot] = useState<HTMLDivElement | null>(null);
@@ -101,7 +104,9 @@ export function AppShell() {
             <BrandMark />
           </NavLink>
           <div className="app-topbar__center">
-            <div className="app-topbar__search" ref={setSearchSlot} />
+            <div className="app-topbar__search" ref={setSearchSlot}>
+              {onLibrary ? null : <SearchInLibrary />}
+            </div>
             <NavLink
               aria-label={t("shell.settings")}
               className={({ isActive }) =>
@@ -112,18 +117,20 @@ export function AppShell() {
             >
               <GearSixIcon aria-hidden="true" weight="duotone" />
             </NavLink>
-            {onLibrary ? (
-              <button
-                aria-label={imports.busy ? imports.label : t("shell.addBooks")}
-                className="app-topbar__button"
-                disabled={imports.busy}
-                onClick={() => void imports.run()}
-                title={imports.busy ? imports.label : t("shell.addBooks")}
-                type="button"
-              >
-                <PlusIcon aria-hidden="true" weight="bold" />
-              </button>
-            ) : null}
+            <button
+              aria-label={imports.busy ? imports.label : t("shell.addBooks")}
+              className="app-topbar__button"
+              disabled={imports.busy}
+              onClick={() => {
+                // The Library shows what the import added.
+                if (!onLibrary) navigate("/library");
+                void imports.run();
+              }}
+              title={imports.busy ? imports.label : t("shell.addBooks")}
+              type="button"
+            >
+              <PlusIcon aria-hidden="true" weight="bold" />
+            </button>
           </div>
           <WindowControls className="app-topbar__window" />
         </header>
@@ -152,5 +159,38 @@ export function AppShell() {
         </nav>
       </div>
     </LibraryImportContext.Provider>
+  );
+}
+
+/**
+ * The Library's search on another page: typing opens the Library searching for it, once an IME
+ * has finished composing.
+ */
+function SearchInLibrary() {
+  const navigate = useNavigate();
+  const [draft, setDraft] = useState("");
+  const composing = useRef(false);
+  const search = (query: string) => {
+    if (query.trim()) navigate("/library", { state: librarySearchState(query) });
+  };
+  return (
+    <div
+      className="app-topbar__search-field"
+      onCompositionEnd={(event) => {
+        composing.current = false;
+        search((event.target as HTMLInputElement).value);
+      }}
+      onCompositionStart={() => {
+        composing.current = true;
+      }}
+    >
+      <LibrarySearch
+        onQueryChange={(query) => {
+          setDraft(query);
+          if (!composing.current) search(query);
+        }}
+        query={draft}
+      />
+    </div>
   );
 }

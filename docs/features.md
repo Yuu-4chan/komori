@@ -8,8 +8,9 @@ native-feeling desktop style in the manner of macOS.
 ## Shell
 
 A floating top bar (also the window's title bar, with the brand, the Library's search,
-Settings and Add books) and a floating bottom dock (Dictionary, Library, Statistics)
-around one scrolling page. Application pages switch with Ctrl+D/S/G from Library,
+Settings and Add books, the same on every page; searching or adding books elsewhere opens the
+Library to show it) and a floating bottom dock (Dictionary, Library, Statistics) around one
+scrolling page. Application pages switch with Ctrl+D/S/G from Library,
 Dictionary, Settings and Statistics; Ctrl+B returns to the Library from the latter
 three, while the Reader keeps it for bookmarks.
 

@@ -773,9 +773,10 @@ describe("Komori foundation", () => {
     expect(screen.getByRole("heading", { name: "Backup" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reclaim space" })).not.toBeInTheDocument();
     expect(within(dock).getByRole("link", { name: "Library" })).not.toHaveAttribute("aria-current");
-    // Settings stays on every page's top bar, marked while open; Add books is the Library's.
+    // The top bar is the same on every page, Settings marked while open.
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
-    expect(screen.queryByRole("button", { name: "Add books" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add books" })).toBeEnabled();
+    expect(screen.getByRole("searchbox", { name: "Search books" })).toBeInTheDocument();
     await user.click(within(dock).getByRole("link", { name: "Dictionary" }));
     expect(screen.getByRole("link", { name: "Settings" })).not.toHaveAttribute("aria-current");
     await user.click(within(dock).getByRole("link", { name: "Statistics" }));

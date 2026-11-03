@@ -132,6 +132,15 @@
   flex: 1;
 }
 
+/* Another page's stand-in for the Library's search; only its field takes the slot. */
+.app-topbar__search-field {
+  display: contents;
+}
+
+.app-topbar__search-field > * {
+  flex: 1;
+}
+
 /* An empty Library has no search: Settings and Add books center on their own. */
 .app-topbar__search:empty {
   display: none;

@@ -414,9 +414,12 @@ export function LibraryToolbar({ display, onDisplayChange, grouping = true }: Li
 export function LibrarySearch({
   query,
   onQueryChange,
+  focused = false,
 }: {
   query: string;
   onQueryChange: (query: string) => void;
+  /** Opens focused with the caret after the query, for a search typed on another page. */
+  focused?: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -424,6 +427,12 @@ export function LibrarySearch({
       <MagnifyingGlassIcon aria-hidden="true" size={18} />
       <input
         aria-label={t("libraryToolbar.search")}
+        ref={(input) => {
+          if (!input || !focused || input.dataset.focused) return;
+          input.dataset.focused = "true";
+          input.focus();
+          input.setSelectionRange(input.value.length, input.value.length);
+        }}
         onChange={(event) => onQueryChange(event.target.value)}
         onKeyDown={(event) => {
           if (searchEscape(event) && query) onQueryChange("");

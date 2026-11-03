@@ -15,6 +15,16 @@ export const libraryReturn = { libraryReturn: true } as const;
 export const isLibraryReturn = (state: unknown) =>
   typeof state === "object" && state !== null && "libraryReturn" in state;
 
+/** The navigation state that opens the Library searching, from the top bar on another page. */
+export const librarySearchState = (query: string) => ({ librarySearch: query });
+export const librarySearchFrom = (state: unknown): string =>
+  typeof state === "object" &&
+  state !== null &&
+  "librarySearch" in state &&
+  typeof state.librarySearch === "string"
+    ? state.librarySearch
+    : "";
+
 /**
  * The last catalog the Library listed, where each of its pages (the whole Library and each
  * group's page) was scrolled and how far each group's row of books was scrolled sideways, and
