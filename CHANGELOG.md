@@ -2,6 +2,20 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 2.0.0
+
+- Dictionary lookup now works in English, Spanish, French, Portuguese, Italian, German, Russian, Korean and Chinese, besides Japanese. Each language has its own dictionaries, inflection rules, word audio and Anki deck. Choose the lookup language in Settings > Dictionary.
+- Lookups show IPA pronunciations and read real dictionaries' word classes and form entries. Korean nouns are found under their particles, and Portuguese contractions are split.
+- Edit… in a book's menu or for the selected books changes titles and authors in Komori only; the EPUB is never changed. With several books, typing the first title retitles the others the same way, each with its own volume number, so only what is wrong needs fixing. Use the original switches back.
+- The Library sorts by author and groups by author.
+- Messy book folders import cleanly: long paths, release-style file names, volume words before a year, store and label tags, and katakana-reading file names. File names lead automatic series, and turning automatic series off leaves only the series set by hand.
+- A book with only a picture on its first page gets that picture as its cover, and large covers are shrunk instead of dropped. Japanese books declared as Chinese read as Japanese.
+- An import can be stopped between books, and its notices closed.
+- Each script in a book reads in one font, and a font that a Chinese, Japanese or Korean book can't show is replaced.
+- The Library's search and Add books are on every page's top bar; using them elsewhere opens the Library.
+- A dialog no longer closes when a text selection started inside it ends outside.
+- Settings save even when no starter dictionaries are chosen.
+
 ## 1.7.2
 
 - Series from titles keeps a title's own brackets and marks in the series name, such as IS＜インフィニット・ストラトス＞, 運命に愛されてごめんなさい。<…> and ギブあっぷ！, instead of cutting the closing ＞ or the ！.
