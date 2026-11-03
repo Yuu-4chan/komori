@@ -1,4 +1,6 @@
 # Keep formatter input identical on Windows and Linux, even with core.autocrlf=true.
 * text=auto eol=lf
+# cmd.exe can miss a batch file's labels without CRLF line ends (the Gradle wrapper's gradlew.bat).
+*.bat text eol=crlf
 # The included fonts' licenses must keep their exact bytes, which the font catalog pins.
 src-tauri/fonts/** -text
