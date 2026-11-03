@@ -6,6 +6,7 @@ import {
   groupBooks,
   languageName,
   lastReadLabel,
+  leadAuthor,
   matchesQuery,
   progressLabel,
   progressPercent,
@@ -137,6 +138,52 @@ describe("Library view", () => {
   });
 });
 
+describe("authors", () => {
+  it("sorts by author, then title, with books without one last either way", () => {
+    const books = [
+      book("b2", { author: "Bee", title: "Saga 10" }),
+      book("none", { author: null }),
+      book("b1", { author: "Bee", title: "Saga 2" }),
+      book("a", { author: "Ant" }),
+    ];
+    expect(sortBooks(books, "author", false).map((entry) => entry.id)).toEqual([
+      "a",
+      "b1",
+      "b2",
+      "none",
+    ]);
+    expect(sortBooks(books, "author", true).map((entry) => entry.id)).toEqual([
+      "b1",
+      "b2",
+      "a",
+      "none",
+    ]);
+  });
+
+  it("groups each book under its first author, by name, with unknown authors last", () => {
+    expect(leadAuthor(book("x", { author: "猫又ぬこ & あろあ" }))).toBe("猫又ぬこ");
+    expect(leadAuthor(book("x", { author: "鏡 遊／ひげ猫" }))).toBe("鏡 遊");
+    expect(leadAuthor(book("x", { author: "A, B" }))).toBe("A");
+    expect(leadAuthor(book("x", { author: "  " }))).toBeNull();
+    const sections = groupBooks(
+      [
+        book("1", { author: "Zed & Ann" }),
+        book("2", { author: null }),
+        book("3", { author: "Ann" }),
+        book("4", { author: "Zed" }),
+      ],
+      "author",
+      "added",
+    );
+    expect(sections.map((section) => [section.key, section.title])).toEqual([
+      ["author:Ann", "Ann"],
+      ["author:Zed", "Zed"],
+      ["author:", "Unknown author"],
+    ]);
+    expect(sections[1]?.books.map((entry) => entry.id)).toEqual(["1", "4"]);
+  });
+});
+
 describe("counted characters and group keys", () => {
   it("shows a CJK book's counted characters before it is opened", () => {
     expect(readTotalLabel(book("a", { characters: 253_732 }))).toBe(
@@ -156,6 +203,7 @@ describe("counted characters and group keys", () => {
   it("reads the grouping from a section key", () => {
     expect(sectionGroup("series:Accel World")).toBe("series");
     expect(sectionGroup("language:")).toBe("language");
+    expect(sectionGroup("author:鏡 遊")).toBe("author");
     expect(sectionGroup("all")).toBeNull();
     expect(sectionGroup("other:x")).toBeNull();
   });
@@ -244,6 +292,13 @@ describe("language names", () => {
 describe("series from titles", () => {
   it("names the series titles begin with, without volume numbers and words", () => {
     expect(seriesFromTitles(["Cat Tales 1", "Cat Tales 2"])).toBe("Cat Tales");
+    expect(seriesFromTitles(["８６ Tales 1", "86 Tales ２"])).toBe("８６ Tales");
+    expect(seriesFromTitles(["Title v01", "Title v02"])).toBe("Title");
+    expect(seriesFromTitles(["『八男って！ 26』BOOK", "『八男って！ 27』BOOK"])).toBe("八男って！");
+    expect(seriesFromTitles(["「ロウきゅーぶ！」1", "「ロウきゅーぶ！」2"])).toBe(
+      "「ロウきゅーぶ！」",
+    );
+    expect(seriesFromTitles(["Bing - An - Volume 03", "Bing - An - Volume 04"])).toBe("Bing - An");
     expect(seriesFromTitles(["幼女戦記07", "幼女戦記08"])).toBe("幼女戦記");
     expect(seriesFromTitles(["Foo Vol. 1", "Foo Vol. 2", "Foo Vol. 3"])).toBe("Foo");
     expect(seriesFromTitles(["作品 第1巻", "作品 第2巻"])).toBe("作品");

@@ -12,7 +12,7 @@ export function DiscordIcon({ size = "1em", weight: _weight, ...props }: Discord
     <svg
       width={size}
       height={size}
-      viewBox="0 -28.5 256 256"
+      viewBox="-20 -48.5 296 296"
       fill="currentColor"
       focusable="false"
       {...props}

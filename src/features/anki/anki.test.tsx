@@ -29,6 +29,7 @@ vi.mock("./ankiApi", async (importOriginal) => ({
   cachedAnki: vi.fn(),
   discoverAnki: vi.fn(),
   saveAnki: vi.fn(),
+  createDeck: vi.fn(),
   createLapis: vi.fn(),
   createNote: vi.fn(),
   checkNote: vi.fn(),
@@ -124,6 +125,7 @@ describe("bounded field mappings and lookup context", () => {
       deinflection: null,
       terms,
       frequencies: [],
+      transcriptions: [],
       pitches: [],
     });
     expect(reads).toEqual([1, 1, 1, 1]);
@@ -198,6 +200,7 @@ describe("bounded field mappings and lookup context", () => {
           },
         ],
         frequencies: [{ dictionaryId: 2, dictionaryTitle: "Rank", data: 5 }],
+        transcriptions: ["jomɯ", "joːmɯ"],
         pitches: [
           {
             dictionaryId: 3,
@@ -220,6 +223,7 @@ describe("bounded field mappings and lookup context", () => {
       frequencyHarmonic: "5",
       frequencyAverage: "5",
       pitch: "Pitch: 1",
+      ipa: "jomɯ, joːmɯ",
       sentence: "昨日読んだ。",
       bookTitle: "Real book",
     });
@@ -325,6 +329,7 @@ it("gives FreqSort Yomitan's harmonic and average ranks", () => {
         glossary: ["read"],
       },
     ],
+    transcriptions: [],
     pitches: [],
   };
   const [card] = termCardSources({ ...group, frequencies });
@@ -648,6 +653,9 @@ it("maps all definitions and selected dictionaries into safe structured parts an
   expect(cardFields(mapping, input.slice(0, 1)).fields.Selected).toBe("");
   expect(expressionFurigana("食べる", "たべる")).toBe("食[た]べる");
   expect(expressionFurigana("かな", "かな")).toBe("かな");
+  // An English entry's reading is its expression, so both fields hold the expression.
+  expect(expressionFurigana("look up", "look up")).toBe("look up");
+  expect(expressionFurigana("look up", "")).toBe("look up");
   const defaults = lapisDefaults([
     "ExpressionFurigana",
     "ExpressionReading",
@@ -722,6 +730,7 @@ describe("Anki setup", () => {
         kanjiMetaCount: 0,
         hasFrequency: false,
         hasPitch: false,
+        language: "ja",
         hasDefinitions: true,
       },
     ]);
@@ -776,6 +785,7 @@ describe("Anki setup", () => {
         kanjiMetaCount: 0,
         hasFrequency: true,
         hasPitch: false,
+        language: "ja",
         hasDefinitions: false,
       },
     ]);
@@ -974,6 +984,36 @@ describe("Anki setup", () => {
     expect(screen.getByLabelText("Picture template")).toHaveValue("{{picture}}");
     expect(api.saveAnki).not.toHaveBeenCalled();
     expect(api.createNote).not.toHaveBeenCalled();
+  });
+  it("creates a deck with Lapis, named for the lookup language, and saves the choice", async () => {
+    vi.mocked(api.createDeck).mockResolvedValue(undefined);
+    view(<AnkiSettings />);
+    await screen.findByRole("button", { name: "Test connection" });
+    fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
+    fireEvent.click(await screen.findByRole("button", { name: "New deck…" }));
+    const name = screen.getByLabelText("Deck name");
+    expect(name).toHaveValue("Japanese");
+    fireEvent.change(name, { target: { value: "   " } });
+    expect(screen.getByRole("button", { name: "Create deck" })).toBeDisabled();
+    fireEvent.change(name, { target: { value: "Korean" } });
+    vi.mocked(api.discoverAnki).mockResolvedValue({
+      ...discovery,
+      decks: ["Default", "Korean"],
+      deckIds: { ...discovery.deckIds, Korean: 77 },
+      models: ["Basic", "Lapis"],
+      modelIds: { ...discovery.modelIds, Lapis: 88 },
+      fields: ["Expression", "MainDefinition"],
+      lapis: "compatible",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create deck" }));
+    await screen.findByText("Korean is ready.");
+    expect(vi.mocked(api.createDeck).mock.calls[0][1]).toBe("Korean");
+    expect(screen.getByLabelText("Deck")).toHaveValue("Korean");
+    expect(screen.getByLabelText("Note type")).toHaveValue("Lapis");
+    expect(screen.getByLabelText("Expression template")).toHaveValue("{{expression}}");
+    expect(api.saveAnki).toHaveBeenCalledWith(
+      expect.objectContaining({ deck: "Korean", deckId: 77, model: "Lapis" }),
+    );
   });
   it("requires renewed discovery after failed Lapis creation", async () => {
     vi.mocked(api.createLapis).mockRejectedValue("unavailable");

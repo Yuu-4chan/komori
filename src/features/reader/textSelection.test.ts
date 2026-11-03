@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { watchTextSelection } from "./textSelection";
+import { sentenceAt, watchTextSelection } from "./textSelection";
 import { defaultLookupTriggers, type LookupTriggerPreferences } from "./lookupTriggers";
 import { FuriganaSession } from "./furigana";
 
@@ -424,5 +424,114 @@ describe("Reader lookup gesture precedence and cancellation", () => {
     view.doc.dispatchEvent(new Event("selectionchange"));
     expect(view.report).toHaveBeenLastCalledWith(null);
     view.cleanup();
+  });
+});
+
+describe("English scanning and sentences", () => {
+  function englishBook(html: string, patch: Partial<LookupTriggerPreferences> = {}) {
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    const doc = iframe.contentDocument!;
+    doc.body.innerHTML = html;
+    const createRange = doc.createRange.bind(doc);
+    let hit: [Node, number] = [doc.querySelector("p")!.firstChild!, 0];
+    vi.spyOn(doc, "createRange").mockImplementation(() => {
+      const range = createRange();
+      range.getClientRects = () =>
+        [
+          { left: 10, top: 10, right: 30, bottom: 30, width: 20, height: 20 },
+        ] as unknown as DOMRectList;
+      return range;
+    });
+    Object.defineProperty(doc, "caretRangeFromPoint", {
+      value: () => {
+        const range = createRange();
+        range.setStart(...hit);
+        return range;
+      },
+    });
+    const report = vi.fn();
+    const scans = vi.fn((_ranges: Range[]) => 1);
+    const cleanup = watchTextSelection(doc, () => undefined, report, scans, {
+      ...selectionTriggers,
+      readerPopupScanLength: 24,
+      lookupLanguage: "en",
+      ...patch,
+    });
+    const at = (word: string, offset = 0, node = doc.querySelector("p")!.firstChild!) => {
+      hit = [node, (node as Text).data.indexOf(word) + offset];
+    };
+    const shift = () =>
+      doc.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 20, clientY: 20, bubbles: true, shiftKey: true }),
+      );
+    return { doc, report, scans, cleanup, at, shift };
+  }
+
+  it("starts a scan at the start of the word under the pointer and reads on across spaces", () => {
+    const view = englishBook("<p>He looked it up. Then the cat’s tail moved.</p>");
+    view.at("looked", 3);
+    view.shift();
+    expect(view.report).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        origin: "shift",
+        text: "looked it up. Then the c",
+        sentence: "He looked it up.",
+      }),
+    );
+    expect(view.scans.mock.calls[0][0][0].toString()).toBe("looked it up. Then the c");
+    // Another letter of the same word is the same scan.
+    view.at("looked", 5);
+    view.shift();
+    expect(view.report).toHaveBeenCalledTimes(1);
+    // An apostrophe between letters belongs to the word.
+    view.at("cat’s", 4);
+    view.shift();
+    expect(view.report).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        text: "cat’s tail moved.",
+        sentence: "Then the cat’s tail moved.",
+      }),
+    );
+    view.cleanup();
+  });
+
+  it("starts no scan on spaces or punctuation, and only on a word starting with a letter", () => {
+    const view = englishBook("<p>Wait … 1984 “Go”</p>", { readerPopupCjkOnly: true });
+    view.at("…");
+    view.shift();
+    view.at(" 1984");
+    view.shift();
+    view.at("1984", 2);
+    view.shift();
+    expect(view.report).not.toHaveBeenCalled();
+    // CJK only applies to Japanese: English letters still look up.
+    view.at("Go", 1);
+    view.shift();
+    expect(view.report).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ text: "Go”" }));
+    view.cleanup();
+  });
+
+  it("ends English sentences at . ! ? before whitespace, closing quotes, line breaks and the block", () => {
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    const doc = iframe.contentDocument!;
+    doc.body.innerHTML =
+      "<p>“Stop!” she said. Mr.Smith waved... and left? Yes\nNo more</p><p>Next block.</p>";
+    const text = doc.querySelector("p")!.firstChild as Text;
+    const sentence = (word: string, language?: "en" | "ja") => {
+      const range = doc.createRange();
+      range.setStart(text, text.data.indexOf(word));
+      return sentenceAt(range, language);
+    };
+    expect(sentence("Stop", "en")).toBe("“Stop!”");
+    expect(sentence("she", "en")).toBe("she said.");
+    expect(sentence("Smith", "en")).toBe("Mr.Smith waved...");
+    expect(sentence("left", "en")).toBe("and left?");
+    expect(sentence("Yes", "en")).toBe("Yes");
+    expect(sentence("more", "en")).toBe("No more");
+    // Japanese ends sentences only at 。！？ and line breaks, as before.
+    expect(sentence("left")).toBe("“Stop!” she said. Mr.Smith waved... and left? Yes");
+    expect(sentence("left", "ja")).toBe(sentence("left"));
   });
 });

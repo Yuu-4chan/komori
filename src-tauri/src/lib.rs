@@ -109,6 +109,8 @@ pub fn run() {
             reader_background::choose_reader_background,
             reader_background::remove_reader_background,
             reader_fonts::check_system_font,
+            reader_fonts::font_supports_book,
+            bulk_progress::stop_bulk_operation,
             reader_fonts::list_system_fonts,
             reader_fonts::list_reader_fonts,
             reader_fonts::imports::import_reader_fonts,
@@ -118,6 +120,7 @@ pub fn run() {
             anki::save_anki_preferences,
             anki::discover_anki,
             anki::create_anki_lapis,
+            anki::create_anki_deck,
             anki::create_anki_note,
             anki::check_anki_note,
             anki::get_anki_pending_requests,
@@ -140,6 +143,7 @@ pub fn run() {
             library_folders::scan_library_folders,
             book_details::set_book_series,
             book_details::reset_book_series,
+            book_details::edit_books,
             reader_content::prepare_book_content,
             reading_position::get_reading_position,
             reading_position::save_reading_position,
@@ -191,6 +195,7 @@ pub fn run() {
             dictionary::store::remove_dictionary,
             dictionary::store::remove_dictionaries,
             dictionary::store::move_dictionary,
+            dictionary::store::set_dictionary_language,
             dictionary::store::get_dictionary_store_size
         ])
         .run(tauri::generate_context!())

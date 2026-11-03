@@ -462,8 +462,10 @@ pub(crate) fn save_to(
             "INSERT INTO reading_sessions
                (id, book_id, started_at, ended_at, active_ms, unit, units_read,
                 start_units, end_units, total_units, book_title)
-             SELECT ?1, id, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, coalesce(title, file_name)
-               FROM books WHERE id = ?2
+             SELECT ?1, books.id, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
+                    coalesce(named.title, books.title, books.file_name)
+               FROM books LEFT JOIN book_titles AS named ON named.book_id = books.id
+              WHERE books.id = ?2
              ON CONFLICT(id) DO UPDATE SET
                book_title = excluded.book_title,
                ended_at = excluded.ended_at,

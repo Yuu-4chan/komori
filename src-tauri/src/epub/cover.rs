@@ -5,6 +5,8 @@ use roxmltree::{Document, Node, ParsingOptions};
 use zip::ZipArchive;
 
 pub(super) const MAX_COVER_BYTES: usize = 4 * 1024 * 1024;
+/// The largest cover image read; one past `MAX_COVER_BYTES` is cached re-encoded within it.
+pub(super) const MAX_COVER_SOURCE_BYTES: usize = 32 * 1024 * 1024;
 const MAX_COVER_DOCUMENT_BYTES: usize = 2 * 1024 * 1024;
 
 #[derive(Debug)]
@@ -143,8 +145,8 @@ pub(super) fn discover<R: Read + Seek>(
         }
     }
 
-    for item in manifest_items {
-        if strong_cover_name(item) {
+    for item in &manifest_items {
+        if strong_cover_name(*item) {
             if let Some(href) = item.attribute("href") {
                 candidates.push(Candidate {
                     href,
@@ -155,10 +157,36 @@ pub(super) fn discover<R: Read + Seek>(
         }
     }
 
+    // A book naming no cover shows the image its first page opens with, as Kindle Create books.
     if candidates.is_empty() {
-        return CoverResolution {
-            cover: None,
-            diagnostic: CoverDiagnostic::NoCredibleEvidence,
+        let first_page = package
+            .descendants()
+            .find(|node| node.tag_name().name() == "itemref")
+            .and_then(|itemref| itemref.attribute("idref"))
+            .and_then(|id| {
+                manifest_items
+                    .iter()
+                    .find(|item| item.attribute("id") == Some(id))
+            })
+            .and_then(|item| Some((item.attribute("href")?, item.attribute("media-type"))));
+        let cover = first_page
+            .filter(|(href, _)| picture_page(archive, package_directory, href))
+            .and_then(|(href, media_type)| {
+                resolve_candidate(archive, package_directory, href, media_type).ok()
+            });
+        return match cover {
+            Some(resolved) => CoverResolution {
+                cover: Some(ResolvedCover {
+                    mime: resolved.mime.to_string(),
+                    bytes: resolved.bytes,
+                    discovery: "first-page-image",
+                }),
+                diagnostic: CoverDiagnostic::Resolved("first-page-image"),
+            },
+            None => CoverResolution {
+                cover: None,
+                diagnostic: CoverDiagnostic::NoCredibleEvidence,
+            },
         };
     }
 
@@ -221,7 +249,7 @@ fn resolve_candidate<R: Read + Seek>(
         let limit = if is_document {
             MAX_COVER_DOCUMENT_BYTES
         } else {
-            MAX_COVER_BYTES
+            MAX_COVER_SOURCE_BYTES
         };
         let bytes = match read_cover_entry(archive, &path, limit) {
             Ok(bytes) => bytes,
@@ -233,7 +261,7 @@ fn resolve_candidate<R: Read + Seek>(
             Err(EntryReadError::Missing | EntryReadError::Unreadable) => continue,
         };
         if let Some(mime) = image_mime(&bytes) {
-            return Ok(CandidateResult {
+            return cached_raster(mime, bytes).map(|(mime, bytes)| CandidateResult {
                 mime,
                 bytes,
                 document: false,
@@ -288,6 +316,45 @@ fn resolve_candidate<R: Read + Seek>(
     Err(strongest_failure)
 }
 
+/// Whether a page is a picture alone: an image and at most a caption's worth of text.
+fn picture_page<R: Read + Seek>(archive: &mut ZipArchive<R>, base: &str, href: &str) -> bool {
+    const CAPTION_CHARACTERS: usize = 80;
+    archive_path_candidates(base, href).iter().any(|path| {
+        let Ok(bytes) = read_cover_entry(archive, path, MAX_COVER_DOCUMENT_BYTES) else {
+            return false;
+        };
+        let bytes = trim_after_document_root(&bytes);
+        if declares_entity(bytes) {
+            return false;
+        }
+        let text = String::from_utf8_lossy(bytes);
+        let Ok(document) = super::xml::parse(
+            &text,
+            ParsingOptions {
+                allow_dtd: true,
+                ..ParsingOptions::default()
+            },
+        ) else {
+            return false;
+        };
+        let body = document
+            .descendants()
+            .find(|node| node.tag_name().name().eq_ignore_ascii_case("body"))
+            .unwrap_or(document.root());
+        let characters = body
+            .descendants()
+            .filter(|node| node.is_text())
+            .filter_map(|node| node.text())
+            .flat_map(str::chars)
+            .filter(|character| !character.is_whitespace())
+            .count();
+        characters <= CAPTION_CHARACTERS
+            && body
+                .descendants()
+                .any(|node| image_reference(node).is_some())
+    })
+}
+
 fn resolve_image_reference<R: Read + Seek>(
     archive: &mut ZipArchive<R>,
     base: &str,
@@ -302,10 +369,10 @@ fn resolve_image_reference<R: Read + Seek>(
     }
     let mut strongest_failure = CandidateFailure::InvalidTarget;
     for path in paths {
-        match read_cover_entry(archive, &path, MAX_COVER_BYTES) {
+        match read_cover_entry(archive, &path, MAX_COVER_SOURCE_BYTES) {
             Ok(bytes) => {
                 if let Some(mime) = image_mime(&bytes) {
-                    return Ok((mime, bytes));
+                    return cached_raster(mime, bytes);
                 }
                 strongest_failure = merge_failure(
                     strongest_failure,
@@ -320,6 +387,19 @@ fn resolve_image_reference<R: Read + Seek>(
         }
     }
     Err(strongest_failure)
+}
+
+/// A cover image as cached: as it is within `MAX_COVER_BYTES`, else re-encoded within it.
+fn cached_raster(
+    mime: &'static str,
+    bytes: Vec<u8>,
+) -> Result<(&'static str, Vec<u8>), CandidateFailure> {
+    if bytes.len() <= MAX_COVER_BYTES {
+        return Ok((mime, bytes));
+    }
+    crate::covers::fit_large_cover(&bytes, MAX_COVER_BYTES)
+        .map(|cover| ("image/jpeg", cover))
+        .ok_or(CandidateFailure::RejectedSafety)
 }
 
 fn read_cover_entry<R: Read + Seek>(

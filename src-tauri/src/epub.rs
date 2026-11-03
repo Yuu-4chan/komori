@@ -666,11 +666,50 @@ mod tests {
     }
 
     #[test]
+    fn a_picture_first_page_is_the_cover_of_a_book_naming_none() {
+        let directory = tempdir().unwrap();
+        let book = |name: &str, page: &[u8]| {
+            let path = directory.path().join(name);
+            fixture(
+                &path,
+                r#"<?xml version="1.0"?><package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata><dc:title>Fixture</dc:title></metadata><manifest><item id="art" href="Images/001.jpg" media-type="image/jpeg"/><item id="first" href="Text/first.xhtml" media-type="application/xhtml+xml"/><item id="start" href="Text/start.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="first"/><itemref idref="start"/></spine></package>"#,
+                &[("OPS/Text/first.xhtml", page), ("OPS/Images/001.jpg", JPEG)],
+            );
+            read(File::open(path).unwrap()).unwrap()
+        };
+
+        let picture = book(
+            "picture.epub",
+            br#"<html xmlns="http://www.w3.org/1999/xhtml"><body><div><img src="../Images/001.jpg" alt="Volume 1"/></div></body></html>"#,
+        );
+        assert_eq!(picture.cover.unwrap().discovery, "first-page-image");
+        assert_eq!(
+            picture.cover_diagnostic,
+            CoverDiagnostic::Resolved("first-page-image")
+        );
+
+        // A chapter opening with an illustration is no cover.
+        let chapter = book(
+            "chapter.epub",
+            format!(
+                r#"<html xmlns="http://www.w3.org/1999/xhtml"><body><img src="../Images/001.jpg"/><p>{}</p></body></html>"#,
+                "The rain had not stopped for three days. ".repeat(4)
+            )
+            .as_bytes(),
+        );
+        assert!(chapter.cover.is_none());
+        assert_eq!(
+            chapter.cover_diagnostic,
+            CoverDiagnostic::NoCredibleEvidence
+        );
+    }
+
+    #[test]
     fn oversized_cover_is_rejected() {
         let directory = tempdir().unwrap();
         let path = directory.path().join("oversized.epub");
         let mut image = Vec::from(PNG);
-        image.resize(cover::MAX_COVER_BYTES + 1, 0);
+        image.resize(cover::MAX_COVER_SOURCE_BYTES + 1, 0);
         fixture(
             &path,
             &package(
@@ -684,6 +723,42 @@ mod tests {
         let metadata = read(File::open(path).unwrap()).unwrap();
         assert!(metadata.cover.is_none());
         assert_eq!(metadata.cover_diagnostic, CoverDiagnostic::RejectedSafety);
+    }
+
+    #[test]
+    fn a_cover_too_large_to_cache_is_kept_re_encoded_within_the_limit() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("large.epub");
+        // Noise compresses badly: a 1,400 px square PNG of it is about 6 MB.
+        let mut seed = 1u32;
+        let noise = image::RgbImage::from_fn(1_400, 1_400, |_, _| {
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            let [r, g, b, _] = seed.to_le_bytes();
+            image::Rgb([r, g, b])
+        });
+        let mut large = Vec::new();
+        noise
+            .write_to(
+                &mut std::io::Cursor::new(&mut large),
+                image::ImageFormat::Png,
+            )
+            .unwrap();
+        assert!(large.len() > cover::MAX_COVER_BYTES);
+        fixture(
+            &path,
+            &package(
+                "",
+                r#"<item id="cover" href="cover.png" media-type="image/png" properties="cover-image"/>"#,
+                "",
+            ),
+            &[("OPS/cover.png", &large)],
+        );
+
+        let cover = resolved(&path);
+        assert_eq!(cover.mime, "image/jpeg");
+        assert!(cover.bytes.len() <= cover::MAX_COVER_BYTES);
+        let shown = image::load_from_memory(&cover.bytes).unwrap();
+        assert_eq!((shown.width(), shown.height()), (1_400, 1_400));
     }
 
     #[test]

@@ -5,8 +5,18 @@ import { runBulkOperation, type RemovalBatch } from "../operations/bulkOperation
 
 export interface LibraryBook {
   id: string;
+  /** The title set by hand, or else the book's own. */
   title: string | null;
+  /** The book's own title, when one was set by hand. */
+  ownTitle?: string | null;
+  /** Whether the title was set by hand. */
+  titleManual?: boolean;
+  /** The author set by hand, or else the book's own. */
   author: string | null;
+  /** The book's own author, when one was set by hand. */
+  ownAuthor?: string | null;
+  /** Whether the author was set by hand. */
+  authorManual?: boolean;
   fileName: string;
   importedAt: string;
   availability: "available" | "missing" | "unreadable";
@@ -217,6 +227,22 @@ export async function setBookSeries(ids: string[], series: string | null): Promi
   requireDesktop();
   const result = await invoke<{ updated: number }>("set_book_series", { ids, series });
   return result.updated;
+}
+
+/** A book's title and author to show; one left out stays, a blank one shows the book's own. */
+export interface BookEdit {
+  id: string;
+  title?: string;
+  author?: string;
+}
+
+/**
+ * Shows the books under these titles and authors in Komori, all or none; the EPUBs are never
+ * changed.
+ */
+export async function editBooks(edits: BookEdit[]): Promise<void> {
+  requireDesktop();
+  await invoke<{ updated: number }>("edit_books", { edits });
 }
 
 /** Lets the books follow their own metadata's series again. */

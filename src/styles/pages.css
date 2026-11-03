@@ -87,6 +87,45 @@
   margin-top: var(--space-1);
 }
 
+/* The Library's notices float in a corner, in reach however far its books are scrolled. */
+.library-notices {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 30;
+  width: min(24rem, calc(100vw - 2rem));
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Clear of the navigation bar once the window is too narrow to fit both side by side. */
+@media (max-width: 62rem) {
+  .library-notices {
+    bottom: 6.5rem;
+  }
+}
+
+.library-notices .library-notice {
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+  overflow-wrap: anywhere;
+}
+
+.library-notices .library-notice:not(.library-notice--error) {
+  border-color: var(--border-subtle);
+}
+
+.library-notices .library-notice > div,
+.library-notices .library-notice > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-notices .library-notice ul {
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
 .library-notice__close {
   flex: none;
   margin: -0.35rem -0.5rem -0.35rem auto;

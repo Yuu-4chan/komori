@@ -5,6 +5,7 @@ import {
   CheckCircleIcon,
   LinkSimpleIcon,
   MagnifyingGlassIcon,
+  PencilSimpleIcon,
   PlusIcon,
   UploadSimpleIcon,
   StackIcon,
@@ -12,7 +13,7 @@ import {
   WarningCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { commandTarget, shortcutCommand } from "../features/reader/shortcuts";
@@ -24,7 +25,8 @@ import { Card } from "../components/ui/Card";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { useShellSearchSlot } from "../components/layout/shellSlots";
 import { EmptyState } from "../components/ui/EmptyState";
-import { NoticeClose } from "../components/ui/NoticeClose";
+import { NoticeClose, useNoticeTimeout } from "../components/ui/NoticeClose";
+import { resolveReaderTheme, type ReaderThemeColors } from "../features/reader/readerThemes";
 import { useAppearance, type LibraryDisplay } from "../features/appearance/AppearanceProvider";
 import {
   LibraryBookCard,
@@ -43,6 +45,7 @@ import { useBulkOperation, operationLabel } from "../features/operations/bulkOpe
 import { OperationNotice } from "../features/operations/OperationNotice";
 import { LibrarySearch, LibraryToolbar } from "../features/library/LibraryToolbar";
 import { isLibraryReturn, libraryCache, type ScrollPlace } from "../features/library/libraryCache";
+import { BookEditDialog } from "../features/library/BookEditDialog";
 import { SeriesDialog, type SeriesChoice } from "../features/library/SeriesDialog";
 import {
   bookTitle,
@@ -68,6 +71,8 @@ import {
   removeBooks,
   resetBookSeries,
   setBookSeries,
+  editBooks,
+  type BookEdit,
   type ImportBatch,
   type LibraryBook,
   type RelinkResult,
@@ -139,6 +144,9 @@ function LibraryContent({ group }: { group: string | null }) {
   const [relinkNotice, setRelinkNotice] = useState<RelinkNoticeState | null>(null);
   const [removeTarget, setRemoveTarget] = useState<LibraryBook | null>(null);
   const [unreadTarget, setUnreadTarget] = useState<LibraryBook | null>(null);
+  const [editTargets, setEditTargets] = useState<LibraryBook[] | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [markingUnread, setMarkingUnread] = useState(false);
   const [unreadError, setUnreadError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
@@ -151,7 +159,7 @@ function LibraryContent({ group }: { group: string | null }) {
   const [bulkFailures, setBulkFailures] = useState<BulkFailure[]>([]);
   const availableBookIds = useMemo(() => library.books.map((book) => book.id), [library.books]);
   const selection = useSelection(availableBookIds);
-  const { library: savedDisplay, updateLibrary } = useAppearance();
+  const { library: savedDisplay, updateLibrary, readerTheme, readerCustomThemes } = useAppearance();
   // A group's own page keeps a sort of its own, so neither changes the other's.
   const display = useMemo<LibraryDisplay>(
     () =>
@@ -198,7 +206,7 @@ function LibraryContent({ group }: { group: string | null }) {
     bulkRemoving ||
     markingUnread ||
     seriesBusy ||
-    Boolean(removeTarget || unreadTarget || bulkRemoveOpen || seriesOpen);
+    Boolean(removeTarget || unreadTarget || editTargets || bulkRemoveOpen || seriesOpen);
   const dragging = useLibraryDrop(dropBusy, imports.drop, imports.failDrop);
 
   useEffect(() => {
@@ -345,7 +353,12 @@ function LibraryContent({ group }: { group: string | null }) {
     [selectBook],
   );
 
-  const dialogOpen = bulkRemoveOpen || removeTarget !== null || unreadTarget !== null || seriesOpen;
+  const dialogOpen =
+    bulkRemoveOpen ||
+    removeTarget !== null ||
+    unreadTarget !== null ||
+    editTargets !== null ||
+    seriesOpen;
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (
@@ -485,6 +498,27 @@ function LibraryContent({ group }: { group: string | null }) {
       setRemoveError(errorMessage(error));
     } finally {
       setRemoving(false);
+    }
+  }
+
+  const requestEdit = useCallback((book: LibraryBook) => {
+    setEditError(null);
+    setEditTargets([book]);
+  }, []);
+
+  async function saveEdits(edits: BookEdit[]) {
+    const several = (editTargets?.length ?? 0) > 1;
+    setEditing(true);
+    setEditError(null);
+    try {
+      await editBooks(edits);
+      await refresh();
+      setEditTargets(null);
+      if (several) cancelSelection();
+    } catch (error) {
+      setEditError(errorMessage(error));
+    } finally {
+      setEditing(false);
     }
   }
 
@@ -636,6 +670,7 @@ function LibraryContent({ group }: { group: string | null }) {
         details={details}
         onRelink={relink}
         onRemove={requestRemoval}
+        onEdit={requestEdit}
         onMarkUnread={requestUnread}
         onMarkCompleted={requestCompleted}
         relinkDisabled={relinkingId !== null || Boolean(operation?.active)}
@@ -650,6 +685,7 @@ function LibraryContent({ group }: { group: string | null }) {
       relink,
       relinkingId,
       requestRemoval,
+      requestEdit,
       requestUnread,
       requestCompleted,
       selection.active,
@@ -704,40 +740,48 @@ function LibraryContent({ group }: { group: string | null }) {
       )}
       {searchSlot ? createPortal(search, searchSlot) : search}
       <h1 className="visually-hidden">{t("shell.library")}</h1>
-      <OperationNotice
-        operation={operation}
-        items={library.books.map((book) => ({ id: book.id, title: book.title ?? book.fileName }))}
-      />
+      <div
+        className="library-notices"
+        style={noticeColors(resolveReaderTheme(readerTheme, readerCustomThemes))}
+      >
+        <OperationNotice
+          operation={operation}
+          items={library.books.map((book) => ({ id: book.id, title: book.title ?? book.fileName }))}
+        />
 
-      {imports.error ? (
-        <div className="library-notice" role="alert">
-          <span>{t("library.importFailed", { error: failureText(imports.error, t) })}</span>
-          <NoticeClose onClose={imports.dismiss} />
-        </div>
-      ) : null}
-      {imports.result ? <ImportNotice result={imports.result} onClose={imports.dismiss} /> : null}
-      {completeError ? (
-        <div className="library-notice" role="alert">
-          <span>{t("library.completeFailed", { error: failureText(completeError, t) })}</span>
-          <NoticeClose onClose={() => setCompleteError(null)} />
-        </div>
-      ) : null}
-      {relinkNotice ? <RelinkNotice notice={relinkNotice} /> : null}
-      {bulkFailures.length > 0 ? (
-        <div className="library-notice library-notice--error" role="alert">
-          <WarningCircleIcon aria-hidden="true" />
-          <div>
-            <strong>{tp("library.removeFailures", bulkFailures.length)}</strong>
-            <ul>
-              {bulkFailures.map((failure) => (
-                <li key={failure.id}>
-                  <strong>{failure.title}:</strong> {failureText(failure.message, t)}
-                </li>
-              ))}
-            </ul>
+        {imports.error ? (
+          <div className="library-notice" role="alert">
+            <span>{t("library.importFailed", { error: failureText(imports.error, t) })}</span>
+            <NoticeClose onClose={imports.dismiss} />
           </div>
-        </div>
-      ) : null}
+        ) : null}
+        {imports.result ? <ImportNotice result={imports.result} onClose={imports.dismiss} /> : null}
+        {completeError ? (
+          <div className="library-notice" role="alert">
+            <span>{t("library.completeFailed", { error: failureText(completeError, t) })}</span>
+            <NoticeClose onClose={() => setCompleteError(null)} />
+          </div>
+        ) : null}
+        {relinkNotice ? (
+          <RelinkNotice notice={relinkNotice} onClose={() => setRelinkNotice(null)} />
+        ) : null}
+        {bulkFailures.length > 0 ? (
+          <div className="library-notice library-notice--error" role="alert">
+            <WarningCircleIcon aria-hidden="true" />
+            <div>
+              <strong>{tp("library.removeFailures", bulkFailures.length)}</strong>
+              <ul>
+                {bulkFailures.map((failure) => (
+                  <li key={failure.id}>
+                    <strong>{failure.title}:</strong> {failureText(failure.message, t)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <NoticeClose onClose={() => setBulkFailures([])} />
+          </div>
+        ) : null}
+      </div>
 
       <section className="library-collection" aria-labelledby="library-collection-title">
         <div className="library-section-heading">
@@ -880,6 +924,26 @@ function LibraryContent({ group }: { group: string | null }) {
               </button>
               <button
                 className="library-selection-bar__button"
+                disabled={selection.selectedCount === 0 || Boolean(operation?.active)}
+                onClick={() => {
+                  // In the order shown; any selected book no longer shown follows.
+                  const byId = new Map(library.books.map((book) => [book.id, book]));
+                  const shown = orderedIds.filter((id) => selection.selectedIds.has(id));
+                  const shownSet = new Set(shown);
+                  const ids = [
+                    ...shown,
+                    ...[...selection.selectedIds].filter((id) => !shownSet.has(id)),
+                  ];
+                  setEditError(null);
+                  setEditTargets(ids.flatMap((id) => byId.get(id) ?? []));
+                }}
+                type="button"
+              >
+                <PencilSimpleIcon aria-hidden="true" size={16} />
+                {t("libraryCard.editMenu")}
+              </button>
+              <button
+                className="library-selection-bar__button"
                 disabled={!canComplete || completing || Boolean(operation?.active)}
                 onClick={() =>
                   void markCompleted([...selection.selectedIds]).then(
@@ -915,6 +979,13 @@ function LibraryContent({ group }: { group: string | null }) {
             document.body,
           )
         : null}
+      <BookEditDialog
+        books={editTargets}
+        busy={editing}
+        error={editError}
+        onCancel={() => setEditTargets(null)}
+        onConfirm={(edits) => void saveEdits(edits)}
+      />
       <SeriesDialog
         busy={seriesBusy}
         count={selection.selectedCount}
@@ -1008,8 +1079,22 @@ function relinkNoticeFor(result: RelinkResult): RelinkNoticeState {
   }
 }
 
-function RelinkNotice({ notice }: { notice: RelinkNoticeState }) {
+/** The Library's notices wear the Reader theme, through the tokens they already use. */
+function noticeColors({ background, text, selection, footerText }: ReaderThemeColors) {
+  return {
+    "--surface-raised": background,
+    "--surface-subtle": selection,
+    "--text-primary": text,
+    "--text-secondary": footerText,
+    "--text-muted": footerText,
+    "--border-subtle": selection,
+    "--accent-strong": footerText,
+  } as CSSProperties;
+}
+
+function RelinkNotice({ notice, onClose }: { notice: RelinkNoticeState; onClose: () => void }) {
   const isError = ["invalid", "duplicate", "error"].includes(notice.kind);
+  useNoticeTimeout(notice.kind === "success", onClose);
   return (
     <div
       className={`library-notice${isError ? " library-notice--error" : ""}`}
@@ -1026,6 +1111,7 @@ function RelinkNotice({ notice }: { notice: RelinkNoticeState }) {
         <strong>{notice.title}</strong>
         <p>{notice.message}</p>
       </div>
+      <NoticeClose onClose={onClose} />
     </div>
   );
 }
@@ -1035,6 +1121,7 @@ function ImportNotice({ result, onClose }: { result: ImportBatch; onClose: () =>
   const existing = result.results.filter((item) => item.status === "alreadyImported").length;
   const failures = result.results.filter((item) => item.status === "failed");
   const { t } = useI18n();
+  useNoticeTimeout(failures.length === 0, onClose);
   return (
     <div className="library-notice" role="status">
       <div>

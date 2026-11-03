@@ -1,6 +1,7 @@
 import { i18n } from "../../i18n/i18n";
 import type { SourcePolicy } from "./sourcePolicy";
 import { dictionariesChanged } from "./sourcePolicy";
+import { defaultLookupLanguage, type LookupLanguage } from "./lookupLanguage";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { runBulkOperation, type RemovalBatch } from "../operations/bulkOperation";
 
@@ -18,6 +19,8 @@ export interface DictionarySummary {
   hasDefinitions: boolean;
   hasFrequency: boolean;
   hasPitch: boolean;
+  /** The lookup language whose lookups use it. */
+  language: LookupLanguage;
 }
 
 export interface DictionaryImportResult {
@@ -94,6 +97,8 @@ export interface TermGroup {
   terms: TermMatch[];
   frequencies: FrequencyMatch[];
   pitches: PitchMatch[];
+  /** The word's pronunciations, from its language's enabled `ipa` metadata. */
+  transcriptions: string[];
 }
 
 /**
@@ -154,12 +159,18 @@ export async function listDictionaries(): Promise<DictionarySummary[]> {
   return invoke<DictionarySummary[]>("list_dictionaries");
 }
 
-/** Opens the native picker and imports each chosen dictionary archive. */
-export async function importDictionaries(): Promise<DictionaryImportBatch> {
+/**
+ * Opens the native picker and imports each chosen dictionary archive into `language`, unless its
+ * index declares another lookup language.
+ */
+export async function importDictionaries(
+  language: LookupLanguage = defaultLookupLanguage,
+): Promise<DictionaryImportBatch> {
   requireDesktop();
   const result = await runBulkOperation<DictionaryImportBatch>(
     "dictionaries",
     "import_dictionaries",
+    { language },
   );
   window.dispatchEvent(new Event(dictionariesChanged));
   return result;
@@ -201,6 +212,15 @@ export async function moveDictionary(id: number, position: number): Promise<Dict
   return mutate<DictionaryMoveStatus>("move_dictionary", { id, position });
 }
 
+/** Puts these dictionaries in `language`, so only its lookups use them. Returns how many exist. */
+export async function setDictionaryLanguage(
+  ids: number[],
+  language: LookupLanguage,
+): Promise<number> {
+  requireDesktop();
+  return mutate<number>("set_dictionary_language", { ids, language });
+}
+
 /** The dictionary store's size on disk in bytes. */
 export async function getDictionaryStoreSize(): Promise<number> {
   requireDesktop();
@@ -215,12 +235,15 @@ export async function lookupTerms(
   query: string,
   sources?: SourcePolicy,
   maxResults?: number,
+  language?: LookupLanguage,
 ): Promise<TermLookup> {
   requireDesktop();
+  // The native lookup is Japanese unless told otherwise.
   return invoke<TermLookup>("lookup_terms", {
     query,
     ...(sources ? { sources } : {}),
     ...(maxResults === undefined ? {} : { maxResults }),
+    ...(language && language !== defaultLookupLanguage ? { language } : {}),
   });
 }
 

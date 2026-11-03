@@ -2,8 +2,16 @@ import { ArrowClockwiseIcon, CheckIcon, DownloadSimpleIcon } from "@phosphor-ico
 import { invoke } from "@tauri-apps/api/core";
 import { useRef, useState } from "react";
 import { Button } from "../../components/ui/Button";
+import { Select } from "../../components/ui/Select";
 import { starterActive, type StarterEntry, useStarterDictionaries } from "./useStarterDictionaries";
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
+import type { InterfaceLanguage } from "../../i18n/languages";
+import {
+  definitionLanguages,
+  isLookupLanguage,
+  type DefinitionLanguage,
+  type LookupLanguage,
+} from "./lookupLanguage";
 
 /** Komori's own words for the sources it offers; the native catalog's are the fallback. */
 const starterText: Record<string, { name?: MessageKey; description: MessageKey }> = {
@@ -13,17 +21,51 @@ const starterText: Record<string, { name?: MessageKey; description: MessageKey }
   jmnedict: { description: "starter.jmnedictDescription" },
   jiten: { name: "starter.jitenName", description: "starter.jitenDescription" },
 };
+const pronunciation = (entry: StarterEntry) => entry.id.endsWith("-ipa");
 const starterName = (entry: StarterEntry) => {
+  if (entry.id.startsWith("wty-")) {
+    return i18n().t(pronunciation(entry) ? "starter.wiktionaryIpa" : "starter.wiktionary");
+  }
   const key = starterText[entry.id]?.name;
   return key ? i18n().t(key) : entry.name;
 };
+/** A language's name, from Komori's own words or else the system's for the interface language. */
+const languageName = (code: string | null, interfaceLanguage: InterfaceLanguage): string => {
+  if (!code) return "";
+  if (isLookupLanguage(code)) return i18n().t(`lookupLanguage.${code}`);
+  return new Intl.DisplayNames([interfaceLanguage], { type: "language" }).of(code) ?? code;
+};
+const starterDescription = (entry: StarterEntry, interfaceLanguage: InterfaceLanguage) => {
+  const { t } = i18n();
+  const language = (code: string | null) => languageName(code, interfaceLanguage);
+  if (entry.id.startsWith("wty-")) {
+    return pronunciation(entry)
+      ? t("starter.wiktionaryIpaDescription", { language: language(entry.language) })
+      : t("starter.wiktionaryDescription", {
+          language: language(entry.language),
+          definitions: language(entry.definitions),
+        });
+  }
+  const text = starterText[entry.id];
+  return text ? t(text.description) : entry.description;
+};
+/** The lookup language closest to an interface language. */
+const interfaceLookupLanguage = (language: InterfaceLanguage): string => language.split("-")[0];
 
 export function StarterDictionaries({
+  language,
+  savedDefinitions = "",
+  onDefinitionsChange,
   empty,
   installed,
   busy,
   starter,
 }: {
+  /** The lookup language whose dictionaries are offered. */
+  language: LookupLanguage;
+  /** The saved language of the definitions offered; empty follows the interface language. */
+  savedDefinitions?: DefinitionLanguage | "";
+  onDefinitionsChange?: (language: DefinitionLanguage) => void;
   empty: boolean;
   /** Titles of the installed dictionaries; a removed download is offered again. */
   installed: readonly string[];
@@ -34,7 +76,19 @@ export function StarterDictionaries({
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
   const [actionError, setActionError] = useState(false);
-  const { t } = useI18n();
+  const { t, language: interfaceLanguage } = useI18n();
+  const offered = snapshot?.entries.filter((entry) => entry.language === language) ?? [];
+  const definitionChoices = definitionLanguages.filter((code) =>
+    offered.some((entry) => entry.definitions === code),
+  );
+  // The saved choice, then the interface language, then English, where this language has it.
+  const definitions =
+    [savedDefinitions, interfaceLookupLanguage(interfaceLanguage), "en"]
+      .map((code) => definitionChoices.find((choice) => choice === code))
+      .find(Boolean) ?? definitionChoices[0];
+  const shown = offered.filter(
+    (entry) => entry.definitions === null || entry.definitions === definitions,
+  );
   const visible = empty || (snapshot?.started && !snapshot.dismissed);
   if (!visible) return null;
   const active = starterActive(snapshot);
@@ -57,7 +111,7 @@ export function StarterDictionaries({
       <div className="settings-section-header">
         <div>
           <h3 id="starter-title">{t("starter.title")}</h3>
-          <span>{t("starter.description")}</span>
+          {language === "ja" && <span>{t("starter.description")}</span>}
         </div>
         {!empty && !active && (
           <Button tone="quiet" disabled={pending} onClick={() => void act(dismiss)}>
@@ -77,11 +131,23 @@ export function StarterDictionaries({
       {actionError && <p role="alert">{t("starter.actionFailed")}</p>}
       {snapshot && (
         <div className="settings-list starter-dictionaries__list">
-          {snapshot.entries.map((shown) => {
+          {definitionChoices.length > 1 && definitions && (
+            <div className="settings-field">
+              <Select
+                label={t("starter.definitions")}
+                value={definitions}
+                options={definitionChoices
+                  .map((value) => ({ value, label: languageName(value, interfaceLanguage) }))
+                  .sort((a, b) => a.label.localeCompare(b.label, interfaceLanguage))}
+                onChange={(value) => onDefinitionsChange?.(value)}
+              />
+            </div>
+          )}
+          {shown.map((listed) => {
             const removed =
-              (shown.phase === "imported" || shown.phase === "alreadyImported") &&
-              !installed.includes(shown.title ?? "");
-            const entry: StarterEntry = removed ? { ...shown, phase: "ready" } : shown;
+              (listed.phase === "imported" || listed.phase === "alreadyImported") &&
+              !installed.includes(listed.title ?? "");
+            const entry: StarterEntry = removed ? { ...listed, phase: "ready" } : listed;
             const name = starterName(entry);
             const failed = entry.phase === "failed" || entry.phase === "interrupted";
             const added = entry.phase === "imported" || entry.phase === "alreadyImported";
@@ -93,11 +159,7 @@ export function StarterDictionaries({
               >
                 <div>
                   <h4 id={`starter-${entry.id}`}>{name}</h4>
-                  <span>
-                    {starterText[entry.id]
-                      ? t(starterText[entry.id].description)
-                      : entry.description}
-                  </span>
+                  <span>{starterDescription(entry, interfaceLanguage)}</span>
                   <small>
                     {entry.attribution}{" "}
                     <button

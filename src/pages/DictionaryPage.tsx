@@ -54,7 +54,8 @@ interface DictionaryPageProps {
 export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
   const [query, setQuery] = useState(initialQuery);
   const [search, setSearch] = useState<SearchState>({ status: "empty" });
-  const { readerPopupReadingPosition } = useAppearance();
+  const { readerPopupReadingPosition, lookupLanguage } = useAppearance();
+  const japanese = lookupLanguage === "ja";
   const { t } = useI18n();
   const [sources, setSources] = useState<SourcesState>({ status: "loading" });
   const [selectedSource, setSelectedSource] = useState<number | null>(null);
@@ -109,7 +110,7 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
     setSearch({ status: "loading", query: value });
     setSelectedSource(null);
     try {
-      const lookup = await lookupDictionary(value);
+      const lookup = await lookupDictionary(value, undefined, undefined, lookupLanguage);
       if (request !== searchId.current) return;
       setSearch({ status: "ready", ...lookup });
     } catch {
@@ -166,12 +167,21 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
 
   return (
     <div className="page page--dictionary">
-      <PageHeader title={t("shell.dictionary")} description={t("dictionaryPage.description")} />
-      {sources.status === "ready" && !suppliesDefinitions(sources.dictionaries) && (
+      <PageHeader
+        title={t("shell.dictionary")}
+        description={t(japanese ? "dictionaryPage.description" : "dictionaryPage.descriptionOther")}
+      />
+      {sources.status === "ready" && !suppliesDefinitions(sources.dictionaries, lookupLanguage) && (
         <div className="library-notice dictionary-starter-offer">
           <div>
             <strong>{t("dictionaryPage.noDictionaries")}</strong>
-            <p>{t("dictionaryPage.noDictionariesHint")}</p>
+            <p>
+              {t(
+                japanese
+                  ? "dictionaryPage.noDictionariesHint"
+                  : "dictionaryPage.noDictionariesHintOther",
+              )}
+            </p>
           </div>
           <Link className="button button--secondary" to="/settings?section=dictionary">
             {t("dictionaryPage.getDictionaries")}
@@ -245,7 +255,7 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
             ))}
           </div>
           {sources.status === "ready" &&
-            sources.dictionaries.length > 0 &&
+            sources.dictionaries.some((dictionary) => dictionary.language === lookupLanguage) &&
             matchingSources.length === 0 && (
               <p className="dictionary-sources__message">
                 {search.status === "ready"
@@ -272,7 +282,11 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
               <EmptyState
                 icon={TranslateIcon}
                 title={t("dictionaryPage.emptyTitle")}
-                description={t("dictionaryPage.emptyDescription")}
+                description={t(
+                  japanese
+                    ? "dictionaryPage.emptyDescription"
+                    : "dictionaryPage.emptyDescriptionOther",
+                )}
               />
             </div>
           )}
@@ -298,7 +312,9 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
                     )}
                     description={t(
                       shownSource === null
-                        ? "dictionaryPage.noMatchesHint"
+                        ? japanese
+                          ? "dictionaryPage.noMatchesHint"
+                          : "dictionaryPage.noMatchesHintOther"
                         : "dictionaryPage.noMatchesInSourceHint",
                     )}
                   />
@@ -319,6 +335,7 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
                       key={groupKey(group)}
                       onSearchTerm={searchTerm}
                       readingPosition={readerPopupReadingPosition}
+                      language={lookupLanguage}
                       showDictionaryNames
                       showFrequency
                       showOpenAction={false}

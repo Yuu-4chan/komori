@@ -116,6 +116,8 @@ export const discoverAnki = (preferences: AnkiPreferences) =>
   command<AnkiDiscovery>("discover_anki", { preferences });
 export const createLapis = (preferences: AnkiPreferences) =>
   command<"created" | "existing" | "uncertain">("create_anki_lapis", { preferences });
+export const createDeck = (preferences: AnkiPreferences, deck: string) =>
+  command<void>("create_anki_deck", { preferences, deck });
 export const createNote = (
   requestId: string,
   preferences: AnkiPreferences,

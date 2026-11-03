@@ -164,3 +164,29 @@ it("keeps category navigation, handoffs and history in sync without losing prefe
     "page",
   );
 });
+
+it("saves the lookup language chosen on the Dictionary category and keeps it across categories", async () => {
+  const user = userEvent.setup();
+  const save = vi.fn(async () => {});
+  render(
+    <MemoryRouter initialEntries={["/settings?section=dictionary"]}>
+      <AppearanceProvider store={{ load: async () => ({ lookupLanguage: "en" }), save }}>
+        <SettingsPage />
+      </AppearanceProvider>
+    </MemoryRouter>,
+  );
+  const nav = await screen.findByRole("navigation", { name: "Settings categories" });
+  const language = () => screen.getByRole("combobox", { name: "Lookup language" });
+  await waitFor(() => expect(language()).toHaveValue("en"));
+
+  await user.selectOptions(language(), "ko");
+  await waitFor(() =>
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ lookupLanguage: "ko" })),
+  );
+  await user.click(within(nav).getByRole("button", { name: "General" }));
+  await user.click(within(nav).getByRole("button", { name: "Dictionary" }));
+  expect(language()).toHaveValue("ko");
+  // Only this category chooses it.
+  await user.click(within(nav).getByRole("button", { name: "Reader popup" }));
+  expect(screen.queryByRole("combobox", { name: "Lookup language" })).toBeNull();
+});

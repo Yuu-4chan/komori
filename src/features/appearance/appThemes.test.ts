@@ -130,7 +130,7 @@ describe("Application themes", () => {
           text: "#101010",
         },
         libraryView: "list",
-        librarySort: "author",
+        librarySort: "publisher",
         librarySortReversed: true,
         libraryFilter: "reading",
         libraryCardSeries: "yes",

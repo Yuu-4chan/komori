@@ -2,9 +2,27 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { GlossaryText, glossaryCardContent } from "./GlossaryText";
+import {
+  GlossaryText,
+  glossaryCardContent,
+  glossaryPlainText,
+  termGlossaries,
+} from "./GlossaryText";
 
 describe("GlossaryText", () => {
+  it("reads a cross-reference's target, without its marker or the headword its rules repeat", () => {
+    const glossary = ["▶", ["＝ running head", ["running ▶ ＝ running head"]], "a race"];
+    expect(termGlossaries(glossary)).toEqual(["＝ running head", "a race"]);
+    expect(glossaryPlainText(glossary)).toBe("＝ running head a race");
+    expect(glossaryCardContent(glossary)).toEqual([
+      [{ kind: "text", value: "＝ running head" }],
+      [{ kind: "text", value: "a race" }],
+    ]);
+    // A definition that only contains the marker, or a list of definitions, stays as it is.
+    expect(termGlossaries("▶ see also")).toEqual(["▶ see also"]);
+    expect(termGlossaries([["a", "b"]])).toEqual([["a", "b"]]);
+  });
+
   it("exports the popup's joins, separate glossaries and semantic roles with only checked styles and web links", () => {
     const presentation = glossaryCardContent([
       {

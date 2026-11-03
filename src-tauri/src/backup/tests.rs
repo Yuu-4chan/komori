@@ -257,6 +257,8 @@ fn state(database: &Path) -> Vec<String> {
                 updated_at FROM book_progress ORDER BY book_id",
         "SELECT book_id || ':' || coalesce(series, '<none>') || ':' || coalesce(series_index, '')
            FROM book_series ORDER BY book_id",
+        "SELECT book_id || ':' || title FROM book_titles ORDER BY book_id",
+        "SELECT book_id || ':' || author FROM book_authors ORDER BY book_id",
         "SELECT book_id || ':' || locator || ':' || label || ':' || excerpt || ':' || created_at
            FROM bookmarks ORDER BY book_id, created_at",
         "SELECT id || ':' || book_id || ':' || units_read || ':' || coalesce(book_title, '') ||
@@ -284,6 +286,8 @@ fn read_state(fixture: &Fixture) {
                VALUES ('{A}', 'characters', 1200, 90000, '2026-09-30T10:00:01.000Z');
              INSERT INTO book_series (book_id, series, series_index) VALUES ('{A}', 'Saga', 2);
              INSERT INTO book_series (book_id, series, series_index) VALUES ('{B}', NULL, NULL);
+             INSERT INTO book_titles (book_id, title) VALUES ('{B}', 'Renamed B');
+             INSERT INTO book_authors (book_id, author) VALUES ('{A}', 'Right Author');
              INSERT INTO bookmarks (id, book_id, locator, label, excerpt, created_at) VALUES
                ('{GONE}', '{A}',
                 '{{\"spineIndex\":3,\"sectionKey\":\"0a1b2c3d\",\"progress\":0.5,\"contentKey\":\"{key}\"}}',
@@ -340,6 +344,11 @@ fn export_and_restore_return_this_library_to_the_backup_exactly() {
     assert_eq!(backup.books.len(), 2);
     assert_eq!(backup.books[0].file_size, Some(10));
     assert_eq!(backup.books[0].bookmarks.len(), 1);
+    assert_eq!(backup.books[1].manual_title.as_deref(), Some("Renamed B"));
+    assert_eq!(
+        backup.books[0].manual_author.as_deref(),
+        Some("Right Author")
+    );
     assert_eq!(
         backup.preferences.appearance,
         Some(serde_json::json!({"theme": "dark", "readerFontSize": 20}))
@@ -376,6 +385,9 @@ fn export_and_restore_return_this_library_to_the_backup_exactly() {
              DELETE FROM book_progress;
              INSERT INTO reading_positions (book_id, spine_index, progress) VALUES ('{B}', 1, 0.1);
              DELETE FROM book_series WHERE book_id = '{A}';
+             DELETE FROM book_titles;
+             DELETE FROM book_authors;
+             INSERT INTO book_titles (book_id, title) VALUES ('{A}', 'Renamed A');
              DELETE FROM bookmarks;
              UPDATE reading_sessions SET units_read = 1;"
         ))
@@ -443,6 +455,8 @@ fn matching_prefers_ids_then_file_then_unique_title() {
         title: Some(title.into()),
         author: Some("Author".into()),
         manual_series: None,
+        manual_title: None,
+        manual_author: None,
         position: None,
         progress: None,
         bookmarks: Vec::new(),
@@ -491,6 +505,8 @@ fn ambiguous_file_or_metadata_matches_are_never_guessed_in_either_catalog_order(
         title: Some("Twin".into()),
         author: Some("Author".into()),
         manual_series: None,
+        manual_title: None,
+        manual_author: None,
         position: None,
         progress: None,
         bookmarks: Vec::new(),

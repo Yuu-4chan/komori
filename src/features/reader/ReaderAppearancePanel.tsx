@@ -3,6 +3,7 @@ import { ReaderBackgroundControls } from "./ReaderBackground";
 import { ReaderPanelHeading } from "./ReaderPanelHeading";
 import { ChoiceField } from "../../components/ui/ChoiceField";
 import { ReaderFontControls } from "./ReaderFontControls";
+import type { ReaderFontChoice } from "./fontChoices";
 import { Stepper, type StepperSource } from "../../components/ui/Stepper";
 import { ToggleSetting } from "../../components/ui/ToggleSetting";
 import { Select } from "../../components/ui/Select";
@@ -88,6 +89,9 @@ export interface ReaderAppearancePanelProps extends ReaderThemeSectionProps {
   /** Whether books turn pages or scroll continuously. */
   viewMode: ReaderViewMode;
   vnNotice?: "fixed-layout" | "whole-section" | "instant-text";
+  /** The Asian font the open book reads in, and where a new pick for it goes. */
+  asianFont?: ReaderFontChoice;
+  onAsianFontChange?: (font: ReaderFontChoice) => void;
   onViewModeChange: (viewMode: ReaderViewMode) => void;
   /** How far one mouse wheel step scrolls a continuous book, in pixels. */
   wheelStep: number;
@@ -159,6 +163,8 @@ export function ReaderAppearancePanel({
   imageBlurBoundary,
   viewMode,
   vnNotice,
+  asianFont,
+  onAsianFontChange,
   onViewModeChange,
   wheelStep,
   onWheelStepChange,
@@ -185,7 +191,7 @@ export function ReaderAppearancePanel({
           {t("appearancePanel.typography")}
         </h3>
         <div className="reader-appearance-rows">
-          <ReaderFontControls />
+          <ReaderFontControls asianFont={asianFont} onAsianFontChange={onAsianFontChange} />
           <Stepper
             label={t("appearancePanel.fontSize")}
             value={fontSize}

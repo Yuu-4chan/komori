@@ -82,6 +82,44 @@ export const defaultAsianFont: ReaderFontChoice = { source: "google", id: "noto-
 export const defaultWesternFont: ReaderFontChoice = { source: "preset", id: "georgia" };
 /** The lookup popup's text is in Zen Old Mincho, which comes with Komori, until another is chosen. */
 export const defaultPopupFont: ReaderFontChoice = { source: "google", id: "zen-old-mincho" };
+/** Windows' own fonts for scripts Komori's Japanese fonts only partly cover. */
+const SYSTEM_ASIAN_FONTS = ['"Microsoft YaHei"', '"Microsoft JhengHei"', '"Malgun Gothic"'];
+
+/** The system font for a language's text, where Komori's Japanese fonts lack its characters. */
+function systemFontFor(language?: string | null): string | undefined {
+  if (!language) return undefined;
+  const tag = language.toLowerCase();
+  if (/^zh-(hant|tw|hk|mo)/.test(tag)) return "Microsoft JhengHei";
+  if (tag === "zh" || tag.startsWith("zh-")) return "Microsoft YaHei";
+  if (tag === "ko" || tag.startsWith("ko-")) return "Malgun Gothic";
+  return undefined;
+}
+
+/** The languages whose books a font is checked for and that keep a font of their own. */
+export type BookFontLanguage = "ja" | "ko" | "zh-Hans" | "zh-Hant";
+export const bookFontLanguages: readonly BookFontLanguage[] = ["ja", "ko", "zh-Hans", "zh-Hant"];
+
+export function bookFontLanguage(language?: string | null): BookFontLanguage | undefined {
+  if (language && /^ja(-|$)/i.test(language)) return "ja";
+  switch (systemFontFor(language)) {
+    case "Malgun Gothic":
+      return "ko";
+    case "Microsoft YaHei":
+      return "zh-Hans";
+    case "Microsoft JhengHei":
+      return "zh-Hant";
+    default:
+      return undefined;
+  }
+}
+
+/** What a book reads in when the chosen font lacks its text. No Traditional font is included. */
+export const replacementAsianFonts: Record<BookFontLanguage, ReaderFontChoice> = {
+  ja: defaultAsianFont,
+  ko: { source: "google", id: "noto-sans-kr" },
+  "zh-Hans": { source: "google", id: "noto-sans-sc" },
+  "zh-Hant": { source: "system", family: "Microsoft JhengHei" },
+};
 
 export function validFontFamily(value: unknown): value is string {
   return (
@@ -166,6 +204,7 @@ export function fontPairStack(pair: ReaderFontPair): string {
       pair.weights ? '"Komori Western"' : family(pair.western),
       family(pair.western),
       family(pair.asian),
+      ...SYSTEM_ASIAN_FONTS,
       "serif",
     ]),
   ]
@@ -174,10 +213,20 @@ export function fontPairStack(pair: ReaderFontPair): string {
 }
 /**
  * The lookup popup's font stack: the chosen font, then the included Zen Old Mincho for any text
- * the chosen font lacks.
+ * the chosen font lacks. Zen Old Mincho lacks many Chinese characters and all Korean ones, so
+ * those lookups read in one system font until another is chosen.
  */
-export function popupFontStack(choice: ReaderFontChoice): string {
-  return [...new Set([family(choice), family(defaultPopupFont), "serif"])].join(", ");
+export function popupFontStack(choice: ReaderFontChoice, language?: string | null): string {
+  const system = systemFontFor(language);
+  const chosen = fontChoiceKey(choice) === fontChoiceKey(defaultPopupFont) && system;
+  return [
+    ...new Set([
+      ...(chosen ? [quote(chosen)] : [family(choice)]),
+      family(defaultPopupFont),
+      ...SYSTEM_ASIAN_FONTS,
+      "serif",
+    ]),
+  ].join(", ");
 }
 /** The faces Komori's own document declares for the popup's font and its Zen Old Mincho. */
 export function popupFontFaces(

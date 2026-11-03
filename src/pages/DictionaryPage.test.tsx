@@ -14,6 +14,7 @@ import {
   listDictionaries,
   lookupKanji,
   lookupTerms,
+  type DictionarySummary,
   type KanjiLookup,
   type TermGroup,
   type TermLookup,
@@ -50,7 +51,7 @@ vi.mock("../features/dictionary/dictionaryApi", () => ({
 const lookupMock = vi.mocked(lookupTerms);
 const kanjiMock = vi.mocked(lookupKanji);
 const listMock = vi.mocked(listDictionaries);
-const dictionaries = [
+const dictionaries: DictionarySummary[] = [
   {
     id: 1,
     title: "Jitendex",
@@ -62,6 +63,7 @@ const dictionaries = [
     kanjiMetaCount: 0,
     hasFrequency: true,
     hasPitch: false,
+    language: "ja",
     hasDefinitions: true,
   },
   {
@@ -75,6 +77,7 @@ const dictionaries = [
     kanjiMetaCount: 0,
     hasFrequency: true,
     hasPitch: false,
+    language: "ja",
     hasDefinitions: true,
   },
 ];
@@ -119,6 +122,7 @@ const result: GroupFixture = {
       data: { frequency: { displayValue: "7", value: 7 } },
     },
   ],
+  transcriptions: [],
   pitches: [],
 };
 
@@ -207,6 +211,7 @@ describe("Dictionary page", () => {
       exact([
         {
           ...result,
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
@@ -888,6 +893,7 @@ describe("Dictionary page", () => {
       exact([
         {
           ...result,
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
@@ -1004,6 +1010,7 @@ describe("Dictionary page", () => {
         {
           ...result,
           reading: "きょう",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
@@ -1016,6 +1023,7 @@ describe("Dictionary page", () => {
           ...result,
           expression: "今日",
           reading: "今日",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 5,
@@ -1051,12 +1059,14 @@ describe("Dictionary page", () => {
         {
           ...result,
           reading: "きがく",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
               dictionaryTitle: "Marked A",
               data: {
                 reading: "きがく",
+                transcriptions: [],
                 pitches: [{ position: 1, devoice: [1, 1, 0, 4, 1.5, "2"], nasal: 2 }],
               },
             },
@@ -1081,6 +1091,7 @@ describe("Dictionary page", () => {
           ...result,
           expression: "今日",
           reading: "今日",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 8,
@@ -1135,12 +1146,14 @@ describe("Dictionary page", () => {
         {
           ...result,
           reading: "きがく",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
               dictionaryTitle: "Tagged A",
               data: {
                 reading: "きがく",
+                transcriptions: [],
                 pitches: [
                   { position: 1, tags: [" n ", "vs", "n", "", "  ", 3, null, {}] },
                   { position: 2, tags: "n" },
@@ -1168,6 +1181,7 @@ describe("Dictionary page", () => {
           ...result,
           expression: "今日",
           reading: "今日",
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 8,
@@ -1219,6 +1233,7 @@ describe("Dictionary page", () => {
       exact([
         {
           ...result,
+          transcriptions: [],
           pitches: [
             { dictionaryId: 4, dictionaryTitle: "Unsupported", data: null },
             {
@@ -1354,6 +1369,64 @@ describe("Dictionary page", () => {
       const label = within(card).getByTitle("Inflected: polite, past");
       expect(label).toHaveTextContent(/^Inflected: polite · past$/);
       expect(label.parentElement).toHaveClass("lookup-entry__notes");
+    });
+
+    it("looks up in English with English inflection names and no reading, furigana or pitch", async () => {
+      const lookUp: GroupFixture = {
+        ...result,
+        expression: "look up",
+        reading: "look up",
+        deinflection: { form: "look up", inflections: ["past", "interposed object"] },
+        terms: [{ ...result.terms[0], rules: "v_phr", glossary: ["to search for"] }],
+        transcriptions: [],
+        pitches: [
+          {
+            dictionaryId: 4,
+            dictionaryTitle: "Pitch source A",
+            data: { reading: "look up", pitches: [{ position: 0 }] },
+          },
+        ],
+      };
+      lookupMock.mockImplementation(async (query) =>
+        query === "I" ? matched("I", []) : matched("looked it up", [lookUp]),
+      );
+      const user = userEvent.setup();
+      renderComponent(
+        <MemoryRouter>
+          <AppearanceProvider
+            store={{
+              load: async () => ({ lookupLanguage: "en", readerPopupReadingPosition: "above" }),
+              save: async () => {},
+            }}
+          >
+            <DictionaryPage />
+          </AppearanceProvider>
+        </MemoryRouter>,
+      );
+      const input = await screen.findByRole("textbox", { name: "Dictionary search" });
+      await user.type(input, "I");
+      await user.click(screen.getByRole("button", { name: /^Search$/ }));
+      expect(await screen.findByText("No matches")).toBeInTheDocument();
+      expect(
+        screen.getByText("Check the spelling, or add another dictionary in Settings."),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Search your imported dictionaries.")).toBeInTheDocument();
+      expect(document.body).not.toHaveTextContent(/kanji/i);
+      expect(lookupMock).toHaveBeenLastCalledWith("I", undefined, undefined, "en");
+      // A one-letter query is not a kanji outside Japanese.
+      expect(kanjiMock).not.toHaveBeenCalled();
+      await user.clear(input);
+      await user.type(input, "looked it up");
+      await user.click(screen.getByRole("button", { name: /^Search$/ }));
+      const header = (await screen.findByText("Showing results for")).parentElement!;
+      expect(header).toHaveTextContent(
+        /^Showing results for looked it up → look up \(past, interposed object\)$/,
+      );
+      const card = await screen.findByRole("article", { name: "look up" });
+      expect(within(card).getByTitle("Inflected: past, interposed object")).toBeInTheDocument();
+      expect(card.querySelector("ruby, rt, .lookup-entry__reading")).toBeNull();
+      expect(card.querySelector(".lookup-entry__expression")).toHaveAttribute("lang", "en");
+      expect(within(card).queryByRole("region", { name: "Pitch positions" })).toBeNull();
     });
 
     it("names a deinflected start of a longer query and the query", async () => {
@@ -1919,6 +1992,7 @@ describe("Dictionary page", () => {
           deinflection: null,
           terms: [another],
           frequencies: [],
+          transcriptions: [],
           pitches: [],
         },
       ]),

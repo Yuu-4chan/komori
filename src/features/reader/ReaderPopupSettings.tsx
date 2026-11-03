@@ -49,6 +49,7 @@ export function ReaderPopupSettings({
     setReaderPopupMouseSelection,
     readerPopupStyle,
     setReaderPopupStyle,
+    lookupLanguage,
   } = useAppearance();
   // The dictionary style shows none of the voice, pitch, frequency or Anki its switches add.
   const dictionaryStyle = readerPopupStyle === "dictionary";
@@ -214,12 +215,14 @@ export function ReaderPopupSettings({
           </div>
         </div>
         <div className="settings-list">
-          <ToggleSetting
-            label={t("popupSettings.cjkOnly")}
-            description={t("popupSettings.cjkOnlyHint")}
-            checked={triggers.readerPopupCjkOnly}
-            onChange={(value) => setReaderPopupTriggers({ readerPopupCjkOnly: value })}
-          />
+          {lookupLanguage === "ja" && (
+            <ToggleSetting
+              label={t("popupSettings.cjkOnly")}
+              description={t("popupSettings.cjkOnlyHint")}
+              checked={triggers.readerPopupCjkOnly}
+              onChange={(value) => setReaderPopupTriggers({ readerPopupCjkOnly: value })}
+            />
+          )}
           <div className="settings-field">
             <Stepper
               label={t("popupSettings.scanLength")}

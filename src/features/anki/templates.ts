@@ -17,6 +17,7 @@ export const placeholders = [
   "frequencyHarmonic",
   "frequencyAverage",
   "pitch",
+  "ipa",
   "sentence",
   "bookTitle",
   "expressionFurigana",
@@ -35,6 +36,7 @@ export const emptyContext: CardContext = {
   frequencyHarmonic: "",
   frequencyAverage: "",
   pitch: "",
+  ipa: "",
   sentence: "",
   bookTitle: "",
   expressionFurigana: "",
@@ -58,7 +60,7 @@ export function validTemplate(template: string): boolean {
     ) &&
     !template
       .replace(
-        /\{\{(expression|reading|definition|source|frequency|frequencyHarmonic|frequencyAverage|pitch|sentence|bookTitle|expressionFurigana|glossary|picture|selectionText|audio|dictionary:[1-9]\d{0,15})\}\}/g,
+        /\{\{(expression|reading|definition|source|frequency|frequencyHarmonic|frequencyAverage|pitch|ipa|sentence|bookTitle|expressionFurigana|glossary|picture|selectionText|audio|dictionary:[1-9]\d{0,15})\}\}/g,
         "",
       )
       .match(/[{}]/)
@@ -66,7 +68,7 @@ export function validTemplate(template: string): boolean {
 }
 export function expandTemplate(template: string, context: CardContext): string {
   return template.replace(
-    /\{\{(expression|reading|definition|source|frequency|frequencyHarmonic|frequencyAverage|pitch|sentence|bookTitle|expressionFurigana|glossary|picture|selectionText|audio)\}\}/g,
+    /\{\{(expression|reading|definition|source|frequency|frequencyHarmonic|frequencyAverage|pitch|ipa|sentence|bookTitle|expressionFurigana|glossary|picture|selectionText|audio)\}\}/g,
     (_, key: keyof CardContext) => context[key],
   );
 }

@@ -8,6 +8,7 @@ import {
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DialogCaption } from "../../components/layout/WindowControls";
+import { useBackdropDismiss } from "../../components/ui/backdropDismiss";
 import { Button } from "../../components/ui/Button";
 import { IconButton } from "../../components/ui/IconButton";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
@@ -37,6 +38,7 @@ export function ReaderFontManager({
   const [chosenTab, setTab] = useState<Tab>(category);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const backdrop = useBackdropDismiss(onClose);
   useEffect(() => {
     const dialog = dialogRef.current!;
     const previous = document.activeElement as HTMLElement | null;
@@ -74,9 +76,8 @@ export function ReaderFontManager({
         e.preventDefault();
         onClose();
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      onClick={backdrop.onClick}
+      onPointerDown={backdrop.onPointerDown}
     >
       <DialogCaption />
       <div className="confirm-dialog__content">

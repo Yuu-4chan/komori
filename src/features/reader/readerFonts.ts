@@ -127,6 +127,29 @@ export function useReaderFonts() {
   }, []);
   return state;
 }
+/**
+ * Whether a font has what a book's text needs: true for no font to check, unknown until answered,
+ * and true when the check fails, so a failed check keeps the chosen font.
+ */
+export function useBookFontSupport(font?: ReaderFontChoice, bookId?: string): boolean | undefined {
+  const key = font && bookId ? `${bookId}|${fontChoiceKey(font)}` : undefined;
+  const [answer, setAnswer] = useState<{ key: string; supported: boolean }>();
+  useEffect(() => {
+    if (!key || !font || !isTauri()) return;
+    let current = true;
+    void invoke<boolean>("font_supports_book", { font, bookId }).then(
+      (supported) => current && setAnswer({ key, supported }),
+      () => current && setAnswer({ key, supported: true }),
+    );
+    return () => {
+      current = false;
+    };
+    // The key stands for the font and the book.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  if (!key || !isTauri()) return true;
+  return answer?.key === key ? answer.supported : undefined;
+}
 export async function checkSystemFont(
   family: string,
 ): Promise<{ family: string; available: boolean; faces?: SystemFontFace[] }> {

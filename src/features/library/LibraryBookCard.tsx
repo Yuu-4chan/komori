@@ -6,6 +6,7 @@ import {
   ClockCounterClockwiseIcon,
   DotsThreeIcon,
   LinkSimpleIcon,
+  PencilSimpleIcon,
   StackIcon,
   TranslateIcon,
   TrashIcon,
@@ -64,6 +65,8 @@ interface LibraryBookCardProps {
   details: CardDetails;
   onRelink: (book: LibraryBook) => void;
   onRemove: (book: LibraryBook) => void;
+  /** Asks for the title and author Komori shows the book under. */
+  onEdit?: (book: LibraryBook) => void;
   /** Asks to reset an opened book's progress and position. */
   onMarkUnread?: (book: LibraryBook) => void;
   /** Moves an unfinished book's progress to its end. */
@@ -118,6 +121,7 @@ export const LibraryBookCard = memo(function LibraryBookCard({
   details,
   onRelink,
   onRemove,
+  onEdit,
   onMarkUnread,
   onMarkCompleted,
   relinkDisabled,
@@ -378,6 +382,16 @@ export const LibraryBookCard = memo(function LibraryBookCard({
               disabled: relinkDisabled || busy,
               onSelect: () => onRelink(book),
             },
+            ...(onEdit
+              ? [
+                  {
+                    label: t("libraryCard.editMenu"),
+                    icon: <PencilSimpleIcon aria-hidden="true" />,
+                    disabled: busy,
+                    onSelect: () => onEdit(book),
+                  },
+                ]
+              : []),
             ...(onMarkCompleted && canMarkCompleted(book)
               ? [
                   {

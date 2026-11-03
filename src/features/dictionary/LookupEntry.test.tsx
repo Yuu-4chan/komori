@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { TermGroup, TermMatch } from "./dictionaryApi";
-import { LookupEntry } from "./LookupEntry";
+import { DictionaryLookupEntry, LookupEntry } from "./LookupEntry";
 
 function group(expression: string, terms: TermMatch[]): TermGroup {
   return {
@@ -12,6 +12,7 @@ function group(expression: string, terms: TermMatch[]): TermGroup {
     deinflection: null,
     terms,
     frequencies: [],
+    transcriptions: [],
     pitches: [],
   };
 }
@@ -119,6 +120,43 @@ describe("LookupEntry", () => {
     expect(shown()).toEqual(names);
     fireEvent.click(screen.getByRole("button", { name: "Show fewer" }));
     expect(shown()).toEqual(["n", "vs", "uk", "P"]);
+  });
+});
+
+describe("Dictionary page readings", () => {
+  it("show pinyin and Hangul beside the headword, and no reading in English", () => {
+    const entry = (expression: string, reading: string, language: "zh" | "ko" | "en") =>
+      render(
+        <DictionaryLookupEntry
+          group={{ ...good, expression, reading }}
+          language={language}
+          onSearchTerm={() => {}}
+          showDictionaryNames={false}
+        />,
+      );
+    entry("学习", "xué xí", "zh");
+    expect(screen.getByRole("article", { name: "学习 (xué xí)" })).toHaveTextContent("xué xí");
+    entry("學校", "학교", "ko");
+    expect(screen.getByRole("article", { name: "學校 (학교)" })).toHaveTextContent("학교");
+    entry("walk", "wɔːk", "en");
+    expect(screen.getByRole("article", { name: "walk" })).not.toHaveTextContent("wɔːk");
+  });
+
+  it("show pronunciations between slashes, and pinyin as it is", () => {
+    const entry = (expression: string, language: "de" | "zh", transcriptions: string[]) =>
+      render(
+        <DictionaryLookupEntry
+          group={{ ...good, expression, reading: expression, transcriptions }}
+          language={language}
+          onSearchTerm={() => {}}
+          showDictionaryNames={false}
+        />,
+      );
+    entry("Kind", "de", ["kɪnt", "[kɪnd]"]);
+    expect(screen.getByRole("article", { name: "Kind" })).toHaveTextContent("/kɪnt/, [kɪnd]");
+    entry("好", "zh", ["hǎo"]);
+    expect(screen.getByRole("article", { name: "好" })).toHaveTextContent("hǎo");
+    expect(screen.getByRole("article", { name: "好" })).not.toHaveTextContent("/hǎo/");
   });
 });
 

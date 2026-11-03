@@ -1,5 +1,5 @@
 import { MemoryRouter } from "react-router-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AppearanceProvider } from "../appearance/AppearanceProvider";
 import {
@@ -16,6 +16,8 @@ import {
   lookupTextAllowed,
 } from "./lookupTriggers";
 import { ReaderPopupSettings } from "./ReaderPopupSettings";
+import { translatorFor } from "../../i18n/i18n";
+import { interfaceLanguages } from "../../i18n/languages";
 
 describe("Lookup trigger preferences", () => {
   it("accepts Han extensions, both kana scripts and Hangul, ignoring Latin, punctuation and ruby readings", () => {
@@ -25,6 +27,27 @@ describe("Lookup trigger preferences", () => {
     for (const text of ["English", "123", "。！？", " "])
       expect(lookupTextAllowed(settings, text)).toBe(false);
     expect(lookupTextAllowed(defaultLookupTriggers, "English")).toBe(true);
+  });
+
+  it("looks up English words starting with a letter, whatever CJK only says", () => {
+    for (const readerPopupCjkOnly of [false, true]) {
+      const settings = {
+        ...defaultLookupTriggers,
+        readerPopupCjkOnly,
+        lookupLanguage: "en" as const,
+      };
+      for (const text of ["walked", "Éclair", "cat’s tail", "naïve"])
+        expect(lookupTextAllowed(settings, text)).toBe(true);
+      for (const text of ["1984 Go", "“Go”", " ", "。"])
+        expect(lookupTextAllowed(settings, text)).toBe(false);
+    }
+    const japanese = {
+      ...defaultLookupTriggers,
+      readerPopupCjkOnly: true,
+      lookupLanguage: "ja" as const,
+    };
+    expect(lookupTextAllowed(japanese, "walked")).toBe(false);
+    expect(lookupTextAllowed(japanese, "日本")).toBe(true);
   });
 
   it("keeps legacy defaults and independently rejects invalid stored fields", () => {
@@ -143,5 +166,38 @@ describe("Lookup trigger preferences", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("names the lookup language in every interface language and hides CJK for other languages", async () => {
+    for (const language of interfaceLanguages) {
+      const { t } = translatorFor(language);
+      const saved = { ...defaultAppearance, interfaceLanguage: language };
+      const store = {
+        load: async () => saved,
+        save: vi.fn(async (next) => {
+          Object.assign(saved, next);
+        }),
+      };
+      const mount = () =>
+        render(
+          <MemoryRouter>
+            <AppearanceProvider store={store}>
+              <ReaderPopupSettings />
+            </AppearanceProvider>
+          </MemoryRouter>,
+        );
+      const view = mount();
+      // Settings > Dictionary chooses the language; this card only follows it.
+      expect(
+        await screen.findByRole("button", { name: t("popupSettings.cjkOnly") }),
+      ).toBeInTheDocument();
+      expect(screen.queryByLabelText(t("popupSettings.lookupLanguage"))).toBeNull();
+      view.unmount();
+      saved.lookupLanguage = "en";
+      mount();
+      await screen.findByText(t("popupSettings.title"));
+      expect(screen.queryByRole("button", { name: t("popupSettings.cjkOnly") })).toBeNull();
+      cleanup();
+    }
   });
 });

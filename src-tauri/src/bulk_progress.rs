@@ -1,5 +1,7 @@
 //! Counts committed/attempted items, never elapsed-time estimates or private paths.
-use std::sync::{Mutex, MutexGuard};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
@@ -42,9 +44,35 @@ pub(crate) struct Progress {
     pub(crate) phase: &'static str,
 }
 
+/// The running operations' stop requests, by operation ID.
+static STOPS: LazyLock<Mutex<HashMap<String, Arc<AtomicBool>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Asks a running operation to stop before its next item; what it finished stays.
+#[tauri::command]
+pub(crate) fn stop_bulk_operation(operation_id: String) {
+    if let Some(stop) = STOPS
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .get(&operation_id)
+    {
+        stop.store(true, Ordering::SeqCst);
+    }
+}
+
 pub(crate) struct BatchProgress {
     value: Progress,
     emit: Box<dyn Fn(Progress) + Send>,
+    stop: Arc<AtomicBool>,
+}
+
+impl Drop for BatchProgress {
+    fn drop(&mut self) {
+        STOPS
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .remove(&self.value.operation_id);
+    }
 }
 
 impl BatchProgress {
@@ -59,6 +87,11 @@ impl BatchProgress {
     }
 
     pub(crate) fn new(id: String, emit: impl Fn(Progress) + Send + 'static) -> Self {
+        let stop = Arc::new(AtomicBool::new(false));
+        STOPS
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .insert(id.clone(), Arc::clone(&stop));
         Self {
             value: Progress {
                 operation_id: id,
@@ -67,6 +100,7 @@ impl BatchProgress {
                 phase: "waiting",
             },
             emit: Box::new(emit),
+            stop,
         }
     }
 
@@ -82,6 +116,11 @@ impl BatchProgress {
     pub(crate) fn start(&mut self, total: usize) {
         self.value.total = Some(total);
         self.phase("processing");
+    }
+
+    /// Whether the operation was asked to stop before its next item.
+    pub(crate) fn stopped(&self) -> bool {
+        self.stop.load(Ordering::SeqCst)
     }
 
     pub(crate) fn completed_one(&mut self) {

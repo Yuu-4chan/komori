@@ -1,10 +1,14 @@
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   AppearancePreferencesSaver,
   defaultAppearance,
+  defaultAppearanceStore,
   type AppearancePreferences,
 } from "./appearancePreferences";
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(), isTauri: vi.fn() }));
 
 const choice = (readerFontSize: number): AppearancePreferences => ({
   ...defaultAppearance,
@@ -40,4 +44,12 @@ describe("appearance preferences saver", () => {
     await expect(saver.flush()).resolves.toBe(true);
     expect(save.mock.calls.map(([preferences]) => preferences.readerFontSize)).toEqual([20, 22]);
   });
+});
+
+it("treats a record native refuses as a failed write", async () => {
+  vi.mocked(isTauri).mockReturnValue(true);
+  vi.mocked(invoke).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+  const store = defaultAppearanceStore()!;
+  await expect(store.save(defaultAppearance)).rejects.toThrow();
+  await expect(store.save(defaultAppearance)).resolves.toBeUndefined();
 });

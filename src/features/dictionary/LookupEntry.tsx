@@ -5,6 +5,12 @@ import { ErrorBoundary } from "../../components/ui/ErrorBoundary";
 import { IconButton } from "../../components/ui/IconButton";
 import { useId, useMemo, useState } from "react";
 import { furiganaSegments } from "./furigana";
+import {
+  defaultLookupLanguage,
+  readsBeside,
+  type LookupLanguage,
+  transcriptionText,
+} from "./lookupLanguage";
 
 import type { TermGroup, TermMatch } from "./dictionaryApi";
 import {
@@ -17,7 +23,7 @@ import {
   TagList,
   inflectionNames,
 } from "./DictionaryResults";
-import { GlossaryText } from "./GlossaryText";
+import { GlossaryText, termGlossaries } from "./GlossaryText";
 
 // Frequency chips and headword tags shown before "+N more", so a long list does not push
 // definitions away.
@@ -55,6 +61,7 @@ function LookupEntryContent({
   showVoiceAction,
   showDictionaryNames,
   readingPosition = "beside",
+  language = defaultLookupLanguage,
   canPlayAudio,
   group,
   onSearchTerm,
@@ -69,6 +76,11 @@ function LookupEntryContent({
   showVoiceAction: boolean;
   showDictionaryNames: boolean;
   readingPosition?: "beside" | "above";
+  /**
+   * The lookup language: furigana and pitch show only for Japanese, where a reading is kana.
+   * Japanese by default.
+   */
+  language?: LookupLanguage;
   /** Whether Voice has word audio sources to ask. */
   canPlayAudio: boolean;
   group: TermGroup;
@@ -96,7 +108,8 @@ function LookupEntryContent({
     ? 0
     : Math.max(0, group.frequencies.length - shownFrequencies);
   const reading = group.reading !== group.expression ? group.reading : null;
-  const above = readingPosition === "above" && reading !== null;
+  const japanese = language === "ja";
+  const above = japanese && readingPosition === "above" && reading !== null;
   return (
     <article
       aria-label={reading ? `${group.expression} (${reading})` : group.expression}
@@ -105,7 +118,7 @@ function LookupEntryContent({
       <header className="lookup-entry__header">
         <div className="lookup-entry__headline">
           <div className="lookup-entry__word">
-            <strong className="lookup-entry__expression" lang="ja">
+            <strong className="lookup-entry__expression" lang={language}>
               {above ? (
                 <FuriganaHeadword
                   expression={group.expression}
@@ -117,10 +130,15 @@ function LookupEntryContent({
               )}
             </strong>
             {reading && !above ? (
-              <span className="lookup-entry__reading" lang="ja">
+              <span className="lookup-entry__reading" lang={language}>
                 {reading}
               </span>
             ) : null}
+            {group.transcriptions.length > 0 && (
+              <span className="lookup-entry__transcription">
+                {transcriptionText(language, group.transcriptions)}
+              </span>
+            )}
             {showVoiceAction && (
               <PronunciationButton
                 canPlay={canPlayAudio}
@@ -147,12 +165,12 @@ function LookupEntryContent({
         {start !== null || group.deinflection ? (
           <div className="lookup-entry__notes">
             {start !== null ? (
-              <span lang="ja" title={t("lookupEntry.matched", { text: start })}>
+              <span lang={language} title={t("lookupEntry.matched", { text: start })}>
                 <span className="visually-hidden">{t("lookupEntry.matchedLabel")} </span>
                 {start}
               </span>
             ) : null}
-            {group.deinflection ? (
+            {group.deinflection?.inflections.length ? (
               <span
                 title={t("lookupEntry.inflected", {
                   inflections: inflectionNames(group.deinflection.inflections),
@@ -191,7 +209,7 @@ function LookupEntryContent({
             ) : null}
           </ul>
         ) : null}
-        {showPitch && (
+        {showPitch && japanese && (
           <PitchPositions
             pitches={group.pitches}
             reading={group.reading}
@@ -228,27 +246,34 @@ export function DictionaryLookupEntry(props: Parameters<typeof DictionaryLookupE
 
 function DictionaryLookupEntryContent({
   group,
+  language = defaultLookupLanguage,
   showDictionaryNames,
   onSearchTerm,
 }: {
   group: TermGroup;
+  /** The lookup language: the headword takes furigana only in Japanese. */
+  language?: LookupLanguage;
   showDictionaryNames: boolean;
   /** Search a headword kanji or glossary link (a child popup in the Reader). */
   onSearchTerm: (term: string) => void;
 }) {
-  const reading = group.reading !== group.expression ? group.reading : null;
+  const other = group.reading !== group.expression ? group.reading : null;
+  const reading = language === "ja" ? other : null;
+  const beside = readsBeside(language) ? other : null;
   // Each dictionary's definitions together, in the order the dictionaries first match.
   const sources = new Map<number, TermMatch[]>();
   for (const term of group.terms)
     sources.set(term.dictionaryId, [...(sources.get(term.dictionaryId) ?? []), term]);
   return (
     <article
-      aria-label={reading ? `${group.expression} (${reading})` : group.expression}
+      aria-label={
+        (reading ?? beside) ? `${group.expression} (${reading ?? beside})` : group.expression
+      }
       className="dictionary-entry"
     >
       <strong
         className={`dictionary-entry__headword${reading ? " dictionary-entry__headword--furigana" : ""}`}
-        lang="ja"
+        lang={language}
       >
         {reading ? (
           <FuriganaHeadword
@@ -258,6 +283,12 @@ function DictionaryLookupEntryContent({
           />
         ) : (
           <HeadwordKanji expression={group.expression} onSearchTerm={onSearchTerm} />
+        )}
+        {beside && <span className="dictionary-entry__reading">{beside}</span>}
+        {group.transcriptions.length > 0 && (
+          <span className="dictionary-entry__reading">
+            {transcriptionText(language, group.transcriptions)}
+          </span>
         )}
       </strong>
       {[...sources.values()].map((terms) => (
@@ -290,8 +321,7 @@ function DictionaryLookupEntryContent({
 
 /** A definition's glossaries, with its consecutive plain glosses run together on one line. */
 function senseGlossaries(term: TermMatch): unknown[] {
-  const glossaries: unknown[] = Array.isArray(term.glossary) ? term.glossary : [term.glossary];
-  return glossaries.reduce<unknown[]>((items, glossary) => {
+  return termGlossaries(term.glossary).reduce<unknown[]>((items, glossary) => {
     if (glossary === "") return items;
     const last = items.length - 1;
     if (typeof glossary === "string" && typeof items[last] === "string")
@@ -344,7 +374,7 @@ function LookupDefinition({
   const [open, setOpen] = useState(true);
   const bodyId = useId();
   const { t } = useI18n();
-  const glossaries = Array.isArray(term.glossary) ? term.glossary : [term.glossary];
+  const glossaries = useMemo(() => termGlossaries(term.glossary), [term.glossary]);
   return (
     <li className={`lookup-definition${open ? "" : " lookup-definition--closed"}`}>
       <button

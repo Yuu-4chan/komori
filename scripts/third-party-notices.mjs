@@ -196,7 +196,16 @@ function extraEntries(root, crates) {
       version: "67db60d",
       license: "GPL-3.0-or-later",
       source: "https://github.com/yomidevs/yomitan",
-      note: "Copyright (C) 2024-2026 Yomitan Authors; adapted and modified in src-tauri/src/dictionary/deinflect.rs",
+      note: "Copyright (C) 2024-2026 Yomitan Authors; adapted and modified in src-tauri/src/dictionary/deinflect/ja.rs",
+      texts: [gpl],
+    },
+    {
+      kind: "adapted",
+      name: "Yomitan English transforms and language transformer",
+      version: "d3c54c1",
+      license: "GPL-3.0-or-later",
+      source: "https://github.com/yomidevs/yomitan",
+      note: "Copyright (C) 2024-2026 Yomitan Authors; adapted and modified in src-tauri/src/dictionary/deinflect/en.rs and src-tauri/src/dictionary/deinflect.rs",
       texts: [gpl],
     },
     {

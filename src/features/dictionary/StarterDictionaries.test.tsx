@@ -1,9 +1,10 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type EventCallback } from "@tauri-apps/api/event";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DictionarySources } from "./DictionarySources";
+import { StarterDictionaries } from "./StarterDictionaries";
 import { useStarterDictionaryNotifications, type StarterSnapshot } from "./useStarterDictionaries";
 import { dictionariesChanged } from "./sourcePolicy";
 import type { DictionarySummary } from "./dictionaryApi";
@@ -26,6 +27,7 @@ const imported: DictionarySummary = {
   hasDefinitions: true,
   hasFrequency: false,
   hasPitch: false,
+  language: "ja",
 };
 const emit = () =>
   act(() =>
@@ -43,6 +45,8 @@ beforeEach(() => {
       id: ["jitendex", "jmdict", "jiten"][i],
       name,
       description: `${name} description`,
+      language: "ja",
+      definitions: "en",
       attribution: `${name} attribution`,
       license: "CC BY-SA 4.0",
       phase: "ready",
@@ -248,4 +252,70 @@ it("keeps a newer native event when an initial snapshot arrives late", async () 
   await screen.findByRole("button", { name: "Retry JMdict" });
   await act(async () => resolve(initial));
   expect(screen.getByRole("button", { name: "Retry JMdict" })).toBeInTheDocument();
+});
+
+describe("starter dictionaries for each language", () => {
+  const entry = (id: string, language: string, definitions: string | null) => ({
+    id,
+    language,
+    definitions,
+    name: id,
+    description: "",
+    attribution: "",
+    license: "CC BY-SA 4.0",
+    phase: "ready" as const,
+    received: 0,
+    total: null,
+  });
+  const starter = {
+    snapshot: {
+      revision: 1,
+      started: false,
+      dismissed: false,
+      entries: [
+        entry("jitendex", "ja", "en"),
+        entry("jiten", "ja", null),
+        entry("wty-ko-en", "ko", "en"),
+        entry("wty-ko-en-ipa", "ko", "en"),
+        entry("wty-ko-zh", "ko", "zh"),
+        entry("wty-fr-en", "fr", "en"),
+        entry("wty-en-vi", "en", "vi"),
+        entry("wty-en-de", "en", "de"),
+      ],
+    },
+    error: false,
+    retry: vi.fn(),
+    download: vi.fn(),
+    dismiss: vi.fn(),
+  };
+  const rows = () =>
+    screen.getAllByRole("article").map((row) => row.getAttribute("aria-labelledby"));
+
+  it("lists the language's dictionaries for the chosen definitions language", async () => {
+    const choose = vi.fn();
+    const props = { empty: true, installed: [], busy: false, starter };
+    const view = render(
+      <StarterDictionaries {...props} language="ko" onDefinitionsChange={choose} />,
+    );
+    expect(rows()).toEqual(["starter-wty-ko-en", "starter-wty-ko-en-ipa"]);
+    expect(screen.getByText("Korean words with definitions in English.")).toBeInTheDocument();
+    expect(screen.getByText("Korean pronunciations in IPA.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Definitions in"), { target: { value: "zh" } });
+    expect(choose).toHaveBeenCalledWith("zh");
+
+    view.rerender(<StarterDictionaries {...props} language="ko" savedDefinitions="zh" />);
+    expect(rows()).toEqual(["starter-wty-ko-zh"]);
+    // A saved choice this language lacks falls back, and one choice needs no select.
+    view.rerender(<StarterDictionaries {...props} language="fr" savedDefinitions="zh" />);
+    expect(rows()).toEqual(["starter-wty-fr-en"]);
+    expect(screen.queryByLabelText("Definitions in")).toBeNull();
+    // Definitions can be in a language lookups don't have, named by the system.
+    view.rerender(<StarterDictionaries {...props} language="en" savedDefinitions="vi" />);
+    expect(rows()).toEqual(["starter-wty-en-vi"]);
+    expect(screen.getByText("English words with definitions in Vietnamese.")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Vietnamese" })).toBeInTheDocument();
+    // Sources without definitions stay listed.
+    view.rerender(<StarterDictionaries {...props} language="ja" />);
+    expect(rows()).toEqual(["starter-jitendex", "starter-jiten"]);
+  });
 });

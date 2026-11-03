@@ -13,15 +13,18 @@ import {
 import { useEffect, useId, useRef, useState } from "react";
 import { listDictionaries, type DictionarySummary } from "../dictionary/dictionaryApi";
 import { dictionariesChanged } from "../dictionary/sourcePolicy";
+import { defaultLookupLanguage, type LookupLanguage } from "../dictionary/lookupLanguage";
 import lapisLicense from "../../../src-tauri/vendor/lapis/LICENSE.txt?raw";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { TextField } from "../../components/ui/TextField";
 import { Select } from "../../components/ui/Select";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { IconButton } from "../../components/ui/IconButton";
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
 import {
   ankiError,
+  createDeck,
   createLapis,
   discoverAnki,
   defaultDuplicateScope,
@@ -48,7 +51,12 @@ const say =
   () =>
     i18n().t(key, values);
 
-export function AnkiSettings() {
+export function AnkiSettings({
+  lookupLanguage = defaultLookupLanguage,
+}: {
+  /** What a new deck is first named for. */
+  lookupLanguage?: LookupLanguage;
+}) {
   const { t } = useI18n();
   const [prefs, setPrefs] = useState<AnkiPreferences | null>(null);
   const [discovery, setDiscovery] = useState<AnkiDiscovery | null>(null);
@@ -65,6 +73,7 @@ export function AnkiSettings() {
   const [message, setMessage] = useState<Message>(() => say("ankiSettings.loading"));
   const [offer, setOffer] = useState(false);
   const [declined, setDeclined] = useState(false);
+  const [newDeck, setNewDeck] = useState<string | null>(null);
   const revision = useRef(0);
   const operation = useRef(false);
   useEffect(() => {
@@ -168,6 +177,45 @@ export function AnkiSettings() {
       if (id === revision.current) {
         setSaveState("failed");
         setSaveMessage(() => () => `${i18n().t("ankiSettings.saveFailed")} ${ankiError(error)}`);
+      }
+    } finally {
+      if (id === revision.current) {
+        operation.current = false;
+        setBusy(false);
+      }
+    }
+  }
+  async function addDeck() {
+    const deck = newDeck?.trim();
+    if (!prefs || !deck || operation.current) return;
+    operation.current = true;
+    const id = ++revision.current;
+    setBusy(true);
+    try {
+      await createDeck(prefs, deck);
+      const data = await discoverAnki({ ...prefs, model: "Lapis" });
+      if (id !== revision.current) return;
+      const next: AnkiPreferences = {
+        ...prefs,
+        deck,
+        deckId: data.deckIds[deck] ?? null,
+        model: "Lapis",
+        mappings: {
+          ...prefs.mappings,
+          Lapis: prefs.mappings.Lapis ?? lapisDefaults(data.fields, data.modelIds.Lapis),
+        },
+      };
+      setPrefs(next);
+      setDiscovery(data);
+      setNewDeck(null);
+      if (!configurationProblem(next, data)) await saveAnki(next);
+      if (id === revision.current) {
+        setMessage(() => () => i18n().t("ankiSettings.newDeckReady", { deck }));
+      }
+    } catch (error) {
+      if (id === revision.current) {
+        setNewDeck(null);
+        setMessage(() => () => ankiError(error));
       }
     } finally {
       if (id === revision.current) {
@@ -362,6 +410,19 @@ export function AnkiSettings() {
                   }
                 />
                 <p className="settings-field__hint">{t("ankiSettings.deckHint")}</p>
+              </div>
+              <div className="settings-row">
+                <div>
+                  <strong>{t("ankiSettings.newDeck")}</strong>
+                  <span>{t("ankiSettings.newDeckHint")}</span>
+                </div>
+                <Button
+                  tone="secondary"
+                  disabled={discovery.lapis === "incompatible"}
+                  onClick={() => setNewDeck(t(`lookupLanguage.${lookupLanguage}`))}
+                >
+                  {t("ankiSettings.newDeckEllipsis")}
+                </Button>
               </div>
               {discovery.decks.includes(prefs.deck) &&
                 prefs.deckId !== discovery.deckIds[prefs.deck] && (
@@ -571,6 +632,25 @@ export function AnkiSettings() {
         </Card>
       )}
       <ConfirmDialog
+        open={newDeck !== null}
+        title={t("ankiSettings.newDeck")}
+        description={t("ankiSettings.newDeckHint")}
+        dialogRole="dialog"
+        confirmTone="primary"
+        confirmLabel={t("ankiSettings.newDeckCreate")}
+        confirmDisabled={!newDeck?.trim()}
+        busy={busy}
+        onCancel={() => setNewDeck(null)}
+        onConfirm={() => void addDeck()}
+      >
+        <TextField
+          label={t("ankiSettings.newDeckName")}
+          value={newDeck ?? ""}
+          maxLength={100}
+          onChange={setNewDeck}
+        />
+      </ConfirmDialog>
+      <ConfirmDialog
         open={offer}
         title={t("ankiSettings.createLapisTitle")}
         description={t("ankiSettings.createLapisDescription")}
@@ -610,6 +690,7 @@ const contentLabels: Record<(typeof placeholders)[number], MessageKey> = {
   frequencyHarmonic: "ankiContent.frequencyHarmonic",
   frequencyAverage: "ankiContent.frequencyAverage",
   pitch: "ankiContent.pitch",
+  ipa: "ankiContent.ipa",
   sentence: "ankiContent.sentence",
   bookTitle: "ankiContent.bookTitle",
   picture: "ankiContent.picture",

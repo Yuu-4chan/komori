@@ -7,12 +7,23 @@ import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 import { getLibraryBook } from "../features/library/libraryApi";
 import { ReaderPage } from "./ReaderPage";
 
+const { opened, fits } = vi.hoisted(() => ({
+  opened: [] as string[],
+  fits: { value: true as boolean | undefined },
+}));
+
+vi.mock("../features/reader/readerFonts", async (original) => ({
+  ...(await original<typeof import("../features/reader/readerFonts")>()),
+  useBookFontSupport: (font?: unknown) => (font ? fits.value : true),
+}));
+
 vi.mock("../features/library/libraryApi", () => ({
   getLibraryBook: vi.fn(),
 }));
 vi.mock("../features/reader/epubRenderer", () => ({
   epubRendererFactory: vi.fn(() => () => ({
-    mount: async (host: HTMLElement) => {
+    mount: async (host: HTMLElement, ...rest: unknown[]) => {
+      opened.push(JSON.stringify(rest));
       host.textContent = "EPUB content";
       return "ready" as const;
     },
@@ -50,6 +61,45 @@ describe("catalog Reader route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lookupMock.mockImplementation(async (id) => (id === book.id ? book : null));
+    opened.length = 0;
+    fits.value = true;
+  });
+
+  it.each([
+    ["zh-Hans", "noto-sans-sc", "Chinese Simplified", "Noto Sans SC"],
+    ["ko", "noto-sans-kr", "Korean", "Noto Sans KR"],
+    ["ja", "noto-sans-jp", "Japanese", "Noto Sans JP"],
+  ])(
+    "replaces a font without a %s book's text, shows it and says so",
+    async (language, font, name, family) => {
+      fits.value = false;
+      lookupMock.mockResolvedValue({ ...book, language });
+      const user = userEvent.setup();
+      renderRoute();
+      expect(
+        await screen.findByText(`Font changed to ${family} to support ${name}.`),
+      ).toBeInTheDocument();
+      expect(opened).toHaveLength(1);
+      expect(opened[0]).toContain(`"asian":{"source":"google","id":"${font}"}`);
+      await user.click(screen.getByRole("button", { name: "Reader appearance" }));
+      expect(await screen.findByRole("combobox", { name: "Asian font" })).toHaveValue(family);
+    },
+  );
+
+  it("keeps a font that has the book's text, without a word", async () => {
+    lookupMock.mockResolvedValue({ ...book, language: "ko" });
+    renderRoute();
+    await screen.findByText("Reader ready");
+    expect(opened[0]).toContain(`"asian":{"source":"google","id":"noto-sans-jp"}`);
+    expect(screen.queryByText(/Font changed/)).not.toBeInTheDocument();
+  });
+
+  it("waits to open the book until its font is known", async () => {
+    fits.value = undefined;
+    lookupMock.mockResolvedValue({ ...book, language: "ko" });
+    renderRoute();
+    await screen.findByRole("heading", { name: "Quiet Hours" });
+    expect(opened).toHaveLength(0);
   });
 
   it("resolves a direct ID route and shows safe identity, cover and EPUB content", async () => {

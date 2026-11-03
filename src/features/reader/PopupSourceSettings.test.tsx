@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -36,6 +36,7 @@ const dictionaries: DictionarySummary[] = [
     kanjiMetaCount: 0,
     hasFrequency: false,
     hasPitch: false,
+    language: "ja",
     hasDefinitions: true,
   },
   {
@@ -49,6 +50,7 @@ const dictionaries: DictionarySummary[] = [
     kanjiMetaCount: 1,
     hasFrequency: true,
     hasPitch: false,
+    language: "ja",
     hasDefinitions: false,
   },
   {
@@ -62,6 +64,7 @@ const dictionaries: DictionarySummary[] = [
     kanjiMetaCount: 0,
     hasFrequency: false,
     hasPitch: true,
+    language: "ja",
     hasDefinitions: false,
   },
 ];
@@ -87,6 +90,7 @@ const result: TermLookup = {
         },
       ],
       frequencies: [{ dictionaryId: 2, dictionaryTitle: "Frequency", data: 10 }],
+      transcriptions: [],
       pitches: [
         {
           dictionaryId: 3,
@@ -230,6 +234,28 @@ describe("popup source policies", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select term dictionaries" }));
     expect(screen.getByRole("checkbox", { name: "Unavailable source #99" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Definitions" })).toBeChecked();
+  });
+
+  it("chooses among the lookup language's dictionaries, keeping other languages' choices", async () => {
+    const webster = { ...dictionaries[0], id: 4, title: "Webster", language: "en" as const };
+    vi.mocked(listDictionaries).mockResolvedValue([...dictionaries, webster]);
+    open({
+      lookupLanguage: "en",
+      readerPopupDefinitionSources: { mode: "selected", ids: [1] },
+    });
+    // A choice of only Japanese dictionaries means all of English's.
+    await screen.findByText("All imported sources · Webster");
+    cleanup();
+    const view = open({
+      lookupLanguage: "en",
+      readerPopupDefinitionSources: { mode: "selected", ids: [1, 4, 99] },
+    });
+    await screen.findByText("Webster · 1 unavailable");
+    fireEvent.click(screen.getByRole("button", { name: "Select term dictionaries" }));
+    expect(screen.queryByRole("checkbox", { name: "Definitions" })).toBeNull();
+    expect(screen.getByRole("checkbox", { name: "Webster" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Unavailable source #99" })).toBeChecked();
+    expect(view.store.save).not.toHaveBeenCalled();
   });
 
   it("rejects stale source lists and disposal responses without rewriting explicit choices", async () => {
@@ -413,7 +439,7 @@ describe("real lookup preview", () => {
     expect(screen.getByRole("button", { name: "Show dictionary names" })).toBeEnabled();
     expect(screen.getByLabelText("Reading position")).toBeDisabled();
     expect(
-      screen.getByText("The Dictionary style always shows readings above their kanji as furigana."),
+      screen.getByText("The Dictionary style always shows readings above their words."),
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(store.save).toHaveBeenLastCalledWith(
@@ -425,12 +451,12 @@ describe("real lookup preview", () => {
     const font = screen.getByRole("combobox", { name: "Font" });
     expect(font).toHaveValue("Zen Old Mincho");
     expect(preview.style.getPropertyValue("--popup-font")).toBe(
-      '"Komori Google zen-old-mincho", serif',
+      '"Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
     );
     fireEvent.change(font, { target: { value: "Yu Mincho" } });
     fireEvent.keyDown(font, { key: "Enter" });
     expect(preview.style.getPropertyValue("--popup-font")).toBe(
-      '"Yu Mincho", "Komori Google zen-old-mincho", serif',
+      '"Yu Mincho", "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
     );
     await waitFor(() =>
       expect(store.save).toHaveBeenLastCalledWith(

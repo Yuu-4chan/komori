@@ -17,12 +17,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, State};
 
+use crate::dictionary::language::Language;
 use crate::dictionary::sources::SourceSelection;
 use crate::interface_text::LANGUAGES;
 use crate::library::{open_catalog, storage_error, CatalogState};
 use crate::reader_fonts::FontChoice;
 use crate::word_audio::AudioSource;
 
+/// The languages lookups deinflect and choose dictionaries for (`dictionary::language`).
+const LOOKUP_LANGUAGES: [&str; 10] = ["ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru"];
+const DEFINITION_LANGUAGES: [&str; 20] = [
+    "ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru", "cs", "el", "id", "ku", "ms", "nl",
+    "pl", "th", "tr", "vi",
+];
 const POPUP_SHORTCUTS: [&str; 3] = ["shift-enter", "alt-x", "ctrl-space"];
 const POPUP_MOUSE_TRIGGERS: [&str; 4] = ["left", "double", "shift-right", "middle"];
 const POPUP_CLOSE_BEHAVIORS: [&str; 3] = ["escape-outside", "outside", "persistent"];
@@ -160,10 +167,11 @@ const APP_THEMES: [&str; 9] = [
 ];
 /// The Library's saved view choices. Keep in step with `src/features/library/libraryView.ts`.
 const LIBRARY_VIEWS: [&str; 2] = ["grid", "list"];
-const LIBRARY_SORTS: [&str; 6] = [
+const LIBRARY_SORTS: [&str; 7] = [
     "recent",
     "added",
     "title",
+    "author",
     "progress",
     "characters",
     "words",
@@ -179,7 +187,7 @@ fn valid_library_card_size(size: i64) -> bool {
     (100..=480).contains(&size) && size % 10 == 0
 }
 const LIBRARY_FILTERS: [&str; 4] = ["all", "reading", "completed", "not-started"];
-const LIBRARY_GROUPS: [&str; 3] = ["none", "series", "language"];
+const LIBRARY_GROUPS: [&str; 4] = ["none", "series", "language", "author"];
 /// The most custom Reader themes kept, and the longest name, in characters.
 const READER_CUSTOM_THEME_LIMIT: usize = 32;
 const READER_THEME_NAME_MAX_CHARS: usize = 40;
@@ -213,6 +221,28 @@ impl AppCustomTheme {
             && [&self.background, &self.surface, &self.text]
                 .iter()
                 .all(|color| valid_accent(color))
+    }
+}
+
+/// The fonts picked while reading a Chinese, Japanese or Korean book, kept apart from the Asian font.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AsianFontsByLanguage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ja: Option<FontChoice>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ko: Option<FontChoice>,
+    #[serde(default, rename = "zh-Hans", skip_serializing_if = "Option::is_none")]
+    zh_hans: Option<FontChoice>,
+    #[serde(default, rename = "zh-Hant", skip_serializing_if = "Option::is_none")]
+    zh_hant: Option<FontChoice>,
+}
+
+impl AsianFontsByLanguage {
+    fn valid(&self) -> bool {
+        [&self.ja, &self.ko, &self.zh_hans, &self.zh_hant]
+            .iter()
+            .all(|font| font.as_ref().is_none_or(FontChoice::valid))
     }
 }
 
@@ -251,6 +281,10 @@ pub struct AppearancePreferences {
     reader_popup_hover_lookup: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_cjk_only: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    lookup_language: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    starter_definitions: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_shortcut_preset: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -361,6 +395,8 @@ pub struct AppearancePreferences {
     reader_asian_font_weight: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_asian_font: Option<FontChoice>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_asian_font_by_language: Option<AsianFontsByLanguage>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_western_font: Option<FontChoice>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -613,6 +649,15 @@ impl AppearancePreferences {
                 .as_ref()
                 .is_none_or(FontChoice::valid)
             && self
+                .lookup_language
+                .as_deref()
+                .is_none_or(|value| LOOKUP_LANGUAGES.contains(&value))
+            && self
+                .starter_definitions
+                .as_deref()
+                // Empty until a reader chooses, which the frontend sends along with the rest.
+                .is_none_or(|value| value.is_empty() || DEFINITION_LANGUAGES.contains(&value))
+            && self
                 .reader_popup_shortcut_preset
                 .as_deref()
                 .is_none_or(|value| POPUP_SHORTCUTS.contains(&value))
@@ -703,6 +748,10 @@ impl AppearancePreferences {
                 .as_ref()
                 .is_none_or(FontChoice::valid)
             && self
+                .reader_asian_font_by_language
+                .as_ref()
+                .is_none_or(AsianFontsByLanguage::valid)
+            && self
                 .reader_western_font
                 .as_ref()
                 .is_none_or(FontChoice::valid)
@@ -792,6 +841,8 @@ impl AppearancePreferences {
             reader_popup_click_lookup: flag("readerPopupClickLookup"),
             reader_popup_hover_lookup: flag("readerPopupHoverLookup"),
             reader_popup_cjk_only: flag("readerPopupCjkOnly"),
+            lookup_language: choice("lookupLanguage", &LOOKUP_LANGUAGES),
+            starter_definitions: choice("starterDefinitions", &DEFINITION_LANGUAGES),
             reader_popup_shortcut_preset: choice("readerPopupShortcutPreset", &POPUP_SHORTCUTS),
             reader_popup_mouse_trigger: choice("readerPopupMouseTrigger", &POPUP_MOUSE_TRIGGERS),
             reader_popup_close_behavior: choice("readerPopupCloseBehavior", &POPUP_CLOSE_BEHAVIORS),
@@ -874,6 +925,10 @@ impl AppearancePreferences {
                 value.get("readerAsianFont"),
                 text("readerFontFamilyGroup1").filter(|f| READER_SERIF_FONTS.contains(f)),
             ),
+            reader_asian_font_by_language: value
+                .get("readerAsianFontByLanguage")
+                .and_then(|fonts| serde_json::from_value(fonts.clone()).ok())
+                .filter(AsianFontsByLanguage::valid),
             reader_western_font: FontChoice::from_stored(
                 value.get("readerWesternFont"),
                 text("readerFontFamilyGroup2").filter(|f| READER_SANS_FONTS.contains(f)),
@@ -1039,6 +1094,15 @@ pub(crate) fn word_audio_sources(database: &Path) -> Option<Vec<AudioSource>> {
         .and_then(|preferences| preferences.word_audio_sources)
 }
 
+/// The saved lookup language; Japanese unless another is saved.
+pub(crate) fn lookup_language(database: &Path) -> Language {
+    load(database)
+        .ok()
+        .and_then(|preferences| preferences.lookup_language)
+        .and_then(|code| Language::from_code(&code))
+        .unwrap_or_default()
+}
+
 /// The saved app icon, when the record names one.
 pub(crate) fn app_icon(database: &Path) -> Option<String> {
     load(database)
@@ -1102,6 +1166,47 @@ fn save_to(connection: &Connection, preferences: &AppearancePreferences) -> Resu
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn saves_while_no_starter_definitions_are_chosen() {
+        let directory = tempfile::tempdir().unwrap();
+        let connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        let chosen: AppearancePreferences = serde_json::from_value(serde_json::json!({
+            "starterDefinitions": "",
+            "libraryCardSize": 200,
+            "librarySeriesFromTitles": false,
+        }))
+        .unwrap();
+        assert!(save_to(&connection, &chosen).unwrap());
+        let saved = load_from(&connection).unwrap();
+        assert_eq!(saved.library_card_size, Some(200));
+        assert_eq!(saved.library_series_from_titles, Some(false));
+        assert_eq!(saved.starter_definitions, None);
+    }
+
+    #[test]
+    fn fonts_picked_for_a_language_are_kept_and_invalid_ones_dropped() {
+        let kept = AppearancePreferences::from_stored(&serde_json::json!({
+            "readerAsianFontByLanguage": { "ko": { "source": "system", "family": "Malgun Gothic" } }
+        }));
+        assert_eq!(
+            kept.reader_asian_font_by_language
+                .and_then(|fonts| fonts.ko)
+                .as_ref(),
+            Some(&FontChoice::System {
+                family: "Malgun Gothic".into()
+            })
+        );
+        for invalid in [
+            serde_json::json!({ "ko": { "source": "system", "family": "a;b{}" } }),
+            serde_json::json!({ "fr": { "source": "system", "family": "Arial" } }),
+        ] {
+            let dropped = AppearancePreferences::from_stored(
+                &serde_json::json!({ "readerAsianFontByLanguage": invalid }),
+            );
+            assert_eq!(dropped.reader_asian_font_by_language, None);
+        }
+    }
+
     #[test]
     fn vn_preferences_validate_independently_and_survive_reopen() {
         let directory = tempfile::tempdir().unwrap();
@@ -1504,6 +1609,8 @@ mod tests {
             reader_popup_click_lookup: None,
             reader_popup_hover_lookup: None,
             reader_popup_cjk_only: None,
+            lookup_language: None,
+            starter_definitions: None,
             reader_popup_shortcut_preset: None,
             reader_popup_mouse_trigger: None,
             reader_popup_close_behavior: None,
@@ -1542,6 +1649,7 @@ mod tests {
             library_group: None,
             library_card_size: None,
             library_series_from_titles: None,
+            reader_asian_font_by_language: None,
             accent_color: Some(accent.into()),
             reader_wheel_step: Some(wheel_step),
             middle_click_autoscroll: None,
@@ -2047,6 +2155,29 @@ mod tests {
     }
 
     #[test]
+    fn a_stored_lookup_language_is_kept_only_when_known() {
+        for stored in [
+            serde_json::json!({}),
+            serde_json::json!({"lookupLanguage": "nl"}),
+            serde_json::json!({"lookupLanguage": 1}),
+        ] {
+            assert_eq!(
+                super::AppearancePreferences::from_stored(&stored).lookup_language,
+                None
+            );
+        }
+        for language in ["ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru"] {
+            let stored = serde_json::json!({ "lookupLanguage": language });
+            assert_eq!(
+                super::AppearancePreferences::from_stored(&stored)
+                    .lookup_language
+                    .as_deref(),
+                Some(language)
+            );
+        }
+    }
+
+    #[test]
     fn popup_triggers_validate_independently_and_persist() {
         let directory = tempdir().unwrap();
         let database = directory.path().join("library.sqlite3");
@@ -2060,6 +2191,7 @@ mod tests {
             ("readerPopupClickLookup", serde_json::json!([false, true])),
             ("readerPopupHoverLookup", serde_json::json!([false, true])),
             ("readerPopupCjkOnly", serde_json::json!([false, true])),
+            ("lookupLanguage", serde_json::json!(["ja", "en"])),
             (
                 "readerPopupShortcutPreset",
                 serde_json::json!(["shift-enter", "alt-x", "ctrl-space"]),
@@ -3081,6 +3213,14 @@ mod tests {
             assert!(save_to(&connection, &preferences(theme, "#2f8f83", 200, 20)).unwrap());
         }
         assert!(save_to(&connection, &chosen).unwrap());
+        let by_author = AppearancePreferences {
+            library_sort: Some("author".into()),
+            library_group: Some("author".into()),
+            ..chosen.clone()
+        };
+        assert!(save_to(&connection, &by_author).unwrap());
+        assert_eq!(load_from(&connection).unwrap(), by_author);
+        assert!(save_to(&connection, &chosen).unwrap());
 
         for invalid in [
             AppearancePreferences {
@@ -3102,7 +3242,7 @@ mod tests {
                 ..chosen.clone()
             },
             AppearancePreferences {
-                library_sort: Some("author".into()),
+                library_sort: Some("publisher".into()),
                 ..chosen.clone()
             },
             AppearancePreferences {
@@ -3110,7 +3250,7 @@ mod tests {
                 ..chosen.clone()
             },
             AppearancePreferences {
-                library_group: Some("author".into()),
+                library_group: Some("publisher".into()),
                 ..chosen.clone()
             },
             AppearancePreferences {
@@ -3148,8 +3288,8 @@ mod tests {
                             "text": "#eeeeee"
                         },
                         "libraryView": "list",
-                        "librarySort": "author",
-                        "libraryGroupSort": "author",
+                        "librarySort": "publisher",
+                        "libraryGroupSort": "publisher",
                         "libraryGroupSortReversed": "yes",
                         "libraryFilter": "completed",
                         "libraryCardSeries": "yes",
@@ -3732,7 +3872,7 @@ mod tests {
         let version: i64 = migrated
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(version, 7);
+        assert_eq!(version, 8);
         let books: i64 = migrated
             .query_row("SELECT count(*) FROM books", [], |row| row.get(0))
             .unwrap();

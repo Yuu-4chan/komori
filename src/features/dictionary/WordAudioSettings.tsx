@@ -25,31 +25,46 @@ type Kind = WordAudioSource["kind"];
 
 /**
  * Settings > Dictionary > Word audio: the sources Voice and Anki's Word audio content try in
- * order. Every change saves at once.
+ * order. Every change saves at once. JapanesePod101 is offered only for Japanese lookups, and
+ * other languages skip it; Wikimedia Commons has every language.
  */
 export function WordAudioSettings() {
-  const { wordAudioSources: sources, setWordAudioSources } = useAppearance();
+  const { wordAudioSources: sources, setWordAudioSources, lookupLanguage } = useAppearance();
   const { t } = useI18n();
-  const hasJpod101 = sources.some((source) => source.kind === "jpod101");
-  const [kind, setKind] = useState<Kind>(hasJpod101 ? "url" : "jpod101");
+  const offerJpod101 =
+    lookupLanguage === "ja" && !sources.some((source) => source.kind === "jpod101");
+  const offerCommons = !sources.some((source) => source.kind === "commons");
+  const offered = (kind: Kind) =>
+    kind === "jpod101" ? offerJpod101 : kind === "commons" ? offerCommons : true;
+  const [kind, setKind] = useState<Kind>(
+    offerJpod101 ? "jpod101" : offerCommons ? "commons" : "url",
+  );
   const [url, setUrl] = useState("");
-  const shownKind: Kind = kind === "jpod101" && hasJpod101 ? "url" : kind;
+  const shownKind: Kind = offered(kind) ? kind : "url";
   const candidate: WordAudioSource =
-    shownKind === "jpod101" ? { kind: "jpod101" } : { kind: shownKind, url: url.trim() };
+    shownKind === "jpod101" || shownKind === "commons"
+      ? { kind: shownKind }
+      : { kind: shownKind, url: url.trim() };
 
   const name = (source: WordAudioSource) =>
-    source.kind === "jpod101" ? t("wordAudio.jpod101") : source.url;
+    source.kind === "jpod101"
+      ? t("wordAudio.jpod101")
+      : source.kind === "commons"
+        ? t("wordAudio.commons")
+        : source.url;
   const kindLabel = (kind: Kind) =>
     kind === "jpod101"
       ? "assets.languagepod101.com"
-      : kind === "url"
-        ? t("wordAudio.kindUrl")
-        : t("wordAudio.kindList");
+      : kind === "commons"
+        ? "commons.wikimedia.org"
+        : kind === "url"
+          ? t("wordAudio.kindUrl")
+          : t("wordAudio.kindList");
 
   const problem =
     sources.length >= maxWordAudioSources
       ? t("wordAudio.full", { count: maxWordAudioSources })
-      : candidate.kind !== "jpod101" && !validWordAudioUrl(candidate.url)
+      : (candidate.kind === "url" || candidate.kind === "list") && !validWordAudioUrl(candidate.url)
         ? candidate.url
           ? t("wordAudio.invalidUrl")
           : ""
@@ -76,7 +91,7 @@ export function WordAudioSettings() {
     if (problem !== null) return;
     setWordAudioSources([...sources, candidate]);
     setUrl("");
-    if (candidate.kind === "jpod101") setKind("url");
+    if (candidate.kind === "jpod101" || candidate.kind === "commons") setKind("url");
   }
 
   return (
@@ -97,7 +112,11 @@ export function WordAudioSettings() {
               <li
                 aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
                 className="settings-source-row settings-source-row--audio"
-                key={source.kind === "jpod101" ? source.kind : `${source.kind}:${source.url}`}
+                key={
+                  source.kind === "jpod101" || source.kind === "commons"
+                    ? source.kind
+                    : `${source.kind}:${source.url}`
+                }
                 onKeyDown={(event) => moveByKey(event, index)}
                 tabIndex={0}
               >
@@ -139,14 +158,19 @@ export function WordAudioSettings() {
             label={t("wordAudio.newSource")}
             value={shownKind}
             options={[
-              ...(hasJpod101 ? [] : [{ value: "jpod101" as const, label: t("wordAudio.jpod101") }]),
+              ...(offerJpod101
+                ? [{ value: "jpod101" as const, label: t("wordAudio.jpod101") }]
+                : []),
+              ...(offerCommons
+                ? [{ value: "commons" as const, label: t("wordAudio.commons") }]
+                : []),
               { value: "url" as const, label: t("wordAudio.kindUrl") },
               { value: "list" as const, label: t("wordAudio.kindList") },
             ]}
             onChange={setKind}
           />
         </div>
-        {shownKind !== "jpod101" ? (
+        {shownKind === "url" || shownKind === "list" ? (
           <div className="settings-field">
             <TextField label={t("wordAudio.url")} value={url} maxLength={2048} onChange={setUrl} />
             <p className="settings-field__hint">

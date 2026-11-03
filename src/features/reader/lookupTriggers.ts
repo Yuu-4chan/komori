@@ -1,3 +1,5 @@
+import { spacesWords, type LookupLanguage } from "../dictionary/lookupLanguage";
+
 /** Input preferences are separate from book presentation: changing them never reflows text. */
 export const shortcutPresets = [
   { value: "shift-enter", label: "Shift + Enter" },
@@ -41,6 +43,8 @@ export interface LookupTriggerPreferences {
   readerPopupMaxResults: number;
   readerPopupChildLevels: number;
   readerPopupReadingPosition: (typeof readingPositions)[number]["value"];
+  /** How scans read the text; Japanese when absent. */
+  lookupLanguage?: LookupLanguage;
 }
 
 export type LookupTrigger =
@@ -115,8 +119,12 @@ export function triggerEnabled(
   }
 }
 
-/** Automatic Reader gestures accept kana, Han (including extensions), and Hangul. */
+/**
+ * Automatic Reader gestures accept kana, Han (including extensions), and Hangul when CJK only is
+ * on; a language that spaces its words accepts text starting with a letter instead.
+ */
 export function lookupTextAllowed(settings: LookupTriggerPreferences, text: string): boolean {
+  if (settings.lookupLanguage && spacesWords(settings.lookupLanguage)) return /^\p{L}/u.test(text);
   return (
     !settings.readerPopupCjkOnly ||
     /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(text)

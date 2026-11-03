@@ -71,3 +71,21 @@ it("draws no title bar outside the desktop application", () => {
   const dialog = renderDialog();
   expect(dialog.querySelector(".dialog-caption")).toBeNull();
 });
+
+it("closes on a backdrop click, not on a drag from inside released over the backdrop", async () => {
+  const onCancel = vi.fn();
+  const dialog = renderDialog(onCancel);
+  const text = screen.getByText("Remove this book?");
+
+  // Selecting text inside and letting go outside clicks the backdrop, where the press didn't start.
+  const user = userEvent.setup();
+  await user.pointer([
+    { keys: "[MouseLeft>]", target: text },
+    { target: dialog },
+    { keys: "[/MouseLeft]" },
+  ]);
+  expect(onCancel).not.toHaveBeenCalled();
+
+  await user.click(dialog);
+  expect(onCancel).toHaveBeenCalledOnce();
+});

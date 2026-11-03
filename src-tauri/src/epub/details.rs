@@ -49,16 +49,40 @@ pub(crate) struct BookDetails {
 
 impl BookDetails {
     /// The language to show: the declared one, unless the text is clearly Chinese, Japanese, or
-    /// Korean and the declaration is not (exported metadata often keeps a default `en`).
+    /// Korean and the declaration is another language (exported metadata often keeps a default
+    /// `en`, and some Japanese books declare `zh`).
     pub(crate) fn language(&self) -> Option<String> {
-        match (&self.package.language, &self.text) {
-            (Some(declared), Some(text)) if !is_cjk_language(declared) => {
+        let shown = match (&self.package.language, &self.text) {
+            (Some(declared), Some(text)) if text_language(declared) != Some(text.language) => {
                 Some(text.language.to_string())
             }
             (Some(declared), _) => Some(shown_language(declared)),
             (None, Some(text)) => Some(text.language.to_string()),
             (None, None) => None,
-        }
+        }?;
+        Some(match &self.text {
+            Some(text) if shown == "zh" => chinese_script(&text.kanji).unwrap_or("zh").to_string(),
+            _ => shown,
+        })
+    }
+}
+
+/// Characters written differently in the two scripts, paired by position.
+const ONLY_SIMPLIFIED: &str =
+    "这们说对时过还进发经问见从现开关门国会学书东车马鸟鱼语话让给动实点头气军体爱";
+const ONLY_TRADITIONAL: &str =
+    "這們說對時過還進發經問見從現開關門國會學書東車馬鳥魚語話讓給動實點頭氣軍體愛";
+
+/// `zh-Hans` or `zh-Hant`, from a Chinese book's distinct characters, when they clearly use one.
+pub(crate) fn chinese_script(han: &str) -> Option<&'static str> {
+    let used = |set: &str| set.chars().filter(|c| han.contains(*c)).count();
+    let (simplified, traditional) = (used(ONLY_SIMPLIFIED), used(ONLY_TRADITIONAL));
+    if simplified > traditional * 2 {
+        Some("zh-Hans")
+    } else if traditional > simplified * 2 {
+        Some("zh-Hant")
+    } else {
+        None
     }
 }
 
@@ -217,11 +241,15 @@ pub(crate) fn normalize_language(value: &str) -> Option<String> {
     )
 }
 
-pub(crate) fn is_cjk_language(language: &str) -> bool {
-    matches!(
-        language.split('-').next(),
-        Some("ja" | "zh" | "ko" | "yue" | "cmn" | "wuu" | "lzh")
-    )
+/// The language text in a tag's script counts as: `zh` for every Chinese, `ja` and `ko` as
+/// they are, `None` for any other.
+fn text_language(language: &str) -> Option<&'static str> {
+    match language.split('-').next()? {
+        "ja" => Some("ja"),
+        "ko" => Some("ko"),
+        "zh" | "yue" | "cmn" | "wuu" | "lzh" => Some("zh"),
+        _ => None,
+    }
 }
 
 /// Counts the text of every linear spine document: statistics for a book whose text is mostly
@@ -533,6 +561,14 @@ mod tests {
     }
 
     #[test]
+    fn plain_chinese_takes_its_script_from_its_characters() {
+        assert_eq!(chinese_script("这们说的书"), Some("zh-Hans"));
+        assert_eq!(chinese_script("這們說的書"), Some("zh-Hant"));
+        assert_eq!(chinese_script("山水"), None);
+        assert_eq!(chinese_script("这這"), None);
+    }
+
+    #[test]
     fn counts_body_text_without_ruby_head_or_scripts() {
         let counter = counted(
             r#"<?xml version="1.0"?><html><head><title>題名タイトル</title><style>p{}</style></head>
@@ -610,6 +646,18 @@ mod tests {
         assert_eq!(
             details(Some("zh-TW"), Some("zh")).language().as_deref(),
             Some("zh-Hant")
+        );
+        assert_eq!(
+            details(Some("zh-Hans"), Some("ja")).language().as_deref(),
+            Some("ja")
+        );
+        assert_eq!(
+            details(Some("ja"), Some("zh")).language().as_deref(),
+            Some("zh")
+        );
+        assert_eq!(
+            details(Some("yue"), Some("zh")).language().as_deref(),
+            Some("yue")
         );
         assert_eq!(details(Some("en"), None).language().as_deref(), Some("en"));
         assert_eq!(details(None, Some("ko")).language().as_deref(), Some("ko"));

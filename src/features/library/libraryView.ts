@@ -6,23 +6,25 @@ import { i18n } from "../../i18n/i18n";
 import type { LibraryBook } from "./libraryApi";
 
 export type LibraryView = "grid" | "list";
-export type LibrarySort = "recent" | "added" | "title" | "progress" | "characters" | "words";
+export type LibrarySort =
+  "recent" | "added" | "title" | "author" | "progress" | "characters" | "words";
 export type LibraryFilter = "all" | "reading" | "completed" | "not-started";
 export type LibraryReadingStatus = Exclude<LibraryFilter, "all">;
-export type LibraryGroup = "none" | "series" | "language";
+export type LibraryGroup = "none" | "series" | "language" | "author";
 
 const libraryViews: readonly LibraryView[] = ["grid", "list"];
 const librarySorts: readonly LibrarySort[] = [
   "recent",
   "added",
   "title",
+  "author",
   "progress",
   "characters",
   "words",
 ];
 const libraryFilters: readonly LibraryFilter[] = ["all", "reading", "completed", "not-started"];
 
-const libraryGroups: readonly LibraryGroup[] = ["none", "series", "language"];
+const libraryGroups: readonly LibraryGroup[] = ["none", "series", "language", "author"];
 
 export const isLibraryView = (value: unknown): value is LibraryView =>
   libraryViews.includes(value as LibraryView);
@@ -90,6 +92,15 @@ export function bookTitle(book: LibraryBook): string {
   return book.title ?? book.fileName;
 }
 
+/**
+ * The first of a book's authors, which the Library groups it under: `A & B`, `A／B`, `A, B`
+ * and `A、B` list several, as Calibre and Japanese stores write them.
+ */
+export function leadAuthor(book: LibraryBook): string | null {
+  const lead = book.author?.split(/\s*(?:[&＆;；、／/]|,\s)\s*/u)[0]?.trim();
+  return lead || null;
+}
+
 /** Title, author, series, and file name contain every word of the query, ignoring case. */
 export function matchesQuery(book: LibraryBook, query: string): boolean {
   const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -104,9 +115,9 @@ export function matchesQuery(book: LibraryBook, query: string): boolean {
 const time = (value: string | null | undefined) => (value ? Date.parse(value) || 0 : 0);
 
 /**
- * Sorts a copy. Recently opened puts never-opened books last in import order; Characters, most
- * first, keeps the books Komori counted (Chinese, Japanese, and Korean books) first, and
- * reversing only reverses within them.
+ * Sorts a copy. Recently opened puts never-opened books last in import order; Author, by name
+ * and then title, keeps books without one last; Characters, most first, keeps the books Komori
+ * counted (Chinese, Japanese, and Korean books) first, and reversing only reverses within them.
  */
 export function sortBooks(
   books: readonly LibraryBook[],
@@ -125,6 +136,9 @@ export function sortBooks(
         return direction * (time(b.importedAt) - time(a.importedAt));
       case "title":
         return direction * collator.compare(bookTitle(a), bookTitle(b));
+      case "author":
+        if (!a.author !== !b.author) return a.author ? -1 : 1;
+        return direction * collator.compare(a.author ?? "", b.author ?? "");
       case "progress":
         return direction * ((bookFraction(b) ?? -1) - (bookFraction(a) ?? -1));
       case "characters":
@@ -222,25 +236,28 @@ export function languageName(tag: string): string {
 }
 
 export interface LibrarySection {
-  /** `series:<name>` or `language:<tag>` (empty after the colon for books without one). */
+  /**
+   * `series:<name>`, `language:<tag>` or `author:<name>` (empty after the colon for books
+   * without one).
+   */
   key: string;
   /** The heading; null for the ungrouped Library. */
   title: string | null;
   books: LibraryBook[];
 }
 
-// No series or language is ever empty, so the empty key stands for books without one.
+// No series, language or author is ever empty, so the empty key stands for books without one.
 const NO_GROUP = "";
 
 /**
  * What a group is ordered by under a sort, larger first: its latest opening (with its latest
  * import breaking ties) or import, its books' mean progress, or the characters or words of all
  * its books. Unranked groups (never opened, none opened, or none counted) follow the rest in
- * either direction. Title orders groups by name instead.
+ * either direction. Title and Author order groups by name instead.
  */
 function groupRank(
   books: readonly LibraryBook[],
-  sort: Exclude<LibrarySort, "title">,
+  sort: Exclude<LibrarySort, "title" | "author">,
 ): { ranked: boolean; value: number; tie: number } {
   const latest = (field: "lastReadAt" | "importedAt") =>
     books.reduce((most, book) => Math.max(most, time(book[field])), 0);
@@ -273,7 +290,7 @@ function groupRank(
 }
 
 /**
- * Books under headings, by series or by language, each group's books in the order they came
+ * Books under headings, by series, language or (first) author, each group's books in the order they came
  * in (the chosen sort). Named groups follow the chosen sort and direction (see `groupRank`),
  * then their names; books without one come last. `none` is one untitled section.
  */
@@ -286,7 +303,12 @@ export function groupBooks(
   if (group === "none") return [{ key: "all", title: null, books: [...books] }];
   const sections = new Map<string, LibraryBook[]>();
   for (const book of books) {
-    const value = group === "series" ? book.series : book.language && shownLanguage(book.language);
+    const value =
+      group === "series"
+        ? book.series
+        : group === "author"
+          ? leadAuthor(book)
+          : book.language && shownLanguage(book.language);
     const key = value ?? NO_GROUP;
     const section = sections.get(key);
     if (section) section.push(book);
@@ -294,15 +316,19 @@ export function groupBooks(
   }
   const title = (key: string) =>
     key === NO_GROUP
-      ? group === "series"
-        ? i18n().t("libraryCard.noSeries")
-        : i18n().t("libraryCard.unknownLanguage")
-      : group === "series"
-        ? key
-        : languageName(key);
+      ? i18n().t(
+          group === "series"
+            ? "libraryCard.noSeries"
+            : group === "author"
+              ? "libraryCard.unknownAuthor"
+              : "libraryCard.unknownLanguage",
+        )
+      : group === "language"
+        ? languageName(key)
+        : key;
   const direction = reversed ? -1 : 1;
   const rank = new Map(
-    sort === "title"
+    sort === "title" || sort === "author"
       ? []
       : [...sections].map(([key, members]) => [key, groupRank(members, sort)] as const),
   );
@@ -326,7 +352,7 @@ export function groupBooks(
 /** The grouping a section key such as `series:Accel World` belongs to, if any. */
 export function sectionGroup(key: string): Exclude<LibraryGroup, "none"> | null {
   const group = key.slice(0, key.indexOf(":"));
-  return group === "series" || group === "language" ? group : null;
+  return group === "series" || group === "language" || group === "author" ? group : null;
 }
 
 /** `/library?group=<section key>` is one group's own page, opened from its See all or a card's chip. */
@@ -336,7 +362,7 @@ export function groupPageLink(key: string): string {
 
 /** The words a series name can end in before a volume's number: `Vol. 2`, `Ep.05`, `第3巻`. */
 const VOLUME_WORD =
-  /(?:(?<![\p{L}\p{N}])(?:vol(?:ume)?|ep(?:isode)?|book|part|tome|tomo|livro|parte)|第)$/iu;
+  /(?:(?<![\p{L}\p{N}])(?:v|vol(?:ume)?|ep(?:isode)?|book|part|tome|tomo|livro|parte)|第)$/iu;
 
 /** Numbers, separators and opening brackets ending a name, but not a title's own `！` or `？`. */
 const TRAILING = /(?:(?![!?！？‼⁉⁈⁇])[\s\p{N}\p{Po}\p{Ps}\p{Pi}\p{Pc}])+$/u;
@@ -350,13 +376,19 @@ const OPENING: Record<string, string> = { ">": "<", "＞": "＜", "﹥": "﹤" }
 /** A letter of a script that separates its words with spaces. */
 const SPACED_LETTER = /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}]/u;
 
+/** Whether two characters read the same, full-width (`４`) or not (`4`). */
+const sameCharacter = (a: string, b: string) =>
+  a === b || a.normalize("NFKC") === b.normalize("NFKC");
+
 /**
  * The series name several titles share, from how they begin: `Cat Tales 1` and `Cat Tales 2`
  * give `Cat Tales`, and `86─エイティシックス─Ep.05─…` and `86─エイティシックス─Alter.01─…` give
  * `86─エイティシックス─`. Volume numbers and words, parts such as `（上）`, separators and
  * opening brackets before where the titles differ are left out, and so is a word they differ
  * within; a closing bracket, `！` or `？` stays, as does a dash or symbol that closes one
- * opening earlier in the name (`＜インフィニット・ストラトス＞`).
+ * opening earlier in the name (`＜インフィニット・ストラトス＞`). A dash after a space only
+ * separates (`Bing - An - Vol 3`), and an opening bracket heading the name that it never
+ * closes is left out.
  * Empty for fewer than two titles, or when they share no name.
  */
 export function seriesFromTitles(titles: readonly string[]): string {
@@ -365,7 +397,8 @@ export function seriesFromTitles(titles: readonly string[]): string {
   let length = first.length;
   for (const title of rest) {
     let index = 0;
-    while (index < length && index < title.length && title[index] === first[index]) index += 1;
+    while (index < length && index < title.length && sameCharacter(title[index], first[index]))
+      index += 1;
     length = index;
   }
   let stem = first.slice(0, length).join("");
@@ -382,13 +415,14 @@ export function seriesFromTitles(titles: readonly string[]): string {
     if (
       end &&
       /[\p{Pd}\p{S}]/u.test(end) &&
-      !earlier.includes(end) &&
-      !earlier.includes(OPENING[end] ?? end)
+      ((!OPENING[end] && /\s$/u.test(earlier)) ||
+        (!earlier.includes(end) && !earlier.includes(OPENING[end] ?? end)))
     )
       next = earlier;
     if (next === stem) break;
     stem = next;
   }
+  if (!/[\p{Pe}\p{Pf}]/u.test(stem)) stem = stem.replace(/^[\p{Ps}\p{Pi}]\s*/u, "");
   return /\p{L}/u.test(stem) ? stem : "";
 }
 

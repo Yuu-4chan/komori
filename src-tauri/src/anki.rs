@@ -30,7 +30,7 @@ mod tests;
 const MAX_RESPONSE: usize = 2 * 1024 * 1024;
 const FIELD_LIMIT: usize = 128 * 1024;
 const TOTAL_LIMIT: usize = 512 * 1024;
-const PLACEHOLDERS: [&str; 15] = [
+const PLACEHOLDERS: [&str; 16] = [
     "expression",
     "reading",
     "definition",
@@ -39,6 +39,7 @@ const PLACEHOLDERS: [&str; 15] = [
     "frequencyHarmonic",
     "frequencyAverage",
     "pitch",
+    "ipa",
     "sentence",
     "bookTitle",
     "expressionFurigana",
@@ -677,6 +678,16 @@ fn create_lapis(prefs: &Preferences) -> Result<String> {
         return Err(AnkiError::Incompatible);
     }
     Ok("created".into())
+}
+/// A deck for new cards with the Lapis note type ready for it. An existing deck stays as it is.
+fn create_deck(prefs: &Preferences, deck: &str) -> Result<()> {
+    let deck = deck.trim();
+    if !valid_name(deck) {
+        return Err(AnkiError::Invalid);
+    }
+    create_lapis(prefs)?;
+    call(prefs, "createDeck", json!({ "deck": deck }))?;
+    Ok(())
 }
 fn escaped(s: &str) -> String {
     // Lapis embeds some fields in JS template literals. Escape JS delimiters too,
@@ -1907,6 +1918,15 @@ pub async fn create_anki_lapis(preferences: Preferences) -> Result<String> {
     .map_err(|_| AnkiError::Unavailable)?
 }
 #[tauri::command]
+pub async fn create_anki_deck(preferences: Preferences, deck: String) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = OPERATIONS.lock().map_err(|_| AnkiError::Busy)?;
+        create_deck(&preferences, &deck)
+    })
+    .await
+    .map_err(|_| AnkiError::Unavailable)?
+}
+#[tauri::command]
 pub async fn create_anki_note(
     catalog: State<'_, CatalogState>,
     request: NoteRequest,
@@ -1914,8 +1934,9 @@ pub async fn create_anki_note(
     let path = catalog.database.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = OPERATIONS.lock().map_err(|_| AnkiError::Busy)?;
+        let language = crate::appearance_preferences::lookup_language(&path);
         create_note_with(&path, &request, &|sources, term, reading| {
-            tauri::async_runtime::block_on(word_audio::find(sources, term, reading))
+            tauri::async_runtime::block_on(word_audio::find(sources, term, reading, language))
         })
     })
     .await

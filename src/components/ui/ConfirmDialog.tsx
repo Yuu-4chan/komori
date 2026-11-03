@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { DialogCaption } from "../layout/WindowControls";
+import { useBackdropDismiss } from "./backdropDismiss";
 import { Button } from "./Button";
 
 interface ConfirmDialogProps {
@@ -24,6 +25,8 @@ interface ConfirmDialogProps {
   /** Where focus returns on close, for an opener disabled while the dialog's content loads. */
   returnFocus?: HTMLElement | null;
   title: string;
+  /** Wider, for a list. */
+  wide?: boolean;
 }
 
 export function ConfirmDialog({
@@ -42,12 +45,16 @@ export function ConfirmDialog({
   open,
   returnFocus,
   title,
+  wide = false,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const { t } = useI18n();
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
+  const backdrop = useBackdropDismiss(() => {
+    if (!busy) onCancel();
+  });
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -55,7 +62,12 @@ export function ConfirmDialog({
     returnFocusRef.current = returnFocus ?? (document.activeElement as HTMLElement | null);
     if (typeof dialog.showModal === "function") dialog.showModal();
     else dialog.setAttribute("open", "");
-    dialog.querySelector<HTMLButtonElement>("[data-dialog-cancel]")?.focus();
+    // A field marked `data-dialog-focus` opens focused with its text selected; else Cancel.
+    const field = dialog.querySelector<HTMLInputElement>("[data-dialog-focus]");
+    if (field) {
+      field.focus();
+      field.select();
+    } else dialog.querySelector<HTMLButtonElement>("[data-dialog-cancel]")?.focus();
     return () => {
       if (dialog.open && typeof dialog.close === "function") dialog.close();
       returnFocusRef.current?.focus();
@@ -69,14 +81,13 @@ export function ConfirmDialog({
     <dialog
       aria-describedby={descriptionId}
       aria-labelledby={titleId}
-      className="confirm-dialog"
+      className={wide ? "confirm-dialog confirm-dialog--wide" : "confirm-dialog"}
       onCancel={(event) => {
         event.preventDefault();
         if (!busy) onCancel();
       }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget && !busy) onCancel();
-      }}
+      onClick={backdrop.onClick}
+      onPointerDown={backdrop.onPointerDown}
       ref={dialogRef}
       role={dialogRole}
     >

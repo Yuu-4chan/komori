@@ -1,5 +1,17 @@
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
-import { useAsianFontFallback, useReaderFonts, useSystemFontFaces } from "./readerFonts";
+import {
+  useAsianFontFallback,
+  useBookFontSupport,
+  useReaderFonts,
+  useSystemFontFaces,
+} from "./readerFonts";
+import {
+  bookFontLanguage,
+  fontChoiceLabel,
+  replacementAsianFonts,
+  type ReaderFontChoice,
+} from "./fontChoices";
+import { languageName } from "../library/libraryView";
 import { usePopupFont } from "./popupFont";
 import { availableFontWeights, resolveFontWeight } from "./fontWeights";
 import {
@@ -198,14 +210,40 @@ export function ReaderShell({
   const appearance = useAppearance();
   const { fonts: managedFonts, loaded: fontsListed } = useReaderFonts();
   // The popup font loads with the book, so the first lookup shows in it at once.
-  usePopupFont(appearance.readerPopupFont);
+  usePopupFont(appearance.readerPopupFont, appearance.lookupLanguage);
   // The default Yu Mincho, or the Noto Serif JP that stands in for it on a computer without it.
   const shownAsianFont = useAsianFontFallback(appearance.readerAsianFont);
-  const asianFont = shownAsianFont ?? appearance.readerAsianFont;
+  const bookLanguage = identity.status === "book" ? identity.book.language : undefined;
+  const fontLanguage = bookFontLanguage(bookLanguage);
+  // A font picked in a Chinese, Japanese or Korean book stays with that language. Otherwise the saved font
+  // is kept where it has the book's text, and replaced for this book where it doesn't.
+  const pickedAsianFont = fontLanguage && appearance.readerAsianFontByLanguage[fontLanguage];
+  const savedAsianFont = shownAsianFont ?? appearance.readerAsianFont;
+  const savedFontFits = useBookFontSupport(
+    fontLanguage && !pickedAsianFont ? savedAsianFont : undefined,
+    identity.status === "book" ? identity.book.id : undefined,
+  );
+  const replacedFont =
+    fontLanguage && !pickedAsianFont && savedFontFits === false
+      ? replacementAsianFonts[fontLanguage]
+      : undefined;
+  const asianFont = pickedAsianFont ?? replacedFont ?? savedAsianFont;
+  const fontNotice =
+    replacedFont && bookLanguage
+      ? t("reader.fontChanged", {
+          font: fontChoiceLabel(replacedFont),
+          language: languageName(bookLanguage),
+        })
+      : "";
   const checkedFaces = useSystemFontFaces([appearance.readerWesternFont, asianFont]);
   const systemFaces = checkedFaces ?? [];
   // A book is laid out once its fonts are known, so it does not open in one and turn to another.
-  const fontsKnown = fontsListed && !!shownAsianFont && !!checkedFaces;
+  const fontsKnown =
+    fontsListed &&
+    !!shownAsianFont &&
+    !!checkedFaces &&
+    identity.status !== "loading" &&
+    savedFontFits !== undefined;
   const westernWeight = resolveFontWeight(
     appearance.readerWesternFontWeight,
     availableFontWeights(appearance.readerWesternFont, managedFonts),
@@ -238,7 +276,8 @@ export function ReaderShell({
     )
     .map((f) => ({ id: f.id, family: f.family, weight: f.weight!, style: f.style! }));
   const { readerPopupWidth, readerPopupHeight, readerPopupChildLevels } = appearance;
-  const triggerKey = JSON.stringify(normalizeLookupTriggers(appearance));
+  const { lookupLanguage } = appearance;
+  const triggerKey = JSON.stringify({ ...normalizeLookupTriggers(appearance), lookupLanguage });
   const triggers = useMemo(() => JSON.parse(triggerKey) as LookupTriggerPreferences, [triggerKey]);
   const triggersRef = useRef(triggers);
   triggersRef.current = triggers;
@@ -247,7 +286,7 @@ export function ReaderShell({
   // Child popups (lookups from inside a popup) follow the root lookup, deepest last.
   const [lookups, setLookups] = useState<Lookup[]>([]);
   // Read once for the book's popups rather than once per lookup.
-  const definitionSources = useDefinitionSources();
+  const definitionSources = useDefinitionSources(true, lookupLanguage);
   const lookup = lookups[0] ?? null;
   const lookupOpen = useRef(false);
   lookupOpen.current = lookup !== null;
@@ -619,6 +658,10 @@ export function ReaderShell({
     fontsKnown,
   );
   highlightPointerMatchRef.current = highlightPointerMatch;
+  const bookReady = status === "ready";
+  useEffect(() => {
+    if (bookReady && fontNotice) showFeedback(fontNotice);
+  }, [bookReady, fontNotice, showFeedback]);
 
   // A saved place reads as its chapter, the last contents entry at or before it, and how far
   // into the book it lies; before the book is counted, or ahead of every entry, its section.
@@ -747,7 +790,12 @@ export function ReaderShell({
     const note = text.trim() ? null : noteAtPoint(contentDocument, event.clientX, event.clientY);
     if (text.trim()) {
       event.preventDefault();
-      const lookup = selectionLookup(contentDocument, viewportRef.current ?? undefined, "menu");
+      const lookup = selectionLookup(
+        contentDocument,
+        viewportRef.current ?? undefined,
+        "menu",
+        triggersRef.current.lookupLanguage,
+      );
       setBookMenu({ x, y, kind: "text", text, lookup });
     } else if (note) {
       event.preventDefault();
@@ -1727,6 +1775,11 @@ export function ReaderShell({
           onBlurModeChange: setReaderBlurMode,
           imageBlurBoundary: status === "ready" ? imageBlurBoundary : undefined,
           vnNotice: pageTurns.vnNotice,
+          asianFont,
+          onAsianFontChange: (font: ReaderFontChoice) =>
+            fontLanguage
+              ? appearance.setReaderAsianFontForLanguage(fontLanguage, font)
+              : appearance.setReaderAsianFont(font),
           viewMode: readerViewMode,
           onViewModeChange: setReaderViewMode,
           wheelStep: readerWheelStep,

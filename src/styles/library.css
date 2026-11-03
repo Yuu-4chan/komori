@@ -976,7 +976,8 @@
 }
 
 .library-selection-bar__button:hover:not(:disabled),
-.library-selection-bar__close:hover {
+.library-selection-bar__button[aria-expanded="true"],
+.library-selection-bar__close:hover:not(:disabled) {
   background: color-mix(in srgb, var(--text-primary) 7%, transparent);
 }
 
@@ -1001,7 +1002,8 @@
   border-radius: 50%;
 }
 
-.library-selection-bar :focus-visible {
+.library-selection-bar :focus-visible,
+.library-selection-toolbar :focus-visible {
   outline: var(--focus-ring);
   outline-offset: 1px;
 }
@@ -1285,6 +1287,92 @@
 
 .series-dialog__name input:disabled {
   opacity: 0.5;
+}
+
+.book-edit {
+  margin-top: var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.book-edit__field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.book-edit__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 1.75rem;
+}
+
+.book-edit__label > span {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.book-edit__label strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-3);
+  font-weight: 650;
+}
+
+.book-edit__label small,
+.book-edit__title small {
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+}
+
+.book-edit input {
+  width: 100%;
+  height: var(--control-height);
+  padding: 0 0.8rem;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.book-edit input:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.book-edit__list {
+  max-height: min(50vh, 26rem);
+  margin: 0;
+  padding: var(--space-1);
+  display: grid;
+  gap: var(--space-1);
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+}
+
+.book-edit__row {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) 2rem;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 4rem;
+}
+
+.book-edit__title {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.book-edit__title small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .library-drop-overlay {
   position: fixed;

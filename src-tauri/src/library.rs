@@ -21,8 +21,8 @@ use crate::{
     title_series::{self, TitledBook},
 };
 
-const SCHEMA_VERSION: i64 = 7;
-const COVER_RESOLVER_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 8;
+const COVER_RESOLVER_VERSION: i64 = 3;
 const CATALOG_FILE_NAME: &str = "library.sqlite3";
 
 #[derive(Debug)]
@@ -35,8 +35,20 @@ pub struct CatalogState {
 #[serde(rename_all = "camelCase")]
 pub struct LibraryBook {
     id: String,
+    /// The title set by hand, or else the book's own (cleaned at import).
     title: Option<String>,
+    /// The book's own title, only when one was set by hand.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    own_title: Option<String>,
+    /// Whether the title was set by hand.
+    title_manual: bool,
+    /// The author set by hand, or else the book's own.
     author: Option<String>,
+    /// The book's own author, only when one was set by hand.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    own_author: Option<String>,
+    /// Whether the author was set by hand.
+    author_manual: bool,
     file_name: String,
     imported_at: String,
     availability: &'static str,
@@ -166,16 +178,26 @@ pub async fn get_library_book(
     .map_err(|error| format!("Library task failed: {error}"))?
 }
 
+/// A file picker on top of Komori's window, which waits for it, so it can't end up lost behind.
+pub(crate) fn window_picker(app: &AppHandle) -> rfd::AsyncFileDialog {
+    let picker = rfd::AsyncFileDialog::new();
+    match app.get_webview_window("main") {
+        Some(window) => picker.set_parent(&window),
+        None => picker,
+    }
+}
+
 #[tauri::command]
 pub async fn import_books(
     app: AppHandle,
     catalog: State<'_, CatalogState>,
     operation_id: Option<String>,
 ) -> Result<ImportBatch, String> {
+    let window = app.clone();
     let mut progress = BatchProgress::for_app(app, operation_id)?;
     progress.phase("picking");
     let language = interface_text::language(&catalog.database);
-    let selected = rfd::AsyncFileDialog::new()
+    let selected = window_picker(&window)
         .set_title(interface_text::text(language, Text::ImportEpubs))
         .add_filter(interface_text::text(language, Text::EpubBooks), &["epub"])
         .pick_files()
@@ -497,9 +519,25 @@ pub(crate) fn open_catalog(path: &Path) -> Result<Connection, String> {
             }
         }
         transaction
-            .pragma_update(None, "user_version", SCHEMA_VERSION)
+            .pragma_update(None, "user_version", 7)
             .map_err(storage_error)?;
         transaction.commit().map_err(storage_error)?;
+    }
+    if version < 8 {
+        // Word audio's new default for readers who still have the old one saved, once, so
+        // removing it later stays removed.
+        connection
+            .execute_batch(&format!(
+                r#"BEGIN;
+                 UPDATE preferences
+                   SET value = json_set(value, '$.wordAudioSources',
+                     json('[{{"kind":"jpod101"}},{{"kind":"commons"}}]'))
+                   WHERE name = 'appearance' AND json_valid(value)
+                     AND json_extract(value, '$.wordAudioSources') = '[{{"kind":"jpod101"}}]';
+                 PRAGMA user_version = {SCHEMA_VERSION};
+                 COMMIT;"#
+            ))
+            .map_err(storage_error)?;
     }
     // Additive Komori-owned book state. Created without a version bump so an older Komori,
     // which ignores the table, keeps opening the catalog; removal cascades to it.
@@ -531,8 +569,9 @@ pub(crate) fn open_catalog(path: &Path) -> Result<Connection, String> {
     Ok(connection)
 }
 
-const BOOK_COLUMNS: &str = "books.id, books.source_path, books.file_name, books.title,
-                            books.author, books.imported_at, length(books.cover_bytes) IS NOT NULL,
+const BOOK_COLUMNS: &str = "books.id, books.source_path, books.file_name,
+                            coalesce(named.title, books.title),
+                            coalesce(authored.author, books.author), books.imported_at, length(books.cover_bytes) IS NOT NULL,
                             progress.unit, progress.current_units, progress.total_units,
                             nullif(max(coalesce(progress.updated_at, ''),
                                        coalesce(position.updated_at, '')), ''),
@@ -542,12 +581,18 @@ const BOOK_COLUMNS: &str = "books.id, books.source_path, books.file_name, books.
                             CASE WHEN manual.book_id IS NULL THEN details.series_index
                                  ELSE manual.series_index END,
                             manual.book_id IS NOT NULL, details.characters,
-                            details.unique_kanji, details.words";
+                            details.unique_kanji, details.words,
+                            CASE WHEN named.book_id IS NULL THEN NULL ELSE books.title END,
+                            named.book_id IS NOT NULL,
+                            CASE WHEN authored.book_id IS NULL THEN NULL ELSE books.author END,
+                            authored.book_id IS NOT NULL";
 const BOOK_SOURCE: &str = "books
      LEFT JOIN book_progress AS progress ON progress.book_id = books.id
      LEFT JOIN reading_positions AS position ON position.book_id = books.id
      LEFT JOIN book_details AS details ON details.book_id = books.id
-     LEFT JOIN book_series AS manual ON manual.book_id = books.id";
+     LEFT JOIN book_series AS manual ON manual.book_id = books.id
+     LEFT JOIN book_titles AS named ON named.book_id = books.id
+     LEFT JOIN book_authors AS authored ON authored.book_id = books.id";
 
 fn list_sql() -> String {
     format!(
@@ -567,6 +612,7 @@ pub(crate) fn list_from_catalog(connection: &Connection) -> Result<Vec<LibraryBo
             &books
                 .iter()
                 .map(|book| TitledBook {
+                    file_name: Some(&book.file_name),
                     title: book.title.as_deref(),
                     series: book.series.as_deref(),
                     series_index: book.series_index,
@@ -580,8 +626,18 @@ pub(crate) fn list_from_catalog(connection: &Connection) -> Result<Vec<LibraryBo
                 book.series_index = Some(index);
             }
         }
+    } else {
+        books.iter_mut().for_each(without_automatic_series);
     }
     Ok(books)
+}
+
+/// With Automatic series off, only a series set by hand shows, not even the book's own.
+fn without_automatic_series(book: &mut LibraryBook) {
+    if !book.series_manual {
+        book.series = None;
+        book.series_index = None;
+    }
 }
 
 fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<LibraryBook>, String> {
@@ -597,21 +653,20 @@ fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<Lib
         )
         .optional()
         .map_err(storage_error)?;
-    if let Some(book) = book
-        .as_mut()
-        .filter(|book| book.series.is_none() && !book.series_manual)
-    {
+    if let Some(book) = book.as_mut().filter(|book| !book.series_manual) {
         if appearance_preferences::series_from_titles(connection) {
             if let Some((series, index)) = series_from_catalog_titles(connection, id)? {
                 book.series = Some(series);
                 book.series_index = Some(index);
             }
+        } else {
+            without_automatic_series(book);
         }
     }
     Ok(book)
 }
 
-/// The series one book's title names among every title in the catalog, read without the
+/// The series one book's file name or title names among the whole catalog's, read without the
 /// rest of each book so the Reader opens as quickly as before.
 fn series_from_catalog_titles(
     connection: &Connection,
@@ -619,7 +674,7 @@ fn series_from_catalog_titles(
 ) -> Result<Option<(String, f64)>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT books.id, books.title,
+            "SELECT books.id, coalesce(named.title, books.title), books.file_name,
                     CASE WHEN manual.book_id IS NULL THEN details.series
                          ELSE manual.series END,
                     CASE WHEN manual.book_id IS NULL THEN details.series_index
@@ -628,6 +683,7 @@ fn series_from_catalog_titles(
              FROM books
              LEFT JOIN book_details AS details ON details.book_id = books.id
              LEFT JOIN book_series AS manual ON manual.book_id = books.id
+             LEFT JOIN book_titles AS named ON named.book_id = books.id
              ORDER BY books.imported_at DESC, books.id DESC",
         )
         .map_err(storage_error)?;
@@ -636,9 +692,10 @@ fn series_from_catalog_titles(
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, Option<String>>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, Option<f64>>(3)?,
-                row.get::<_, bool>(4)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, Option<f64>>(4)?,
+                row.get::<_, bool>(5)?,
             ))
         })
         .map_err(storage_error)?
@@ -650,7 +707,8 @@ fn series_from_catalog_titles(
     let books: Vec<TitledBook<'_>> = rows
         .iter()
         .map(
-            |(_, title, series, series_index, series_manual)| TitledBook {
+            |(_, title, file_name, series, series_index, series_manual)| TitledBook {
+                file_name: Some(file_name),
                 title: title.as_deref(),
                 series: series.as_deref(),
                 series_index: *series_index,
@@ -674,7 +732,11 @@ fn library_book_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LibraryBoo
         id,
         file_name: row.get(2)?,
         title: row.get(3)?,
+        own_title: row.get(19)?,
+        title_manual: row.get(20)?,
         author: row.get(4)?,
+        own_author: row.get(21)?,
+        author_manual: row.get(22)?,
         imported_at: row.get(5)?,
         availability: source_availability(&source_path),
         has_cover,
@@ -738,41 +800,43 @@ pub(crate) fn import_paths_with_progress(
     progress: &mut BatchProgress,
 ) -> Vec<ImportResult> {
     progress.start(paths.len());
-    paths
-        .iter()
-        .map(|path| {
-            let file_name = path
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "Selected file".into());
-            let result = match import_one(connection, path) {
-                Ok(status) => ImportResult {
-                    file_name,
-                    status,
-                    message: None,
-                },
-                Err(message) => ImportResult {
-                    file_name,
-                    status: "failed",
-                    message: Some(message),
-                },
-            };
-            progress.completed_one();
-            result
-        })
-        .collect()
+    let mut results = Vec::with_capacity(paths.len());
+    for path in paths {
+        if progress.stopped() {
+            break;
+        }
+        let file_name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "Selected file".into());
+        results.push(match import_one(connection, path) {
+            Ok(status) => ImportResult {
+                file_name,
+                status,
+                message: None,
+            },
+            Err(message) => ImportResult {
+                file_name,
+                status: "failed",
+                message: Some(message),
+            },
+        });
+        progress.completed_one();
+    }
+    results
 }
 
 fn import_one(connection: &mut Connection, path: &Path) -> Result<&'static str, String> {
-    if !path
+    let canonical = path
+        .canonicalize()
+        .map_err(|error| format!("Cannot access the source file: {error}"))?;
+    // Read from the full name: Windows can hand over a long path as `REFORM~1.EPU`.
+    if !canonical
         .extension()
         .is_some_and(|extension| extension.eq_ignore_ascii_case("epub"))
     {
         return Err(crate::failure::CHOOSE_EPUB.into());
     }
-    let canonical = path
-        .canonicalize()
-        .map_err(|error| format!("Cannot access the source file: {error}"))?;
     let source =
         File::open(&canonical).map_err(|error| format!("Cannot read the source file: {error}"))?;
     if !source
@@ -1563,6 +1627,33 @@ pub(crate) mod tests {
         );
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn import_takes_a_long_file_handed_over_by_its_short_name() {
+        let directory = tempdir().unwrap();
+        let source = directory
+            .path()
+            .join("A very long book file name for its short form.epub");
+        fixture(&source, Some("Long Name"), None, false);
+        let listed = std::process::Command::new("cmd")
+            .args(["/d", "/c", "for %I in (*.epub) do @echo %~sI"])
+            .current_dir(directory.path())
+            .output()
+            .unwrap();
+        let short = String::from_utf8_lossy(&listed.stdout).trim().to_owned();
+        // A volume can have short names turned off, and then Windows never hands one over.
+        if !short.contains('~') {
+            return;
+        }
+        let mut connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        let results = import_paths(&mut connection, &[PathBuf::from(short)]);
+        assert_eq!(results[0].status, "imported");
+        assert_eq!(
+            list_from_catalog(&connection).unwrap()[0].file_name,
+            "A very long book file name for its short form.epub"
+        );
+    }
+
     #[test]
     fn existing_titles_migrate_in_place_with_all_owned_state_and_restart_retention() {
         use rusqlite::types::Value;
@@ -1864,6 +1955,10 @@ pub(crate) mod tests {
         let book = LibraryBook {
             id: "stable-catalog-id".into(),
             title: Some("Book".into()),
+            own_title: None,
+            title_manual: false,
+            own_author: None,
+            author_manual: false,
             author: Some("Author".into()),
             file_name: "book.epub".into(),
             imported_at: "2026-09-23T00:00:00Z".into(),
@@ -2365,6 +2460,53 @@ pub(crate) mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(book.series, None);
+
+        // Off leaves out a book's own series too, until it is on again.
+        let lone = id_of("Lone Book 01");
+        connection
+            .execute(
+                "UPDATE book_details SET series = 'Own', series_index = 2 WHERE book_id = ?1",
+                [&lone],
+            )
+            .unwrap();
+        assert_eq!(shown(&connection)["Lone Book 01"], (None, None));
+        let book = get_book_from_catalog(&connection, &lone).unwrap().unwrap();
+        assert_eq!(book.series, None);
+        connection
+            .execute(
+                "UPDATE preferences SET value = ?1",
+                [r#"{"librarySeriesFromTitles":true}"#],
+            )
+            .unwrap();
+        assert_eq!(
+            shown(&connection)["Lone Book 01"],
+            (Some("Own".to_owned()), Some(2.0))
+        );
+    }
+
+    #[test]
+    fn stopping_an_import_keeps_what_it_added_and_skips_the_rest() {
+        let directory = tempdir().unwrap();
+        let mut connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        let sources: Vec<PathBuf> = ["one", "two", "three"]
+            .iter()
+            .map(|name| {
+                let source = directory.path().join(format!("{name}.epub"));
+                fixture(&source, Some(name), None, false);
+                source
+            })
+            .collect();
+        let id = uuid::Uuid::new_v4().to_string();
+        let stopping = id.clone();
+        let mut progress = BatchProgress::new(id, move |value| {
+            if value.completed == 1 {
+                crate::bulk_progress::stop_bulk_operation(stopping.clone());
+            }
+        });
+        let results = import_paths_with_progress(&mut connection, &sources, &mut progress);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].status, "imported");
+        assert_eq!(list_from_catalog(&connection).unwrap().len(), 1);
     }
 
     #[test]

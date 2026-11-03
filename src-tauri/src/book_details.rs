@@ -1,17 +1,19 @@
-//! Each book's language, series, and CJK text counts, and the series readers set by hand.
+//! Each book's language, series, and CJK text counts, and the series, titles and authors readers
+//! set by hand.
 //!
 //! `book_details` is derived from the source at import and relink, and in the background at
 //! startup for books imported before Komori read it, read by an older details version, or whose
 //! source file changed since (its size or modified time differ, as when Calibre embeds new
 //! metadata). `book_series` is
-//! reader-owned: a series set by hand, or none, overriding the book's own. Both are additive
-//! tables keyed by catalog ID that cascade with removal, so an older Komori still opens the
-//! catalog. Sources are only read.
+//! reader-owned: a series set by hand, or none, overriding the book's own. `book_titles` and
+//! `book_authors` are reader-owned too: a title or author set by hand, shown instead of the
+//! book's own, which title cleaning never rewrites. All are additive tables keyed by catalog ID that cascade with removal, so an
+//! older Komori still opens the catalog. Sources are only read.
 
 use std::{fs::File, path::Path, time::Instant, time::UNIX_EPOCH};
 
-use rusqlite::{params, Connection};
-use serde::Serialize;
+use rusqlite::{params, Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 use uuid::Uuid;
 
@@ -21,11 +23,12 @@ use crate::{
 };
 
 /// Bump to count every book again after the counting rules change.
-pub(crate) const DETAILS_VERSION: i64 = 3;
+pub(crate) const DETAILS_VERSION: i64 = 4;
 /// Tells the Library that more books have their details.
 pub(crate) const DETAILS_EVENT: &str = "library-details-updated";
 const MAX_SERIES_IDS: usize = 10_000;
 const MAX_SERIES_CHARS: usize = 200;
+const MAX_TITLE_CHARS: usize = 500;
 
 pub(crate) const DETAILS_PENDING_SQL: &str =
     "SELECT books.id, books.source_path, details.details_version, details.source_stamp
@@ -53,6 +56,16 @@ pub(crate) fn create_tables(connection: &Connection) -> Result<(), String> {
                book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
                series TEXT,
                series_index REAL,
+               updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+             );
+             CREATE TABLE IF NOT EXISTS book_titles (
+               book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+               title TEXT NOT NULL,
+               updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+             );
+             CREATE TABLE IF NOT EXISTS book_authors (
+               book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+               author TEXT NOT NULL,
                updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
              );",
         )
@@ -95,6 +108,29 @@ fn reshow_languages(connection: &Connection) -> Result<(), String> {
                 [epub::details::shown_language(&tag), tag],
             )
             .map_err(storage_error)?;
+    }
+    // Chinese whose metadata doesn't say its script takes it from the characters already counted.
+    let plain: Vec<(String, String)> = {
+        let mut statement = connection
+            .prepare(
+                "SELECT book_id, kanji FROM book_details
+                  WHERE language = 'zh' AND kanji IS NOT NULL",
+            )
+            .map_err(storage_error)?;
+        let rows = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(storage_error)?;
+        rows.collect::<Result<_, _>>().map_err(storage_error)?
+    };
+    for (book, han) in plain {
+        if let Some(script) = epub::details::chinese_script(&han) {
+            connection
+                .execute(
+                    "UPDATE book_details SET language = ?1 WHERE book_id = ?2",
+                    [script, book.as_str()],
+                )
+                .map_err(storage_error)?;
+        }
     }
     Ok(())
 }
@@ -247,6 +283,109 @@ pub async fn reset_book_series(
     })
     .await
     .map_err(|error| format!("Series task failed: {error}"))?
+}
+
+/// One book's title and author as the reader sets them: none leaves one unchanged, a blank one
+/// or the book's own shows the book's own again.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BookEdit {
+    id: String,
+    title: Option<String>,
+    author: Option<String>,
+}
+
+/// Shows the books under titles and authors set by hand, all or none; the sources are never
+/// changed.
+#[tauri::command]
+pub async fn edit_books(
+    catalog: State<'_, CatalogState>,
+    edits: Vec<BookEdit>,
+) -> Result<SeriesResult, String> {
+    let database = catalog.database.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut connection = open_catalog(&database)?;
+        apply_edits(&mut connection, &edits)
+    })
+    .await
+    .map_err(|error| format!("Edit task failed: {error}"))?
+}
+
+/// A title or author of 1–500 characters with its whitespace collapsed and no control characters.
+pub(crate) fn clean_title(title: &str) -> Option<String> {
+    let title = title.split_whitespace().collect::<Vec<_>>().join(" ");
+    (!title.is_empty()
+        && title.chars().count() <= MAX_TITLE_CHARS
+        && !title.chars().any(char::is_control))
+    .then_some(title)
+}
+
+/// The hand-set value to keep, or none for the book's own; an invalid one is refused.
+fn hand_set(value: &str, own: Option<&str>, field: &str) -> Result<Option<String>, String> {
+    if value.trim().is_empty() {
+        return Ok(None);
+    }
+    let value = clean_title(value).ok_or(format!("Enter {field} of up to 500 characters."))?;
+    Ok((own != Some(value.as_str())).then_some(value))
+}
+
+fn apply_edits(connection: &mut Connection, edits: &[BookEdit]) -> Result<SeriesResult, String> {
+    if edits.is_empty() || edits.len() > MAX_SERIES_IDS {
+        return Err("Choose between 1 and 10,000 books.".into());
+    }
+    if edits.iter().any(|edit| Uuid::parse_str(&edit.id).is_err()) {
+        return Err("A book could not be identified.".into());
+    }
+    let transaction = connection.transaction().map_err(storage_error)?;
+    let mut updated = 0;
+    for edit in edits {
+        let own: Option<(Option<String>, Option<String>)> = transaction
+            .query_row(
+                "SELECT title, author FROM books WHERE id = ?1",
+                [&edit.id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(storage_error)?;
+        // Unknown books are not created.
+        let Some((own_title, own_author)) = own else {
+            continue;
+        };
+        let fields = [
+            ("book_titles", "title", &edit.title, own_title, "a title"),
+            (
+                "book_authors",
+                "author",
+                &edit.author,
+                own_author,
+                "an author",
+            ),
+        ];
+        let mut changed = false;
+        for (table, column, value, own, field) in fields {
+            let Some(value) = value else { continue };
+            let count = match hand_set(value, own.as_deref(), field)? {
+                Some(value) => transaction.execute(
+                    &format!(
+                        "INSERT INTO {table} (book_id, {column}) VALUES (?1, ?2)
+                         ON CONFLICT(book_id) DO UPDATE
+                            SET {column} = excluded.{column},
+                                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
+                    ),
+                    params![edit.id, value],
+                ),
+                None => transaction.execute(
+                    &format!("DELETE FROM {table} WHERE book_id = ?1"),
+                    [&edit.id],
+                ),
+            }
+            .map_err(storage_error)?;
+            changed |= count > 0;
+        }
+        updated += usize::from(changed);
+    }
+    transaction.commit().map_err(storage_error)?;
+    Ok(SeriesResult { updated })
 }
 
 fn valid_ids(ids: &[String]) -> Result<(), String> {
@@ -661,6 +800,122 @@ mod tests {
         connection.execute("DELETE FROM books", []).unwrap();
         let left: i64 = connection
             .query_row("SELECT count(*) FROM book_series", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(left, 0);
+    }
+
+    fn edit(
+        connection: &mut Connection,
+        id: &str,
+        title: Option<&str>,
+        author: Option<&str>,
+    ) -> Result<usize, String> {
+        apply_edits(
+            connection,
+            &[BookEdit {
+                id: id.into(),
+                title: title.map(Into::into),
+                author: author.map(Into::into),
+            }],
+        )
+        .map(|result| result.updated)
+    }
+
+    #[test]
+    fn titles_and_authors_set_by_hand_show_instead_of_the_books_own() {
+        let directory = tempdir().unwrap();
+        let first = directory.path().join("a.epub");
+        let second = directory.path().join("b.epub");
+        book(&first, None, None, &["<p>本</p>"]);
+        book(&second, None, None, &["<p>本</p>"]);
+        let mut connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        import_paths(&mut connection, &[first.clone(), second.clone()]);
+        let ids: Vec<String> = listed(&connection)
+            .iter()
+            .map(|book| book["id"].as_str().unwrap().to_string())
+            .collect();
+        let source = std::fs::read(&first).unwrap();
+
+        let edits = ids
+            .iter()
+            .zip(["  Saga   1 ", "Saga 2"])
+            .map(|(id, title)| BookEdit {
+                id: id.clone(),
+                title: Some(title.into()),
+                author: Some("Right  Author".into()),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(apply_edits(&mut connection, &edits).unwrap().updated, 2);
+        let books = listed(&connection);
+        assert_eq!(books[0]["title"], "Saga 1");
+        assert_eq!(books[0]["ownTitle"], "a");
+        assert_eq!(books[0]["titleManual"], true);
+        assert_eq!(books[1]["author"], "Right Author");
+        assert_eq!(books[1]["authorManual"], true);
+        // Series come from the titles shown.
+        assert_eq!(books[0]["series"], "Saga");
+        assert_eq!(books[1]["seriesIndex"], 2.0);
+
+        // Leaving a field out keeps it; title cleaning rewriting the book's own title and
+        // relinking keep the one set by hand; the source is never written.
+        edit(&mut connection, &ids[0], None, Some("Other")).unwrap();
+        connection
+            .execute("UPDATE books SET title = 'a cleaned'", [])
+            .unwrap();
+        relink_one(&mut connection, &ids[0], &first).unwrap();
+        let books = listed(&connection);
+        assert_eq!(books[0]["title"], "Saga 1");
+        assert_eq!(books[0]["author"], "Other");
+        assert_eq!(std::fs::read(&first).unwrap(), source);
+
+        // A blank value, or the book's own, shows the book's own again.
+        edit(&mut connection, &ids[0], Some("  "), Some("")).unwrap();
+        let own: String = connection
+            .query_row("SELECT title FROM books WHERE id = ?1", [&ids[1]], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        edit(&mut connection, &ids[1], Some(&own), Some(" ")).unwrap();
+        for book in listed(&connection) {
+            assert_eq!(book["titleManual"], false);
+            assert_eq!(book["authorManual"], false);
+            assert!(book.get("ownTitle").is_none() && book.get("ownAuthor").is_none());
+            assert_eq!(book["author"], Value::Null);
+        }
+
+        // An invalid edit changes none of the books.
+        let mixed = [
+            BookEdit {
+                id: ids[0].clone(),
+                title: Some("Fine".into()),
+                author: None,
+            },
+            BookEdit {
+                id: ids[1].clone(),
+                title: None,
+                author: Some("x".repeat(501)),
+            },
+        ];
+        assert!(apply_edits(&mut connection, &mixed).is_err());
+        assert_eq!(listed(&connection)[0]["titleManual"], false);
+        assert!(edit(&mut connection, &ids[0], Some("a\u{7}b"), None).is_err());
+        assert!(edit(&mut connection, "../path", Some("A"), None).is_err());
+        assert!(apply_edits(&mut connection, &[]).is_err());
+        let unknown = Uuid::new_v4().to_string();
+        assert_eq!(
+            edit(&mut connection, &unknown, Some("A"), Some("B")).unwrap(),
+            0
+        );
+
+        // Removal takes the titles and authors set by hand with it.
+        edit(&mut connection, &ids[0], Some("Kept"), Some("Kept")).unwrap();
+        connection.execute("DELETE FROM books", []).unwrap();
+        let left: i64 = connection
+            .query_row(
+                "SELECT (SELECT count(*) FROM book_titles) + (SELECT count(*) FROM book_authors)",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(left, 0);
     }

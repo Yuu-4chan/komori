@@ -26,11 +26,14 @@ use tauri::{AppHandle, Manager, State};
 use super::archive::{
     BankKind, DictionaryArchive, DictionaryArchiveError, TermEntry, TermMetaMode,
 };
-use super::deinflect::{deinflect, word_classes, DICTIONARY_FORMS, VS};
+use super::deinflect::ja::{self, VS};
+use super::language::Language;
 use super::sources::SourcePolicy;
 
-const SCHEMA_VERSION: i64 = 8;
+const SCHEMA_VERSION: i64 = 9;
 pub(crate) const DATABASE_FILE_NAME: &str = "dictionaries.sqlite3";
+/// The most pronunciations an entry shows.
+const MAX_TRANSCRIPTIONS: usize = 4;
 const MAX_QUERY_CHARS: usize = 256;
 const MAX_QUERY_BYTES: usize = 1024;
 /// The longest start of a query tried when the whole query matches nothing, in characters.
@@ -145,6 +148,8 @@ pub struct TermGroup {
     terms: Vec<TermMatch>,
     frequencies: Vec<FrequencyMatch>,
     pitches: Vec<PitchMatch>,
+    /// The word's pronunciations from the language's enabled `ipa` metadata, each once.
+    transcriptions: Vec<String>,
 }
 
 /// The groups for a query, or for its longest start that an enabled dictionary matches, exactly
@@ -168,6 +173,11 @@ pub struct Deinflection {
     /// The inflections applied, from the dictionary form outward (読みました: polite, past).
     inflections: Vec<String>,
 }
+
+/// The definition tag marking a form entry (see `TermMatch::is_form_entry`).
+const FORM_ENTRY_TAG: &str = "non-lemma";
+/// How many of a form entry's names a lookup shows; a German adjective form has dozens.
+const MAX_FORM_NAMES: usize = 3;
 
 /// One imported kanji row, with its dictionary.
 #[derive(Debug, PartialEq, Serialize)]
@@ -218,6 +228,8 @@ pub struct DictionarySummary {
     has_definitions: bool,
     has_frequency: bool,
     has_pitch: bool,
+    /// The lookup language whose lookups use it.
+    language: Language,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -331,6 +343,7 @@ pub async fn lookup_terms(
     query: String,
     sources: Option<SourcePolicy>,
     max_results: Option<usize>,
+    language: Option<Language>,
     store: State<'_, DictionaryStoreState>,
 ) -> Result<TermLookup, String> {
     let sources = sources.unwrap_or_default();
@@ -348,19 +361,31 @@ pub async fn lookup_terms(
         });
     }
     let database = store.database.clone();
+    let language = language.unwrap_or_default();
     tauri::async_runtime::spawn_blocking(move || {
-        lookup_longest_start_limited(&open_store(&database)?, &query, &sources, max_results)
+        let connection = open_store(&database)?;
+        let sources = language_sources(&connection, &sources, language)?;
+        lookup_longest_start_in(
+            &connection,
+            &query,
+            &sources,
+            language,
+            max_results,
+            GLOSSARY_LIMITS,
+        )
     })
     .await
     .map_err(|error| format!("Dictionary lookup task failed: {error}"))?
 }
 
-/// Looks up one kanji in the enabled kanji dictionaries. Any other query (empty, several
-/// characters, or a character that is not a kanji) matches nothing.
+/// Looks up one kanji in the enabled kanji dictionaries that serve Japanese. Any other query
+/// (empty, several characters, or a character that is not a kanji), or another lookup language,
+/// matches nothing.
 #[tauri::command]
 pub async fn lookup_kanji(
     query: String,
     sources: Option<SourcePolicy>,
+    language: Option<Language>,
     store: State<'_, DictionaryStoreState>,
 ) -> Result<KanjiLookup, String> {
     let sources = sources.unwrap_or_default();
@@ -368,15 +393,48 @@ pub async fn lookup_kanji(
         return Err("Invalid dictionary sources.".into());
     }
     let query = checked_query(&query)?;
-    if kanji_query(&query).is_none() {
+    let language = language.unwrap_or_default();
+    if !language.is_japanese() || kanji_query(&query).is_none() {
         return Ok(KanjiLookup::default());
     }
     let database = store.database.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        lookup_kanji_with_sources(&open_store(&database)?, &query, &sources)
+        let connection = open_store(&database)?;
+        let sources = language_sources(&connection, &sources, language)?;
+        lookup_kanji_with_sources(&connection, &query, &sources)
     })
     .await
     .map_err(|error| format!("Dictionary lookup task failed: {error}"))?
+}
+
+/// `sources` narrowed to `language`'s dictionaries, or unchanged when every dictionary is in it.
+/// A role's selection that names other languages' dictionaries but none of this one's selects all
+/// of this one's, so choices made for one language do not empty another.
+fn language_sources(
+    connection: &Connection,
+    sources: &SourcePolicy,
+    language: Language,
+) -> Result<SourcePolicy, String> {
+    let languages = connection
+        .prepare("SELECT id, language FROM dictionaries ORDER BY position, id")
+        .and_then(|mut statement| {
+            statement
+                .query_map([], |row| {
+                    Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+                })?
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .map_err(storage_error)?;
+    let mut sources = sources.clone();
+    let (allowed, others): (Vec<_>, Vec<_>) = languages
+        .into_iter()
+        .partition(|(_, code)| Language::from_code(code).unwrap_or_default() == language);
+    if !others.is_empty() {
+        let allowed: Vec<i64> = allowed.into_iter().map(|(id, _)| id).collect();
+        let others: Vec<i64> = others.into_iter().map(|(id, _)| id).collect();
+        sources.restrict_to(&allowed, &others);
+    }
+    Ok(sources)
 }
 
 fn checked_query(query: &str) -> Result<String, String> {
@@ -392,12 +450,148 @@ fn lookup_from_store(connection: &Connection, query: &str) -> Result<Vec<TermGro
     lookup_classes_from_store(connection, query, None)
 }
 
+impl TermGroup {
+    /// Adds the transcriptions of one `ipa` metadata row for this group's reading, or for a row
+    /// naming the headword as its reading, as dictionaries do for a word without one.
+    fn add_transcriptions(&mut self, data: &Value, language: Language) {
+        let Some(reading) = data["reading"].as_str().map(reading_key) else {
+            return;
+        };
+        if reading != reading_key(&self.reading) && reading != reading_key(&self.expression) {
+            return;
+        }
+        for transcription in data["transcriptions"].as_array().into_iter().flatten() {
+            let text = transcription["ipa"].as_str().unwrap_or_default();
+            let tagged = |name: &str| {
+                transcription["tags"]
+                    .as_array()
+                    .is_some_and(|tags| tags.iter().any(|tag| tag == name))
+            };
+            if tagged("zh_pron") || tagged("Sinological-IPA") {
+                // These rows list every dialect and romanization; Standard Mandarin's IPA is the
+                // one that adds to the entry's pinyin.
+                if text.starts_with('/') && tagged("Standard-Chinese") {
+                    self.add_transcription(text);
+                }
+            } else if language == Language::Chinese {
+                // Chinese "ipa" is pinyin: its commas are the phrase's own, and most of it repeats
+                // the reading, in a script `ɡ`.
+                let bare = |text: &str| text.replace([' ', '-', ','], "").replace('ɡ', "g");
+                if bare(text) != bare(&self.reading) {
+                    self.add_transcription(text);
+                }
+            } else {
+                for text in text.split([',', '|']) {
+                    // Korean "ipa" can be Hangul, which says nothing new when it repeats the word.
+                    let text = text.trim();
+                    if language != Language::Korean
+                        || (text != self.reading && text != self.expression)
+                    {
+                        self.add_transcription(text);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Adds one transcription, unless it is a part of the word's: dictionaries list the endings of
+    /// other forms in the same data (`ʃ(ə)val,` then `o`; `-lɛndɪʃ`), which name no whole word.
+    /// A phonetic `[x]` after a phonemic `/x/` only says the same word again in more detail.
+    fn add_transcription(&mut self, text: &str) {
+        let text = text.trim_matches(|c: char| c == ',' || c == '|' || c.is_whitespace());
+        let letters = |text: &str| text.chars().filter(|c| c.is_alphabetic()).count();
+        let whole = self
+            .transcriptions
+            .first()
+            .map_or(0, |first| letters(first));
+        if self.transcriptions.len() < MAX_TRANSCRIPTIONS
+            && letters(text) > 0
+            && letters(text) * 2 >= whole
+            && !text.starts_with('-')
+            && !text.ends_with('-')
+            && !(text.starts_with('[')
+                && self
+                    .transcriptions
+                    .last()
+                    .is_some_and(|last| last.starts_with('/')))
+            && !self.transcriptions.iter().any(|seen| seen == text)
+        {
+            self.transcriptions.push(text.to_owned());
+        }
+    }
+}
+
+/// A reading as groups and `ipa` rows compare it: dictionaries space it (nǐhǎo, nǐ hǎo) and mark its
+/// stress (собака, соба́ка) differently without it being another word.
+fn reading_key(reading: &str) -> String {
+    reading.replace([' ', '\u{301}'], "")
+}
+
+impl TermMatch {
+    /// Whether this row is a form entry: its glossary only names the dictionary forms it is an
+    /// inflection of, as `[lemma, [inflection names]]`.
+    fn is_form_entry(&self) -> bool {
+        self.definition_tags
+            .split_whitespace()
+            .any(|tag| tag == FORM_ENTRY_TAG)
+    }
+}
+
+/// Adds the dictionary forms a form entry names to `lemmas`, each once, with its first few
+/// inflection names. Names that are not an inflection, and those cut off in the source's
+/// extraction (`present gerund participle and`), are left out.
+fn add_form_lemmas(
+    term: &TermMatch,
+    lemmas: &mut Vec<Deinflection>,
+    limits: GlossaryLimits,
+) -> Result<(), String> {
+    let glossary = parse_glossary(&term.stored, limits.glossary)?;
+    for target in glossary.as_array().into_iter().flatten() {
+        let Some(form) = target[0].as_str() else {
+            continue;
+        };
+        let position = lemmas
+            .iter()
+            .position(|lemma| lemma.form == form)
+            .unwrap_or_else(|| {
+                lemmas.push(Deinflection {
+                    form: form.to_owned(),
+                    inflections: Vec::new(),
+                });
+                lemmas.len() - 1
+            });
+        let inflections = &mut lemmas[position].inflections;
+        for name in target[1].as_array().into_iter().flatten() {
+            let name = name.as_str().unwrap_or_default();
+            if inflections.len() < MAX_FORM_NAMES
+                && !name.is_empty()
+                && !name.ends_with(" and")
+                && !["alt-of", "alternative", "redirected", "▶"]
+                    .iter()
+                    .any(|other| name.contains(other))
+                && !inflections.iter().any(|seen| seen == name)
+            {
+                inflections.push(name.to_owned());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Removes form entries from `groups`, and the groups they leave empty.
+fn drop_form_entries(groups: &mut Vec<TermGroup>) {
+    for group in groups.iter_mut() {
+        group.terms.retain(|term| !term.is_form_entry());
+    }
+    groups.retain(|group| !group.terms.is_empty());
+}
+
 /// Which of the terms an exact lookup finds it keeps.
 #[derive(Clone, Copy)]
 enum TermFilter {
     All,
-    /// Terms whose rules name one of these word classes.
-    Classes(u32),
+    /// Terms whose rules name one of these word classes of the language.
+    Classes(Language, u32),
     /// Nouns that take する: terms whose rules or definition tags name `vs`, since JMdict gives
     /// such a noun (勉強) no rules and names `vs` among its part-of-speech tags.
     SuruNoun,
@@ -407,8 +601,10 @@ impl TermFilter {
     fn keeps(self, rules: &str, definition_tags: &str) -> bool {
         match self {
             Self::All => true,
-            Self::Classes(classes) => word_classes(rules) & classes != 0,
-            Self::SuruNoun => (word_classes(rules) | word_classes(definition_tags)) & VS != 0,
+            Self::Classes(language, classes) => language.rules_allow(rules, classes),
+            Self::SuruNoun => {
+                (ja::word_classes(rules) | ja::word_classes(definition_tags)) & VS != 0
+            }
         }
     }
 }
@@ -423,7 +619,9 @@ fn lookup_classes_from_store(
     lookup_filtered_with_sources(
         connection,
         query,
-        classes.map_or(TermFilter::All, TermFilter::Classes),
+        classes.map_or(TermFilter::All, |classes| {
+            TermFilter::Classes(Language::Japanese, classes)
+        }),
         &SourcePolicy::default(),
     )
 }
@@ -438,6 +636,7 @@ fn lookup_filtered_with_sources(
 ) -> Result<Vec<TermGroup>, String> {
     let mut groups = exact_groups(connection, query, filter, sources, GLOSSARY_LIMITS)?;
     read_glossaries(&mut groups, GLOSSARY_LIMITS)?;
+    add_transcriptions(connection, &mut groups, Language::Japanese)?;
     Ok(groups)
 }
 
@@ -552,7 +751,7 @@ fn exact_groups(
         if expression != query && reading != query {
             continue;
         }
-        let key = (expression.clone(), reading.clone());
+        let key = (expression.clone(), reading_key(&reading));
         let position = *positions.entry(key).or_insert_with(|| {
             groups.push(TermGroup {
                 expression,
@@ -562,6 +761,7 @@ fn exact_groups(
                 terms: Vec::new(),
                 frequencies: Vec::new(),
                 pitches: Vec::new(),
+                transcriptions: Vec::new(),
             });
             groups.len() - 1
         });
@@ -804,6 +1004,7 @@ fn lookup_longest_start_with_sources(
     lookup_longest_start_limited(connection, query, sources, None)
 }
 
+#[cfg(test)]
 fn lookup_longest_start_limited(
     connection: &Connection,
     query: &str,
@@ -813,11 +1014,34 @@ fn lookup_longest_start_limited(
     lookup_longest_start_bounded(connection, query, sources, limit, GLOSSARY_LIMITS)
 }
 
-/// `lookup_longest_start_limited`, reading only the returned groups' glossaries, within `limits`.
+/// The Japanese `lookup_longest_start_in`.
+#[cfg(test)]
 fn lookup_longest_start_bounded(
     connection: &Connection,
     query: &str,
     sources: &SourcePolicy,
+    limit: Option<usize>,
+    limits: GlossaryLimits,
+) -> Result<TermLookup, String> {
+    lookup_longest_start_in(
+        connection,
+        query,
+        sources,
+        Language::Japanese,
+        limit,
+        limits,
+    )
+}
+
+/// The lookup in `language`, reading only the returned groups' glossaries, within `limits`.
+/// Each start is also tried as the language's other spellings of it (see `Language::variants`),
+/// still naming the start as scanned; in a language that spaces its words, only starts that end
+/// a word are tried; and the trailing-particle reorder applies only to Japanese.
+fn lookup_longest_start_in(
+    connection: &Connection,
+    query: &str,
+    sources: &SourcePolicy,
+    language: Language,
     limit: Option<usize>,
     limits: GlossaryLimits,
 ) -> Result<TermLookup, String> {
@@ -847,18 +1071,26 @@ fn lookup_longest_start_bounded(
     let mut text: Option<&str> = None;
     let mut groups: Vec<TermGroup> = Vec::new();
     let mut listed_starts = 0;
-    for start in starts.filter(|start| !start.is_empty()) {
-        let exact = probe
-            .exists(params![start, sources.definitions.sql_ids()])
-            .map_err(storage_error)?;
+    for start in starts
+        .filter(|start| !start.is_empty() && (!language.spaces_words() || ends_word(&query, start)))
+    {
+        let mut variants = Vec::new();
+        for variant in language.variants(start) {
+            let exact = probe
+                .exists(params![variant, sources.definitions.sql_ids()])
+                .map_err(storage_error)?;
+            variants.push((variant, exact));
+        }
+        let exact = variants.iter().any(|(_, exact)| *exact);
         let listed = groups.len();
         add_start_groups(
             connection,
             &mut rules_probe,
             start,
-            exact,
+            &variants,
             &mut groups,
             sources,
+            language,
             limits,
         )?;
         if groups.len() == listed {
@@ -883,7 +1115,12 @@ fn lookup_longest_start_bounded(
         }
     }
     let mut text = text.unwrap_or(&query).to_owned();
-    if let Some(word) = rare_particle_expression(connection, &text, &groups)? {
+    let particle_word = if language.is_japanese() {
+        rare_particle_expression(connection, &text, &groups)?
+    } else {
+        None
+    };
+    if let Some(word) = particle_word {
         let (mut first, rest): (Vec<_>, Vec<_>) =
             groups.into_iter().partition(|group| group.text == word);
         let (expression, rest): (Vec<_>, Vec<_>) =
@@ -897,7 +1134,53 @@ fn lookup_longest_start_bounded(
         groups.truncate(limit);
     }
     read_glossaries(&mut groups, limits)?;
+    add_transcriptions(connection, &mut groups, language)?;
     Ok(TermLookup { text, groups })
+}
+
+/// Sets each group's transcriptions from the `ipa` metadata of the language's enabled
+/// dictionaries, in dictionary order. These dictionaries have no source role, so turning one off
+/// is how a reader hides it.
+fn add_transcriptions(
+    connection: &Connection,
+    groups: &mut [TermGroup],
+    language: Language,
+) -> Result<(), String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT m.data FROM term_meta m JOIN dictionaries d ON d.id = m.dictionary
+              WHERE m.expression = ?1 AND m.mode = 'ipa' AND d.enabled AND d.language = ?2
+              ORDER BY d.position, d.id, m.rowid",
+        )
+        .map_err(storage_error)?;
+    for group in groups {
+        let rows = statement
+            .query_map(params![&group.expression, language.code()], |row| {
+                row.get::<_, String>(0)
+            })
+            .map_err(storage_error)?;
+        for data in rows {
+            let data = data.map_err(storage_error)?;
+            let Ok(data) = serde_json::from_str::<Value>(&data) else {
+                continue;
+            };
+            group.add_transcriptions(&data, language);
+        }
+    }
+    Ok(())
+}
+
+/// Whether `start`, a start of `query`, ends a word: it does not end in a space, and the query
+/// ends with it or goes on with a character that is not a letter, digit or apostrophe (`looked`
+/// in `looked up`, `up` in `up.`, but not `look` in `looked` or `cat` in `cat's`).
+fn ends_word(query: &str, start: &str) -> bool {
+    let word =
+        |character: char| character.is_alphanumeric() || matches!(character, '\'' | '\u{2019}');
+    !start.ends_with(char::is_whitespace)
+        && query[start.len()..]
+            .chars()
+            .next()
+            .is_none_or(|next| !word(next))
 }
 
 /// The shorter start to list first when `text`, the longest matching start, is that start plus a
@@ -958,16 +1241,19 @@ fn frequency_number(data: &Value) -> Option<f64> {
     }
 }
 
-/// Appends `start`'s unseen exact and inflected groups in candidate order, each naming `start`,
-/// then applies the stable kana tiers to that start and leads it with its first ranked group (see
-/// `lead_with_ranked_group`) before the caller enforces its limit.
+/// Appends `start`'s unseen exact groups, those of each of its `variants` that matches exactly in
+/// turn, then the entries its form entries name, then its inflected groups, each variant's in
+/// candidate order, each group naming `start`; then, in Japanese, applies the stable kana tiers to that start, and leads it with its first
+/// ranked group (see `lead_with_ranked_group`) before the caller enforces its limit.
+#[allow(clippy::too_many_arguments)]
 fn add_start_groups(
     connection: &Connection,
     rules_probe: &mut rusqlite::Statement,
     start: &str,
-    exact: bool,
+    variants: &[(String, bool)],
     groups: &mut Vec<TermGroup>,
     sources: &SourcePolicy,
+    language: Language,
     limits: GlossaryLimits,
 ) -> Result<(), String> {
     let first = groups.len();
@@ -984,24 +1270,61 @@ fn add_start_groups(
             groups.push(group);
         }
     };
-    if exact {
-        add(
-            exact_groups(connection, start, TermFilter::All, sources, limits)?,
-            None,
-        );
+    let forms = variants
+        .iter()
+        .flat_map(|(variant, _)| language.deinflect(variant))
+        .collect::<Vec<_>>();
+    let mut lemmas = Vec::new();
+    for (variant, _) in variants.iter().filter(|(_, exact)| *exact) {
+        let mut found = exact_groups(connection, variant, TermFilter::All, sources, limits)?;
+        for term in found.iter().flat_map(|group| &group.terms) {
+            if term.is_form_entry() {
+                add_form_lemmas(term, &mut lemmas, limits)?;
+            }
+        }
+        drop_form_entries(&mut found);
+        add(found, None);
     }
-    for form in deinflect(start) {
-        let classes = form.classes & DICTIONARY_FORMS;
+    let mut resolved = false;
+    for lemma in &mut lemmas {
+        let mut found = exact_groups(connection, &lemma.form, TermFilter::All, sources, limits)?;
+        drop_form_entries(&mut found);
+        // A rule candidate's own names are translated, where the dictionary's are its own wording.
+        if let Some(form) = forms.iter().find(|form| {
+            let filter = TermFilter::Classes(language, form.classes & language.dictionary_forms());
+            form.text == lemma.form
+                && found
+                    .iter()
+                    .flat_map(|group| &group.terms)
+                    .any(|term| filter.keeps(&term.rules, &term.definition_tags))
+        }) {
+            lemma.inflections = form.inflections.iter().map(|&name| name.into()).collect();
+        }
+        resolved |= !found.is_empty();
+        add(found, Some(lemma));
+    }
+    // Entries that point nowhere still say what they point at.
+    if !lemmas.is_empty() && !resolved {
+        for (variant, _) in variants.iter().filter(|(_, exact)| *exact) {
+            add(
+                exact_groups(connection, variant, TermFilter::All, sources, limits)?,
+                None,
+            );
+        }
+    }
+    for form in forms {
+        let classes = form.classes & language.dictionary_forms();
         if classes == 0 {
             continue;
         }
         // A する verb's candidate is also its noun stored without する (勉強して: 勉強する,
         // then 勉強), as JMdict stores する-nouns.
-        let noun = (classes & VS != 0)
+        let noun = (language.is_japanese() && classes & VS != 0)
             .then(|| form.text.strip_suffix("する"))
             .flatten()
             .filter(|stem| !stem.is_empty());
-        for (text, filter) in std::iter::once((form.text.as_str(), TermFilter::Classes(classes)))
+        let filter = TermFilter::Classes(language, classes);
+        for (text, filter) in std::iter::once((form.text.as_str(), filter))
             .chain(noun.map(|stem| (stem, TermFilter::SuruNoun)))
         {
             let mut rows = rules_probe
@@ -1024,13 +1347,14 @@ fn add_start_groups(
                 form: text.to_owned(),
                 inflections: form.inflections.iter().map(|&name| name.into()).collect(),
             };
-            add(
-                exact_groups(connection, text, filter, sources, limits)?,
-                Some(&deinflection),
-            );
+            let mut found = exact_groups(connection, text, filter, sources, limits)?;
+            drop_form_entries(&mut found);
+            add(found, Some(&deinflection));
         }
     }
-    rank_kana_groups(start, groups, first, limits)?;
+    if language.is_japanese() {
+        rank_kana_groups(start, groups, first, limits)?;
+    }
     lead_with_ranked_group(groups, first);
     Ok(())
 }
@@ -1262,8 +1586,10 @@ pub async fn import_dictionaries(
     app: AppHandle,
     store: State<'_, DictionaryStoreState>,
     catalog: State<'_, crate::library::CatalogState>,
+    language: Option<Language>,
     operation_id: Option<String>,
 ) -> Result<DictionaryImportBatch, String> {
+    let into = language.unwrap_or_default();
     let mut progress = BatchProgress::for_app(app, operation_id)?;
     progress.phase("picking");
     let language = interface_text::language(&catalog.database);
@@ -1294,7 +1620,7 @@ pub async fn import_dictionaries(
         let mut connection = open_store(&database)?;
         Ok(DictionaryImportBatch {
             canceled: false,
-            results: import_paths_with_progress(&mut connection, &paths, &mut progress),
+            results: import_paths_with_progress(&mut connection, &paths, into, &mut progress),
         })
     })
     .await
@@ -1536,6 +1862,45 @@ fn move_in_store(
     drop(statement);
     transaction.commit()?;
     Ok(MoveStatus::Moved)
+}
+
+/// Puts the dictionaries with these IDs in `language`, so only its lookups use them. Their rows,
+/// order and source choices are untouched. Returns how many it found.
+#[tauri::command]
+pub async fn set_dictionary_language(
+    ids: Vec<i64>,
+    language: Language,
+    store: State<'_, DictionaryStoreState>,
+) -> Result<usize, String> {
+    let database = store.database.clone();
+    let write_lock = Arc::clone(&store.write_lock);
+    tauri::async_runtime::spawn_blocking(move || {
+        let _writing = write_lock
+            .lock()
+            .map_err(|_| "A previous dictionary change failed.".to_string())?;
+        let connection = open_store(&database)?;
+        set_language_in_store(&connection, &ids, language).map_err(storage_error)
+    })
+    .await
+    .map_err(|error| format!("Dictionary language task failed: {error}"))?
+}
+
+fn set_language_in_store(
+    connection: &Connection,
+    ids: &[i64],
+    language: Language,
+) -> Result<usize, rusqlite::Error> {
+    let transaction = connection.unchecked_transaction()?;
+    let mut changed = 0;
+    {
+        let mut statement =
+            transaction.prepare("UPDATE dictionaries SET language = ?2 WHERE id = ?1")?;
+        for id in ids {
+            changed += statement.execute(params![id, language.code()])?;
+        }
+    }
+    transaction.commit()?;
+    Ok(changed)
 }
 
 /// The store's size on disk in bytes: the database file and its write-ahead log.
@@ -1786,6 +2151,38 @@ pub(crate) fn open_store(path: &Path) -> Result<Connection, String> {
             .map_err(storage_error)?;
         transaction.commit().map_err(storage_error)?;
     }
+    if version < 9 {
+        // Each dictionary belongs to one lookup language: the one its index declared, if Komori
+        // has it, and otherwise Japanese, the only language before this.
+        let transaction = connection.unchecked_transaction().map_err(storage_error)?;
+        transaction
+            .execute_batch(
+                "ALTER TABLE dictionaries ADD COLUMN language TEXT NOT NULL DEFAULT 'ja';",
+            )
+            .map_err(storage_error)?;
+        let declared = transaction
+            .prepare("SELECT id, source_language FROM dictionaries")
+            .map_err(storage_error)?
+            .query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, Option<String>>(1)?))
+            })
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        for (id, tag) in declared {
+            let language = Language::declared(tag.as_deref()).unwrap_or_default();
+            transaction
+                .execute(
+                    "UPDATE dictionaries SET language = ?2 WHERE id = ?1",
+                    params![id, language.code()],
+                )
+                .map_err(storage_error)?;
+        }
+        transaction
+            .execute_batch("PRAGMA user_version = 9;")
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+    }
     Ok(connection)
 }
 
@@ -1837,7 +2234,7 @@ fn list_from_store(connection: &Connection) -> Result<Vec<DictionarySummary>, St
     let mut statement = connection
         .prepare(
             "SELECT id, title, revision, enabled, term_count, term_meta_count, kanji_count,
-                    kanji_meta_count, has_frequency, has_pitch, has_definitions
+                    kanji_meta_count, has_frequency, has_pitch, has_definitions, language
                FROM dictionaries ORDER BY position, id",
         )
         .map_err(storage_error)?;
@@ -1855,6 +2252,7 @@ fn list_from_store(connection: &Connection) -> Result<Vec<DictionarySummary>, St
                 has_frequency: row.get(8)?,
                 has_pitch: row.get(9)?,
                 has_definitions: row.get(10)?,
+                language: Language::from_code(&row.get::<_, String>(11)?).unwrap_or_default(),
             })
         })
         .map_err(storage_error)?;
@@ -1863,12 +2261,19 @@ fn list_from_store(connection: &Connection) -> Result<Vec<DictionarySummary>, St
 
 #[cfg(test)]
 fn import_paths(connection: &mut Connection, paths: &[PathBuf]) -> Vec<DictionaryImportResult> {
-    import_paths_with_progress(connection, paths, &mut BatchProgress::silent())
+    import_paths_with_progress(
+        connection,
+        paths,
+        Language::Japanese,
+        &mut BatchProgress::silent(),
+    )
 }
 
+/// Imports each archive into `language`, unless its index declares another language Komori has.
 fn import_paths_with_progress(
     connection: &mut Connection,
     paths: &[PathBuf],
+    language: Language,
     progress: &mut BatchProgress,
 ) -> Vec<DictionaryImportResult> {
     progress.start(paths.len());
@@ -1879,7 +2284,7 @@ fn import_paths_with_progress(
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "Selected file".into());
-            let (status, title) = import_one(connection, path);
+            let (status, title) = import_one_into(connection, path, language);
             let result = DictionaryImportResult {
                 file_name,
                 status,
@@ -1908,9 +2313,19 @@ impl From<rusqlite::Error> for ImportError {
     }
 }
 
+/// Imports one archive into Japanese, unless its index declares another language Komori has.
 pub(super) fn import_one(
     connection: &mut Connection,
     path: &Path,
+) -> (ImportStatus, Option<String>) {
+    import_one_into(connection, path, Language::Japanese)
+}
+
+/// Imports one archive into `language`, unless its index declares another language Komori has.
+fn import_one_into(
+    connection: &mut Connection,
+    path: &Path,
+    language: Language,
 ) -> (ImportStatus, Option<String>) {
     let mut archive = match DictionaryArchive::open(path) {
         Ok(archive) => archive,
@@ -1921,7 +2336,7 @@ pub(super) fn import_one(
         .transaction()
         .map_err(ImportError::from)
         .and_then(|transaction| {
-            let status = write_dictionary(&transaction, &mut archive)?;
+            let status = write_dictionary(&transaction, &mut archive, language)?;
             transaction.commit()?;
             Ok(status)
         });
@@ -1964,6 +2379,7 @@ fn archive_status(error: &DictionaryArchiveError) -> ImportStatus {
 fn write_dictionary(
     transaction: &Transaction<'_>,
     archive: &mut DictionaryArchive,
+    language: Language,
 ) -> Result<ImportStatus, ImportError> {
     let index = archive.index();
     let exists: bool = transaction.query_row(
@@ -1974,11 +2390,12 @@ fn write_dictionary(
     if exists {
         return Ok(ImportStatus::AlreadyImported);
     }
+    let language = Language::declared(index.source_language.as_deref()).unwrap_or(language);
     // A new dictionary goes last in the reader's order.
     transaction.execute(
         "INSERT INTO dictionaries (title, revision, format, sequenced, author, url, description,
-             attribution, source_language, target_language, frequency_mode, position)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
+             attribution, source_language, target_language, frequency_mode, language, position)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
                  (SELECT COALESCE(MAX(position), 0) + 1 FROM dictionaries))",
         params![
             index.title,
@@ -1992,6 +2409,7 @@ fn write_dictionary(
             index.source_language,
             index.target_language,
             index.frequency_mode.map(|mode| mode.as_str()),
+            language.code(),
         ],
     )?;
     let dictionary = transaction.last_insert_rowid();
@@ -2208,6 +2626,7 @@ mod tests {
         let results = import_paths_with_progress(
             &mut connection,
             &[large.clone(), invalid, large, kept],
+            Language::Japanese,
             &mut progress,
         );
         assert_eq!(
@@ -2401,6 +2820,7 @@ mod tests {
             has_frequency: true,
             has_pitch: true,
             has_definitions: true,
+            language: Language::Japanese,
         }
     }
 
@@ -2441,6 +2861,7 @@ mod tests {
             .execute_batch(
                 "ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 6;",
             )
             .unwrap();
@@ -2925,6 +3346,7 @@ mod tests {
                 "ALTER TABLE dictionaries DROP COLUMN has_definitions;
                  ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 5;",
             )
             .unwrap();
@@ -3013,6 +3435,7 @@ mod tests {
             .execute_batch(
                 "ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 7;",
             )
             .unwrap();
@@ -4232,6 +4655,255 @@ mod tests {
     }
 
     #[test]
+    fn form_entries_lead_to_the_entries_they_name() {
+        let directory = tempdir().unwrap();
+        let words = fixture_with(
+            directory.path(),
+            "words.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"words","revision":"1","format":3}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["mouse","","n","n",0,["a rodent"],1,""],
+                        ["cat","","n","n",0,["a feline"],2,""],
+                        ["leaf","","n","n",0,["of a tree"],3,""],
+                        ["leave","","v","v",0,["to go"],4,""],
+                        ["mice","","non-lemma","",0,[["mouse",["plural"]]],5,""],
+                        ["cats","","non-lemma","",0,[["cat",["alt-of"]]],6,""],
+                        ["leaves","","non-lemma","",0,[["leaf",["plural","plural"]],["leave",["third-person"]]],7,""],
+                        ["left","","non-lemma","",0,[["leave",["a","b","a","c","d"]]],12,""],
+                        ["ran","","non-lemma","",0,[["leave",["past past participle simple and","alternative"]]],8,""],
+                        ["ghost","","non-lemma","",0,[["nowhere",["plural"]]],9,""],
+                        ["hide","","n","n",0,["an animal skin"],10,""],
+                        ["hide","","non-lemma","",0,[["mouse",["plural"]]],11,""]]"#,
+                ),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        let (status, _) = import_one_into(&mut connection, &words, Language::English);
+        assert_eq!(status, ImportStatus::Imported);
+        let look = |query: &str| {
+            let sources =
+                language_sources(&connection, &SourcePolicy::default(), Language::English).unwrap();
+            lookup_longest_start_in(
+                &connection,
+                query,
+                &sources,
+                Language::English,
+                None,
+                GLOSSARY_LIMITS,
+            )
+            .unwrap()
+            .groups
+            .into_iter()
+            .map(|group| {
+                let deinflection = group.deinflection.map(|item| item.inflections);
+                (group.expression, group.text, deinflection)
+            })
+            .collect::<Vec<_>>()
+        };
+        let group = |expression: &str, text: &str, names: &[&str]| {
+            (
+                expression.to_owned(),
+                text.to_owned(),
+                Some(names.iter().map(ToString::to_string).collect::<Vec<_>>()),
+            )
+        };
+        assert_eq!(look("mice"), [group("mouse", "mice", &["plural"])]);
+        // The rule set's own name replaces the dictionary's, and it stays one group.
+        assert_eq!(look("cats"), [group("cat", "cats", &["plural"])]);
+        // Each form keeps its first names, once; names that say nothing leave none.
+        let leaves = look("leaves");
+        assert_eq!(leaves[0], group("leaf", "leaves", &["plural"]));
+        assert_eq!(leaves[1].0, "leave");
+        assert_eq!(look("left"), [group("leave", "left", &["a", "b", "c"])]);
+        assert_eq!(look("ran"), [group("leave", "ran", &[])]);
+        // A target no entry has stays as the entry's own text.
+        assert_eq!(
+            look("ghost"),
+            [("ghost".to_owned(), "ghost".to_owned(), None)]
+        );
+        // A real entry of the same spelling comes first, without the form entry's row.
+        let hide = look("hide");
+        assert_eq!(hide[0], ("hide".to_owned(), "hide".to_owned(), None));
+        assert_eq!(hide[1], group("mouse", "hide", &["plural"]));
+    }
+
+    #[test]
+    fn entries_carry_their_languages_enabled_transcriptions() {
+        let directory = tempdir().unwrap();
+        let archive = |name: &str, bank: &str, data: &str| {
+            fixture_with(
+                directory.path(),
+                name,
+                &[
+                    (
+                        "index.json",
+                        &format!(r#"{{"title":"{name}","revision":"1","format":3}}"#),
+                    ),
+                    (bank, data),
+                ],
+            )
+        };
+        let words = archive(
+            "words.zip",
+            "term_bank_1.json",
+            r#"[["Kind","Kind","n","n",0,["child"],1,""],
+                ["pass","pass","n","n",0,["passport"],2,""],
+                ["谷歌","gǔ gē","","",0,["Google"],3,""],
+                ["falar","","","",0,["to speak"],5,""],
+                ["собака","собака","","",0,["dog"],6,""],
+                ["먹다","","","",0,["to eat"],7,""],
+                ["你好","nǐhǎo","","",0,["hello"],8,""],
+                ["一心一意","yīxīn","","",0,["wholeheartedly"],4,""]]"#,
+        );
+        let sounds = archive(
+            "sounds.zip",
+            "term_meta_bank_1.json",
+            r#"[["Kind","ipa",{"reading":"Kind","transcriptions":[{"ipa":" kɪnt, ","tags":[]},{"ipa":"|  |","tags":[]},{"ipa":"","tags":[]}]}],
+                ["Kind","ipa",{"reading":"Kind","transcriptions":[{"ipa":"kɪnt","tags":[]}]}],
+                ["Kind","ipa",{"reading":"Kind","transcriptions":[{"ipa":"t","tags":[]},{"ipa":"-ɪnd","tags":[]},{"ipa":"kɪn-","tags":[]}]}],
+                ["Kind","ipa",{"reading":"Kind","transcriptions":[{"ipa":"kɪnd | kɪndɐ, kɪ-","tags":[]}]}],
+                ["Kind","ipa",{"reading":"other","transcriptions":[{"ipa":"nope","tags":[]}]}],
+                ["pass","ipa",{"reading":"pass","transcriptions":[{"ipa":"pass","tags":[]}]}],
+                ["falar","ipa",{"reading":"falar","transcriptions":[{"ipa":"/faˈlaʁ/","tags":[]},{"ipa":"[faˈlah]","tags":[]},{"ipa":"/faˈlaɾ/","tags":[]}]}],
+                ["собака","ipa",{"reading":"соба́ка","transcriptions":[{"ipa":"sɐˈbakə","tags":[]}]}],
+                ["먹다","ipa",{"reading":"먹다","transcriptions":[{"ipa":"먹다, 먹따","tags":[]}]}],
+                ["你好","ipa",{"reading":"nǐ hǎo","transcriptions":[{"ipa":"nǐ hǎo","tags":["zh_pron","Mandarin","Pinyin"]},{"ipa":"ㄋㄧˇ ㄏㄠˇ","tags":["zh_pron","Mandarin","Standard-Chinese"]},{"ipa":"/ni²¹ xɑʊ̯²¹/","tags":["Mandarin","Standard-Chinese","Sinological-IPA"]},{"ipa":"/nei̯¹³ hou̯³⁵/","tags":["Cantonese","Sinological-IPA"]}]}],
+                ["谷歌","ipa",{"reading":"谷歌","transcriptions":[{"ipa":"ɡǔɡē","tags":[]}]}],
+                ["一心一意","ipa",{"reading":"一心一意","transcriptions":[{"ipa":"yīxīn, yīyì","tags":[]}]}]]"#,
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        let (status, _) = import_one_into(&mut connection, &words, Language::German);
+        assert_eq!(status, ImportStatus::Imported);
+        let (status, _) = import_one_into(&mut connection, &sounds, Language::German);
+        assert_eq!(status, ImportStatus::Imported);
+        let transcriptions = |connection: &Connection, query: &str, language| {
+            let sources = language_sources(connection, &SourcePolicy::default(), language).unwrap();
+            lookup_longest_start_in(connection, query, &sources, language, None, GLOSSARY_LIMITS)
+                .unwrap()
+                .groups
+                .into_iter()
+                .next()
+                .map(|group| group.transcriptions)
+        };
+        let some = |values: &[&str]| {
+            Some(
+                values
+                    .iter()
+                    .map(|value| value.to_string())
+                    .collect::<Vec<_>>(),
+            )
+        };
+        // Each once, without a form's ending or part, alternatives apart.
+        assert_eq!(
+            transcriptions(&connection, "Kind", Language::German),
+            some(&["kɪnt", "kɪnd", "kɪndɐ"])
+        );
+        // A deinflected word carries its dictionary form's.
+        assert_eq!(
+            transcriptions(&connection, "Kinder", Language::German),
+            some(&["kɪnt", "kɪnd", "kɪndɐ"])
+        );
+        // A pronunciation spelled as its word is still one.
+        assert_eq!(
+            transcriptions(&connection, "pass", Language::German),
+            some(&["pass"])
+        );
+        // A phonetic value after a phonemic one is left out.
+        assert_eq!(
+            transcriptions(&connection, "falar", Language::German),
+            some(&["/faˈlaʁ/", "/faˈlaɾ/"])
+        );
+        // A row's reading can differ from the group's in stress.
+        assert_eq!(
+            transcriptions(&connection, "собака", Language::German),
+            some(&["sɐˈbakə"])
+        );
+        // Korean Hangul repeating the word adds nothing.
+        connection
+            .execute("UPDATE dictionaries SET language = 'ko'", [])
+            .unwrap();
+        assert_eq!(
+            transcriptions(&connection, "먹다", Language::Korean),
+            some(&["먹따"])
+        );
+        // Chinese pinyin repeating the reading adds nothing; a phrase's stays whole.
+        connection
+            .execute("UPDATE dictionaries SET language = 'zh'", [])
+            .unwrap();
+        // A row of every dialect keeps Standard Mandarin's IPA, whatever spacing its reading has.
+        assert_eq!(
+            transcriptions(&connection, "你好", Language::Chinese),
+            some(&["/ni²¹ xɑʊ̯²¹/"])
+        );
+        assert_eq!(
+            transcriptions(&connection, "谷歌", Language::Chinese),
+            some(&[])
+        );
+        assert_eq!(
+            transcriptions(&connection, "一心一意", Language::Chinese),
+            some(&["yīxīn, yīyì"])
+        );
+        // Only the lookup language's dictionaries count, and only enabled ones.
+        connection
+            .execute(
+                "UPDATE dictionaries SET language = 'de' WHERE title = 'words.zip'",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            transcriptions(&connection, "Kind", Language::German),
+            some(&[])
+        );
+        connection
+            .execute(
+                "UPDATE dictionaries SET language = 'de', enabled = 0 WHERE title = 'sounds.zip'",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            transcriptions(&connection, "Kind", Language::German),
+            some(&[])
+        );
+    }
+
+    #[test]
+    fn readings_differing_only_in_spacing_are_one_group() {
+        let directory = tempdir().unwrap();
+        let words = fixture_with(
+            directory.path(),
+            "words.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Words","revision":"1","format":3}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["你好","nǐhǎo","","",0,["hello"],1,""],
+                        ["你好","nǐ hǎo","","",0,["hi"],2,""],
+                        ["好","hǎo","","",0,["good"],3,""],
+                        ["好","hào","","",0,["to like"],4,""]]"#,
+                ),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        assert_eq!(
+            import_paths(&mut connection, &[words])[0].status,
+            ImportStatus::Imported
+        );
+        let groups = lookup_from_store(&connection, "你好").unwrap();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].reading, "nǐhǎo");
+        assert_eq!(groups[0].terms.len(), 2);
+        assert_eq!(lookup_from_store(&connection, "好").unwrap().len(), 2);
+    }
+
+    #[test]
     fn the_rest_of_the_japanese_transforms_look_up_their_dictionary_forms() {
         let directory = tempdir().unwrap();
         let words = fixture_with(
@@ -5126,6 +5798,328 @@ mod tests {
                 "食べさせられた".into(),
                 vec!["食べさせる".into(), "食べる".into()]
             )
+        );
+    }
+
+    #[test]
+    fn an_english_lookup_deinflects_tries_other_spellings_and_uses_english_dictionaries() {
+        let directory = tempdir().unwrap();
+        let english = fixture_with(
+            directory.path(),
+            "english.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"English","revision":"1","format":3,"sourceLanguage":"en"}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["walk","","v","v",0,["to move on foot"],1,""],
+                        ["run","","v","v",0,["to move fast"],2,""],
+                        ["running","","n","n",0,["the act of running"],3,""],
+                        ["look","","v","v",0,["to use one's eyes"],4,""],
+                        ["look up","","v","v",0,["to search for"],5,""],
+                        ["give up","","v","v_phr",0,["to stop trying"],6,""],
+                        ["city","","n","n",0,["a large town"],7,""],
+                        ["London","","n","n",0,["a city"],8,""],
+                        ["lo","","intj","",0,["look!"],9,""],
+                        ["cat","","n","n",0,["a feline"],10,""],
+                        ["happy","","adj","adj",0,["glad"],11,""],
+                        ["walk","","","",0,["not a verb"],12,""]]"#,
+                ),
+            ],
+        );
+        let japanese = fixture_with(
+            directory.path(),
+            "japanese.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Japanese","revision":"1","format":3,"sourceLanguage":"ja"}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["walk","","","",0,["ウォーク"],1,""],
+                        ["読む","よむ","v5","v5",0,["to read"],2,""]]"#,
+                ),
+            ],
+        );
+        let untagged = fixture_with(
+            directory.path(),
+            "untagged.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Untagged","revision":"1","format":3}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["happy","","adj","adj",0,["untagged glad"],1,""]]"#,
+                ),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        // A declared language wins over the one imported into; an undeclared dictionary goes
+        // where it was imported.
+        assert_eq!(
+            import_one_into(&mut connection, &english, Language::Japanese).0,
+            ImportStatus::Imported
+        );
+        assert_eq!(
+            import_one_into(&mut connection, &japanese, Language::English).0,
+            ImportStatus::Imported
+        );
+        assert_eq!(
+            import_one_into(&mut connection, &untagged, Language::English).0,
+            ImportStatus::Imported
+        );
+        assert_eq!(
+            list_from_store(&connection)
+                .unwrap()
+                .into_iter()
+                .map(|dictionary| (dictionary.title, dictionary.language))
+                .collect::<Vec<_>>(),
+            [
+                ("English".to_owned(), Language::English),
+                ("Japanese".to_owned(), Language::Japanese),
+                ("Untagged".to_owned(), Language::English),
+            ]
+        );
+        let lookup = |connection: &Connection, query: &str, language| {
+            let sources = language_sources(connection, &SourcePolicy::default(), language).unwrap();
+            lookup_longest_start_in(connection, query, &sources, language, None, GLOSSARY_LIMITS)
+                .unwrap()
+        };
+        // Each group as (text, expression, its dictionary form's inflections, dictionaries).
+        let english_groups = |query: &str| {
+            lookup(&connection, query, Language::English)
+                .groups
+                .into_iter()
+                .map(|group| {
+                    (
+                        group.text,
+                        group.expression,
+                        group
+                            .deinflection
+                            .map(|deinflection| deinflection.inflections)
+                            .unwrap_or_default(),
+                        group
+                            .terms
+                            .into_iter()
+                            .map(|term| term.dictionary_title)
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let group = |text: &str, expression: &str, inflections: &[&str], titles: &[&str]| {
+            (
+                text.to_owned(),
+                expression.to_owned(),
+                inflections.iter().map(|&name| name.to_owned()).collect(),
+                titles.iter().map(|&title| title.to_owned()).collect(),
+            )
+        };
+        // An inflection reaches terms of its word class and terms naming none, and a start must
+        // end a word, so walked is never also look's lo or wal.
+        assert_eq!(
+            english_groups("walked"),
+            [group("walked", "walk", &["past"], &["English", "English"])]
+        );
+        assert_eq!(
+            english_groups("looked"),
+            [group("looked", "look", &["past"], &["English"])]
+        );
+        // A capitalized word matches its lowercase entries, exact ones first, naming the text as
+        // scanned.
+        assert_eq!(
+            english_groups("Running fast"),
+            [
+                group("Running", "running", &[], &["English"]),
+                group("Running", "run", &["-ing"], &["English"]),
+            ]
+        );
+        assert_eq!(
+            english_groups("london's"),
+            [group("london's", "London", &["possessive"], &["English"])]
+        );
+        assert_eq!(
+            english_groups("cat\u{2019}s"),
+            [group("cat\u{2019}s", "cat", &["possessive"], &["English"])]
+        );
+        assert_eq!(
+            english_groups("cities"),
+            [group("cities", "city", &["plural"], &["English"])]
+        );
+        // Phrasal verbs, with or without an interposed object, before their shorter starts.
+        assert_eq!(
+            english_groups("looked it up."),
+            [
+                group(
+                    "looked it up",
+                    "look up",
+                    &["past", "interposed object"],
+                    &["English"]
+                ),
+                group("looked", "look", &["past"], &["English"]),
+            ]
+        );
+        assert_eq!(
+            english_groups("gives up"),
+            [group(
+                "gives up",
+                "give up",
+                &["third person singular"],
+                &["English"]
+            ),]
+        );
+        // A lookup uses only its language's dictionaries.
+        assert_eq!(
+            english_groups("unhappy"),
+            [group(
+                "unhappy",
+                "happy",
+                &["un-"],
+                &["English", "Untagged"]
+            )]
+        );
+        assert_eq!(
+            english_groups("walk"),
+            [group("walk", "walk", &[], &["English", "English"])]
+        );
+        let japanese_walk = lookup(&connection, "walk", Language::Japanese);
+        assert_eq!(japanese_walk.groups.len(), 1);
+        assert_eq!(japanese_walk.groups[0].terms.len(), 1);
+        assert_eq!(
+            japanese_walk.groups[0].terms[0].dictionary_title,
+            "Japanese"
+        );
+        assert!(lookup(&connection, "happy", Language::Japanese)
+            .groups
+            .is_empty());
+        // English applies no Japanese rule, and Japanese no English one.
+        assert!(english_groups("読んだ").is_empty());
+        assert!(lookup(&connection, "walked", Language::Japanese)
+            .groups
+            .iter()
+            .all(|group| group.deinflection.is_none()));
+        assert_eq!(
+            lookup(&connection, "読んだ", Language::Japanese).groups[0].expression,
+            "読む"
+        );
+        // Moving a dictionary moves its entries to the other language's lookups.
+        let untagged_id = list_from_store(&connection).unwrap()[2].id;
+        assert_eq!(
+            set_language_in_store(&connection, &[untagged_id, 999], Language::Japanese).unwrap(),
+            1
+        );
+        assert!(lookup(&connection, "happy", Language::Japanese).groups[0]
+            .terms
+            .iter()
+            .all(|term| term.dictionary_title == "Untagged"));
+        assert_eq!(
+            english_groups("unhappy"),
+            [group("unhappy", "happy", &["un-"], &["English"])]
+        );
+        // A selection made of Japanese dictionaries selects all of English's for English.
+        let japanese_ids = list_from_store(&connection)
+            .unwrap()
+            .into_iter()
+            .filter(|dictionary| dictionary.language == Language::Japanese)
+            .map(|dictionary| dictionary.id)
+            .collect::<Vec<_>>();
+        let chosen = SourcePolicy {
+            definitions: super::super::sources::SourceSelection::Selected {
+                ids: japanese_ids.clone(),
+            },
+            ..SourcePolicy::default()
+        };
+        assert_eq!(
+            language_sources(&connection, &chosen, Language::English)
+                .unwrap()
+                .definitions,
+            super::super::sources::SourceSelection::Selected {
+                ids: vec![list_from_store(&connection).unwrap()[0].id]
+            }
+        );
+        assert_eq!(
+            language_sources(&connection, &chosen, Language::Japanese)
+                .unwrap()
+                .definitions,
+            super::super::sources::SourceSelection::Selected { ids: japanese_ids }
+        );
+        // With every dictionary in the language, the sources stay as chosen.
+        connection
+            .execute("UPDATE dictionaries SET language = 'en'", [])
+            .unwrap();
+        assert_eq!(
+            language_sources(&connection, &SourcePolicy::default(), Language::English)
+                .unwrap()
+                .definitions,
+            super::super::sources::SourceSelection::All
+        );
+    }
+
+    #[test]
+    fn version_9_puts_each_dictionary_in_its_declared_language_or_japanese() {
+        let directory = tempdir().unwrap();
+        let database = directory.path().join(DATABASE_FILE_NAME);
+        let tagged = |name: &str, language: Option<&str>| {
+            let index = match language {
+                Some(language) => format!(
+                    r#"{{"title":"{name}","revision":"1","format":3,"sourceLanguage":"{language}"}}"#
+                ),
+                None => format!(r#"{{"title":"{name}","revision":"1","format":3}}"#),
+            };
+            fixture_with(
+                directory.path(),
+                &format!("{name}.zip"),
+                &[
+                    ("index.json", &index),
+                    ("term_bank_1.json", r#"[["walk","","","",0,["x"],1,""]]"#),
+                ],
+            )
+        };
+        let paths = [
+            tagged("English", Some("en-US")),
+            tagged("Japanese", Some("ja")),
+            tagged("French", Some("fr")),
+            tagged("Spanish", Some("es")),
+            tagged("German", Some("de")),
+            tagged("Dutch", Some("nl")),
+            tagged("Untagged", None),
+        ];
+        {
+            let mut connection = open_store(&database).unwrap();
+            for path in &paths {
+                assert_eq!(
+                    import_one_into(&mut connection, path, Language::English).0,
+                    ImportStatus::Imported
+                );
+            }
+            connection
+                .execute_batch(
+                    "ALTER TABLE dictionaries DROP COLUMN language; PRAGMA user_version = 8;",
+                )
+                .unwrap();
+        }
+        let connection = open_store(&database).unwrap();
+        assert_eq!(pragma(&connection, "user_version"), SCHEMA_VERSION);
+        assert_eq!(
+            list_from_store(&connection)
+                .unwrap()
+                .into_iter()
+                .map(|dictionary| (dictionary.title, dictionary.language))
+                .collect::<Vec<_>>(),
+            [
+                ("English".to_owned(), Language::English),
+                ("Japanese".to_owned(), Language::Japanese),
+                ("French".to_owned(), Language::French),
+                ("Spanish".to_owned(), Language::Spanish),
+                ("German".to_owned(), Language::German),
+                ("Dutch".to_owned(), Language::Japanese),
+                ("Untagged".to_owned(), Language::Japanese),
+            ]
         );
     }
 
@@ -6475,6 +7469,7 @@ mod tests {
                  ALTER TABLE dictionaries DROP COLUMN has_definitions;
                  ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 1;",
             )
             .unwrap();
@@ -6794,6 +7789,7 @@ mod tests {
                  ALTER TABLE dictionaries DROP COLUMN has_definitions;
                  ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 2;",
             )
             .unwrap();
@@ -6838,6 +7834,7 @@ mod tests {
                  ALTER TABLE dictionaries DROP COLUMN has_definitions;
                  ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 3;",
             )
             .unwrap();
@@ -6873,6 +7870,7 @@ mod tests {
                  ALTER TABLE dictionaries DROP COLUMN has_definitions;
                  ALTER TABLE dictionaries DROP COLUMN has_frequency;
                  ALTER TABLE dictionaries DROP COLUMN has_pitch;
+                 ALTER TABLE dictionaries DROP COLUMN language;
                  PRAGMA user_version = 4;",
             )
             .unwrap();
@@ -7609,7 +8607,7 @@ mod tests {
         let list = serde_json::to_string(&list_from_store(&connection).unwrap()).unwrap();
         assert_eq!(
             list,
-            r#"[{"id":1,"title":"Fixture","revision":"fixture-1","enabled":true,"termCount":5,"termMetaCount":4,"kanjiCount":1,"kanjiMetaCount":1,"hasDefinitions":true,"hasFrequency":true,"hasPitch":true}]"#
+            r#"[{"id":1,"title":"Fixture","revision":"fixture-1","enabled":true,"termCount":5,"termMetaCount":4,"kanjiCount":1,"kanjiMetaCount":1,"hasDefinitions":true,"hasFrequency":true,"hasPitch":true,"language":"ja"}]"#
         );
     }
 
@@ -7699,7 +8697,7 @@ mod tests {
         assert!(open_store(&database).is_ok());
         Connection::open(&database)
             .unwrap()
-            .execute_batch("PRAGMA user_version = 9")
+            .execute_batch("PRAGMA user_version = 10")
             .unwrap();
         assert!(open_store(&database).is_err());
     }
@@ -7938,6 +8936,81 @@ mod tests {
             assert_eq!(Sha256::digest(std::fs::read(path).unwrap()), hash);
         }
         println!("{} archives: disable/enable, reorder/reopen, remove two, compact ({size_before} → {size_after} bytes), reimport; SHA-256 unchanged", paths.len());
+    }
+
+    /// Follows the plan file `KOMORI_LANGUAGE_PLAN` against the store `KOMORI_DICTIONARY_DATABASE`:
+    /// a line `import<TAB>code<TAB>path` imports an archive into a language and `look<TAB>code<TAB>
+    /// query<TAB>form` looks up a query, printing `ok` or `MISS` for whether its first group is
+    /// `form`, then what it found. Every archive's bytes must stay unchanged.
+    #[test]
+    #[ignore = "requires explicit real dictionary archives; run with --release"]
+    fn real_language_lookups() {
+        let plan =
+            std::fs::read_to_string(std::env::var_os("KOMORI_LANGUAGE_PLAN").unwrap()).unwrap();
+        let database = std::env::var_os("KOMORI_DICTIONARY_DATABASE").unwrap();
+        let mut connection = open_store(Path::new(&database)).unwrap();
+        for line in plan.lines() {
+            let fields: Vec<&str> = line.split('\t').collect();
+            match fields.as_slice() {
+                ["import", code, path] => {
+                    let before = Sha256::digest(std::fs::read(path).unwrap());
+                    let started = Instant::now();
+                    let language = Language::from_code(code).unwrap();
+                    let (status, title) =
+                        import_one_into(&mut connection, Path::new(path), language);
+                    assert_eq!(before, Sha256::digest(std::fs::read(path).unwrap()));
+                    println!(
+                        "import {code} {} {status:?} {:.1} s",
+                        title.unwrap_or_default(),
+                        started.elapsed().as_secs_f64()
+                    );
+                }
+                ["look", code, query, form] => {
+                    let language = Language::from_code(code).unwrap();
+                    let sources =
+                        language_sources(&connection, &SourcePolicy::default(), language).unwrap();
+                    let lookup = lookup_longest_start_in(
+                        &connection,
+                        query,
+                        &sources,
+                        language,
+                        None,
+                        GLOSSARY_LIMITS,
+                    )
+                    .unwrap();
+                    let first = lookup.groups.first().map(|group| group.expression.as_str());
+                    let found = lookup
+                        .groups
+                        .iter()
+                        .take(6)
+                        .map(|group| {
+                            let inflections = group
+                                .deinflection
+                                .as_ref()
+                                .map(|each| each.inflections.join("+"))
+                                .unwrap_or_default();
+                            format!(
+                                "{}[{}]({}){{{}}}<{}>#{}f:{}",
+                                group.expression,
+                                group.reading,
+                                inflections,
+                                group.pitches.len(),
+                                group.transcriptions.join(" "),
+                                group.terms.len(),
+                                group.frequencies.len()
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    let verdict = if first == Some(*form) { "ok  " } else { "MISS" };
+                    println!(
+                        "{verdict} {code} {query} -> {form} : text={} {found}",
+                        lookup.text
+                    );
+                }
+                _ => panic!("bad plan line: {line}"),
+            }
+        }
     }
 
     /// Imports `KOMORI_DICTIONARY_SAMPLES` (`|`-separated archive paths) into a temporary store,

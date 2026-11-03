@@ -43,7 +43,11 @@ vi.mock("../anki/ankiApi", async (original) => ({
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
     isMaximized: async () => false,
+    isMinimized: async () => false,
+    isFocused: async () => true,
+    isVisible: async () => true,
     onResized: async () => () => {},
+    onFocusChanged: async () => () => {},
   }),
 }));
 
@@ -94,6 +98,7 @@ function summary(id: number, title: string, hasDefinitions: boolean): Dictionary
     hasDefinitions,
     hasFrequency: !hasDefinitions,
     hasPitch: false,
+    language: "ja",
   };
 }
 const listMock = vi.mocked(listDictionaries);
@@ -122,6 +127,7 @@ function group(expression: string, reading: string, text: string, gloss: string)
       },
     ],
     frequencies: [],
+    transcriptions: [],
     pitches: [],
   };
 }
@@ -374,6 +380,35 @@ describe("Reader lookup popup", () => {
     expect(screen.queryByRole("dialog", { name: "Lookup: English" })).toBeNull();
     expect(lookupMock).toHaveBeenCalledTimes(calls);
     expect(reader.mounted).toHaveBeenCalledOnce();
+  });
+
+  it("looks up English words in English, ignoring CJK only, and starts none on a non-letter", async () => {
+    const walked: TermLookup = {
+      text: "walked",
+      groups: [
+        {
+          ...group("walk", "walk", "walked", "to move on foot"),
+          deinflection: { form: "walk", inflections: ["past"] },
+        },
+      ],
+    };
+    lookupMock.mockResolvedValue(walked);
+    const reader = await openReader(true, undefined, {
+      lookupLanguage: "en",
+      readerPopupCjkOnly: true,
+    });
+    expect(reader.setLookupTriggers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ lookupLanguage: "en", readerPopupCjkOnly: true }),
+    );
+    reader.select(horizontal("1984 walked"));
+    expect(lookupMock).not.toHaveBeenCalled();
+    reader.select(horizontal("walked"));
+    const popup = await screen.findByRole("dialog", { name: "Lookup: walked" });
+    await within(popup).findByText("to move on foot");
+    expect(lookupMock).toHaveBeenCalledWith("walked", undefined, 5, "en");
+    expect(kanjiMock).not.toHaveBeenCalled();
+    expect(within(popup).getByTitle("Inflected: past")).toBeInTheDocument();
+    expect(popup.querySelector(".lookup-entry__reading, rt")).toBeNull();
   });
 
   it("looks up selected book text from its text menu, with selection lookups off", async () => {
@@ -936,12 +971,14 @@ describe("Reader lookup popup", () => {
           dictionaryTitle: `Frequency ${rank}`,
           data: rank + index,
         })),
+        transcriptions: [],
         pitches: [
           {
             dictionaryId: 3,
             dictionaryTitle: "Pitch source",
             data: {
               reading: original.reading,
+              transcriptions: [],
               pitches: [{ position: 0 }, { position: 2, nasal: 1, devoice: 2, tags: ["noun"] }],
             },
           },
@@ -1013,12 +1050,14 @@ describe("Reader lookup popup", () => {
         {
           ...dokusho.groups[0],
           frequencies: [{ dictionaryId: 2, dictionaryTitle: "Frequency source", data: 12 }],
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 3,
               dictionaryTitle: "Pitch source",
               data: {
                 reading: dokusho.groups[0].reading,
+                transcriptions: [],
                 pitches: [{ position: 0 }],
               },
             },
@@ -1058,6 +1097,7 @@ describe("Reader lookup popup", () => {
       dictionaryTitle,
       data: {
         reading: "どくしょ",
+        transcriptions: [],
         pitches: [{ position: 0 }, { position: 2, nasal: 1, devoice: 2, tags: ["noun"] }],
       },
     }));
@@ -1608,6 +1648,7 @@ describe("Reader lookup popup", () => {
             { ...term, sequence: 3, glossary: ["perusal"] },
           ],
           frequencies: [{ dictionaryId: 3, dictionaryTitle: "Frequency source", data: 12 }],
+          transcriptions: [],
           pitches: [
             {
               dictionaryId: 4,
@@ -1629,7 +1670,7 @@ describe("Reader lookup popup", () => {
     await within(popup).findByText("reading books; reading");
     expect(popup).toHaveClass("reader-lookup--dictionary");
     expect(popup.style.getPropertyValue("--popup-font")).toBe(
-      '"Yu Mincho", "Komori Google zen-old-mincho", serif',
+      '"Yu Mincho", "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
     );
     const [entry, shorter] = within(popup).getAllByRole("article");
     expect(entry).toHaveAccessibleName("読書 (どくしょ)");
@@ -1710,7 +1751,7 @@ describe("Reader lookup popup", () => {
     expect(within(popup).queryByRole("button", { name: "Open 本 in dictionary" })).toBeNull();
     // The default popup font is the included Zen Old Mincho.
     expect(popup.style.getPropertyValue("--popup-font")).toBe(
-      '"Komori Google zen-old-mincho", serif',
+      '"Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
     );
 
     kanjiMock.mockResolvedValue({ entries: [], frequencies: [] });

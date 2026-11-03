@@ -17,7 +17,7 @@ const previewQuery = "読む";
 export function ReaderLookupPreview() {
   const appearance = useAppearance();
   const navigate = useNavigate();
-  const definitionSources = useDefinitionSources();
+  const definitionSources = useDefinitionSources(true, appearance.lookupLanguage);
   const { t } = useI18n();
   return (
     <Card className="settings-card settings-card--wide">

@@ -12,6 +12,7 @@ import {
   fontPairStack,
   popupFontFaces,
   popupFontStack,
+  bookFontLanguage,
   sameFontPair,
   isReaderFontChoice,
   googleFontFiles,
@@ -42,6 +43,27 @@ vi.mock("./readerFonts", () => ({
   refreshReaderFonts: vi.fn(async () => {}),
   importReaderFonts: vi.fn(async () => {}),
 }));
+
+it("shows the open book's Asian font and sends a new pick to where the book keeps it", async () => {
+  const user = userEvent.setup();
+  const store = memoryStore();
+  const pick = vi.fn();
+  render(
+    <AppearanceProvider store={store}>
+      <ReaderFontControls
+        asianFont={{ source: "google", id: "noto-sans-kr" }}
+        onAsianFontChange={pick}
+      />
+    </AppearanceProvider>,
+  );
+  const asian = await screen.findByRole("combobox", { name: "Asian font" });
+  expect(asian).toHaveValue("Noto Sans KR");
+  await user.clear(asian);
+  await user.type(asian, "Meiryo{Enter}");
+  expect(pick).toHaveBeenCalledWith({ source: "system", family: "Meiryo" });
+  // The font saved for other books stays.
+  expect(store.saved.readerAsianFont).not.toEqual({ source: "system", family: "Meiryo" });
+});
 
 it("migrates each legacy group independently, gives new choices precedence, and keeps missing-font names", () => {
   const prefs = normalizeAppearancePreferences({
@@ -82,7 +104,7 @@ it("restricts Asian aliases to CJK while keeping ordered glyph fallback and fixe
     downloaded: ["zen-old-mincho"],
   };
   expect(fontPairStack(pair)).toBe(
-    '"Komori Asian", "Arial", "Komori Google zen-old-mincho", serif',
+    '"Komori Asian", "Arial", "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
   );
   const faces = fontPairFaces(pair);
   expect(faces).toContain("unicode-range: U+1100-11FF,U+2E80-9FFF");
@@ -486,12 +508,29 @@ it("sets the popup in its chosen font over the included Zen Old Mincho, declarin
     readerPopupStyle: "standard",
     readerPopupFont: { source: "google", id: "zen-old-mincho" },
   });
-  expect(popupFontStack(defaultPopupFont)).toBe('"Komori Google zen-old-mincho", serif');
+  expect(popupFontStack(defaultPopupFont)).toBe(
+    '"Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
+  );
+  // Chinese and Korean lookups leave the default Japanese font for a system font.
+  expect(popupFontStack(defaultPopupFont, "zh")).toBe(
+    '"Microsoft YaHei", "Komori Google zen-old-mincho", "Microsoft JhengHei", "Malgun Gothic", serif',
+  );
+  expect(popupFontStack(defaultPopupFont, "ko").startsWith('"Malgun Gothic", ')).toBe(true);
+  expect(
+    popupFontStack({ source: "system", family: "Yu Mincho" }, "zh").startsWith('"Yu Mincho", '),
+  ).toBe(true);
+  expect(bookFontLanguage("zh-Hans")).toBe("zh-Hans");
+  expect(bookFontLanguage("zh")).toBe("zh-Hans");
+  expect(bookFontLanguage("zh-Hant")).toBe("zh-Hant");
+  expect(bookFontLanguage("ko")).toBe("ko");
+  expect(bookFontLanguage("ja")).toBe("ja");
+  expect(bookFontLanguage("fr")).toBeUndefined();
+  expect(bookFontLanguage(null)).toBeUndefined();
   expect(popupFontStack({ source: "system", family: "Yu Mincho" })).toBe(
-    '"Yu Mincho", "Komori Google zen-old-mincho", serif',
+    '"Yu Mincho", "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
   );
   expect(popupFontStack({ source: "preset", id: "sans-serif" })).toBe(
-    'sans-serif, "Komori Google zen-old-mincho", serif',
+    'sans-serif, "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
   );
   const zen = googleFontFiles.find((f) => f.id === "zen-old-mincho")!;
   // The popup is in Komori's own window: no script aliases, only the fonts it names.

@@ -11,6 +11,8 @@ import {
   defaultWesternFont,
   isReaderFontChoice,
   normalizeFontChoice,
+  bookFontLanguages,
+  type BookFontLanguage,
   type ReaderFontChoice,
 } from "../reader/fontChoices";
 import { isFaceWeight } from "../reader/fontWeights";
@@ -38,6 +40,13 @@ import {
   type SourceSelection,
 } from "../dictionary/sourcePolicy";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import {
+  defaultLookupLanguage,
+  isDefinitionLanguage,
+  isLookupLanguage,
+  type DefinitionLanguage,
+  type LookupLanguage,
+} from "../dictionary/lookupLanguage";
 import {
   defaultInterfaceLanguage,
   isInterfaceLanguage,
@@ -174,6 +183,10 @@ export interface AppearancePreferences
   readerPopupStyle: LookupPopupStyle;
   /** The font of the popup's headwords, readings and definitions. */
   readerPopupFont: ReaderFontChoice;
+  /** The language lookups deinflect and choose dictionaries for. */
+  lookupLanguage: LookupLanguage;
+  /** The language of the starter dictionaries offered; empty follows the interface language. */
+  starterDefinitions: DefinitionLanguage | "";
   /** The language of Komori's own interface; books and dictionaries keep theirs. */
   interfaceLanguage: InterfaceLanguage;
   /** The window and tray icon; the executable keeps the default. */
@@ -217,6 +230,8 @@ export interface AppearancePreferences
   readerWordSpacing: number;
   /** Ordered font choices for every reflowable book. */
   readerAsianFont: ReaderFontChoice;
+  /** The fonts picked while reading a Chinese, Japanese or Korean book. */
+  readerAsianFontByLanguage: Partial<Record<BookFontLanguage, ReaderFontChoice>>;
   readerWesternFont: ReaderFontChoice;
   readerFontFamilyGroup1: ReaderSerifFont;
   readerFontFamilyGroup2: ReaderSansFont;
@@ -289,6 +304,8 @@ export const defaultAppearance: AppearancePreferences = {
   readerPopupHeight: lookupPopupSize.height,
   readerPopupStyle: "standard",
   readerPopupFont: defaultPopupFont,
+  lookupLanguage: defaultLookupLanguage,
+  starterDefinitions: "",
   interfaceLanguage: defaultInterfaceLanguage,
   appIcon: defaultAppIcon,
   theme: defaultAppTheme,
@@ -315,6 +332,7 @@ export const defaultAppearance: AppearancePreferences = {
   readerLetterSpacing: readerLetterSpacing.default,
   readerWordSpacing: readerWordSpacing.default,
   readerAsianFont: defaultAsianFont,
+  readerAsianFontByLanguage: {},
   readerWesternFont: defaultWesternFont,
   readerFontFamilyGroup1: defaultReaderSerifFont,
   readerFontFamilyGroup2: defaultReaderSansFont,
@@ -385,6 +403,8 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     readerPopupHeight,
     readerPopupStyle,
     readerPopupFont,
+    lookupLanguage,
+    starterDefinitions,
     interfaceLanguage,
     appIcon,
     theme,
@@ -411,6 +431,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     readerLetterSpacing,
     readerWordSpacing,
     readerAsianFont,
+    readerAsianFontByLanguage,
     readerWesternFont,
     readerFontFamilyGroup1,
     readerFontFamilyGroup2,
@@ -495,6 +516,8 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(isLookupDimension(readerPopupHeight, lookupPopupHeight) && { readerPopupHeight }),
     ...(isLookupPopupStyle(readerPopupStyle) && { readerPopupStyle }),
     ...(isReaderFontChoice(readerPopupFont) && { readerPopupFont }),
+    ...(isLookupLanguage(lookupLanguage) && { lookupLanguage }),
+    ...(isDefinitionLanguage(starterDefinitions) && { starterDefinitions }),
     ...(isInterfaceLanguage(interfaceLanguage) && { interfaceLanguage }),
     ...(isAppIcon(appIcon) && { appIcon }),
     ...(isAppTheme(theme) && { theme }),
@@ -524,6 +547,15 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
       readerAsianFont,
       isReaderSerifFont(readerFontFamilyGroup1) ? readerFontFamilyGroup1 : undefined,
     ) && { readerAsianFont: normalizeFontChoice(readerAsianFont, readerFontFamilyGroup1) }),
+    ...(typeof readerAsianFontByLanguage === "object" &&
+      readerAsianFontByLanguage !== null && {
+        readerAsianFontByLanguage: Object.fromEntries(
+          bookFontLanguages.flatMap((language) => {
+            const font = (readerAsianFontByLanguage as Record<string, unknown>)[language];
+            return isReaderFontChoice(font) ? [[language, font]] : [];
+          }),
+        ),
+      }),
     ...(normalizeFontChoice(
       readerWesternFont,
       isReaderSansFont(readerFontFamilyGroup2) ? readerFontFamilyGroup2 : undefined,
@@ -579,7 +611,9 @@ export function defaultAppearanceStore(): AppearancePreferencesStore | null {
       return normalizeAppearancePreferences(await invoke<unknown>("get_appearance_preferences"));
     },
     async save(preferences) {
-      await invoke("save_appearance_preferences", { preferences });
+      // Native answers false when it refuses the record; that is a failed write, kept to retry.
+      if (!(await invoke<boolean>("save_appearance_preferences", { preferences })))
+        throw new Error("Preferences were refused.");
     },
     installDefaults: monitorReaderSize,
   };

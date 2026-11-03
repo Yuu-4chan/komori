@@ -42,6 +42,7 @@ export function ReaderPage({
           author: found.author,
           availability: found.availability,
           hasCover: found.hasCover,
+          language: found.language,
           series: found.series ?? null,
           seriesIndex: found.seriesIndex ?? null,
         };

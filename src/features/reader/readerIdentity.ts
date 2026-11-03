@@ -2,7 +2,7 @@ import type { LibraryBook } from "../library/libraryApi";
 
 type ReaderBook = Pick<
   LibraryBook,
-  "id" | "title" | "author" | "availability" | "hasCover" | "series" | "seriesIndex"
+  "id" | "title" | "author" | "availability" | "hasCover" | "language" | "series" | "seriesIndex"
 >;
 
 export type ReaderIdentity =

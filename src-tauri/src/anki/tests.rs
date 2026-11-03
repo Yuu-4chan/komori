@@ -1791,3 +1791,14 @@ fn real_local_anki_existing_checks() {
         println!("Real read-only configuration + existence check: {} ms, {} matching notes, existing sample {}", start.elapsed().as_millis(), matches.len(), known.is_some_and(|id| matches.contains(&id)));
     }
 }
+
+#[test]
+fn a_new_deck_needs_a_name_before_anything_reaches_anki() {
+    let prefs = Preferences::default();
+    for name in ["", "   ", "a\nb"] {
+        assert!(
+            matches!(create_deck(&prefs, name), Err(AnkiError::Invalid)),
+            "{name:?}"
+        );
+    }
+}

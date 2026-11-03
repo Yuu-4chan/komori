@@ -7715,7 +7715,7 @@ describe("EPUB.js renderer adapter", () => {
           });
           for (const doc of [sections[0].document, contents.document])
             expect(familyStyle(doc)).toContain(
-              '"Komori Asian", "Georgia", "Komori Google zen-old-mincho", serif',
+              '"Komori Asian", "Georgia", "Komori Google zen-old-mincho", "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif',
             );
           expect(book.renderTo).toHaveBeenCalledOnce();
           expect(rendition.manager.clear).not.toHaveBeenCalled();

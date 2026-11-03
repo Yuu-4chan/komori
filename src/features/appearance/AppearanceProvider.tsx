@@ -1,6 +1,16 @@
 import { isBackgroundBlurLevel } from "../reader/backgroundAppearance";
 import { normalizeWordAudioSources, type WordAudioSource } from "../dictionary/wordAudio";
-import { isReaderFontChoice, type ReaderFontChoice } from "../reader/fontChoices";
+import {
+  isLookupLanguage,
+  type LookupLanguage,
+  type DefinitionLanguage,
+  isDefinitionLanguage,
+} from "../dictionary/lookupLanguage";
+import {
+  isReaderFontChoice,
+  type BookFontLanguage,
+  type ReaderFontChoice,
+} from "../reader/fontChoices";
 import { normalizeReaderFooter, type ReaderFooterPreferences } from "../reader/footerPreferences";
 import { registerWindowFlush } from "../../app/windowLifecycle";
 import {
@@ -184,6 +194,11 @@ interface AppearanceContextValue
   /** The font of the popup's headwords, readings and definitions. */
   readerPopupFont: ReaderFontChoice;
   setReaderPopupFont: (font: ReaderFontChoice) => void;
+  /** The language lookups deinflect and choose dictionaries for, in the popup and the Dictionary. */
+  lookupLanguage: LookupLanguage;
+  setLookupLanguage: (language: LookupLanguage) => void;
+  starterDefinitions: DefinitionLanguage | "";
+  setStarterDefinitions: (language: DefinitionLanguage) => void;
   /** The language of Komori's interface, applied at once without reloading anything. */
   interfaceLanguage: InterfaceLanguage;
   /** Chooses an interface language; anything else is ignored. */
@@ -226,6 +241,8 @@ interface AppearanceContextValue
   readerAsianFont: ReaderFontChoice;
   readerWesternFont: ReaderFontChoice;
   setReaderAsianFont: (font: ReaderFontChoice) => void;
+  readerAsianFontByLanguage: Partial<Record<BookFontLanguage, ReaderFontChoice>>;
+  setReaderAsianFontForLanguage: (language: BookFontLanguage, font: ReaderFontChoice) => void;
   setReaderWesternFont: (font: ReaderFontChoice) => void;
   readerFontFamilyGroup1: ReaderSerifFont;
   setReaderFontFamilyGroup1: (font: ReaderSerifFont) => void;
@@ -443,6 +460,8 @@ export function AppearanceProvider({
     readerPopupHeight,
     readerPopupStyle,
     readerPopupFont,
+    lookupLanguage,
+    starterDefinitions,
     interfaceLanguage,
     appIcon,
     theme,
@@ -469,6 +488,7 @@ export function AppearanceProvider({
     readerLetterSpacing,
     readerWordSpacing,
     readerAsianFont,
+    readerAsianFontByLanguage,
     readerWesternFont,
     readerFontFamilyGroup1,
     readerFontFamilyGroup2,
@@ -617,6 +637,14 @@ export function AppearanceProvider({
       setReaderPopupFont: (font: ReaderFontChoice) => {
         if (isReaderFontChoice(font)) update({ readerPopupFont: font });
       },
+      lookupLanguage,
+      setLookupLanguage: (language: LookupLanguage) => {
+        if (isLookupLanguage(language)) update({ lookupLanguage: language });
+      },
+      starterDefinitions,
+      setStarterDefinitions: (language: DefinitionLanguage) => {
+        if (isDefinitionLanguage(language)) update({ starterDefinitions: language });
+      },
       interfaceLanguage,
       setInterfaceLanguage: (language: InterfaceLanguage) => {
         if (isInterfaceLanguage(language)) update({ interfaceLanguage: language });
@@ -700,6 +728,13 @@ export function AppearanceProvider({
       readerWesternFont,
       setReaderAsianFont: (font: ReaderFontChoice) => {
         if (isReaderFontChoice(font)) update({ readerAsianFont: font });
+      },
+      readerAsianFontByLanguage,
+      setReaderAsianFontForLanguage: (language: BookFontLanguage, font: ReaderFontChoice) => {
+        if (isReaderFontChoice(font))
+          update({
+            readerAsianFontByLanguage: { ...readerAsianFontByLanguage, [language]: font },
+          });
       },
       setReaderWesternFont: (font: ReaderFontChoice) => {
         if (isReaderFontChoice(font)) update({ readerWesternFont: font });
@@ -867,6 +902,8 @@ export function AppearanceProvider({
       readerPopupHeight,
       readerPopupStyle,
       readerPopupFont,
+      lookupLanguage,
+      starterDefinitions,
       interfaceLanguage,
       appIcon,
       accentColor,
@@ -890,6 +927,7 @@ export function AppearanceProvider({
       readerLetterSpacing,
       readerWordSpacing,
       readerAsianFont,
+      readerAsianFontByLanguage,
       readerWesternFont,
       readerFontFamilyGroup1,
       readerFontFamilyGroup2,

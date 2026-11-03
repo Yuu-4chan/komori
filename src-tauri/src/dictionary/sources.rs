@@ -81,4 +81,67 @@ impl SourcePolicy {
             .iter()
             .all(|role| role.is_valid())
     }
+
+    /// Narrows every role to the dictionaries in `allowed`: All selects them, a selection keeps
+    /// only those, and None stays. A selection naming some of `others` but none of `allowed`
+    /// selects all of `allowed`.
+    pub(super) fn restrict_to(&mut self, allowed: &[i64], others: &[i64]) {
+        for role in [&mut self.definitions, &mut self.frequency, &mut self.pitch] {
+            match role {
+                SourceSelection::All => {
+                    *role = SourceSelection::Selected {
+                        ids: allowed.to_vec(),
+                    }
+                }
+                SourceSelection::None => {}
+                SourceSelection::Selected { ids } => {
+                    let names_others = ids.iter().any(|id| others.contains(id));
+                    ids.retain(|id| allowed.contains(id));
+                    if ids.is_empty() && names_others {
+                        *ids = allowed.to_vec();
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restricting_narrows_each_role_and_keeps_none() {
+        let mut policy = SourcePolicy {
+            definitions: SourceSelection::All,
+            frequency: SourceSelection::None,
+            pitch: SourceSelection::Selected { ids: vec![3, 1, 2] },
+        };
+        policy.restrict_to(&[2, 3], &[1]);
+        assert_eq!(
+            policy.definitions,
+            SourceSelection::Selected { ids: vec![2, 3] }
+        );
+        assert_eq!(policy.frequency, SourceSelection::None);
+        assert_eq!(policy.pitch, SourceSelection::Selected { ids: vec![3, 2] });
+        policy.restrict_to(&[], &[2, 3]);
+        assert_eq!(policy.definitions.sql_ids().as_deref(), Some("[]"));
+    }
+
+    #[test]
+    fn a_selection_of_only_other_languages_dictionaries_selects_all_of_this_ones() {
+        let mut policy = SourcePolicy {
+            definitions: SourceSelection::Selected { ids: vec![1, 2] },
+            // Removed dictionaries, or none chosen, still select nothing.
+            frequency: SourceSelection::Selected { ids: vec![9] },
+            pitch: SourceSelection::Selected { ids: vec![] },
+        };
+        policy.restrict_to(&[3, 4], &[1, 2]);
+        assert_eq!(
+            policy.definitions,
+            SourceSelection::Selected { ids: vec![3, 4] }
+        );
+        assert_eq!(policy.frequency, SourceSelection::Selected { ids: vec![] });
+        assert_eq!(policy.pitch, SourceSelection::Selected { ids: vec![] });
+    }
 }

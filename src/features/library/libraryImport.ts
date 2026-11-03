@@ -1,6 +1,11 @@
 import { i18n } from "../../i18n/i18n";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { bulkOperationActive, useBulkOperation, operationLabel } from "../operations/bulkOperation";
+import {
+  bulkOperationActive,
+  libraryImportCommands,
+  useBulkOperation,
+  operationLabel,
+} from "../operations/bulkOperation";
 
 import {
   importBooks,
@@ -104,11 +109,7 @@ export function useLibraryImportController(): LibraryImport {
     return scanning.current;
   }, []);
 
-  const importingCommand =
-    operation &&
-    ["import_books", "import_dropped_books", "scan_library_folders", "add_library_folder"].includes(
-      operation.command,
-    );
+  const importingCommand = operation && libraryImportCommands.includes(operation.command);
   const trackedResult =
     importingCommand && !operation.active && operation.operationId !== dismissedOperation
       ? operation.result

@@ -16,18 +16,26 @@ three, while the Reader keeps it for bookmarks.
 ## Library
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;
-grid/list, search, status filters, Cards details, sort and direction, which order groups too; grouping by series
-or language as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Series from titles in Settings > General, on
-by default, puts numbered volumes sharing a title (`Title 01`, `Title 02`) in a series when
-the books name none, with （上）/（下） parts and volumes whose title adds a subtitle
-(`Title～Subtitle～01`), keeping a title's own ＜＞ and ！？ in the series name; Mark as completed from a card's menu or the selection; per-card selection boxes
+grid/list, search, status filters, Cards details, sort (Author sorts by name, then title) and direction, which order groups too; grouping by series,
+language or first author (`A & B`, `A／B` and `A、B` group under A) as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Automatic series in Settings > General, on
+by default, makes series in this order: what you set by hand, then numbered file names
+(`Harry Potter 1.epub`, `Harry Potter 2.epub`, ignoring a copy's `(1)`, notes such as `(2020)` or a checksum, and the store tags titles drop, such as `【電子版限定特典付き】`, spelled as the books' titles spell the same words, taking the number after `Vol`, `Volume` or `第` before a later year, as in `Baccano! - Vol 13 - 2002`, and leaving to the titles file names that only spell a Japanese title's katakana reading),
+then a book's own series, then numbered volumes sharing a title (`Title 01`, `Title 02`), full-width
+or not, with （上）/（下） parts and volumes whose title adds a subtitle
+(`Title～Subtitle～01`), keeping a title's own ＜＞ and ！？ in the series name, and off leaves only series set by hand; Stop on the adding notice ends an import between two books, keeping those already added; Mark as completed from a card's menu or the selection; per-card selection boxes
 (Continue reading stays while selecting) with bulk removal,
 relink and import with native progress. Drop EPUB files from Windows Explorer anywhere
 on the Library to add them; a drag overlay shows the accepted file type or a busy
 operation, and imports report progress and per-file outcomes. Authors show in full, wrapping long names.
-Titles drop store, edition and bonus tags in brackets, such as 【電子版】, (Kindle版), (HJ文庫) or
+Titles drop store, edition and bonus tags in brackets, such as 【電子版】, (Kindle版), (HJ文庫), (学研ムック), [雑誌], 【単行本版特典ペーパー付き】 or
 (Light Novel), in full- or half-width brackets (even mixed, as in （電子版)), keeping a title's own
-bracketed words such as （上）.
+bracketed words such as （上）. Edit… in a card's menu or the selection shows books under a title and author of your own, kept
+through title cleaning, relink, backups and restores and used by search, sort, groups, series, the
+Reader, statistics, Anki and Discord; Use the original returns to the book's own, and the EPUB is
+never changed. With several books, typing the first title retitles the rest the same way, each with
+its own volume number (its series number, else the number its title or file name ends in, else its
+place), written as the first title writes it (`Vol. 01`, `０３`); a title changed by hand stops
+following, and one Author field sets every book's author.
 Words take the place of characters for western books everywhere (sort, summary, cards,
 Statistics). Book folders and the card size are in Settings > General; removing a folder
 forgets the books it met that are no longer in the Library, so adding it again brings them
@@ -54,7 +62,10 @@ back. The search stays in the top bar even in an empty Library.
   custom themes), Background image (Choose/Replace, Remove, saved blur 0–40 px),
   Typography (editable Western and Asian font dropdowns holding only usable fonts of
   their own collection: installed presets, included and downloaded Google families,
-  added fonts and installed families; defaults Georgia and the included Noto Sans JP;
+  added fonts and installed families; defaults Georgia and the included Noto Sans JP, and a Chinese, Japanese or Korean book's own characters
+  decide if the chosen Asian font fits it: one that doesn't is replaced for that book by the included
+  Noto Sans JP, SC or KR (Traditional Chinese: Microsoft JhengHei), shown in the panel and announced
+  briefly, while other books keep it; a font picked in such a book is saved for that language;
   Zen Old Mincho, Klee One and Noto Sans JP, SC and KR come with the installer; the
   adjacent + opens a floating manager on Asian, Western or Added fonts tabs for
   TTF/OTF imports up to 100 MB and 93 Google families with separate weights or variable ranges;
@@ -116,7 +127,8 @@ right on its kanji over a thin rule, then each dictionary's definitions right un
 tinted label, numbered ①, ② when it has more than one. It leaves out voice, tags, notes, pitch, frequency, Anki and Open in
 Dictionary; triggers, child popups, size, colors, corners, text size and line height
 are the popup's own settings. The popup's headwords, readings and definitions, in either
-style, use the chosen popup font, by default the included Zen Old Mincho.
+style, use the chosen popup font, by default the included Zen Old Mincho, or Microsoft YaHei,
+Microsoft JhengHei or Malgun Gothic when looking up Chinese or Korean.
 
 ## Dictionary
 
@@ -127,6 +139,19 @@ Kanji card first. Pitch positions merge across agreeing sources, with nasal, dev
 and tag marks. Until an installed dictionary can supply definitions, this page and the Reader's
 lookup popup (and its Settings preview) offer Get dictionaries, linking to Settings; the
 Dictionary page says it has no dictionaries only in that offer.
+
+The lookup language, Japanese by default, English, French, Portuguese, Italian, Spanish, Korean, Chinese, German or Russian (Settings > Dictionary), decides
+how the popup and the Dictionary read words. English lookups start at the word under the pointer
+and read on across spaces, so phrasal verbs match (looked it up → look up); capitalized words and
+’ apostrophes match their entries; inflections are named (past, plural, -ing); only English's dictionaries are
+used; and entries show no reading, furigana or pitch. French, Portuguese, Italian, Spanish, German and Russian lookups work
+the same way with their own verb tenses, plurals or cases and feminines; Russian ignores stress marks and ё/е; French and Italian also find the word after
+an elided l', d' or dell'. Korean lookups find the dictionary form of a word's verb and adjective
+endings (먹었어요 → 먹다). Chinese lookups read on from the character under the pointer like Japanese,
+in traditional or simplified characters as the dictionary lists them, and its readings (pinyin) show
+beside the headword.
+Entries show the word's pronunciation when a dictionary with IPA data is on, and Anki can use it as a field.
+Only look up Japanese/CJK text, the Kanji card and JapanesePod101 are for Japanese.
 
 ## Statistics
 
@@ -162,13 +187,15 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   width, height, font size, font, line height, corners, reading position), the real
   preview of 読む, Dictionary cards (Term, Frequency, Pitch sources), Lookup triggers and
   Scanning and results.
-- **Dictionary.** Add dictionaries (and, when empty, starter downloads of five curated open dictionaries: two Japanese–English dictionaries, a word frequency list, a kanji dictionary and a proper-name dictionary, credited in `ACKNOWLEDGEMENTS.md`), the sources in
+- **Dictionary.** One lookup language's dictionaries at a time (a Lookup language row picks
+  which; each dictionary belongs to one language, the one it was added to unless it declares
+  another, and existing ones are Japanese). Add dictionaries (and, when empty, starter downloads: Wiktionary dictionaries and IPA pronunciations for every lookup language, with definitions in up to 20 languages, with Definitions in choosing their language, saved, following the interface language until chosen; for Japanese also five curated open dictionaries: two Japanese–English dictionaries, a word frequency list, a kanji dictionary and a proper-name dictionary, credited in `ACKNOWLEDGEMENTS.md`), the sources in
   lookup order with a selection box, ≡ handle and Remove on each row; choosing rows shows
-  Select all, Remove selected and Clear. Word audio lists the recording sources in order
-  (JapanesePod101 by default, audio URLs and audio list URLs with `{term}`, `{reading}` and
-  `{language}`) with Move up/down and Remove, and adds new ones.
+  Select all, Move to… (another language), Remove and ✕ to clear it. Word audio lists the recording sources in order
+  (JapanesePod101, for Japanese only, and Wikimedia Commons, for every language, by default; audio URLs and audio list URLs with `{term}`,
+  `{reading}` and `{language}`) with Move up/down and Remove, and adds new ones.
 - **Statistics.** Recording, session start, jump limit and confirmed deletions.
-- **Anki.** Connection (port, key, Test connection, the bundled Lapis license), card
+- **Anki.** New deck creates a deck in Anki named as you choose (the lookup language at first), with the Lapis note type, and selects it. Connection (port, key, Test connection, the bundled Lapis license), card
   configuration (deck, note type, field contents table, tags, duplicates) and
   interrupted requests. Duplicate scope initially covers the entire collection.
 - **Discord.** Discord status (off by default): shows the open book in Discord with its
@@ -178,7 +205,7 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   and Idle after 5 minutes without reading or using the page, or with nothing to show.
 
 The application and Reader themes default to Hojicha. The Library initially sorts
-by Title and shows Series, Language, Last read and Unique kanji, with series from titles. Reader popup mouse
+by Title and shows Series, Language, Last read and Unique kanji, with automatic series. Reader popup mouse
 selection defaults off, with 0 ms scan delay, 5 results and 5 child popup levels.
 The Reader shows its clock and book position/percentage, with chapter
 position/percentage off.

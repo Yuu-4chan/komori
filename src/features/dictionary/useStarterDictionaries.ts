@@ -14,6 +14,10 @@ type StarterPhase =
   | "interrupted";
 export interface StarterEntry {
   id: string;
+  /** The lookup language it serves. */
+  language: string;
+  /** The language of its definitions; null when it has none. */
+  definitions: string | null;
   name: string;
   description: string;
   attribution: string;
