@@ -45,24 +45,33 @@
 ## Features
 
 - **Library.** Your EPUBs with real covers and progress, continue reading, grid and list
-  views, search, filters, sorting, series and language groups, book folders, drag and drop
-  from Explorer, and relinking of moved files. Komori reads your files where they are and
-  never changes them.
+  views, search, filters, sorting by title, author and more, and groups by series, language
+  or author. Book folders and drag and drop from Explorer import even messy collections,
+  reading volumes and series from file names, and moved files can be relinked. Fix any title
+  or author for one book or many at once: retitle the first volume and the rest follow,
+  numbered. Komori reads your files where they are and never changes them.
 - **Reader.** Continuous, semi-continuous, paginated and visual-novel modes; horizontal or
-  vertical writing; detailed typography with downloadable and imported fonts; fifteen
-  themes plus your own; furigana hiding; bookmarks, notes and highlights; find in book; an
-  image gallery; and a configurable footer with position, clock and reading speed.
-- **Lookup popup.** Look words up in the book with Shift, a shortcut, selection, click or
-  hover. Deinflection, readings with furigana, pitch accent, frequency, tags, kanji cards,
-  nested lookups and native word audio.
+  vertical writing; detailed typography with downloadable and imported fonts, each script in
+  a font that can show it; fifteen themes plus your own and a background image; furigana
+  hiding; bookmarks, notes and highlights; find in book; an image gallery; middle-click
+  autoscroll; and a configurable footer with position, clock and reading speed.
+- **Lookup in ten languages.** Look words up in Japanese, English, Spanish, French,
+  Portuguese, Italian, German, Russian, Korean or Chinese books with Shift, a shortcut,
+  selection, click or hover. Each language has its own dictionaries, deinflection and word
+  audio. Readings with furigana, IPA, pitch accent, frequency, tags, kanji cards and nested
+  lookups.
 - **Dictionary.** A full dictionary page with the same results, sources in your order and
   a kanji card for single characters.
 - **Statistics.** Characters (or words) read, time, speed, an activity calendar with
   editable days, library overview and a character explorer. Recording pauses while
   Komori's window is in the background.
 - **Anki.** Configure once in Settings, then create a card with one click from the popup,
-  with the reading, definitions, frequency, word audio and book cover. The Lapis note type
-  is bundled.
+  with the reading, definitions, frequency, word audio and book cover, in a deck for each
+  lookup language. The Lapis note type is bundled.
+- **Discord.** If you turn it on, your Discord status shows the book you're reading and your
+  progress, or which part of Komori you're using.
+- **At home on Windows.** Application themes, sixteen app icons, launch at startup,
+  minimize to the tray, reopen the last book and remember the window's place.
 - **Your data stays yours.** Automatic snapshots, backup export and import, signed
   updates you approve, and no telemetry. The interface is available in English, Japanese,
   Simplified and Traditional Chinese, Korean, German, Spanish, French, Italian, Brazilian
@@ -84,21 +93,24 @@ Windows 11 already includes; if it is missing, the installer downloads and insta
 
 ## Dictionaries
 
-On first use, **Settings > Dictionary** offers to download
-a few curated, freely licensed dictionaries (Japanese–English dictionaries, a word frequency
-list, a kanji dictionary and a proper-name dictionary). You can also import any dictionary
-ZIP archive in the format used by popular pop-up dictionary extensions (an `index.json` in
-format 2 or 3): choose **Add dictionaries** and pick one or more ZIP files. Komori copies the
-entries into its own store and never changes the archive. Drag the rows to set the lookup
-order. You can also use Komori freely without any dictionary.
+Komori looks words up in one lookup language at a time, chosen in **Settings > Dictionary**,
+and each language keeps its own dictionaries. When a language has none, Komori offers to
+download freely licensed ones: Wiktionary dictionaries with definitions in your language
+and IPA pronunciations for every lookup language, and for Japanese also curated
+Japanese–English dictionaries, a word frequency list, a kanji dictionary and a proper-name
+dictionary. You can also import any dictionary ZIP archive in the format used by popular
+pop-up dictionary extensions (an `index.json` in format 2 or 3): choose **Add dictionaries**
+and pick one or more ZIP files. Komori copies the entries into its own store and never
+changes the archive. Drag the rows to set the lookup order. You can also use Komori freely
+without any dictionary.
 
 ## Privacy
 
 Komori has no account, telemetry or analytics. Your library, reading history, notes and
 dictionaries stay in `%APPDATA%\app.komori.reader` on your computer. It uses the network
 only to check for updates (which you can turn off), to fetch word audio when you ask for it,
-and to download starter dictionaries or the Reader fonts you choose, and talks to Anki only on your own
-computer. See [docs/privacy.md](docs/privacy.md) for details.
+and to download starter dictionaries or the Reader fonts you choose. It talks to Anki, and to
+Discord when you turn on the Discord status, only on your own computer. See [docs/privacy.md](docs/privacy.md) for details.
 
 ## Build from source
 

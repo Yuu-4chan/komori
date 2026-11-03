@@ -26,5 +26,18 @@ Komori includes the following GPL-licensed material:
   https://github.com/yomidevs/yomitan at commit d3c54c1.
   Copyright (C) 2024-2026 Yomitan Authors. GPL-3.0-or-later.
 
+- German, Spanish, French and Korean deinflection rules
+  (src-tauri/src/dictionary/deinflect/de.rs, es.rs, fr.rs and ko.rs), adapted
+  and modified from Yomitan's ext/js/language/de/german-transforms.js,
+  ext/js/language/es/spanish-transforms.js,
+  ext/js/language/fr/french-transforms.js and
+  ext/js/language/ko/korean-transforms.js,
+  https://github.com/yomidevs/yomitan at commit d3c54c1.
+  Copyright (C) 2024-2026 Yomitan Authors. GPL-3.0-or-later.
+
+Komori also includes five Reader fonts (src-tauri/fonts): Klee One, Noto Sans
+JP, Noto Sans KR, Noto Sans SC and Zen Old Mincho, from Google Fonts, each under
+the SIL Open Font License 1.1 with its license beside it.
+
 Binary distributions also include THIRD-PARTY-NOTICES.txt, generated at build
 time with the license notices of every bundled npm package and Rust crate.

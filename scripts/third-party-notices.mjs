@@ -209,6 +209,15 @@ function extraEntries(root, crates) {
       texts: [gpl],
     },
     {
+      kind: "adapted",
+      name: "Yomitan German, Spanish, French and Korean transforms",
+      version: "d3c54c1",
+      license: "GPL-3.0-or-later",
+      source: "https://github.com/yomidevs/yomitan",
+      note: "Copyright (C) 2024-2026 Yomitan Authors; adapted and modified in src-tauri/src/dictionary/deinflect/de.rs, es.rs, fr.rs and ko.rs",
+      texts: [gpl],
+    },
+    {
       kind: "runtime",
       name: "Rust standard library",
       version: "",

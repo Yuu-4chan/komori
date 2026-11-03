@@ -35,6 +35,9 @@ describe("third-party notices", () => {
     expect(notices).toMatch(
       /^Yomitan English transforms and language transformer d3c54c1 \(adapted\)/mu,
     );
+    expect(notices).toMatch(
+      /^Yomitan German, Spanish, French and Korean transforms d3c54c1 \(adapted\)/mu,
+    );
     expect(notices).toContain("Copyright (C) Microsoft Corporation. All rights reserved.");
     expect(notices).toContain("GNU GENERAL PUBLIC LICENSE");
     // The installer includes these Reader fonts.
