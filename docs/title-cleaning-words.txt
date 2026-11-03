@@ -88,6 +88,11 @@ Nook
 電子豪華版
 紙版
 単行本
+単行本版
+連載版
+カラー版
+パートカラー版
+雑誌
 コミックス版
 合本版
 分冊版
@@ -134,6 +139,8 @@ SS付き
 
 # Limited releases
 限定
+初回限定
+DMM
 店舗限定
 書店限定
 店舗限定版
@@ -158,6 +165,8 @@ Kindle限定
 書き下ろし
 書き下ろしSS
 特典ペーパー
+ペーパー
+イラスト
 イラストカード
 ポストカード
 クリアファイル付き
@@ -211,6 +220,8 @@ Limited Edition
 Collector's Edition
 Collectors Edition
 Omnibus
+Complete
+Yaoi
 Omnibus Edition
 Complete Edition
 Illustrated
@@ -241,4 +252,9 @@ Sol Press
 *コミックス
 *新文芸
 *BOOKS
+*comics
+*e-book
+*ムック
+*単行本
+*出版
 *NOVELS

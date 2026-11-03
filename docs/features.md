@@ -27,7 +27,7 @@ or not, with （上）/（下） parts and volumes whose title adds a subtitle
 relink and import with native progress. Drop EPUB files from Windows Explorer anywhere
 on the Library to add them; a drag overlay shows the accepted file type or a busy
 operation, and imports report progress and per-file outcomes. Authors show in full, wrapping long names.
-Titles drop store, edition and bonus tags in brackets, such as 【電子版】, (Kindle版), (HJ文庫) or
+Titles drop store, edition and bonus tags in brackets, such as 【電子版】, (Kindle版), (HJ文庫), (学研ムック), [雑誌], 【単行本版特典ペーパー付き】 or
 (Light Novel), in full- or half-width brackets (even mixed, as in （電子版)), keeping a title's own
 bracketed words such as （上）.
 Words take the place of characters for western books everywhere (sort, summary, cards,

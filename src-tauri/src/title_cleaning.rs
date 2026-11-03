@@ -10,7 +10,7 @@ const TAGS: &str = include_str!("../../docs/title-cleaning-list.txt");
 const WORDS: &str = include_str!("../../docs/title-cleaning-words.txt");
 
 /// Raised whenever the lists or the cleaning change, so the catalog cleans its titles again.
-const REVISION: i64 = 2;
+const REVISION: i64 = 3;
 const REVISION_RECORD: &str = "title-cleaning";
 
 /// Bracket kinds that can hold listed words. A kind opens with any of its forms and closes
@@ -325,6 +325,20 @@ mod tests {
             "【期間限定購入特典】",
             "【購入特典】",
             "(角川文庫)",
+            // And from a mixed English and Japanese library.
+            "【単行本版特典ペーパー付き】",
+            "【DMM限定特典イラスト付】",
+            "【初回限定ペーパー付】",
+            "【電子単行本版】",
+            " [雑誌]",
+            " (FK comics)",
+            " (学研ムック)",
+            " (幻冬舎単行本)",
+            " (花黒子出版)",
+            " (文春e-book)",
+            " (角川コミックス・エース)",
+            " [Complete]",
+            " (Yaoi Novel)",
         ] {
             assert_eq!(
                 clean(&format!("題名 1{tag}")).as_deref(),
@@ -404,7 +418,7 @@ mod tests {
                 )
                 .unwrap()
         };
-        assert_eq!(revision(&connection), r#"{"revision":2}"#);
+        assert_eq!(revision(&connection), r#"{"revision":3}"#);
         connection
             .execute_batch(
                 "INSERT INTO books (id, source_path, file_name, title) VALUES
@@ -435,6 +449,6 @@ mod tests {
         assert_eq!(title(&connection, "a").as_deref(), Some("題名 1"));
         assert_eq!(title(&connection, "b"), None);
         assert_eq!(title(&connection, "c").as_deref(), Some("物語（上）"));
-        assert_eq!(revision(&connection), r#"{"revision":2}"#);
+        assert_eq!(revision(&connection), r#"{"revision":3}"#);
     }
 }

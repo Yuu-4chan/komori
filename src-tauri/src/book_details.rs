@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// Bump to count every book again after the counting rules change.
-pub(crate) const DETAILS_VERSION: i64 = 3;
+pub(crate) const DETAILS_VERSION: i64 = 4;
 /// Tells the Library that more books have their details.
 pub(crate) const DETAILS_EVENT: &str = "library-details-updated";
 const MAX_SERIES_IDS: usize = 10_000;

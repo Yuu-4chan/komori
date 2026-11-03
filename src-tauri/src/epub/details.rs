@@ -49,10 +49,11 @@ pub(crate) struct BookDetails {
 
 impl BookDetails {
     /// The language to show: the declared one, unless the text is clearly Chinese, Japanese, or
-    /// Korean and the declaration is not (exported metadata often keeps a default `en`).
+    /// Korean and the declaration is another language (exported metadata often keeps a default
+    /// `en`, and some Japanese books declare `zh`).
     pub(crate) fn language(&self) -> Option<String> {
         let shown = match (&self.package.language, &self.text) {
-            (Some(declared), Some(text)) if !is_cjk_language(declared) => {
+            (Some(declared), Some(text)) if text_language(declared) != Some(text.language) => {
                 Some(text.language.to_string())
             }
             (Some(declared), _) => Some(shown_language(declared)),
@@ -240,11 +241,15 @@ pub(crate) fn normalize_language(value: &str) -> Option<String> {
     )
 }
 
-pub(crate) fn is_cjk_language(language: &str) -> bool {
-    matches!(
-        language.split('-').next(),
-        Some("ja" | "zh" | "ko" | "yue" | "cmn" | "wuu" | "lzh")
-    )
+/// The language text in a tag's script counts as: `zh` for every Chinese, `ja` and `ko` as
+/// they are, `None` for any other.
+fn text_language(language: &str) -> Option<&'static str> {
+    match language.split('-').next()? {
+        "ja" => Some("ja"),
+        "ko" => Some("ko"),
+        "zh" | "yue" | "cmn" | "wuu" | "lzh" => Some("zh"),
+        _ => None,
+    }
 }
 
 /// Counts the text of every linear spine document: statistics for a book whose text is mostly
@@ -641,6 +646,18 @@ mod tests {
         assert_eq!(
             details(Some("zh-TW"), Some("zh")).language().as_deref(),
             Some("zh-Hant")
+        );
+        assert_eq!(
+            details(Some("zh-Hans"), Some("ja")).language().as_deref(),
+            Some("ja")
+        );
+        assert_eq!(
+            details(Some("ja"), Some("zh")).language().as_deref(),
+            Some("zh")
+        );
+        assert_eq!(
+            details(Some("yue"), Some("zh")).language().as_deref(),
+            Some("yue")
         );
         assert_eq!(details(Some("en"), None).language().as_deref(), Some("en"));
         assert_eq!(details(None, Some("ko")).language().as_deref(), Some("ko"));
