@@ -205,6 +205,8 @@ pub fn run() {
             android::window_insets,
             #[cfg(mobile)]
             android::show_system_bars,
+            #[cfg(mobile)]
+            android::system_bar_icons,
             backup::get_backup_settings,
             backup::save_backup_settings,
             backup::export_backup,

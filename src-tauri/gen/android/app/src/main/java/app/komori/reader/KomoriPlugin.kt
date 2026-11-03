@@ -43,6 +43,11 @@ class SystemBarsArgs {
 }
 
 @InvokeArg
+class BarIconsArgs {
+  var dark: Boolean = true
+}
+
+@InvokeArg
 class KeepArgs {
   var uris: List<String> = emptyList()
 }
@@ -87,6 +92,21 @@ class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
       controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
       if (shown) controller.show(WindowInsetsCompat.Type.systemBars())
       else controller.hide(WindowInsetsCompat.Type.systemBars())
+      invoke.resolve()
+    }
+  }
+
+  /**
+   * Draws the bars' icons dark over a light page and light over a dark one. Android picks them
+   * from its own dark mode otherwise, whatever Komori's theme.
+   */
+  @Command
+  fun systemBarIcons(invoke: Invoke) {
+    val dark = invoke.parseArgs(BarIconsArgs::class.java).dark
+    activity.runOnUiThread {
+      val controller = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+      controller.isAppearanceLightStatusBars = dark
+      controller.isAppearanceLightNavigationBars = dark
       invoke.resolve()
     }
   }

@@ -286,6 +286,13 @@ describe("the Reader by touch", () => {
     const continuous = within(sheet).getByRole("button", { name: "Continuous" });
     await userEvent.click(continuous);
     expect(continuous.getAttribute("aria-pressed")).toBe("true");
-    expect(within(sheet).getByRole("group", { name: "Theme" })).toBeTruthy();
+    expect(invoke).toHaveBeenCalledWith("system_bar_icons", { dark: true });
+    await userEvent.click(
+      within(within(sheet).getByRole("group", { name: "Theme" })).getByRole("button", {
+        name: "Night",
+      }),
+    );
+    // The bars show over the night page with light icons.
+    expect(invoke).toHaveBeenLastCalledWith("system_bar_icons", { dark: false });
   });
 });

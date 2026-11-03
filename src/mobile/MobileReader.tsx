@@ -20,7 +20,12 @@ import {
 } from "../features/reader/presentation";
 import { ReaderReadingStatus } from "../features/reader/ReaderReadingStatus";
 import type { ReaderIdentity } from "../features/reader/readerIdentity";
-import { presetThemeLabel, readerPresetThemes } from "../features/reader/readerThemes";
+import {
+  isLightTheme,
+  presetThemeLabel,
+  readerPresetThemes,
+  resolveReaderTheme,
+} from "../features/reader/readerThemes";
 import type {
   ReaderBookmarkLocator,
   ReaderBookmarkPlace,
@@ -33,7 +38,7 @@ import type { SessionState } from "../features/reader/useReadingSession";
 import { i18n, useI18n } from "../i18n/i18n";
 import "./mobileReader.css";
 import { MobileSheet } from "./MobileSheet";
-import { showSystemBars, useBackCloser } from "./system";
+import { showSystemBars, systemBarIcons, useBackCloser } from "./system";
 
 export interface MobileReaderProps {
   identity: ReaderIdentity;
@@ -114,6 +119,9 @@ export function MobileReader({
   // The bars show with the controls; reading, the book has the whole screen.
   useEffect(() => showSystemBars(shown), [shown]);
   useEffect(() => () => showSystemBars(true), []);
+  const { readerTheme, readerCustomThemes } = useAppearance();
+  const lightPage = isLightTheme(resolveReaderTheme(readerTheme, readerCustomThemes));
+  useEffect(() => systemBarIcons(lightPage), [lightPage]);
 
   const latest = useRef({ ready, pageTurns, onTurn, onScroll });
   latest.current = { ready, pageTurns, onTurn, onScroll };

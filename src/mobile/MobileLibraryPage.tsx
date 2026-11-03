@@ -200,8 +200,11 @@ export function MobileLibraryPage() {
       ) : listing.status === "ready" && books.length === 0 ? (
         <EmptyState
           action={
-            <Button disabled={imports.busy} onClick={() => void imports.run()}>
-              <PlusIcon aria-hidden="true" weight="bold" />
+            <Button
+              disabled={imports.busy}
+              icon={<PlusIcon aria-hidden="true" weight="bold" />}
+              onClick={() => void imports.run()}
+            >
               {imports.busy ? imports.label : t("shell.addBooks")}
             </Button>
           }

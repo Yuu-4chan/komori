@@ -175,6 +175,17 @@ pub async fn show_system_bars(shown: bool) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+/// Draws the status and navigation bars' icons `dark`, over a light page, or light.
+#[tauri::command]
+pub async fn system_bar_icons(dark: bool) -> Result<(), String> {
+    plugin()
+        .map_err(|error| error.to_string())?
+        .run_mobile_plugin_async::<Value>("systemBarIcons", json!({ "dark": dark }))
+        .await
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
 /// Sends Komori to the background, as Back does from an Android app's first page.
 #[tauri::command]
 pub async fn leave_app() -> Result<(), String> {

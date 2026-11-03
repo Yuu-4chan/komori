@@ -45,6 +45,11 @@ export function showSystemBars(shown: boolean) {
   void invoke("show_system_bars", { shown }).catch(() => {});
 }
 
+/** Draws the bars' icons `dark`, over a light page, or light, whatever Android's dark mode. */
+export function systemBarIcons(dark: boolean) {
+  void invoke("system_bar_icons", { dark }).catch(() => {});
+}
+
 const closers: (() => void)[] = [];
 
 /**

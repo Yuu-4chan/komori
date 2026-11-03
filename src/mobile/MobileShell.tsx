@@ -6,8 +6,9 @@ import { navigationItems } from "../app/navigation";
 import { flushPendingWrites } from "../app/windowLifecycle";
 import { BrandMark } from "../brand/BrandMark";
 import { MobileHeaderContext, type MobileHeaderProps } from "../components/layout/mobileHeader";
+import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { useI18n } from "../i18n/i18n";
-import { useBackButton, watchSafeArea } from "./system";
+import { systemBarIcons, useBackButton, watchSafeArea } from "./system";
 
 /**
  * Komori's frame on the phone: the page scrolls under the status bar's inset, and a floating
@@ -17,6 +18,9 @@ import { useBackButton, watchSafeArea } from "./system";
 export function MobileShell() {
   const { t } = useI18n();
   const docked = useLocation().pathname !== "/settings";
+  // The bars' icons follow Komori's theme here, and the book's in the Reader.
+  const lightTheme = useAppearance().themeBase === "light";
+  useEffect(() => systemBarIcons(lightTheme), [lightTheme]);
   return (
     <MobileHeaderContext.Provider value={MobilePageHeader}>
       <div className="mobile-shell">
