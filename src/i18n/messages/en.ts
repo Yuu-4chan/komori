@@ -1136,6 +1136,7 @@ export const en = {
   "libraryCard.openInReader": "Open in reader",
   "libraryCard.choosingReplacement": "Choosing replacement…",
   "libraryCard.relinkMenu": "Relink EPUB…",
+  "libraryCard.renameMenu": "Rename…",
   "libraryCard.actions": "Actions for {title}",
 
   // Library summary
@@ -1168,6 +1169,9 @@ export const en = {
   "series.name": "Series name",
   "series.noneHint": "Even when the book’s metadata names one.",
   "series.metadata": "From each book’s metadata",
+  "rename.title": "Rename",
+  "rename.name": "Title",
+  "rename.own": "Original title",
 
   // Statistics page
   "statistics.today": "Today",

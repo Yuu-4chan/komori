@@ -5,7 +5,12 @@ import { runBulkOperation, type RemovalBatch } from "../operations/bulkOperation
 
 export interface LibraryBook {
   id: string;
+  /** The title set by hand, or else the book's own. */
   title: string | null;
+  /** The book's own title, when one was set by hand. */
+  ownTitle?: string | null;
+  /** Whether the title was set by hand. */
+  titleManual?: boolean;
   author: string | null;
   fileName: string;
   importedAt: string;
@@ -217,6 +222,15 @@ export async function setBookSeries(ids: string[], series: string | null): Promi
   requireDesktop();
   const result = await invoke<{ updated: number }>("set_book_series", { ids, series });
   return result.updated;
+}
+
+/**
+ * Shows the book under this title in Komori; a blank title, or the book's own, shows its own
+ * again. The EPUB is never changed.
+ */
+export async function setBookTitle(id: string, title: string): Promise<void> {
+  requireDesktop();
+  await invoke<{ updated: number }>("set_book_title", { id, title });
 }
 
 /** Lets the books follow their own metadata's series again. */

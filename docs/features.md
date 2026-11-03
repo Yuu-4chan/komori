@@ -29,7 +29,9 @@ on the Library to add them; a drag overlay shows the accepted file type or a bus
 operation, and imports report progress and per-file outcomes. Authors show in full, wrapping long names.
 Titles drop store, edition and bonus tags in brackets, such as 【電子版】, (Kindle版), (HJ文庫), (学研ムック), [雑誌], 【単行本版特典ペーパー付き】 or
 (Light Novel), in full- or half-width brackets (even mixed, as in （電子版)), keeping a title's own
-bracketed words such as （上）.
+bracketed words such as （上）. Rename… in a card's menu shows the book under a title of your own, kept
+through title cleaning, relink, backups and restores and used by search, sort, series, the Reader,
+statistics, Anki and Discord; Original title returns to the book's own. The EPUB is never changed.
 Words take the place of characters for western books everywhere (sort, summary, cards,
 Statistics). Book folders and the card size are in Settings > General; removing a folder
 forgets the books it met that are no longer in the Library, so adding it again brings them

@@ -55,7 +55,12 @@ export function ConfirmDialog({
     returnFocusRef.current = returnFocus ?? (document.activeElement as HTMLElement | null);
     if (typeof dialog.showModal === "function") dialog.showModal();
     else dialog.setAttribute("open", "");
-    dialog.querySelector<HTMLButtonElement>("[data-dialog-cancel]")?.focus();
+    // A field marked `data-dialog-focus` opens focused with its text selected; else Cancel.
+    const field = dialog.querySelector<HTMLInputElement>("[data-dialog-focus]");
+    if (field) {
+      field.focus();
+      field.select();
+    } else dialog.querySelector<HTMLButtonElement>("[data-dialog-cancel]")?.focus();
     return () => {
       if (dialog.open && typeof dialog.close === "function") dialog.close();
       returnFocusRef.current?.focus();

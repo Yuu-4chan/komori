@@ -44,6 +44,7 @@ import { useBulkOperation, operationLabel } from "../features/operations/bulkOpe
 import { OperationNotice } from "../features/operations/OperationNotice";
 import { LibrarySearch, LibraryToolbar } from "../features/library/LibraryToolbar";
 import { isLibraryReturn, libraryCache, type ScrollPlace } from "../features/library/libraryCache";
+import { RenameDialog } from "../features/library/RenameDialog";
 import { SeriesDialog, type SeriesChoice } from "../features/library/SeriesDialog";
 import {
   bookTitle,
@@ -69,6 +70,7 @@ import {
   removeBooks,
   resetBookSeries,
   setBookSeries,
+  setBookTitle,
   type ImportBatch,
   type LibraryBook,
   type RelinkResult,
@@ -140,6 +142,9 @@ function LibraryContent({ group }: { group: string | null }) {
   const [relinkNotice, setRelinkNotice] = useState<RelinkNoticeState | null>(null);
   const [removeTarget, setRemoveTarget] = useState<LibraryBook | null>(null);
   const [unreadTarget, setUnreadTarget] = useState<LibraryBook | null>(null);
+  const [renameTarget, setRenameTarget] = useState<LibraryBook | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [markingUnread, setMarkingUnread] = useState(false);
   const [unreadError, setUnreadError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
@@ -199,7 +204,7 @@ function LibraryContent({ group }: { group: string | null }) {
     bulkRemoving ||
     markingUnread ||
     seriesBusy ||
-    Boolean(removeTarget || unreadTarget || bulkRemoveOpen || seriesOpen);
+    Boolean(removeTarget || unreadTarget || renameTarget || bulkRemoveOpen || seriesOpen);
   const dragging = useLibraryDrop(dropBusy, imports.drop, imports.failDrop);
 
   useEffect(() => {
@@ -346,7 +351,12 @@ function LibraryContent({ group }: { group: string | null }) {
     [selectBook],
   );
 
-  const dialogOpen = bulkRemoveOpen || removeTarget !== null || unreadTarget !== null || seriesOpen;
+  const dialogOpen =
+    bulkRemoveOpen ||
+    removeTarget !== null ||
+    unreadTarget !== null ||
+    renameTarget !== null ||
+    seriesOpen;
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (
@@ -486,6 +496,26 @@ function LibraryContent({ group }: { group: string | null }) {
       setRemoveError(errorMessage(error));
     } finally {
       setRemoving(false);
+    }
+  }
+
+  const requestRename = useCallback((book: LibraryBook) => {
+    setRenameError(null);
+    setRenameTarget(book);
+  }, []);
+
+  async function saveTitle(title: string) {
+    if (!renameTarget) return;
+    setRenaming(true);
+    setRenameError(null);
+    try {
+      await setBookTitle(renameTarget.id, title);
+      await refresh();
+      setRenameTarget(null);
+    } catch (error) {
+      setRenameError(errorMessage(error));
+    } finally {
+      setRenaming(false);
     }
   }
 
@@ -637,6 +667,7 @@ function LibraryContent({ group }: { group: string | null }) {
         details={details}
         onRelink={relink}
         onRemove={requestRemoval}
+        onRename={requestRename}
         onMarkUnread={requestUnread}
         onMarkCompleted={requestCompleted}
         relinkDisabled={relinkingId !== null || Boolean(operation?.active)}
@@ -651,6 +682,7 @@ function LibraryContent({ group }: { group: string | null }) {
       relink,
       relinkingId,
       requestRemoval,
+      requestRename,
       requestUnread,
       requestCompleted,
       selection.active,
@@ -924,6 +956,14 @@ function LibraryContent({ group }: { group: string | null }) {
             document.body,
           )
         : null}
+      <RenameDialog
+        book={renameTarget}
+        key={renameTarget?.id ?? ""}
+        busy={renaming}
+        error={renameError}
+        onCancel={() => setRenameTarget(null)}
+        onConfirm={(title) => void saveTitle(title)}
+      />
       <SeriesDialog
         busy={seriesBusy}
         count={selection.selectedCount}

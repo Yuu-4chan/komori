@@ -18,6 +18,7 @@ import {
   resetBookSeries,
   scanLibraryFolders,
   setBookSeries,
+  setBookTitle,
 } from "../features/library/libraryApi";
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 import type { AppearancePreferences } from "../features/appearance/appearancePreferences";
@@ -48,6 +49,7 @@ vi.mock("../features/library/libraryApi", () => ({
   removeBooks: vi.fn(),
   setBookSeries: vi.fn(),
   resetBookSeries: vi.fn(),
+  setBookTitle: vi.fn(),
   scanLibraryFolders: vi.fn(async () => []),
   onLibraryDetailsUpdated: vi.fn(() => () => {}),
 }));
@@ -967,6 +969,55 @@ describe("Library page", () => {
     await waitFor(() => expect(markBookUnread).toHaveBeenCalledWith("book-1"));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
     expect(screen.queryByText("Completed")).not.toBeInTheDocument();
+  });
+
+  it("renames a book in Komori and shows its original title again", async () => {
+    const user = userEvent.setup();
+    const renamed = {
+      ...catalogBook,
+      title: "The Right Title",
+      ownTitle: "A Quiet Book",
+      titleManual: true,
+    };
+    listMock
+      .mockResolvedValueOnce([catalogBook])
+      .mockResolvedValueOnce([renamed])
+      .mockResolvedValueOnce([catalogBook]);
+    vi.mocked(setBookTitle).mockResolvedValue();
+    renderPage(
+      <MemoryRouter>
+        <LibraryPage />
+      </MemoryRouter>,
+    );
+    await screen.findAllByRole("heading", { name: "A Quiet Book" });
+    await user.click(screen.getAllByRole("button", { name: "More actions for A Quiet Book" })[0]);
+    await user.click(screen.getByRole("menuitem", { name: "Rename…" }));
+    let dialog = screen.getByRole("dialog", { name: "Rename" });
+    // A book never renamed has only its title to edit.
+    expect(within(dialog).queryByRole("radio")).not.toBeInTheDocument();
+    const title = within(dialog).getByRole<HTMLInputElement>("textbox", { name: "Title" });
+    expect(title).toHaveValue("A Quiet Book");
+    // The title opens focused and selected, ready to type over.
+    expect(title).toHaveFocus();
+    expect([title.selectionStart, title.selectionEnd]).toEqual([0, "A Quiet Book".length]);
+    await user.clear(title);
+    expect(within(dialog).getByRole("button", { name: "Rename" })).toBeDisabled();
+    await user.type(title, "  The Right   Title {Enter}");
+    await waitFor(() => expect(setBookTitle).toHaveBeenCalledWith("book-1", "The Right Title"));
+    await screen.findAllByRole("heading", { name: "The Right Title" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getAllByRole("button", { name: "More actions for The Right Title" })[0],
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Rename…" }));
+    dialog = screen.getByRole("dialog", { name: "Rename" });
+    await user.click(within(dialog).getByRole("radio", { name: /Original title/ }));
+    expect(within(dialog).getByText("A Quiet Book")).toBeInTheDocument();
+    expect(within(dialog).getByRole("textbox", { name: "Title" })).toBeDisabled();
+    await user.click(within(dialog).getByRole("button", { name: "Rename" }));
+    await waitFor(() => expect(setBookTitle).toHaveBeenLastCalledWith("book-1", ""));
+    await screen.findAllByRole("heading", { name: "A Quiet Book" });
   });
 
   it("opens on right-click and cancellation leaves the catalog untouched", async () => {

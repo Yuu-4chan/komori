@@ -168,6 +168,9 @@ struct BackupBook {
     author: Option<String>,
     /// The series set by hand (a null name is No series); none follows the book's metadata.
     manual_series: Option<ManualSeries>,
+    /// The title set by hand; none shows the book's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    manual_title: Option<String>,
     position: Option<BackupPosition>,
     progress: Option<BackupProgress>,
     bookmarks: Vec<BackupBookmark>,
@@ -265,6 +268,11 @@ fn plain_text(value: &str) -> bool {
     !value.is_empty() && value.len() <= MAX_TEXT && !value.chars().any(char::is_control)
 }
 
+/// A title as Komori saves one set by hand.
+fn valid_manual_title(title: &str) -> bool {
+    crate::book_details::clean_title(title).as_deref() == Some(title)
+}
+
 impl BackupBook {
     fn position(&self) -> Option<ReadingPosition> {
         self.position.as_ref().map(|position| ReadingPosition {
@@ -294,6 +302,7 @@ impl BackupBook {
                     .index
                     .is_none_or(|index| index.is_finite() && index >= 0.0)
             })
+            && self.manual_title.as_deref().is_none_or(valid_manual_title)
             && self.position().is_none_or(|position| position.is_valid())
             && self
                 .position
@@ -879,9 +888,10 @@ pub(crate) const BACKUP_BOOKS_SQL: &str =
             manual.book_id IS NOT NULL, manual.series, manual.series_index,
             position.spine_index, position.section_key, position.progress,
             position.updated_at, progress.unit, progress.current_units,
-            progress.total_units, progress.updated_at
+            progress.total_units, progress.updated_at, named.title
        FROM books
        LEFT JOIN book_series AS manual ON manual.book_id = books.id
+       LEFT JOIN book_titles AS named ON named.book_id = books.id
        LEFT JOIN reading_positions AS position ON position.book_id = books.id
        LEFT JOIN book_progress AS progress ON progress.book_id = books.id
       ORDER BY books.imported_at, books.id";
@@ -955,6 +965,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
                     } else {
                         None
                     },
+                    manual_title: row.get(16)?,
                     position,
                     progress,
                     bookmarks: Vec::new(),
@@ -968,6 +979,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
             // making the backup unrestorable.
             book.title = book.title.filter(|title| plain_text(title));
             book.author = book.author.filter(|author| plain_text(author));
+            book.manual_title = book.manual_title.filter(|title| valid_manual_title(title));
             if book.position().is_some_and(|position| !position.is_valid())
                 || book
                     .position
@@ -1559,6 +1571,7 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
         }
         for table in [
             "book_series",
+            "book_titles",
             "reading_positions",
             "book_progress",
             "bookmarks",
@@ -1572,6 +1585,14 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                 .execute(
                     "INSERT INTO book_series (book_id, series, series_index) VALUES (?1, ?2, ?3)",
                     params![id, series.name, series.index],
+                )
+                .map_err(storage_error)?;
+        }
+        if let Some(title) = &book.manual_title {
+            transaction
+                .execute(
+                    "INSERT INTO book_titles (book_id, title) VALUES (?1, ?2)",
+                    params![id, title],
                 )
                 .map_err(storage_error)?;
         }

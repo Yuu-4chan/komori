@@ -1288,6 +1288,10 @@
 .series-dialog__name input:disabled {
   opacity: 0.5;
 }
+
+.series-dialog__name--alone {
+  margin-left: 0;
+}
 .library-drop-overlay {
   position: fixed;
   z-index: 30;
