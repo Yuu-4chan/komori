@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { DialogCaption } from "../layout/WindowControls";
+import { useBackdropDismiss } from "./backdropDismiss";
 import { Button } from "./Button";
 
 interface ConfirmDialogProps {
@@ -51,6 +52,9 @@ export function ConfirmDialog({
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
+  const backdrop = useBackdropDismiss(() => {
+    if (!busy) onCancel();
+  });
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -82,9 +86,8 @@ export function ConfirmDialog({
         event.preventDefault();
         if (!busy) onCancel();
       }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget && !busy) onCancel();
-      }}
+      onClick={backdrop.onClick}
+      onPointerDown={backdrop.onPointerDown}
       ref={dialogRef}
       role={dialogRole}
     >

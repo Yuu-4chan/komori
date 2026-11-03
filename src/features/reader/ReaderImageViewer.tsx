@@ -14,6 +14,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DialogCaption } from "../../components/layout/WindowControls";
+import { useBackdropDismiss } from "../../components/ui/backdropDismiss";
 import { IconButton } from "../../components/ui/IconButton";
 import { imageCaption, useImageResource, type ImageResourceProps } from "./ReaderImagesPanel";
 import type { ReaderImage } from "./renderer";
@@ -66,6 +67,7 @@ export function ReaderImageViewer({
   const [area, setArea] = useState({ width: 920, height: 610 });
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const backdrop = useBackdropDismiss(onClose);
   const stageRef = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const jumped = useRef(false);
@@ -211,9 +213,8 @@ export function ReaderImageViewer({
         event.preventDefault();
         onClose();
       }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+      onClick={backdrop.onClick}
+      onPointerDown={backdrop.onPointerDown}
       onKeyDown={(event) => {
         event.stopPropagation();
         if (event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent.isComposing) return;
