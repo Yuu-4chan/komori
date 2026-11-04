@@ -74,6 +74,9 @@ pub struct LibraryBook {
     unique_kanji: Option<i64>,
     /// Words in any other book's text.
     words: Option<i64>,
+    /// On the phone, whether the book came from the paired PC, whose tab lists it instead.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    from_pc: bool,
 }
 
 /// Whole-book progress as the Reader's footer counts it: units before the displayed page.
@@ -655,7 +658,87 @@ pub(crate) fn list_from_catalog(connection: &Connection) -> Result<Vec<LibraryBo
     } else {
         books.iter_mut().for_each(without_automatic_series);
     }
+    #[cfg(mobile)]
+    {
+        let from_pc = crate::pc_link::pc_book_ids(connection);
+        for book in &mut books {
+            book.from_pc = from_pc.contains(&book.id);
+        }
+    }
     Ok(books)
+}
+
+/// The Library as a paired phone sees it: the books whose files are here, by catalog ID, with
+/// their sizes and never their paths.
+pub(crate) fn remote_books(
+    connection: &Connection,
+) -> Result<Vec<crate::devices::protocol::RemoteBook>, String> {
+    let mut statement = connection
+        .prepare("SELECT id, source_path, cover_revision FROM books")
+        .map_err(storage_error)?;
+    let sources = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                (row.get::<_, String>(1)?, row.get::<_, i64>(2)?),
+            ))
+        })
+        .map_err(storage_error)?
+        .collect::<Result<std::collections::HashMap<_, _>, _>>()
+        .map_err(storage_error)?;
+    Ok(list_from_catalog(connection)?
+        .into_iter()
+        .filter_map(|book| {
+            let (source, revision) = sources.get(&book.id)?;
+            let size = crate::book_source::metadata(source)
+                .ok()
+                .filter(|metadata| metadata.is_file())?
+                .len();
+            Some(crate::devices::protocol::RemoteBook {
+                cover: book.has_cover.then_some(*revision),
+                id: book.id,
+                title: book.title,
+                author: book.author,
+                file_name: book.file_name,
+                size,
+                progress: book.progress,
+                last_read_at: book.last_read_at,
+                series: book.series,
+                series_index: book.series_index,
+                language: book.language,
+            })
+        })
+        .collect())
+}
+
+/// Imports the EPUB at `path`, a file in Komori's own storage, and returns its catalog ID,
+/// whether it was just added or already listed.
+#[cfg(mobile)]
+pub(crate) fn import_file(connection: &mut Connection, path: &Path) -> Result<String, String> {
+    import_one(connection, path)?;
+    let source = path
+        .canonicalize()
+        .map_err(|error| format!("Cannot access the source file: {error}"))?;
+    connection
+        .query_row(
+            "SELECT id FROM books WHERE source_path = ?1",
+            [source.to_string_lossy()],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)
+}
+
+/// Where a catalog book's EPUB is read from, for native code that sends or opens it.
+pub(crate) fn source_of(connection: &Connection, id: &str) -> Result<Option<String>, String> {
+    if Uuid::parse_str(id).is_err() {
+        return Ok(None);
+    }
+    connection
+        .query_row("SELECT source_path FROM books WHERE id = ?1", [id], |row| {
+            row.get(0)
+        })
+        .optional()
+        .map_err(storage_error)
 }
 
 /// With Automatic series off, only a series set by hand shows, not even the book's own.
@@ -776,6 +859,7 @@ fn library_book_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LibraryBoo
         characters: row.get(16)?,
         unique_kanji: row.get(17)?,
         words: row.get(18)?,
+        from_pc: false,
     })
 }
 
@@ -2197,6 +2281,7 @@ pub(crate) mod tests {
             characters: Some(1200),
             unique_kanji: Some(300),
             words: None,
+            from_pc: false,
         };
 
         let serialized = serde_json::to_value(book).unwrap();

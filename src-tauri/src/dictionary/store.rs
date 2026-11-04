@@ -6,6 +6,12 @@
 //! Dictionaries keep the reader's order, which lookups follow. Compaction gives the space that
 //! removals freed back to the disk. Paths never reach the frontend.
 
+mod pack;
+#[cfg(test)]
+pub(crate) use pack::import_archive_for_tests;
+#[allow(unused_imports)]
+pub(crate) use pack::{import_pack, remote_dictionaries, write_pack, PackImport};
+
 #[cfg(desktop)]
 use crate::interface_text::{self, Text};
 use std::{
@@ -312,6 +318,18 @@ pub enum CompactionResult {
     NotNeeded,
     /// The store could not be compacted; every dictionary and row is unchanged.
     Failed,
+}
+
+impl DictionaryStoreState {
+    pub(crate) fn database(&self) -> &Path {
+        &self.database
+    }
+
+    /// Held while the store is written, as imports and removals do.
+    #[cfg_attr(desktop, allow(dead_code))]
+    pub(crate) fn write_lock(&self) -> Arc<Mutex<()>> {
+        Arc::clone(&self.write_lock)
+    }
 }
 
 pub fn initialize_store(app: &AppHandle) -> Result<DictionaryStoreState, String> {

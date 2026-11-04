@@ -147,6 +147,15 @@ class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
     invoke.resolve()
   }
 
+  /** The phone's name as its owner set it, for the PC's list of paired devices. */
+  @Command
+  fun deviceName(invoke: Invoke) {
+    val name = Settings.Global.getString(activity.contentResolver, Settings.Global.DEVICE_NAME)
+    val result = JSObject()
+    result.put("name", name?.takeIf { it.isNotBlank() } ?: android.os.Build.MODEL)
+    invoke.resolve(result)
+  }
+
   /** Puts plain text on Android's clipboard, which the WebView's clipboard API may not write. */
   @Command
   fun copyText(invoke: Invoke) {

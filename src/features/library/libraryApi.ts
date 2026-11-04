@@ -21,6 +21,8 @@ export interface LibraryBook {
   importedAt: string;
   availability: "available" | "missing" | "unreadable";
   hasCover: boolean;
+  /** On the phone: a copy of a book in the paired PC's Library. */
+  fromPc?: boolean;
   /** The cover thumbnail on Komori's cover protocol; it changes whenever the cover does. */
   coverUrl?: string | null;
   /** How far the Reader last counted the book; null before it was opened since this was saved. */

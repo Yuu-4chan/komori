@@ -3,22 +3,17 @@ import {
   BooksIcon,
   CaretRightIcon,
   CheckCircleIcon,
+  DeviceMobileIcon,
   LinkSimpleIcon,
+  MonitorIcon,
   PencilSimpleIcon,
   PlusIcon,
   StackIcon,
   TrashIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-} from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
@@ -66,7 +61,10 @@ import { failureText } from "../i18n/failure";
 import { i18n, useI18n } from "../i18n/i18n";
 import { MobilePageHeader } from "./MobileShell";
 
+import { useLongPress } from "./longPress";
+import { MobilePcLibrary, usePcLibrary } from "./MobilePcLibrary";
 import { MobileSheet } from "./MobileSheet";
+import { usePcLink } from "./pcLinkApi";
 
 type Listing =
   | { status: "loading"; books: LibraryBook[] }
@@ -127,7 +125,51 @@ export function MobileLibraryPage() {
     void refresh();
   }, [refresh, imports.version]);
 
-  const books = listing.books;
+  // With Sync with PC on, the paired PC's Library is a tab of its own, and the books copied
+  // from it stay there.
+  const link = usePcLink();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pcTab = link?.paired === true && link.syncOn;
+  const onPc = pcTab && searchParams.get("from") === "pc";
+  const pc = usePcLibrary(onPc);
+  const pcName = link?.pcName ?? "";
+  const allBooks = listing.books;
+  const books = useMemo(
+    () => (pcTab ? allBooks.filter((book) => !book.fromPc) : allBooks),
+    [allBooks, pcTab],
+  );
+  const pcBooks = useMemo(() => pc.listing.entries.map((entry) => entry.book), [pc.listing]);
+  const tabs = pcTab ? (
+    <div
+      className="segmented-control mobile-library__tabs"
+      role="group"
+      aria-label={t("shell.library")}
+    >
+      {(
+        [
+          ["phone", t("sync.thisPhone"), DeviceMobileIcon],
+          ["pc", pcName, MonitorIcon],
+        ] as const
+      ).map(([value, label, Icon]) => {
+        const active = (value === "pc") === onPc;
+        return (
+          <button
+            aria-pressed={active}
+            className={active ? "is-active" : undefined}
+            key={value}
+            onClick={() => {
+              setQuery("");
+              setSearchParams(value === "pc" ? { from: "pc" } : {}, { replace: true });
+            }}
+            type="button"
+          >
+            <Icon aria-hidden="true" weight={active ? "fill" : "regular"} />
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  ) : null;
   const shown = useMemo(
     () => sortBooks(books, "title", false).filter((book) => matchesQuery(book, query)),
     [books, query],
@@ -261,7 +303,13 @@ export function MobileLibraryPage() {
       <MobilePageHeader
         actions={addBooks}
         summary={
-          listing.status === "loading" ? null : <LibrarySummary books={books} shown={books} />
+          onPc ? (
+            pc.listing.status === "loading" ? null : (
+              <LibrarySummary books={pcBooks} shown={pcBooks} />
+            )
+          ) : listing.status === "loading" ? null : (
+            <LibrarySummary books={books} shown={books} />
+          )
         }
         title={t("shell.library")}
       />
@@ -285,32 +333,48 @@ export function MobileLibraryPage() {
         ) : null}
       </div>
 
-      {listing.status === "error" && books.length === 0 ? (
-        <EmptyState
-          description={listing.message}
-          icon={WarningCircleIcon}
-          title={t("library.unavailable")}
+      {onPc ? (
+        <MobilePcLibrary
+          listing={pc.listing}
+          onQueryChange={setQuery}
+          pcName={pcName}
+          query={query}
+          refresh={pc.refresh}
+          tabs={tabs}
         />
+      ) : listing.status === "error" && books.length === 0 ? (
+        <>
+          {tabs}
+          <EmptyState
+            description={listing.message}
+            icon={WarningCircleIcon}
+            title={t("library.unavailable")}
+          />
+        </>
       ) : listing.status === "ready" && books.length === 0 ? (
-        <EmptyState
-          action={
-            <Button
-              disabled={imports.busy}
-              icon={<PlusIcon aria-hidden="true" weight="bold" />}
-              onClick={() => void imports.run()}
-            >
-              {imports.busy ? imports.label : t("shell.addBooks")}
-            </Button>
-          }
-          description={t("library.emptyDescription")}
-          icon={BooksIcon}
-          title={t("library.empty")}
-        />
+        <>
+          {tabs}
+          <EmptyState
+            action={
+              <Button
+                disabled={imports.busy}
+                icon={<PlusIcon aria-hidden="true" weight="bold" />}
+                onClick={() => void imports.run()}
+              >
+                {imports.busy ? imports.label : t("shell.addBooks")}
+              </Button>
+            }
+            description={t("library.emptyDescription")}
+            icon={BooksIcon}
+            title={t("library.empty")}
+          />
+        </>
       ) : books.length > 0 ? (
         <>
           <div className="mobile-search">
             <LibrarySearch onQueryChange={setQuery} query={query} />
           </div>
+          {tabs}
 
           {continueBook && !query ? (
             <section className="mobile-library__section" aria-labelledby="mobile-continue">
@@ -448,26 +512,6 @@ export function MobileLibraryPage() {
 
 function errorMessage(error: unknown): string {
   return failureText(error instanceof Error ? error.message : String(error), i18n().t);
-}
-
-// How long after a long press its own click is ignored, so the book does not open too.
-const longPressClick = 800;
-
-/** A long press (Android's contextmenu) on a book, which then does not open it. */
-function useLongPress(onLongPress: () => void) {
-  const pressed = useRef(0);
-  return {
-    onContextMenu: (event: ReactMouseEvent) => {
-      event.preventDefault();
-      pressed.current = Date.now();
-      onLongPress();
-    },
-    onClickCapture: (event: ReactMouseEvent) => {
-      if (Date.now() - pressed.current >= longPressClick) return;
-      event.preventDefault();
-      event.stopPropagation();
-    },
-  };
 }
 
 const openLabel = {

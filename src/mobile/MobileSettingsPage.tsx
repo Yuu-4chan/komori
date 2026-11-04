@@ -1,4 +1,5 @@
 import {
+  ArrowsClockwiseIcon,
   CaretRightIcon,
   ChatTextIcon,
   GearSixIcon,
@@ -20,12 +21,15 @@ import { WordAudioSettings } from "../features/dictionary/WordAudioSettings";
 import { ReaderPopupSettings } from "../features/reader/ReaderPopupSettings";
 import { useI18n } from "../i18n/i18n";
 import { MobilePageHeader } from "./MobileShell";
+import { MobileSyncSettings } from "./MobileSyncSettings";
+import { usePcLink } from "./pcLinkApi";
 
 const sections = [
   { id: "general", label: "settings.general", icon: GearSixIcon },
   { id: "popup", label: "settings.popup", icon: ChatTextIcon },
   { id: "dictionary", label: "settings.dictionary", icon: TranslateIcon },
   { id: "anki", label: "settings.anki", icon: AnkiIcon },
+  { id: "sync", label: "settings.sync", icon: ArrowsClockwiseIcon },
   { id: "about", label: "settings.about", icon: InfoIcon },
 ] as const;
 
@@ -33,7 +37,8 @@ const sections = [
  * Settings on the phone: a list of its sections, each opening as its own page that Back
  * leaves. General holds the interface language and the application theme; Reader popup, the
  * lookup sheet's content, look, sources and scanning; Dictionary, the dictionaries and word
- * audio; Anki, AnkiDroid and the cards it gets; About, the version.
+ * audio; Anki, AnkiDroid and the cards it gets; Sync, pairing with Komori PC and its
+ * dictionaries; About, the version.
  */
 export function MobileSettingsPage() {
   const { t } = useI18n();
@@ -43,6 +48,11 @@ export function MobileSettingsPage() {
     useAppearance();
   const section = sections.find(({ id }) => id === searchParams.get("section"));
   const deck = useAnkiDeck();
+  const link = usePcLink();
+  const details: Partial<Record<(typeof sections)[number]["id"], string>> = {
+    anki: deck ? `AnkiDroid · ${deck}` : "AnkiDroid",
+    sync: link?.paired ? (link.pcName ?? "") : t("sync.notPaired"),
+  };
 
   if (!section)
     return (
@@ -59,12 +69,10 @@ export function MobileSettingsPage() {
               <span aria-hidden="true" className="mobile-row__icon">
                 <Icon weight="fill" />
               </span>
-              {id === "anki" ? (
+              {details[id] !== undefined ? (
                 <span className="mobile-row__text">
                   <span className="mobile-row__label">{t(label)}</span>
-                  <span className="mobile-row__detail">
-                    {deck ? `AnkiDroid · ${deck}` : "AnkiDroid"}
-                  </span>
+                  <span className="mobile-row__detail">{details[id]}</span>
                 </span>
               ) : (
                 <span className="mobile-row__label">{t(label)}</span>
@@ -98,6 +106,7 @@ export function MobileSettingsPage() {
         </>
       )}
       {section.id === "anki" && <AnkiSettings lookupLanguage={lookupLanguage} />}
+      {section.id === "sync" && <MobileSyncSettings />}
       {section.id === "about" && (
         <div className="mobile-about">
           <BrandMark className="mobile-about__brand" />

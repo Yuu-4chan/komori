@@ -283,3 +283,22 @@ pub async fn leave_app() -> Result<(), String> {
         .map(|_| ())
         .map_err(|error| error.to_string())
 }
+
+/// The phone's name as its owner set it, for the PC's list of paired devices.
+pub(crate) async fn device_name() -> String {
+    #[derive(Deserialize)]
+    struct Named {
+        name: String,
+    }
+    let named = match plugin() {
+        Ok(plugin) => plugin
+            .run_mobile_plugin_async::<Named>("deviceName", json!({}))
+            .await
+            .ok(),
+        Err(_) => None,
+    };
+    named
+        .map(|named| named.name.trim().to_owned())
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "Phone".into())
+}

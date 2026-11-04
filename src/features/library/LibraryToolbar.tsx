@@ -415,9 +415,11 @@ export function LibrarySearch({
   query,
   onQueryChange,
   focused = false,
+  placeholder,
 }: {
   query: string;
   onQueryChange: (query: string) => void;
+  placeholder?: string;
   /** Opens focused with the caret after the query, for a search typed on another page. */
   focused?: boolean;
 }) {
@@ -437,7 +439,7 @@ export function LibrarySearch({
         onKeyDown={(event) => {
           if (searchEscape(event) && query) onQueryChange("");
         }}
-        placeholder={t("libraryToolbar.searchPlaceholder")}
+        placeholder={placeholder ?? t("libraryToolbar.searchPlaceholder")}
         spellCheck={false}
         type="search"
         value={query}

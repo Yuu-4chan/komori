@@ -1933,8 +1933,8 @@ export function ReaderShell({
               selectionRef={selectionRef}
               onSelectionAction={(action, contentDocument) => {
                 const clear = () => contentDocument.getSelection()?.removeAllRanges();
-                if (action === "note") {
-                  void createSelectedNote().finally(clear);
+                if (action === "note" || action === "highlight") {
+                  void createSelectedNote(action).finally(clear);
                   return;
                 }
                 if (action === "copy") {

@@ -13,6 +13,7 @@ mod bookmarks;
 mod bulk_progress;
 mod clipboard;
 mod covers;
+mod devices;
 mod dictionary;
 mod discord_presence;
 mod epub;
@@ -26,6 +27,8 @@ mod interface_text;
 mod library;
 mod library_drop;
 mod library_folders;
+#[cfg(mobile)]
+mod pc_link;
 mod reader_background;
 mod reader_content;
 mod reader_fonts;
@@ -117,11 +120,23 @@ pub fn run() {
             });
             // Automatic snapshots, when they are on, from shortly after startup.
             backup::start_automatic(catalog.database.clone());
+            // Discord runs on the PC only; the phone has no Discord app to tell.
+            #[cfg(desktop)]
             app.manage(discord_presence::start(catalog.database.clone()));
+            #[cfg(desktop)]
+            let catalog_database = catalog.database.clone();
             app.manage(catalog);
             app.manage(backup::BackupState::default());
             app.manage(reader_fonts::initialize(app.handle())?);
-            app.manage(dictionary::store::initialize_store(app.handle())?);
+            let dictionaries = dictionary::store::initialize_store(app.handle())?;
+            // Paired phones reach the Library and dictionaries through the PC's own server.
+            #[cfg(desktop)]
+            app.manage(devices::start(
+                catalog_database,
+                dictionaries.database().to_owned(),
+                app.handle().clone(),
+            ));
+            app.manage(dictionaries);
             app.manage(dictionary::starter::initialize(app.handle())?);
             Ok(())
         })
@@ -195,11 +210,49 @@ pub fn run() {
             startup::save_startup_preferences,
             startup::get_startup_book,
             startup::remember_last_book,
+            #[cfg(desktop)]
             discord_presence::get_discord_preferences,
+            #[cfg(desktop)]
             discord_presence::save_discord_preferences,
+            #[cfg(desktop)]
             discord_presence::set_discord_activity,
+            #[cfg(desktop)]
             discord_presence::set_discord_browsing,
+            #[cfg(desktop)]
+            devices::get_devices,
+            #[cfg(desktop)]
+            devices::set_devices_allowed,
+            #[cfg(desktop)]
+            devices::set_devices_port,
+            #[cfg(desktop)]
+            devices::new_pairing_code,
+            #[cfg(desktop)]
+            devices::remove_device,
             window_lifecycle::finish_window_close,
+            #[cfg(mobile)]
+            pc_link::get_pc_link,
+            #[cfg(mobile)]
+            pc_link::set_pc_sync,
+            #[cfg(mobile)]
+            pc_link::pair_pc,
+            #[cfg(mobile)]
+            pc_link::set_pc_address,
+            #[cfg(mobile)]
+            pc_link::unpair_pc,
+            #[cfg(mobile)]
+            pc_link::check_pc,
+            #[cfg(mobile)]
+            pc_link::list_pc_library,
+            #[cfg(mobile)]
+            pc_link::open_pc_book,
+            #[cfg(mobile)]
+            pc_link::keep_pc_book,
+            #[cfg(mobile)]
+            pc_link::remove_pc_book,
+            #[cfg(mobile)]
+            pc_link::list_pc_dictionaries,
+            #[cfg(mobile)]
+            pc_link::copy_pc_dictionary,
             #[cfg(mobile)]
             android::leave_app,
             #[cfg(mobile)]

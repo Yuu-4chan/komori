@@ -31,7 +31,14 @@ describe("Settings on the phone", () => {
       within(nav)
         .getAllByRole("button")
         .map((row) => row.textContent),
-    ).toEqual(["General", "Reader popup", "Dictionary", "AnkiAnkiDroid", "About"]);
+    ).toEqual([
+      "General",
+      "Reader popup",
+      "Dictionary",
+      "AnkiAnkiDroid",
+      "SyncNot paired",
+      "About",
+    ]);
     await userEvent.click(within(nav).getByRole("button", { name: "Dictionary" }));
     expect(screen.getByRole("heading", { level: 1, name: "Dictionary" })).toBeTruthy();
   });

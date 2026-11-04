@@ -797,7 +797,13 @@ function DictionaryList({
   );
 }
 
-function rowCounts(dictionary: DictionarySummary): string {
+/** "61,240 terms · 12 kanji": what a dictionary holds. */
+export function rowCounts(
+  dictionary: Pick<
+    DictionarySummary,
+    "termCount" | "termMetaCount" | "kanjiCount" | "kanjiMetaCount"
+  >,
+): string {
   const { t, tp } = i18n();
   const parts = [
     [dictionary.termCount, "dictionarySources.terms"],
