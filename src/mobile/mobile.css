@@ -19,6 +19,15 @@
   );
 }
 
+/* Android's keyboard covers the page instead of shrinking it (see watchKeyboard): while it is
+   open, a dialog stands in the room above it, and scrolls when that is too short. */
+:root[data-keyboard] dialog[open] {
+  bottom: var(--keyboard-inset);
+  max-height: calc(100% - var(--keyboard-inset) - 1.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 /* The phone draws no scroll bars, where the PC's would take room; Android's WebView ignores
    `scrollbar-width`. */
 ::-webkit-scrollbar {

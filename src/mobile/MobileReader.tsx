@@ -14,6 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MutableRefObject,
@@ -461,7 +462,7 @@ export function MobileReader({
                 type="button"
               >
                 <ListBulletsIcon aria-hidden="true" size={20} />
-                {t("sidebar.chapters")}
+                <ToolLabel>{t("sidebar.chapters")}</ToolLabel>
               </button>
               <ToolButtons onOpen={openTool} />
             </div>
@@ -682,10 +683,39 @@ function ToolButtons({ onOpen }: { onOpen: (tool: Tool) => void }) {
   return toolButtons.map(({ tool, label, icon: Icon }) => (
     <button className="mobile-reader-tool" key={tool} onClick={() => onOpen(tool)} type="button">
       <Icon aria-hidden="true" size={20} />
-      {t(label)}
+      <ToolLabel>{t(label)}</ToolLabel>
     </button>
   ));
 }
+
+/**
+ * A tool's name on one line: a word wider than its tile, as ブックマーク is at 360 px, is
+ * drawn smaller.
+ */
+function ToolLabel({ children }: { children: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const label = ref.current;
+    const tile = label?.parentElement;
+    if (!label || !tile) return;
+    label.style.fontSize = "";
+    const padding = getComputedStyle(tile);
+    const room =
+      tile.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight);
+    const width = label.scrollWidth;
+    if (!(room > 0 && width > room)) return;
+    const size = parseFloat(getComputedStyle(label).fontSize);
+    label.style.fontSize = `${Math.max(minimumToolLabel, Math.floor(((size * room) / width) * 10) / 10)}px`;
+  }, [children]);
+  return (
+    <span className="mobile-reader-tool__label" ref={ref}>
+      {children}
+    </span>
+  );
+}
+
+/** The smallest a tool's name is drawn, in CSS pixels; a longer one ends in an ellipsis. */
+const minimumToolLabel = 9;
 
 /** A tool of the PC's sidebar in a tall sheet, under its title and Close. */
 function ToolSheet({

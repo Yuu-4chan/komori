@@ -40,6 +40,37 @@ export function watchSafeArea(): () => void {
   };
 }
 
+/**
+ * Keeps `--keyboard-inset` at the height of Android's keyboard in CSS pixels, and
+ * `data-keyboard` on the root while it is open. The keyboard covers the WebView instead of
+ * shrinking it, so only the visual viewport shows how much of the page is left.
+ */
+export function watchKeyboard(): () => void {
+  const viewport = window.visualViewport;
+  if (!viewport) return () => {};
+  const root = document.documentElement;
+  const apply = () => {
+    const covered = Math.max(
+      0,
+      Math.round(window.innerHeight - viewport.height - viewport.offsetTop),
+    );
+    // A few pixels are the visual viewport's rounding, not a keyboard.
+    const inset = covered > keyboardThreshold ? covered : 0;
+    root.style.setProperty("--keyboard-inset", `${inset}px`);
+    root.toggleAttribute("data-keyboard", inset > 0);
+  };
+  apply();
+  viewport.addEventListener("resize", apply);
+  return () => {
+    viewport.removeEventListener("resize", apply);
+    root.style.removeProperty("--keyboard-inset");
+    root.removeAttribute("data-keyboard");
+  };
+}
+
+/** Less of the page than this hidden, in CSS pixels, is not the keyboard. */
+const keyboardThreshold = 48;
+
 /** Shows or hides the status and navigation bars; the Reader hides them while reading. */
 export function showSystemBars(shown: boolean) {
   void invoke("show_system_bars", { shown }).catch(() => {});

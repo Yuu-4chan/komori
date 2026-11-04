@@ -8,7 +8,7 @@ import { BrandMark } from "../brand/BrandMark";
 import { MobileHeaderContext, type MobileHeaderProps } from "../components/layout/mobileHeader";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { useI18n } from "../i18n/i18n";
-import { systemBarIcons, useBackButton, watchSafeArea } from "./system";
+import { systemBarIcons, useBackButton, watchKeyboard, watchSafeArea } from "./system";
 
 /**
  * Komori's frame on the phone: the page scrolls under the status bar's inset, and a floating
@@ -79,12 +79,14 @@ export function MobilePageHeader({ title, summary, actions, back = false }: Mobi
 }
 
 /**
- * What the phone asks of every page: the safe area's insets, Android's Back, and saving what
- * is pending when Komori goes to the background, where Android may end it without warning.
+ * What the phone asks of every page: the safe area's insets, the keyboard's height, Android's
+ * Back, and saving what is pending when Komori goes to the background, where Android may end
+ * it without warning.
  */
 export function MobileSystem() {
   useBackButton();
   useEffect(() => watchSafeArea(), []);
+  useEffect(() => watchKeyboard(), []);
   useEffect(() => {
     const hidden = () => {
       if (document.visibilityState === "hidden") void flushPendingWrites();
