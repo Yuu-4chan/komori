@@ -401,7 +401,7 @@ describe("the Reader by touch", () => {
     expect(screen.queryByRole("banner")).toBeNull();
   });
 
-  it("shows Note, Copy, Look up and Search beside the book's selection", async () => {
+  it("shows Note, Highlight, Copy, Look up and Search beside the book's selection", async () => {
     const { selectionRef, onSelectionAction } = reader();
     const { page, clear } = selectingPage("羅生門");
     act(() => selectionRef.current(page));
@@ -409,9 +409,14 @@ describe("the Reader by touch", () => {
     expect(
       within(toolbar)
         .getAllByRole("button")
-        .map((button) => button.textContent),
-    ).toEqual(["Note", "Copy", "Look up", "Search"]);
-    await userEvent.click(within(toolbar).getByRole("button", { name: "Copy" }));
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Add note", "Highlight", "Copy", "Look up", "Search"]);
+    await userEvent.click(within(toolbar).getByRole("button", { name: "Highlight" }));
+    expect(onSelectionAction).toHaveBeenCalledWith("highlight", page);
+
+    act(() => selectionRef.current(page));
+    const again = await screen.findByRole("toolbar", { name: "Text" });
+    await userEvent.click(within(again).getByRole("button", { name: "Copy" }));
     expect(onSelectionAction).toHaveBeenCalledWith("copy", page);
     expect(screen.queryByRole("toolbar")).toBeNull();
 

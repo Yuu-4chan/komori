@@ -3,6 +3,7 @@ import {
   BookmarkSimpleIcon,
   BookOpenIcon,
   CopyIcon,
+  HighlighterIcon,
   ImageIcon,
   ListBulletsIcon,
   MagnifyingGlassIcon,
@@ -76,7 +77,7 @@ export interface MobileReaderTools {
 type Tool = keyof MobileReaderTools;
 
 /** What the selection toolbar asks the Reader to do with the book's selected text. */
-export type SelectionAction = "note" | "copy" | "lookUp";
+export type SelectionAction = "note" | "highlight" | "copy" | "lookUp";
 
 export interface MobileReaderProps {
   identity: ReaderIdentity;
@@ -751,13 +752,13 @@ function selectedText(document: Document): SelectedText | null {
 
 // The toolbar's size, as mobileReader.css draws it, and its distance from the selection and
 // the screen's edges. Below the selection it clears Android's handles.
-const toolbarWidth = 278;
-const toolbarHeight = 62;
+const toolbarWidth = 248;
+const toolbarHeight = 56;
 const toolbarGap = 12;
 const handleRoom = 32;
 const screenGutter = 8;
 
-/** Note, Copy, Look up and Search beside the book's selection, above it where there is room. */
+/** Note, Highlight, Copy, Look up and Search beside the book's selection, above it where there is room. */
 function SelectionToolbar({
   rect,
   onAct,
@@ -800,7 +801,8 @@ function SelectionToolbar({
     window.innerWidth - toolbarWidth - screenGutter,
   );
   const actions = [
-    { action: "note", label: t("notes.note"), icon: NotePencilIcon },
+    { action: "note", label: t("textMenu.note"), icon: NotePencilIcon },
+    { action: "highlight", label: t("textMenu.highlight"), icon: HighlighterIcon },
     { action: "copy", label: t("textMenu.copy"), icon: CopyIcon },
     { action: "lookUp", label: t("textMenu.lookUp"), icon: TranslateIcon },
     { action: "search", label: t("sidebar.search"), icon: MagnifyingGlassIcon },
@@ -814,9 +816,14 @@ function SelectionToolbar({
       style={{ top, left }}
     >
       {actions.map(({ action, label, icon: Icon }) => (
-        <button data-action={action} key={action} onClick={() => onAct(action)} type="button">
-          <Icon aria-hidden="true" size={20} />
-          {label}
+        <button
+          aria-label={label}
+          data-action={action}
+          key={action}
+          onClick={() => onAct(action)}
+          type="button"
+        >
+          <Icon aria-hidden="true" size={22} />
         </button>
       ))}
     </div>

@@ -669,8 +669,8 @@ li:only-child > .mobile-chapter .mobile-chapter__dot::before {
 .mobile-selection-toolbar {
   position: fixed;
   z-index: 30;
-  width: 17.375rem;
-  height: 3.875rem;
+  width: 15.5rem;
+  height: 3.5rem;
   padding: 0.25rem;
   display: flex;
   gap: 0.125rem;
@@ -684,21 +684,16 @@ li:only-child > .mobile-chapter .mobile-chapter__dot::before {
 }
 
 .mobile-selection-toolbar > button {
-  width: 4.125rem;
-  height: 3.375rem;
+  width: 2.875rem;
+  height: 3rem;
   flex: none;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
   color: inherit;
   background: none;
   border: 0;
   border-radius: 0.875rem;
-  font: inherit;
-  font-size: 0.6875rem;
-  font-weight: 600;
   -webkit-tap-highlight-color: transparent;
 }
 
