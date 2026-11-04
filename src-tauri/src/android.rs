@@ -251,6 +251,28 @@ pub async fn system_bar_icons(dark: bool) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+/// Puts plain text on Android's clipboard: the WebView's clipboard API is refused writing.
+#[tauri::command]
+pub async fn copy_text(text: String) -> Result<(), String> {
+    plugin()
+        .map_err(|error| error.to_string())?
+        .run_mobile_plugin_async::<Value>("copyText", json!({ "text": text }))
+        .await
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
+/// Whether a selection made now is the book's: Komori shows its own toolbar for it.
+#[tauri::command]
+pub async fn book_selection(own: bool) -> Result<(), String> {
+    plugin()
+        .map_err(|error| error.to_string())?
+        .run_mobile_plugin_async::<Value>("bookSelection", json!({ "own": own }))
+        .await
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
 /// Sends Komori to the background, as Back does from an Android app's first page.
 #[tauri::command]
 pub async fn leave_app() -> Result<(), String> {

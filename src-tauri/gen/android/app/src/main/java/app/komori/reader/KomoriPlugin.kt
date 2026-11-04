@@ -1,6 +1,8 @@
 package app.komori.reader
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -53,6 +55,16 @@ class SystemBarsArgs {
 @InvokeArg
 class BarIconsArgs {
   var dark: Boolean = true
+}
+
+@InvokeArg
+class CopyTextArgs {
+  var text: String = ""
+}
+
+@InvokeArg
+class BookSelectionArgs {
+  var own: Boolean = false
 }
 
 @InvokeArg
@@ -126,6 +138,22 @@ class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
       controller.isAppearanceLightNavigationBars = dark
       invoke.resolve()
     }
+  }
+
+  /** Whether a selection made now is the book's, which shows Komori's toolbar, not Android's. */
+  @Command
+  fun bookSelection(invoke: Invoke) {
+    BookSelection.own = invoke.parseArgs(BookSelectionArgs::class.java).own
+    invoke.resolve()
+  }
+
+  /** Puts plain text on Android's clipboard, which the WebView's clipboard API may not write. */
+  @Command
+  fun copyText(invoke: Invoke) {
+    val text = invoke.parseArgs(CopyTextArgs::class.java).text
+    val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText("Komori", text))
+    invoke.resolve()
   }
 
   /**

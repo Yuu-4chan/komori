@@ -2,11 +2,23 @@ import {
   ArrowLeftIcon,
   BookmarkSimpleIcon,
   BookOpenIcon,
+  CopyIcon,
+  ImageIcon,
   ListBulletsIcon,
+  MagnifyingGlassIcon,
+  NotePencilIcon,
   TextAaIcon,
+  TranslateIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useRef, useState, type MutableRefObject, type RefObject } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { Stepper } from "../components/ui/Stepper";
@@ -18,7 +30,20 @@ import {
   type ReaderViewMode,
   type ReaderWritingMode,
 } from "../features/reader/presentation";
+import {
+  ReaderBookmarksPanel,
+  type ReaderBookmarksPanelProps,
+} from "../features/reader/ReaderBookmarksPanel";
+import {
+  ReaderImagesPanel,
+  type ReaderImagesPanelProps,
+} from "../features/reader/ReaderImagesPanel";
+import { ReaderNotesPanel, type ReaderNotesPanelProps } from "../features/reader/ReaderNotesPanel";
 import { ReaderReadingStatus } from "../features/reader/ReaderReadingStatus";
+import {
+  ReaderSearchPanel,
+  type ReaderSearchPanelProps,
+} from "../features/reader/ReaderSearchPanel";
 import type { ReaderIdentity } from "../features/reader/readerIdentity";
 import {
   isLightTheme,
@@ -38,7 +63,20 @@ import type { SessionState } from "../features/reader/useReadingSession";
 import { i18n, useI18n } from "../i18n/i18n";
 import "./mobileReader.css";
 import { MobileSheet } from "./MobileSheet";
-import { showSystemBars, systemBarIcons, useBackCloser } from "./system";
+import { ownBookSelection, showSystemBars, systemBarIcons, useBackCloser } from "./system";
+
+/** The Reader's tools, as the PC's sidebar shows them. */
+export interface MobileReaderTools {
+  images: ReaderImagesPanelProps;
+  search: ReaderSearchPanelProps;
+  bookmarks: ReaderBookmarksPanelProps;
+  notes: ReaderNotesPanelProps;
+}
+
+type Tool = keyof MobileReaderTools;
+
+/** What the selection toolbar asks the Reader to do with the book's selected text. */
+export type SelectionAction = "note" | "copy" | "lookUp";
 
 export interface MobileReaderProps {
   identity: ReaderIdentity;
@@ -52,6 +90,12 @@ export interface MobileReaderProps {
   session: { readingMs: () => number; state: SessionState };
   bookmarks: ReturnType<typeof useBookmarks>;
   captureBookmark: () => Promise<ReaderBookmarkPlace | null>;
+  tools: MobileReaderTools;
+  /** Told of every selection change in the book's pages, with the page's document. */
+  selectionRef: MutableRefObject<(document: Document) => void>;
+  onSelectionAction: (action: SelectionAction, document: Document) => void;
+  /** The image viewer over the Reader: whether it shows, its jumps to a page, and closing it. */
+  image: { viewing: boolean; jumps: number; close: () => void };
   /** Receives every touch in the book's pages; the Reader hands it the book's documents. */
   touchRef: MutableRefObject<(event: TouchEvent) => void>;
   viewportRef: RefObject<HTMLElement | null>;
@@ -103,6 +147,10 @@ export function MobileReader({
   session,
   bookmarks,
   captureBookmark,
+  tools,
+  selectionRef,
+  onSelectionAction,
+  image,
   touchRef,
   viewportRef,
   onTurn,
@@ -117,7 +165,19 @@ export function MobileReader({
   const [shown, setShown] = useState(false);
   const [chaptersOpen, setChaptersOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [tool, setTool] = useState<Tool | null>(null);
+  const [searchRequest, setSearchRequest] = useState<{ query: string }>();
   useBackCloser(shown, () => setShown(false));
+  const openTool = (next: Tool) => {
+    setChaptersOpen(false);
+    setSearchRequest(undefined);
+    setTool(next);
+  };
+  // A jump from a tool returns to the book.
+  const backToBook = () => {
+    setTool(null);
+    setShown(false);
+  };
 
   // The bars show with the controls; reading, the book has the whole screen.
   useEffect(() => showSystemBars(shown), [shown]);
@@ -135,6 +195,8 @@ export function MobileReader({
       if (!touch) return;
       const point = screenPoint(event, touch);
       if (event.type === "touchstart") {
+        // A long press here selects the book's text, which shows Komori's toolbar.
+        ownBookSelection((event.target as Node | null)?.ownerDocument !== document);
         start = event.touches.length === 1 ? { ...point, at: event.timeStamp } : null;
         if (latest.current.pageTurns.scrollAxis) latest.current.onScroll();
         return;
@@ -177,6 +239,58 @@ export function MobileReader({
       for (const type of types) viewport?.removeEventListener(type, touched);
     };
   }, [touchRef, viewportRef]);
+
+  // A long press anywhere but the book keeps Android's own toolbar.
+  useEffect(() => {
+    const outside = () => ownBookSelection(false);
+    document.addEventListener("touchstart", outside, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener("touchstart", outside, true);
+      ownBookSelection(false);
+    };
+  }, []);
+
+  // The book's selected text, which the toolbar beside it acts on.
+  const [selected, setSelected] = useState<SelectedText | null>(null);
+  useEffect(() => {
+    let frame = 0;
+    selectionRef.current = (changed) => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() =>
+        setSelected((current) => {
+          const next = selectedText(changed);
+          if (next) return next;
+          return current && current.document !== changed ? current : null;
+        }),
+      );
+    };
+    return () => {
+      cancelAnimationFrame(frame);
+      selectionRef.current = () => {};
+    };
+  }, [selectionRef]);
+  const act = (action: SelectionAction | "search") => {
+    if (!selected) return;
+    setSelected(null);
+    if (action !== "search") {
+      onSelectionAction(action, selected.document);
+      return;
+    }
+    selected.document.getSelection()?.removeAllRanges();
+    setChaptersOpen(false);
+    setSearchRequest({ query: selected.text });
+    setTool("search");
+  };
+
+  // The viewer's jump to an image's page returns to the book; closing it returns to the images.
+  const imageJumps = useRef(image.jumps);
+  useEffect(() => {
+    if (image.jumps === imageJumps.current) return;
+    imageJumps.current = image.jumps;
+    setTool(null);
+    setShown(false);
+  }, [image.jumps]);
+  useBackCloser(image.viewing, image.close);
 
   // The shown page's place, to tell whether it is bookmarked.
   const [place, setPlace] = useState<ReaderBookmarkPlace | null>(null);
@@ -348,6 +462,7 @@ export function MobileReader({
                 <ListBulletsIcon aria-hidden="true" size={20} />
                 {t("sidebar.chapters")}
               </button>
+              <ToolButtons onOpen={openTool} />
             </div>
           </section>
         </div>
@@ -358,6 +473,7 @@ export function MobileReader({
         entries={entries}
         identity={identity}
         onClose={() => setChaptersOpen(false)}
+        onOpenTool={openTool}
         onPick={(id) => {
           setChaptersOpen(false);
           setShown(false);
@@ -368,6 +484,55 @@ export function MobileReader({
         title={title}
       />
       <AppearanceSheet onClose={() => setAppearanceOpen(false)} open={appearanceOpen} />
+      {selected && ready && !turning && !shown && !tool && !chaptersOpen && !appearanceOpen ? (
+        <SelectionToolbar onAct={act} rect={selected.rect} />
+      ) : null}
+      <ToolSheet
+        hidden={image.viewing}
+        onClose={() => setTool(null)}
+        open={tool === "images"}
+        title={t("sidebar.images")}
+      >
+        <ReaderImagesPanel {...tools.images} />
+      </ToolSheet>
+      <ToolSheet
+        onClose={() => setTool(null)}
+        open={tool === "bookmarks"}
+        title={t("sidebar.bookmarks")}
+      >
+        <ReaderBookmarksPanel
+          {...tools.bookmarks}
+          onJump={(bookmark, settled) =>
+            tools.bookmarks.onJump(bookmark, (success) => {
+              settled(success);
+              if (success) backToBook();
+            })
+          }
+        />
+      </ToolSheet>
+      <ToolSheet onClose={() => setTool(null)} open={tool === "notes"} title={t("sidebar.notes")}>
+        <ReaderNotesPanel
+          {...tools.notes}
+          onJump={(note, settled) =>
+            tools.notes.onJump(note, (success) => {
+              settled(success);
+              if (success) backToBook();
+            })
+          }
+        />
+      </ToolSheet>
+      <ToolSheet onClose={() => setTool(null)} open={tool === "search"} title={t("sidebar.search")}>
+        <ReaderSearchPanel
+          {...tools.search}
+          onJump={(id, signal, settled) =>
+            tools.search.onJump(id, signal, (success) => {
+              settled(success);
+              if (success) backToBook();
+            })
+          }
+          searchFor={searchRequest}
+        />
+      </ToolSheet>
     </>
   );
 }
@@ -375,6 +540,7 @@ export function MobileReader({
 function ChaptersSheet({
   open,
   onClose,
+  onOpenTool,
   onPick,
   identity,
   title,
@@ -385,6 +551,7 @@ function ChaptersSheet({
 }: {
   open: boolean;
   onClose: () => void;
+  onOpenTool: (tool: Tool) => void;
   onPick: (id: string) => void;
   identity: ReaderIdentity;
   title: string;
@@ -430,6 +597,9 @@ function ChaptersSheet({
         >
           <XIcon aria-hidden="true" size={18} />
         </button>
+      </div>
+      <div className="mobile-chapters__tools">
+        <ToolButtons onOpen={onOpenTool} />
       </div>
       <h2 className="mobile-chapters__heading">{t("sidebar.chapters")}</h2>
       <ol className="mobile-chapters__list">
@@ -491,6 +661,165 @@ function ChaptersSheet({
         </div>
       ) : null}
     </MobileSheet>
+  );
+}
+
+const toolButtons: {
+  tool: Tool;
+  label: "sidebar.images" | "sidebar.bookmarks" | "sidebar.notes" | "sidebar.search";
+  icon: typeof ImageIcon;
+}[] = [
+  { tool: "images", label: "sidebar.images", icon: ImageIcon },
+  { tool: "bookmarks", label: "sidebar.bookmarks", icon: BookmarkSimpleIcon },
+  { tool: "notes", label: "sidebar.notes", icon: NotePencilIcon },
+  { tool: "search", label: "sidebar.search", icon: MagnifyingGlassIcon },
+];
+
+/** Images, Bookmarks, Notes and Search, as the Reader controls and Chapters show them. */
+function ToolButtons({ onOpen }: { onOpen: (tool: Tool) => void }) {
+  const { t } = useI18n();
+  return toolButtons.map(({ tool, label, icon: Icon }) => (
+    <button className="mobile-reader-tool" key={tool} onClick={() => onOpen(tool)} type="button">
+      <Icon aria-hidden="true" size={20} />
+      {t(label)}
+    </button>
+  ));
+}
+
+/** A tool of the PC's sidebar in a tall sheet, under its title and Close. */
+function ToolSheet({
+  open,
+  hidden,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  hidden?: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  const { t } = useI18n();
+  return (
+    <MobileSheet
+      className="mobile-sheet--tall mobile-reader-tool-sheet"
+      hidden={hidden}
+      label={title}
+      onClose={onClose}
+      open={open}
+    >
+      <div className="mobile-reader-appearance__heading">
+        <h2>{title}</h2>
+        <button
+          aria-label={t("common.close")}
+          className="mobile-round-button mobile-sheet__close"
+          onClick={onClose}
+          type="button"
+        >
+          <XIcon aria-hidden="true" size={18} />
+        </button>
+      </div>
+      {children}
+    </MobileSheet>
+  );
+}
+
+interface SelectedText {
+  document: Document;
+  text: string;
+  /** Where the selection shows on the screen. */
+  rect: { top: number; right: number; bottom: number; left: number };
+}
+
+/** A book page's selected text and where it shows, or null when nothing is selected. */
+function selectedText(document: Document): SelectedText | null {
+  const selection = document.getSelection();
+  if (!selection || selection.isCollapsed || !selection.rangeCount) return null;
+  const text = selection.toString();
+  if (!text.trim()) return null;
+  const box = selection.getRangeAt(0).getBoundingClientRect();
+  const frame = document.defaultView?.frameElement?.getBoundingClientRect();
+  const x = frame?.left ?? 0;
+  const y = frame?.top ?? 0;
+  return {
+    document,
+    text,
+    rect: { top: box.top + y, right: box.right + x, bottom: box.bottom + y, left: box.left + x },
+  };
+}
+
+// The toolbar's size, as mobileReader.css draws it, and its distance from the selection and
+// the screen's edges. Below the selection it clears Android's handles.
+const toolbarWidth = 278;
+const toolbarHeight = 62;
+const toolbarGap = 12;
+const handleRoom = 32;
+const screenGutter = 8;
+
+/** Note, Copy, Look up and Search beside the book's selection, above it where there is room. */
+function SelectionToolbar({
+  rect,
+  onAct,
+}: {
+  rect: SelectedText["rect"];
+  onAct: (action: SelectionAction | "search") => void;
+}) {
+  const { t } = useI18n();
+  const ref = useRef<HTMLDivElement>(null);
+  const latest = useRef(onAct);
+  latest.current = onAct;
+  // A touch on the toolbar must not clear the selection it acts on, as a tap would.
+  useEffect(() => {
+    const toolbar = ref.current;
+    if (!toolbar) return;
+    const press = (event: TouchEvent) => event.preventDefault();
+    const release = (event: TouchEvent) => {
+      event.preventDefault();
+      const button = (event.target as Element | null)?.closest?.<HTMLButtonElement>("button");
+      const action = button?.dataset.action as SelectionAction | "search" | undefined;
+      if (action) latest.current(action);
+    };
+    toolbar.addEventListener("touchstart", press, { passive: false });
+    toolbar.addEventListener("touchend", release, { passive: false });
+    return () => {
+      toolbar.removeEventListener("touchstart", press);
+      toolbar.removeEventListener("touchend", release);
+    };
+  }, []);
+  const above = rect.top - toolbarGap - toolbarHeight;
+  const below = rect.bottom + handleRoom;
+  const top =
+    above >= screenGutter
+      ? above
+      : below + toolbarHeight <= window.innerHeight - screenGutter
+        ? below
+        : Math.max(screenGutter, (window.innerHeight - toolbarHeight) / 2);
+  const left = Math.min(
+    Math.max(screenGutter, (rect.left + rect.right) / 2 - toolbarWidth / 2),
+    window.innerWidth - toolbarWidth - screenGutter,
+  );
+  const actions = [
+    { action: "note", label: t("notes.note"), icon: NotePencilIcon },
+    { action: "copy", label: t("textMenu.copy"), icon: CopyIcon },
+    { action: "lookUp", label: t("textMenu.lookUp"), icon: TranslateIcon },
+    { action: "search", label: t("sidebar.search"), icon: MagnifyingGlassIcon },
+  ] as const;
+  return (
+    <div
+      aria-label={t("textMenu.label")}
+      className="mobile-selection-toolbar"
+      ref={ref}
+      role="toolbar"
+      style={{ top, left }}
+    >
+      {actions.map(({ action, label, icon: Icon }) => (
+        <button data-action={action} key={action} onClick={() => onAct(action)} type="button">
+          <Icon aria-hidden="true" size={20} />
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }
 

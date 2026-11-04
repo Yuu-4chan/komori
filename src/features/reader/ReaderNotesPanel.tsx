@@ -1,3 +1,4 @@
+import { isAndroid } from "../../app/platform";
 import { useI18n } from "../../i18n/i18n";
 import { ReaderPanelHeading } from "./ReaderPanelHeading";
 import {
@@ -166,7 +167,9 @@ export function ReaderNotesPanel({
         </Button>
       )}
       <p role="status">{notes.busy ? t("notes.savingNotes") : notes.notice}</p>
-      {notes.status === "ready" && !notes.items.length && <p>{t("notes.empty")}</p>}
+      {notes.status === "ready" && !notes.items.length && (
+        <p>{t(isAndroid ? "notes.emptyTouch" : "notes.empty")}</p>
+      )}
       {notes.status === "ready" && (
         <p role="status" className="reader-search-summary">
           {t("notes.count", { shown: notes.visibleItems.length, count: notes.items.length })}
@@ -227,9 +230,11 @@ export function ReaderNotesPanel({
                 onClick={() => {
                   void notes.remove(note.id).then((removed) => {
                     if (removed)
+                      // The phone's search field would take the next Back to let focus go.
                       requestAnimationFrame(() =>
                         (
-                          list.current?.querySelector<HTMLButtonElement>("button") ?? search.current
+                          list.current?.querySelector<HTMLButtonElement>("button") ??
+                          (isAndroid ? null : search.current)
                         )?.focus(),
                       );
                   });

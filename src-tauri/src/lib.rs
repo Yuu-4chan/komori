@@ -209,6 +209,10 @@ pub fn run() {
             #[cfg(mobile)]
             android::system_bar_icons,
             #[cfg(mobile)]
+            android::book_selection,
+            #[cfg(mobile)]
+            android::copy_text,
+            #[cfg(mobile)]
             android::allow_ankidroid,
             #[cfg(mobile)]
             android::open_ankidroid_store,

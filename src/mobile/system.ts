@@ -50,6 +50,18 @@ export function systemBarIcons(dark: boolean) {
   void invoke("system_bar_icons", { dark }).catch(() => {});
 }
 
+let bookOwnsSelection = false;
+
+/**
+ * Whether a selection made now is the book's: over the book, Komori's toolbar replaces
+ * Android's. The Reader says so as each touch starts.
+ */
+export function ownBookSelection(own: boolean) {
+  if (own === bookOwnsSelection) return;
+  bookOwnsSelection = own;
+  void invoke("book_selection", { own }).catch(() => {});
+}
+
 const closers: (() => void)[] = [];
 
 /**

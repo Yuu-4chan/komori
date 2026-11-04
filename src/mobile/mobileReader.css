@@ -636,3 +636,83 @@ li:only-child > .mobile-chapter .mobile-chapter__dot::before {
   color: var(--text-on-accent);
   background: var(--accent-action);
 }
+
+/* Images, Bookmarks, Notes and Search, as Chapters shows them above the chapters. */
+.mobile-chapters__tools {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.mobile-chapters__tools > .mobile-reader-tool {
+  color: var(--text-primary);
+  background: var(--surface-card);
+}
+
+/* A tool of the PC's sidebar in a tall sheet; the sheet's own title replaces the panel's. */
+.mobile-sheet.mobile-reader-tool-sheet {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mobile-reader-tool-sheet .reader-subpanel-heading {
+  display: none;
+}
+
+/* A sheet kept open under what was opened from it, such as the image viewer. */
+.mobile-sheet-layer[hidden] {
+  display: none;
+}
+
+/* Note, Copy, Look up and Search beside the book's selection: a pill in the app's colors, as
+   the draft draws it, apart from the page. */
+.mobile-selection-toolbar {
+  position: fixed;
+  z-index: 30;
+  width: 17.375rem;
+  height: 3.875rem;
+  padding: 0.25rem;
+  display: flex;
+  gap: 0.125rem;
+  color: var(--text-primary);
+  background: var(--surface-main);
+  border-radius: 1.125rem;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.42);
+  animation: mobile-fade var(--duration-fast) var(--ease-out);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mobile-selection-toolbar > button {
+  width: 4.125rem;
+  height: 3.375rem;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 0.875rem;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-selection-toolbar > button:active {
+  background: var(--surface-subtle);
+}
+
+.mobile-selection-toolbar > button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* The PC's image viewer, full screen on the phone, keeps clear of the system bars. */
+dialog.reader-image-viewer {
+  padding: calc(var(--safe-area-top) + 0.5rem) calc(var(--safe-area-right) + 0.75rem)
+    calc(var(--safe-area-bottom) + 0.75rem) calc(var(--safe-area-left) + 0.75rem);
+}

@@ -1043,6 +1043,7 @@ export const ru: MessageCatalog = {
   "imageActions.copy": "Копировать изображение",
   "imageActions.save": "Сохранить изображение",
   "imageActions.copied": "Изображение скопировано.",
+  "textMenu.copied": "Текст скопирован.",
   "imageActions.copyFailed": "Не удалось скопировать изображение.",
   "imageActions.saved": "Изображение сохранено.",
   "imageActions.saveFailed": "Не удалось сохранить изображение.",
@@ -1835,6 +1836,7 @@ export const ru: MessageCatalog = {
   "notes.savingNotes": "Сохранение заметок…",
   "notes.empty":
     "Заметок пока нет. Выделите текст и нажмите N или щёлкните по нему правой кнопкой.",
+  "notes.emptyTouch": "Заметок пока нет. Нажмите на текст и удерживайте, чтобы добавить заметку.",
   "notes.count": "{shown} из {count} заметок",
   "notes.noMatches": "Подходящих заметок нет.",
   "notes.jump": "Перейти к заметке {index}",

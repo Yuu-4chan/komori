@@ -18,6 +18,8 @@ export interface ReaderSearchPanelProps {
   ) => Promise<ReaderSearchResults>;
   onJump: (id: string, signal: AbortSignal, settled: (success: boolean) => void) => boolean;
   onExit?: () => void;
+  /** A search to run at once, such as for text selected in the book; each new one runs. */
+  searchFor?: { query: string };
 }
 
 export function ReaderSearchPanel({
@@ -27,6 +29,7 @@ export function ReaderSearchPanel({
   onSearch,
   onJump,
   onExit,
+  searchFor,
 }: ReaderSearchPanelProps) {
   const { t, tp } = useI18n();
   const [query, setQuery] = useState("");
@@ -55,8 +58,8 @@ export function ReaderSearchPanel({
     if (!ready) cancel();
   }, [ready]);
 
-  const submit = () => {
-    if (!ready || navigationBusy || !normalized || tooLong) return;
+  const submit = (text = normalized) => {
+    if (!ready || navigationBusy || !text || [...text].length > SEARCH_QUERY_LIMIT) return;
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
@@ -64,7 +67,7 @@ export function ReaderSearchPanel({
     setJumpError(false);
     setSelected(null);
     setResults({ matches: [], truncated: false });
-    void onSearch(normalized, scope, controller.signal).then(
+    void onSearch(text, scope, controller.signal).then(
       (value) => {
         if (controller.signal.aborted) return;
         setResults(value);
@@ -75,6 +78,14 @@ export function ReaderSearchPanel({
       },
     );
   };
+  const latestSubmit = useRef(submit);
+  latestSubmit.current = submit;
+  useEffect(() => {
+    if (!searchFor) return;
+    setQuery(searchFor.query);
+    latestSubmit.current(searchQuery(searchFor.query));
+  }, [searchFor]);
+
   const matchCount = `${i18n().number(results.matches.length)}${results.truncated ? "+" : ""}`;
   return (
     <section className="reader-search-panel" aria-labelledby="reader-search-heading">

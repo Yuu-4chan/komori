@@ -84,7 +84,10 @@ import type { ReadingSession } from "../statistics/readingSession";
 import { useBookmarks } from "./useBookmarks";
 import type { BookmarkStore } from "./bookmarks";
 import { useNotes } from "./useNotes";
-import { NoteEditor } from "./ReaderNotesPanel";
+import type { ReaderBookmarksPanelProps } from "./ReaderBookmarksPanel";
+import type { ReaderImagesPanelProps } from "./ReaderImagesPanel";
+import { NoteEditor, type ReaderNotesPanelProps } from "./ReaderNotesPanel";
+import type { ReaderSearchPanelProps } from "./ReaderSearchPanel";
 import { ContextMenu, type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { copyBookImage, imageBlob, saveBookImage } from "./bookImageActions";
 import {
@@ -208,6 +211,9 @@ export function ReaderShell({
     | null
   >(null);
   const [focusNote, setFocusNote] = useState<{ id: string } | undefined>();
+  // How many times the image viewer has gone to an image's page, which the phone's
+  // Images sheet closes for.
+  const [imageJumps, setImageJumps] = useState(0);
   const bookContextMenu = useRef<(event: MouseEvent, document: Document) => void>(() => {});
   const bookNoteMenu = useRef<(event: MouseEvent, document: Document, id: string) => void>(
     () => {},
@@ -486,6 +492,7 @@ export function ReaderShell({
   }>({ key: () => {}, wheel: () => {}, turnQueued: () => false });
   const contentCleanups = useRef(new Map<Document, () => void>());
   const touchRef = useRef<(event: TouchEvent) => void>(() => {});
+  const selectionRef = useRef<(document: Document) => void>(() => {});
   // `P` starts, pauses and resumes the reading session.
   const sessionToggle = useRef(() => {});
   // Paginated wheel steps turn one page each, queued behind the turn in progress.
@@ -584,8 +591,12 @@ export function ReaderShell({
         // The end of a tap may cancel its click.
         for (const type of touchTypes)
           document.addEventListener(type, touch, { passive: type === "touchstart" });
+        // A long press selects; the phone's toolbar follows the selection.
+        const selection = () => selectionRef.current(document);
+        document.addEventListener("selectionchange", selection);
         removePlatformListeners = () => {
           for (const type of touchTypes) document.removeEventListener(type, touch);
+          document.removeEventListener("selectionchange", selection);
         };
       } else {
         document.addEventListener("click", noteClick);
@@ -1591,6 +1602,115 @@ export function ReaderShell({
     />
   ));
 
+  // The tools the sidebar shows, which the phone shows in sheets.
+  const imagesPanel: ReaderImagesPanelProps = {
+    ready: status === "ready",
+    session: rendererFactory,
+    listImages,
+    loadImage,
+    releaseImage,
+    onOpen: (items, index, signal) => {
+      bookImageRequest.current?.abort();
+      stopWheelTurns();
+      closeLookup();
+      // Beside the sidebar when there is room, where another image shows in it at once.
+      setImageViewer((current) =>
+        current?.docked &&
+        current.factory === rendererFactory &&
+        current.session.items === items &&
+        !current.session.signal.aborted
+          ? { ...current, pick: { index } }
+          : {
+              factory: rendererFactory,
+              session: { items, index, signal },
+              docked: roomBesideBook,
+            },
+      );
+    },
+    current: dockedViewer ? imageViewer?.shown : undefined,
+  };
+  const searchPanel: ReaderSearchPanelProps = {
+    ready: status === "ready",
+    navigationBusy: turning,
+    session: rendererFactory,
+    onSearch: searchBook,
+    onExit: () => {
+      clearEscape();
+      viewportRef.current?.focus({ preventScroll: true });
+    },
+    onJump: (id, signal, settled) => {
+      stopWheelTurns();
+      closeLookup();
+      const origin = document.activeElement;
+      void jumpRemembering(
+        (done) => goToSearchResult(id, signal, done),
+        (success) => {
+          settled(success);
+          if (!success || signal.aborted) return;
+          // A floating sidebar over the marked match steps aside, keeping its results.
+          const match = searchMatchRect();
+          const sidebar = document.getElementById("reader-sidebar")?.getBoundingClientRect();
+          if (
+            !sidebarPinned &&
+            (compactLayout() ||
+              (match &&
+                sidebar &&
+                match.left < sidebar.right &&
+                match.right > sidebar.left &&
+                match.top < sidebar.bottom &&
+                match.bottom > sidebar.top))
+          ) {
+            pointerOverSidebar.current = false;
+            setSidebarShown(false);
+          }
+          const focused = document.activeElement;
+          if (focused !== origin && focused !== document.body) return;
+          viewportRef.current?.focus({ preventScroll: true });
+        },
+      ).then((started) => {
+        if (!started && !signal.aborted) settled(false);
+      });
+      return true;
+    },
+  };
+  const bookmarksPanel: ReaderBookmarksPanelProps = {
+    bookmarks,
+    canCreate: status === "ready",
+    navigationBusy: turning,
+    onCreate: (label) => bookmarks.create(captureBookmark, label),
+    place,
+    onJump: (bookmark, settled) => {
+      stopWheelTurns();
+      const origin = document.activeElement;
+      return goToBookmark(bookmark.locator, (success) => {
+        settled(success);
+        const focused = document.activeElement;
+        if (!success || (focused !== origin && focused !== document.body)) return;
+        if (compactLayout() && !sidebarPinned) setSidebarShown(false);
+        viewportRef.current?.focus({ preventScroll: true });
+      });
+    },
+  };
+  const notesPanel: ReaderNotesPanelProps = {
+    notes,
+    ready: status === "ready",
+    navigationBusy: turning,
+    focus: focusNote,
+    place,
+    onJump: (note, settled) => {
+      stopWheelTurns();
+      closeLookup();
+      const origin = document.activeElement;
+      return goToBookmark(note.locator, (success) => {
+        settled(success);
+        const focused = document.activeElement;
+        if (!success || (focused !== origin && focused !== document.body)) return;
+        if (compactLayout() && !sidebarPinned) setSidebarShown(false);
+        viewportRef.current?.focus({ preventScroll: true });
+      });
+    },
+  };
+
   return (
     <div
       ref={shellRef}
@@ -1673,119 +1793,14 @@ export function ReaderShell({
           onOpenSearch={openSearch}
           imagesRef={imagesRef}
           onOpenImages={() => setSidebarView("images")}
-          images={{
-            ready: status === "ready",
-            session: rendererFactory,
-            listImages,
-            loadImage,
-            releaseImage,
-            onOpen: (items, index, signal) => {
-              bookImageRequest.current?.abort();
-              stopWheelTurns();
-              closeLookup();
-              // Beside the sidebar when there is room, where another image shows in it at once.
-              setImageViewer((current) =>
-                current?.docked &&
-                current.factory === rendererFactory &&
-                current.session.items === items &&
-                !current.session.signal.aborted
-                  ? { ...current, pick: { index } }
-                  : {
-                      factory: rendererFactory,
-                      session: { items, index, signal },
-                      docked: roomBesideBook,
-                    },
-              );
-            },
-            current: dockedViewer ? imageViewer?.shown : undefined,
-          }}
-          search={{
-            ready: status === "ready",
-            navigationBusy: turning,
-            session: rendererFactory,
-            onSearch: searchBook,
-            onExit: () => {
-              clearEscape();
-              viewportRef.current?.focus({ preventScroll: true });
-            },
-            onJump: (id, signal, settled) => {
-              stopWheelTurns();
-              closeLookup();
-              const origin = document.activeElement;
-              void jumpRemembering(
-                (done) => goToSearchResult(id, signal, done),
-                (success) => {
-                  settled(success);
-                  if (!success || signal.aborted) return;
-                  // A floating sidebar over the marked match steps aside, keeping its results.
-                  const match = searchMatchRect();
-                  const sidebar = document
-                    .getElementById("reader-sidebar")
-                    ?.getBoundingClientRect();
-                  if (
-                    !sidebarPinned &&
-                    (compactLayout() ||
-                      (match &&
-                        sidebar &&
-                        match.left < sidebar.right &&
-                        match.right > sidebar.left &&
-                        match.top < sidebar.bottom &&
-                        match.bottom > sidebar.top))
-                  ) {
-                    pointerOverSidebar.current = false;
-                    setSidebarShown(false);
-                  }
-                  const focused = document.activeElement;
-                  if (focused !== origin && focused !== document.body) return;
-                  viewportRef.current?.focus({ preventScroll: true });
-                },
-              ).then((started) => {
-                if (!started && !signal.aborted) settled(false);
-              });
-              return true;
-            },
-          }}
+          images={imagesPanel}
+          search={searchPanel}
           bookmarksRef={bookmarksRef}
           onOpenBookmarks={() => setSidebarView("bookmarks")}
-          bookmarks={{
-            bookmarks,
-            canCreate: status === "ready",
-            navigationBusy: turning,
-            onCreate: (label) => bookmarks.create(captureBookmark, label),
-            place,
-            onJump: (bookmark, settled) => {
-              stopWheelTurns();
-              const origin = document.activeElement;
-              return goToBookmark(bookmark.locator, (success) => {
-                settled(success);
-                const focused = document.activeElement;
-                if (!success || (focused !== origin && focused !== document.body)) return;
-                if (compactLayout() && !sidebarPinned) setSidebarShown(false);
-                viewportRef.current?.focus({ preventScroll: true });
-              });
-            },
-          }}
+          bookmarks={bookmarksPanel}
           notesRef={notesRef}
           onOpenNotes={() => setSidebarView("notes")}
-          notes={{
-            notes,
-            ready: status === "ready",
-            navigationBusy: turning,
-            focus: focusNote,
-            place,
-            onJump: (note, settled) => {
-              stopWheelTurns();
-              closeLookup();
-              const origin = document.activeElement;
-              return goToBookmark(note.locator, (success) => {
-                settled(success);
-                const focused = document.activeElement;
-                if (!success || (focused !== origin && focused !== document.body)) return;
-                if (compactLayout() && !sidebarPinned) setSidebarShown(false);
-                viewportRef.current?.focus({ preventScroll: true });
-              });
-            },
-          }}
+          notes={notesPanel}
           onTogglePin={
             roomBesideBook
               ? () => {
@@ -1909,6 +1924,42 @@ export function ReaderShell({
               session={session}
               bookmarks={bookmarks}
               captureBookmark={captureBookmark}
+              tools={{
+                images: imagesPanel,
+                search: searchPanel,
+                bookmarks: bookmarksPanel,
+                notes: notesPanel,
+              }}
+              selectionRef={selectionRef}
+              onSelectionAction={(action, contentDocument) => {
+                const clear = () => contentDocument.getSelection()?.removeAllRanges();
+                if (action === "note") {
+                  void createSelectedNote().finally(clear);
+                  return;
+                }
+                if (action === "copy") {
+                  copyText(contentDocument.getSelection()?.toString() ?? "");
+                  clear();
+                  showFeedback(i18n().t("textMenu.copied"));
+                  return;
+                }
+                const lookup = selectionLookup(
+                  contentDocument,
+                  viewportRef.current ?? undefined,
+                  "menu",
+                  triggersRef.current.lookupLanguage,
+                );
+                clear();
+                if (lookup) onSelectionChanged(lookup);
+              }}
+              image={{
+                viewing: imageOpen.current && !!imageViewer,
+                jumps: imageJumps,
+                close: () => {
+                  setImageViewer(null);
+                  bookImageRequest.current?.abort();
+                },
+              }}
               touchRef={touchRef}
               viewportRef={viewportRef}
               onTurn={(direction) => {
@@ -2011,6 +2062,8 @@ export function ReaderShell({
             void notes.create(noteDraft.place, body).then((saved) => {
               if (saved) {
                 setNoteDraft(null);
+                // The phone has no sidebar to show it in: it says so and reads on.
+                if (MobileReader) showFeedback(i18n().t("notes.saved"));
                 setSidebarHidden(false);
                 setSidebarView("notes");
                 setSidebarShown(true);
@@ -2055,6 +2108,7 @@ export function ReaderShell({
           onClose={(jumped) => {
             setImageViewer(null);
             bookImageRequest.current?.abort();
+            if (jumped) setImageJumps((count) => count + 1);
             if (jumped)
               requestAnimationFrame(() => viewportRef.current?.focus({ preventScroll: true }));
           }}

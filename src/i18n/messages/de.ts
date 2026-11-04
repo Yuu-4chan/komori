@@ -988,6 +988,7 @@ export const de: MessageCatalog = {
   "imageActions.copy": "Bild kopieren",
   "imageActions.save": "Bild speichern",
   "imageActions.copied": "Bild kopiert.",
+  "textMenu.copied": "Text kopiert.",
   "imageActions.copyFailed": "Das Bild konnte nicht kopiert werden.",
   "imageActions.saved": "Bild gespeichert.",
   "imageActions.saveFailed": "Das Bild konnte nicht gespeichert werden.",
@@ -1761,6 +1762,7 @@ export const de: MessageCatalog = {
   "notes.savingNotes": "Notizen werden gespeichert…",
   "notes.empty":
     "Noch keine Notizen. Markiere Text und drücke N oder klicke ihn mit der rechten Maustaste an.",
+  "notes.emptyTouch": "Noch keine Notizen. Halte einen Text gedrückt, um eine hinzuzufügen.",
   "notes.count": "{shown} von {count} Notizen",
   "notes.noMatches": "Keine passenden Notizen.",
   "notes.jump": "Zu Notiz {index} springen",

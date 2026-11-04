@@ -5,6 +5,8 @@ import { useBackCloser } from "./system";
 
 interface MobileSheetProps {
   open: boolean;
+  /** Kept open but out of sight, such as under what was opened from it. */
+  hidden?: boolean;
   onClose: () => void;
   label: string;
   className?: string;
@@ -15,12 +17,20 @@ interface MobileSheetProps {
  * A sheet rising from the bottom of the phone over a dimmed page. Tapping the page or Back
  * closes it.
  */
-export function MobileSheet({ open, onClose, label, className, children }: MobileSheetProps) {
-  useBackCloser(open, onClose);
+export function MobileSheet({
+  open,
+  hidden,
+  onClose,
+  label,
+  className,
+  children,
+}: MobileSheetProps) {
+  useBackCloser(open && !hidden, onClose);
   if (!open) return null;
   return createPortal(
     <div
       className="mobile-sheet-layer"
+      hidden={hidden}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

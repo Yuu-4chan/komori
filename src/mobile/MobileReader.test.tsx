@@ -9,6 +9,8 @@ import type {
   ReaderPageTurnAvailability,
 } from "../features/reader/renderer";
 import type { useBookmarks } from "../features/reader/useBookmarks";
+import type { useNotes } from "../features/reader/useNotes";
+import type { MobileReaderTools } from "./MobileReader";
 
 const invoke = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock("@tauri-apps/api/core", () => ({ invoke, isTauri: () => false }));
@@ -75,8 +77,59 @@ function reader({
       rename: vi.fn(async () => true),
       remove: vi.fn(async () => true),
     } as unknown as ReturnType<typeof useBookmarks>,
+    onSelectionAction: vi.fn(),
+    image: { viewing: false, jumps: 0, close: vi.fn() },
   };
+  const tools = {
+    images: {
+      ready: true,
+      listImages: vi.fn(async () => ({ items: [], truncated: false, failedSections: 0 })),
+      loadImage: vi.fn(),
+      releaseImage: vi.fn(),
+      onOpen: vi.fn(),
+    },
+    search: {
+      ready: true,
+      navigationBusy: false,
+      onSearch: vi.fn(async () => ({
+        matches: [{ id: "m1", label: "Second", before: "a ", match: "word", after: "" }],
+        truncated: false,
+      })),
+      onJump: vi.fn((_id: string, _signal: AbortSignal, settled: (success: boolean) => void) => {
+        settled(true);
+        return true;
+      }),
+    },
+    bookmarks: {
+      bookmarks: props.bookmarks,
+      canCreate: true,
+      navigationBusy: false,
+      onCreate: vi.fn(async () => true),
+      onJump: vi.fn(() => true),
+      place: () => "",
+    },
+    notes: {
+      notes: {
+        status: "ready",
+        items: [],
+        visibleItems: [],
+        query: "",
+        order: "creation",
+        busy: false,
+        error: "",
+        notice: "",
+        setQuery: () => {},
+        setOrder: () => {},
+        retry: () => {},
+      } as unknown as ReturnType<typeof useNotes>,
+      ready: true,
+      navigationBusy: false,
+      onJump: vi.fn(() => true),
+      place: () => "",
+    },
+  } as unknown as MobileReaderTools;
   const touchRef = { current: (_event: TouchEvent) => {} };
+  const selectionRef = { current: (_document: Document) => {} };
   render(
     <AppearanceProvider store={null}>
       <MobileReader
@@ -100,14 +153,34 @@ function reader({
         pageTurns={pageTurns}
         progress={progress}
         ready
+        selectionRef={selectionRef}
         session={{ readingMs: () => 0, state: "counting" }}
+        tools={tools}
         touchRef={touchRef}
         turning={false}
         viewportRef={{ current: viewport }}
       />
     </AppearanceProvider>,
   );
-  return { ...props, viewport, touchRef };
+  return { ...props, viewport, touchRef, selectionRef, tools };
+}
+
+/** A book page whose selection is `text`, shown at the given place. */
+function selectingPage(text: string) {
+  let selected = text;
+  const page = {
+    defaultView: null,
+    getSelection: () => ({
+      isCollapsed: !selected,
+      rangeCount: selected ? 1 : 0,
+      toString: () => selected,
+      getRangeAt: () => ({ getBoundingClientRect: () => new DOMRect(100, 300, 40, 24) }),
+      removeAllRanges: () => {
+        selected = "";
+      },
+    }),
+  } as unknown as Document;
+  return { page, clear: () => (selected = "") };
 }
 
 function tap(target: HTMLElement, x: number, y = 400) {
@@ -284,6 +357,96 @@ describe("the Reader by touch", () => {
     expect(onGoToEntry).toHaveBeenCalledWith("three");
     expect(screen.queryByRole("dialog", { name: "Chapters" })).toBeNull();
     expect(screen.queryByRole("banner")).toBeNull();
+  });
+
+  it("opens Images, Bookmarks, Notes and Search from the controls and from Chapters", async () => {
+    const { viewport, tools } = reader();
+    tap(viewport, 500);
+    const panel = await screen.findByRole("region", { name: "Reading position and tools" });
+    expect(
+      within(panel)
+        .getAllByRole("button")
+        .filter((button) => button.classList.contains("mobile-reader-tool"))
+        .map((button) => button.textContent),
+    ).toEqual(["Chapters", "Images", "Bookmarks", "Notes", "Search"]);
+    await userEvent.click(within(panel).getByRole("button", { name: "Notes" }));
+    expect(screen.getByRole("dialog", { name: "Notes" }).textContent).toContain("No notes yet");
+    await userEvent.click(
+      within(screen.getByRole("dialog", { name: "Notes" })).getByRole("button", {
+        name: "Close",
+      }),
+    );
+    await userEvent.click(within(panel).getByRole("button", { name: "Chapters" }));
+    const chapters = screen.getByRole("dialog", { name: "Chapters" });
+    await userEvent.click(within(chapters).getByRole("button", { name: "Images" }));
+    expect(screen.queryByRole("dialog", { name: "Chapters" })).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Images" })).toBeTruthy();
+    expect(tools.images.listImages).toHaveBeenCalled();
+  });
+
+  it("returns to the book after a jump from a tool", async () => {
+    const { viewport, tools } = reader();
+    tap(viewport, 500);
+    await userEvent.click(await screen.findByRole("button", { name: "Search" }));
+    const sheet = screen.getByRole("dialog", { name: "Search" });
+    await userEvent.type(within(sheet).getByRole("searchbox"), "word");
+    await userEvent.click(within(sheet).getByRole("button", { name: "Find" }));
+    await userEvent.click(await within(sheet).findByRole("button", { name: /^Jump to match 1/ }));
+    expect(tools.search.onJump).toHaveBeenCalledWith(
+      "m1",
+      expect.any(AbortSignal),
+      expect.any(Function),
+    );
+    expect(screen.queryByRole("dialog", { name: "Search" })).toBeNull();
+    expect(screen.queryByRole("banner")).toBeNull();
+  });
+
+  it("shows Note, Copy, Look up and Search beside the book's selection", async () => {
+    const { selectionRef, onSelectionAction } = reader();
+    const { page, clear } = selectingPage("羅生門");
+    act(() => selectionRef.current(page));
+    const toolbar = await screen.findByRole("toolbar", { name: "Text" });
+    expect(
+      within(toolbar)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Note", "Copy", "Look up", "Search"]);
+    await userEvent.click(within(toolbar).getByRole("button", { name: "Copy" }));
+    expect(onSelectionAction).toHaveBeenCalledWith("copy", page);
+    expect(screen.queryByRole("toolbar")).toBeNull();
+
+    act(() => selectionRef.current(page));
+    await screen.findByRole("toolbar", { name: "Text" });
+    // A tap elsewhere clears the selection, and the toolbar goes with it.
+    clear();
+    act(() => selectionRef.current(page));
+    await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
+  });
+
+  it("searches the book for the selected text", async () => {
+    const { selectionRef, tools } = reader();
+    const { page } = selectingPage("下人");
+    act(() => selectionRef.current(page));
+    const toolbar = await screen.findByRole("toolbar", { name: "Text" });
+    await userEvent.click(within(toolbar).getByRole("button", { name: "Search" }));
+    const sheet = screen.getByRole("dialog", { name: "Search" });
+    expect((within(sheet).getByRole("searchbox") as HTMLInputElement).value).toBe("下人");
+    expect(tools.search.onSearch).toHaveBeenCalledWith("下人", "book", expect.any(AbortSignal));
+    expect(page.getSelection()?.isCollapsed).toBe(true);
+  });
+
+  it("keeps Android's toolbar away from the book's selections only", () => {
+    const { touchRef } = reader();
+    const book = document.implementation.createHTMLDocument("page").createElement("p");
+    const start = Object.assign(new Event("touchstart"), {
+      touches: [{ clientX: 10, clientY: 10 }],
+      changedTouches: [{ clientX: 10, clientY: 10 }],
+    }) as unknown as TouchEvent;
+    Object.defineProperty(start, "target", { value: book });
+    act(() => touchRef.current(start));
+    expect(invoke).toHaveBeenLastCalledWith("book_selection", { own: true });
+    fireEvent.touchStart(document.body, { touches: [{ clientX: 10, clientY: 10 }] });
+    expect(invoke).toHaveBeenLastCalledWith("book_selection", { own: false });
   });
 
   it("changes the Reader's appearance from its sheet", async () => {

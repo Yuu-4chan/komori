@@ -1027,6 +1027,7 @@ export const fr: MessageCatalog = {
   "imageActions.copy": "Copier l’image",
   "imageActions.save": "Enregistrer l’image",
   "imageActions.copied": "Image copiée.",
+  "textMenu.copied": "Texte copié.",
   "imageActions.copyFailed": "Impossible de copier l’image.",
   "imageActions.saved": "Image enregistrée.",
   "imageActions.saveFailed": "Impossible d’enregistrer l’image.",
@@ -1818,6 +1819,8 @@ export const fr: MessageCatalog = {
   "notes.savingNotes": "Enregistrement des notes…",
   "notes.empty":
     "Aucune note pour l’instant. Sélectionnez du texte et appuyez sur N, ou faites un clic droit dessus.",
+  "notes.emptyTouch":
+    "Aucune note pour l’instant. Appuyez longuement sur un texte pour en ajouter une.",
   "notes.count": "{shown} sur {count} notes",
   "notes.noMatches": "Aucune note correspondante.",
   "notes.jump": "Aller à la note {index}",

@@ -974,6 +974,7 @@ export const ptBR: MessageCatalog = {
   "imageActions.copy": "Copiar imagem",
   "imageActions.save": "Salvar imagem",
   "imageActions.copied": "Imagem copiada.",
+  "textMenu.copied": "Texto copiado.",
   "imageActions.copyFailed": "Não foi possível copiar a imagem.",
   "imageActions.saved": "Imagem salva.",
   "imageActions.saveFailed": "Não foi possível salvar a imagem.",
@@ -1743,6 +1744,7 @@ export const ptBR: MessageCatalog = {
   "notes.savingNotes": "Salvando as notas…",
   "notes.empty":
     "Nenhuma nota ainda. Selecione um texto e pressione N ou clique com o botão direito.",
+  "notes.emptyTouch": "Ainda não há notas. Toque e segure um texto para adicionar uma.",
   "notes.count": "{shown} de {count} notas",
   "notes.noMatches": "Nenhuma nota corresponde.",
   "notes.jump": "Ir para a nota {index}",
