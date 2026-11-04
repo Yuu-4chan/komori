@@ -616,3 +616,23 @@ li:only-child > .mobile-chapter .mobile-chapter__dot::before {
   padding: 0 1.125rem 1.25rem;
   scrollbar-gutter: auto;
 }
+
+/* The headword row ends with round actions, as drawn; the + is filled. */
+.mobile-lookup .lookup-entry__actions .icon-button,
+.mobile-shell .lookup-entry__actions .icon-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+}
+
+.mobile-lookup .lookup-entry__actions .icon-button:not(:disabled):hover,
+.mobile-shell .lookup-entry__actions .icon-button:not(:disabled):hover {
+  color: inherit;
+  background: transparent;
+}
+
+.mobile-lookup .lookup-entry__actions .icon-button[data-anki-action="add"],
+.mobile-shell .lookup-entry__actions .icon-button[data-anki-action="add"] {
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+}

@@ -22,8 +22,13 @@ import { Select } from "../../components/ui/Select";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { IconButton } from "../../components/ui/IconButton";
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
+import { isAndroid } from "../../app/platform";
 import {
+  allowAnkiDroid,
   ankiError,
+  isAnkiDroidProblem,
+  openAnkiDroidStore,
+  type AnkiDroidProblem,
   createDeck,
   createLapis,
   discoverAnki,
@@ -61,7 +66,7 @@ export function AnkiSettings({
   const [prefs, setPrefs] = useState<AnkiPreferences | null>(null);
   const [discovery, setDiscovery] = useState<AnkiDiscovery | null>(null);
   const [connection, setConnection] = useState<
-    "checking" | "connected" | "disconnected" | "unchecked"
+    "checking" | "connected" | "disconnected" | "unchecked" | AnkiDroidProblem
   >("checking");
   const [dictionaries, setDictionaries] = useState<DictionarySummary[]>([]);
   const [dictionaryFailed, setDictionaryFailed] = useState(false);
@@ -150,8 +155,10 @@ export function AnkiSettings({
       );
     } catch (error) {
       if (revision.current === id) {
-        setConnection("disconnected");
-        setMessage(() => () => ankiError(error));
+        // The phone's status says what AnkiDroid lacks, and its button what to do.
+        const problem = isAndroid && isAnkiDroidProblem(error) ? error : null;
+        setConnection(problem ?? "disconnected");
+        setMessage(() => (problem && problem !== "notReady" ? () => "" : () => ankiError(error)));
       }
     } finally {
       if (revision.current === id) {
@@ -159,6 +166,28 @@ export function AnkiSettings({
         setBusy(false);
       }
     }
+  }
+  // Back from the Play Store, Android's settings or AnkiDroid, the phone looks again.
+  const latest = useRef({ prefs, connection, test });
+  latest.current = { prefs, connection, test };
+  useEffect(() => {
+    if (!isAndroid) return;
+    const returned = () => {
+      const { prefs, connection, test } = latest.current;
+      if (document.visibilityState === "visible" && prefs && connection !== "connected")
+        void test(prefs);
+    };
+    document.addEventListener("visibilitychange", returned);
+    return () => document.removeEventListener("visibilitychange", returned);
+  }, []);
+  async function allow(next: AnkiPreferences) {
+    if (operation.current) return;
+    try {
+      await allowAnkiDroid();
+    } catch {
+      // Discovery says what is missing.
+    }
+    void test(next);
   }
   async function persist() {
     if (!prefs || !discovery || configurationProblem(prefs, discovery) || operation.current) return;
@@ -291,102 +320,154 @@ export function AnkiSettings({
       : []),
     ...items.map((value) => ({ value, label: value })),
   ];
+  const lapisSource = (
+    <details className="settings-disclosure">
+      <summary>
+        <CaretDownIcon aria-hidden="true" weight="bold" />
+        {t("ankiSettings.lapisSource")}
+      </summary>
+      <div className="settings-disclosure__body">
+        <p>{t("ankiSettings.lapisCredits")}</p>
+        <pre>{lapisLicense}</pre>
+      </div>
+    </details>
+  );
+  const ankiDroidStatus: Record<typeof connection, MessageKey> = {
+    checking: "ankiSettings.checking",
+    connected: "ankiSettings.connectedAnkiDroid",
+    disconnected: "ankiSettings.disconnected",
+    unchecked: "ankiSettings.unchecked",
+    notInstalled: "ankiSettings.notInstalled",
+    notAllowed: "ankiSettings.notAllowed",
+    notReady: "ankiSettings.notReady",
+  };
   return (
     <div className="settings-popup anki-settings">
       <InterruptedRequests />
 
-      <Card className="settings-card settings-card--wide">
-        <div className="anki-heading">
-          <div className="settings-card__heading">
-            <span className="settings-card__icon">
-              <PlugsConnectedIcon aria-hidden="true" weight="duotone" />
-            </span>
-            <div>
-              <h2>{t("ankiSettings.connectionTitle")}</h2>
-              <p>{t("ankiSettings.connectionDescription")}</p>
+      {isAndroid ? (
+        <Card className="settings-card settings-card--wide">
+          <div className="anki-heading">
+            <div className="settings-card__heading">
+              <span className="settings-card__icon">
+                <PlugsConnectedIcon aria-hidden="true" weight="duotone" />
+              </span>
+              <div>
+                <h2>AnkiDroid</h2>
+              </div>
             </div>
-          </div>
-          <span className={`anki-connection anki-connection--${connection}`} role="status">
-            {t(
-              connection === "checking"
-                ? "ankiSettings.checking"
-                : connection === "connected"
-                  ? "ankiSettings.connected"
-                  : connection === "disconnected"
-                    ? "ankiSettings.disconnected"
-                    : "ankiSettings.unchecked",
-            )}
-          </span>
-        </div>
-        <div className="settings-list">
-          <div className="settings-field">
-            <div className="text-field">
-              <label className="text-field__label" htmlFor={`${fieldId}-port`}>
-                {t("ankiSettings.port")}
-              </label>
-              <input
-                id={`${fieldId}-port`}
-                className="text-field__input"
-                type="number"
-                min="1"
-                max="65535"
-                spellCheck={false}
-                value={prefs.port || ""}
-                disabled={busy}
-                onChange={(event) => update({ ...prefs, port: Number(event.target.value) }, true)}
-              />
-            </div>
-            <p className="settings-field__hint">{t("ankiSettings.portHint")}</p>
-          </div>
-          <div className="settings-field">
-            <div className="text-field">
-              <label className="text-field__label" htmlFor={`${fieldId}-key`}>
-                {t("ankiSettings.key")}
-              </label>
-              <input
-                id={`${fieldId}-key`}
-                className="text-field__input"
-                type="password"
-                maxLength={256}
-                autoComplete="off"
-                spellCheck={false}
-                value={prefs.key}
-                disabled={busy}
-                onChange={(event) => update({ ...prefs, key: event.target.value }, true)}
-              />
-            </div>
-            <p className="settings-field__hint">{t("ankiSettings.keyHint")}</p>
-          </div>
-          <div className="settings-row">
-            <div>
-              <strong>{t("ankiSettings.test")}</strong>
-              <span>{t("ankiSettings.testHint")}</span>
-            </div>
-            <Button
-              tone="secondary"
-              disabled={
-                busy || !Number.isInteger(prefs.port) || prefs.port < 1 || prefs.port > 65535
-              }
-              onClick={() => void test(prefs)}
+            <span
+              className={`anki-connection anki-connection--${connection === "connected" || connection === "checking" ? connection : "disconnected"}`}
+              role="status"
             >
-              {connection === "checking" ? t("ankiSettings.testingButton") : t("ankiSettings.test")}
+              {t(ankiDroidStatus[connection])}
+            </span>
+          </div>
+          {connection === "notAllowed" ? (
+            <Button disabled={busy} onClick={() => void allow(prefs)}>
+              {t("ankiSettings.allowAccess")}
             </Button>
+          ) : connection === "notInstalled" ? (
+            <Button disabled={busy} onClick={() => void openAnkiDroidStore().catch(() => {})}>
+              {t("ankiSettings.getAnkiDroid")}
+            </Button>
+          ) : connection !== "connected" && connection !== "checking" ? (
+            <Button tone="secondary" disabled={busy} onClick={() => void test(prefs)}>
+              {t("ankiSettings.checkAgain")}
+            </Button>
+          ) : null}
+          <p className={message() ? "anki-status" : "visually-hidden"} role="status">
+            {message()}
+          </p>
+          {lapisSource}
+        </Card>
+      ) : (
+        <Card className="settings-card settings-card--wide">
+          <div className="anki-heading">
+            <div className="settings-card__heading">
+              <span className="settings-card__icon">
+                <PlugsConnectedIcon aria-hidden="true" weight="duotone" />
+              </span>
+              <div>
+                <h2>{t("ankiSettings.connectionTitle")}</h2>
+                <p>{t("ankiSettings.connectionDescription")}</p>
+              </div>
+            </div>
+            <span className={`anki-connection anki-connection--${connection}`} role="status">
+              {t(
+                connection === "checking"
+                  ? "ankiSettings.checking"
+                  : connection === "connected"
+                    ? "ankiSettings.connected"
+                    : connection === "disconnected"
+                      ? "ankiSettings.disconnected"
+                      : "ankiSettings.unchecked",
+              )}
+            </span>
           </div>
-        </div>
-        <p className={message() ? "anki-status" : "visually-hidden"} role="status">
-          {message()}
-        </p>
-        <details className="settings-disclosure">
-          <summary>
-            <CaretDownIcon aria-hidden="true" weight="bold" />
-            {t("ankiSettings.lapisSource")}
-          </summary>
-          <div className="settings-disclosure__body">
-            <p>{t("ankiSettings.lapisCredits")}</p>
-            <pre>{lapisLicense}</pre>
+          <div className="settings-list">
+            <div className="settings-field">
+              <div className="text-field">
+                <label className="text-field__label" htmlFor={`${fieldId}-port`}>
+                  {t("ankiSettings.port")}
+                </label>
+                <input
+                  id={`${fieldId}-port`}
+                  className="text-field__input"
+                  type="number"
+                  min="1"
+                  max="65535"
+                  spellCheck={false}
+                  value={prefs.port || ""}
+                  disabled={busy}
+                  onChange={(event) => update({ ...prefs, port: Number(event.target.value) }, true)}
+                />
+              </div>
+              <p className="settings-field__hint">{t("ankiSettings.portHint")}</p>
+            </div>
+            <div className="settings-field">
+              <div className="text-field">
+                <label className="text-field__label" htmlFor={`${fieldId}-key`}>
+                  {t("ankiSettings.key")}
+                </label>
+                <input
+                  id={`${fieldId}-key`}
+                  className="text-field__input"
+                  type="password"
+                  maxLength={256}
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={prefs.key}
+                  disabled={busy}
+                  onChange={(event) => update({ ...prefs, key: event.target.value }, true)}
+                />
+              </div>
+              <p className="settings-field__hint">{t("ankiSettings.keyHint")}</p>
+            </div>
+            <div className="settings-row">
+              <div>
+                <strong>{t("ankiSettings.test")}</strong>
+                <span>{t("ankiSettings.testHint")}</span>
+              </div>
+              <Button
+                tone="secondary"
+                disabled={
+                  busy || !Number.isInteger(prefs.port) || prefs.port < 1 || prefs.port > 65535
+                }
+                onClick={() => void test(prefs)}
+              >
+                {connection === "checking"
+                  ? t("ankiSettings.testingButton")
+                  : t("ankiSettings.test")}
+              </Button>
+            </div>
           </div>
-        </details>
-      </Card>
+          <p className={message() ? "anki-status" : "visually-hidden"} role="status">
+            {message()}
+          </p>
+          {lapisSource}
+        </Card>
+      )}
       {discovery && (
         <Card className="settings-card settings-card--wide">
           <div className="settings-card__heading">
@@ -453,7 +534,7 @@ export function AnkiSettings({
               </div>
             </div>
             {discovery.lapis === "missing" && !declined && (
-              <div>
+              <div className="anki-lapis-offer">
                 <p>{t("ankiSettings.lapisMissing")}</p>
                 <Button onClick={() => setOffer(true)}>
                   {t("ankiSettings.createLapisEllipsis")}

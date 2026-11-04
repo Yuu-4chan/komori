@@ -1,12 +1,15 @@
 package app.komori.reader
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.webkit.WebView
 import androidx.activity.result.ActivityResult
+import androidx.core.app.ActivityCompat
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -15,12 +18,15 @@ import androidx.core.view.WindowInsetsControllerCompat
 import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
+import app.tauri.annotation.Permission
+import app.tauri.annotation.PermissionCallback
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
 import java.io.FileNotFoundException
+import java.util.concurrent.Executors
 
 @InvokeArg
 class PickArgs {
@@ -50,6 +56,11 @@ class BarIconsArgs {
 }
 
 @InvokeArg
+class AnkiArgs {
+  lateinit var action: String
+}
+
+@InvokeArg
 class KeepArgs {
   var uris: List<String> = emptyList()
 }
@@ -58,11 +69,14 @@ class KeepArgs {
  * Komori's own Android plugin, called only from the native core (`src-tauri/src/android.rs`).
  * Books are linked, never copied: the picker's read permission is kept, and each read opens the
  * original document read-only and hands its descriptor to the native core. Dictionary archives
- * are read the same way, once, without keeping their permission.
+ * are read the same way, once, without keeping their permission. Anki cards go to AnkiDroid.
  */
-@TauriPlugin
+@TauriPlugin(permissions = [Permission(strings = [AnkiDroid.PERMISSION], alias = "ankidroid")])
 class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
   private var webView: WebView? = null
+  private val ankiDroid by lazy { AnkiDroid(activity.applicationContext) }
+  /** AnkiDroid answers off the main thread, one action at a time. */
+  private val ankiWork = Executors.newSingleThreadExecutor()
 
   /**
    * Komori draws under the status bar, the display cutout and the gesture bar; the page keeps
@@ -239,6 +253,67 @@ class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
         )
       } catch (_: SecurityException) {
       }
+    }
+    invoke.resolve()
+  }
+
+  /** One AnkiConnect action, as `{ result }`, or rejected with why AnkiDroid could not answer. */
+  @Command
+  fun anki(invoke: Invoke) {
+    val action = invoke.parseArgs(AnkiArgs::class.java).action
+    val params = invoke.getArgs().optJSONObject("params") ?: JSObject()
+    ankiWork.execute {
+      try {
+        invoke.resolve(JSObject().apply { put("result", ankiDroid.call(action, params)) })
+      } catch (error: AnkiDroidException) {
+        invoke.reject(error.message, error.code)
+      }
+    }
+  }
+
+  /**
+   * Asks for AnkiDroid's permission. Once Android no longer asks (denied twice), Komori's app
+   * settings open instead, where it can still be allowed.
+   */
+  @Command
+  fun ankiAllow(invoke: Invoke) {
+    if (!ankiDroid.installed()) {
+      invoke.reject("AnkiDroid is not installed.", "notInstalled")
+      return
+    }
+    if (ankiDroid.allowed()) {
+      invoke.resolve(JSObject().apply { put("allowed", true) })
+      return
+    }
+    val saved = activity.getSharedPreferences("komori", Context.MODE_PRIVATE)
+    if (saved.getBoolean("ankidroidAsked", false) &&
+      !ActivityCompat.shouldShowRequestPermissionRationale(activity, AnkiDroid.PERMISSION)
+    ) {
+      activity.startActivity(
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", activity.packageName, null)),
+      )
+      invoke.resolve(JSObject().apply { put("allowed", false) })
+      return
+    }
+    saved.edit().putBoolean("ankidroidAsked", true).apply()
+    requestPermissionForAlias("ankidroid", invoke, "ankiAllowed")
+  }
+
+  @PermissionCallback
+  fun ankiAllowed(invoke: Invoke) {
+    invoke.resolve(JSObject().apply { put("allowed", ankiDroid.allowed()) })
+  }
+
+  /** AnkiDroid's page in the Play Store, or on the web without one. */
+  @Command
+  fun ankiStore(invoke: Invoke) {
+    val page = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${AnkiDroid.PACKAGE}"))
+    try {
+      activity.startActivity(page)
+    } catch (_: Exception) {
+      activity.startActivity(
+        Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=${AnkiDroid.PACKAGE}")),
+      )
     }
     invoke.resolve()
   }

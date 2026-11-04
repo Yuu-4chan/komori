@@ -375,8 +375,6 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
                       showOpenAction={false}
                       showPitch
                       showVoiceAction
-                      // The phone has no Anki connection yet.
-                      showAnkiAction={!phone}
                       start={group.text === search.matched ? null : group.text}
                     />
                   ))}

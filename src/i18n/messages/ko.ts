@@ -473,6 +473,9 @@ export const ko: MessageCatalog = {
   "ankiError.protocol":
     "AnkiConnect가 지원하지 않는 응답을 보냈습니다. AnkiConnect를 업데이트한 뒤 연결을 다시 테스트하세요.",
   "ankiError.busy": "다른 Anki 작업이 끝나는 중입니다. 완료된 뒤 다시 시도하세요.",
+  "ankiError.notInstalled": "AnkiDroid가 설치되어 있지 않습니다.",
+  "ankiError.notAllowed": "Komori에 AnkiDroid 사용 권한이 없습니다.",
+  "ankiError.notReady": "AnkiDroid를 한 번 열어 설정을 마치세요.",
   "ankiError.unreachable":
     "Anki에 연결할 수 없습니다. AnkiConnect가 설치된 Anki를 실행한 뒤 설정 → Anki에서 포트와 API 키를 확인하세요.",
   "ankiProblem.fieldsChanged": "Anki 필드가 바뀌었습니다. Anki 설정에서 연결을 고치고 저장하세요.",
@@ -520,6 +523,13 @@ export const ko: MessageCatalog = {
   "ankiSettings.connected": "Anki에 연결됨",
   "ankiSettings.disconnected": "연결 안 됨",
   "ankiSettings.unchecked": "연결 확인 안 함",
+  "ankiSettings.connectedAnkiDroid": "AnkiDroid에 연결됨",
+  "ankiSettings.notInstalled": "설치되지 않음",
+  "ankiSettings.notAllowed": "허용되지 않음",
+  "ankiSettings.notReady": "준비되지 않음",
+  "ankiSettings.allowAccess": "접근 허용",
+  "ankiSettings.getAnkiDroid": "AnkiDroid 받기",
+  "ankiSettings.checkAgain": "다시 확인",
   "ankiSettings.port": "로컬 포트",
   "ankiSettings.portHint":
     "AnkiConnect의 포트입니다. Komori는 이 컴퓨터의 127.0.0.1에만 연결합니다.",

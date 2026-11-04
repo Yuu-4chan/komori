@@ -208,6 +208,10 @@ pub fn run() {
             android::show_system_bars,
             #[cfg(mobile)]
             android::system_bar_icons,
+            #[cfg(mobile)]
+            android::allow_ankidroid,
+            #[cfg(mobile)]
+            android::open_ankidroid_store,
             backup::get_backup_settings,
             backup::save_backup_settings,
             backup::export_backup,

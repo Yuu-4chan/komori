@@ -93,16 +93,13 @@ export function ReaderPopupSettings({
             checked={readerPopupShowDictionaryNames}
             onChange={setReaderPopupShowDictionaryNames}
           />
-          {/* The phone has no Anki connection yet. */}
-          {!isAndroid && (
-            <ToggleSetting
-              label={t("popupSettings.anki")}
-              description={t("popupSettings.ankiHint")}
-              checked={readerPopupAnkiAction}
-              onChange={setReaderPopupAnkiAction}
-              disabled={dictionaryStyle}
-            />
-          )}
+          <ToggleSetting
+            label={t("popupSettings.anki")}
+            description={t("popupSettings.ankiHint")}
+            checked={readerPopupAnkiAction}
+            onChange={setReaderPopupAnkiAction}
+            disabled={dictionaryStyle}
+          />
           <ToggleSetting
             label={t("popupSettings.voice")}
             description={t("popupSettings.voiceHint")}

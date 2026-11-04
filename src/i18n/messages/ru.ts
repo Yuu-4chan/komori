@@ -556,6 +556,9 @@ export const ru: MessageCatalog = {
   "ankiError.protocol":
     "AnkiConnect вернул неподдерживаемый ответ. Обновите AnkiConnect и снова проверьте подключение.",
   "ankiError.busy": "Завершается другая операция Anki. Повторите попытку после её окончания.",
+  "ankiError.notInstalled": "AnkiDroid не установлен.",
+  "ankiError.notAllowed": "У Komori нет доступа к AnkiDroid.",
+  "ankiError.notReady": "Откройте AnkiDroid один раз, чтобы завершить настройку.",
   "ankiError.unreachable":
     "Anki недоступен. Запустите Anki с AnkiConnect, затем проверьте порт и ключ API в «Настройки → Anki».",
   "ankiProblem.fieldsChanged":
@@ -605,6 +608,13 @@ export const ru: MessageCatalog = {
   "ankiSettings.connected": "Подключено к Anki",
   "ankiSettings.disconnected": "Отключено",
   "ankiSettings.unchecked": "Подключение не проверено",
+  "ankiSettings.connectedAnkiDroid": "Подключено к AnkiDroid",
+  "ankiSettings.notInstalled": "Не установлен",
+  "ankiSettings.notAllowed": "Нет доступа",
+  "ankiSettings.notReady": "Не готов",
+  "ankiSettings.allowAccess": "Разрешить доступ",
+  "ankiSettings.getAnkiDroid": "Установить AnkiDroid",
+  "ankiSettings.checkAgain": "Проверить снова",
   "ankiSettings.port": "Локальный порт",
   "ankiSettings.portHint":
     "Порт AnkiConnect. Komori подключается только к 127.0.0.1 на этом компьютере.",

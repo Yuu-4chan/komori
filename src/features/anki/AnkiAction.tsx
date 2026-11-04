@@ -14,6 +14,7 @@ import { frequencyValue } from "../dictionary/DictionaryResults";
 import { glossaryPlainText } from "../dictionary/GlossaryText";
 import {
   ankiChanged,
+  ankiDroidProblems,
   ankiNoteChanged,
   ankiError,
   cachedAnki,
@@ -320,6 +321,7 @@ function CardAction({ sources }: { sources: CardSource[] }) {
           "rejected",
           "busy",
           "pending",
+          ...ankiDroidProblems,
         ].includes(String(error))
       ) {
         submitted.current = false;

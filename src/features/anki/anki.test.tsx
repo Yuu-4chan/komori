@@ -394,6 +394,18 @@ describe("One-click Anki actions", () => {
     );
     expect(api.createNote).not.toHaveBeenCalled();
   });
+  it.each([
+    ["notInstalled", "AnkiDroid is not installed."],
+    ["notAllowed", "Komori is not allowed to use AnkiDroid."],
+    ["notReady", "Open AnkiDroid once to finish setting it up."],
+  ])("disables the action, without a message, when AnkiDroid is %s", async (problem, reason) => {
+    vi.mocked(api.noteStatus).mockRejectedValueOnce(problem);
+    view(<AnkiAction sources={sources} />);
+    const button = await screen.findByRole("button", { name: "Add 読む to Anki" });
+    await waitFor(() => expect(button).toHaveAttribute("aria-description", reason));
+    expect(button).toBeDisabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
   it("keeps the action usable while a focus recheck runs, so the first click adds", async () => {
     vi.mocked(api.createNote).mockResolvedValue({ status: "created", id: 9 });
     view(<AnkiAction sources={sources} />);

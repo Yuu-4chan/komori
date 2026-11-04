@@ -1,6 +1,6 @@
 //! Komori's Android plugin (`gen/android/.../KomoriPlugin.kt`): the system document picker for
 //! books and dictionary archives, read-only descriptors for the documents it granted and the
-//! APK's assets, and leaving the app from the Library.
+//! APK's assets, AnkiDroid's notes, and leaving the app from the Library.
 //! Its calls wait for Android's main thread, so they run only from commands and worker threads.
 
 use std::{
@@ -162,6 +162,61 @@ pub(crate) fn keep_only(sources: &[String]) {
     if let Ok(plugin) = plugin() {
         let _ = plugin.run_mobile_plugin::<Value>("keepOnly", json!({ "uris": kept }));
     }
+}
+
+#[derive(Deserialize)]
+struct Answered {
+    #[serde(default)]
+    result: Value,
+}
+
+/// An AnkiConnect action's result, answered from AnkiDroid by the plugin, or why it has none:
+/// `notInstalled`, `notAllowed`, `notReady` (AnkiDroid not set up yet), `duplicate`, `rejected`
+/// or `unavailable`.
+pub(crate) fn anki(action: &str, params: Value) -> Result<Value, String> {
+    let plugin = plugin().map_err(|_| "unavailable".to_owned())?;
+    match plugin
+        .run_mobile_plugin::<Answered>("anki", json!({ "action": action, "params": params }))
+    {
+        Ok(answered) => Ok(answered.result),
+        Err(PluginInvokeError::InvokeRejected(error)) => {
+            Err(error.code.unwrap_or_else(|| "unavailable".into()))
+        }
+        Err(_) => Err("unavailable".into()),
+    }
+}
+
+#[derive(Deserialize)]
+struct Allowed {
+    allowed: bool,
+}
+
+/// Asks the reader to let Komori use AnkiDroid; whether it now may. Fails as `notInstalled`
+/// without AnkiDroid.
+#[tauri::command]
+pub async fn allow_ankidroid() -> Result<bool, String> {
+    let plugin = plugin().map_err(|_| "unavailable".to_owned())?;
+    match plugin
+        .run_mobile_plugin_async::<Allowed>("ankiAllow", json!({}))
+        .await
+    {
+        Ok(answer) => Ok(answer.allowed),
+        Err(PluginInvokeError::InvokeRejected(error)) => {
+            Err(error.code.unwrap_or_else(|| "unavailable".into()))
+        }
+        Err(_) => Err("unavailable".into()),
+    }
+}
+
+/// Opens AnkiDroid's page in the Play Store.
+#[tauri::command]
+pub async fn open_ankidroid_store() -> Result<(), String> {
+    plugin()
+        .map_err(|error| error.to_string())?
+        .run_mobile_plugin_async::<Value>("ankiStore", json!({}))
+        .await
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 /// The status bar, display cutout and gesture bar insets, in CSS pixels.

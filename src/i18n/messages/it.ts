@@ -542,6 +542,9 @@ export const it: MessageCatalog = {
   "ankiError.protocol":
     "AnkiConnect ha restituito una risposta non supportata. Aggiorna AnkiConnect e verifica di nuovo la connessione.",
   "ankiError.busy": "Un’altra operazione di Anki sta terminando. Riprova quando avrà finito.",
+  "ankiError.notInstalled": "AnkiDroid non è installato.",
+  "ankiError.notAllowed": "Komori non ha il permesso di usare AnkiDroid.",
+  "ankiError.notReady": "Apri AnkiDroid una volta per completarne la configurazione.",
   "ankiError.unreachable":
     "Anki non è raggiungibile. Avvia Anki con AnkiConnect, poi controlla la porta e la chiave API in Impostazioni → Anki.",
   "ankiProblem.fieldsChanged":
@@ -592,6 +595,13 @@ export const it: MessageCatalog = {
   "ankiSettings.connected": "Connesso ad Anki",
   "ankiSettings.disconnected": "Disconnesso",
   "ankiSettings.unchecked": "Connessione non verificata",
+  "ankiSettings.connectedAnkiDroid": "Connesso ad AnkiDroid",
+  "ankiSettings.notInstalled": "Non installato",
+  "ankiSettings.notAllowed": "Non consentito",
+  "ankiSettings.notReady": "Non pronto",
+  "ankiSettings.allowAccess": "Consenti l’accesso",
+  "ankiSettings.getAnkiDroid": "Scarica AnkiDroid",
+  "ankiSettings.checkAgain": "Ricontrolla",
   "ankiSettings.port": "Porta locale",
   "ankiSettings.portHint":
     "La porta di AnkiConnect. Komori si connette solo a 127.0.0.1 su questo computer.",

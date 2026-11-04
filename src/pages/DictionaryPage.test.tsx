@@ -2051,8 +2051,8 @@ describe("Dictionary page", () => {
     await user.click(within(chips).getByRole("button", { name: /見本国語辞典/ }));
     expect(screen.getByRole("article")).toHaveTextContent("to recite");
     expect(screen.getByRole("article")).not.toHaveTextContent("to read");
-    // The phone has no Anki connection yet.
-    expect(document.querySelector(".anki-action")).toBeNull();
+    // Entries add to AnkiDroid from their headword row, as on the PC.
+    expect(document.querySelector(".lookup-entry__actions .anki-action")).not.toBeNull();
   });
 
   it("lists only sources with matches and keeps results if source loading fails", async () => {

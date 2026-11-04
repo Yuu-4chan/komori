@@ -303,7 +303,7 @@ export function ReaderLookupPopup({
                   <LookupEntry
                     readerContext={readerContext}
                     // The phone has no Anki connection yet.
-                    showAnkiAction={readerPopupAnkiAction && !isAndroid}
+                    showAnkiAction={readerPopupAnkiAction}
                     showPitch={readerPopupShowPitch}
                     showFrequency={readerPopupShowFrequency}
                     showVoiceAction={readerPopupVoiceAction}

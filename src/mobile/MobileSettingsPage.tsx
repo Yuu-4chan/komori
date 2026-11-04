@@ -5,10 +5,14 @@ import {
   InfoIcon,
   TranslateIcon,
 } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { version } from "../../package.json";
 import { BrandMark } from "../brand/BrandMark";
+import { ankiChanged, cachedAnki } from "../features/anki/ankiApi";
+import { AnkiIcon } from "../features/anki/AnkiIcon";
+import { AnkiSettings } from "../features/anki/AnkiSettings";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { AppThemeSettings } from "../features/appearance/AppThemeSettings";
 import { DictionarySources } from "../features/dictionary/DictionarySources";
@@ -21,6 +25,7 @@ const sections = [
   { id: "general", label: "settings.general", icon: GearSixIcon },
   { id: "popup", label: "settings.popup", icon: ChatTextIcon },
   { id: "dictionary", label: "settings.dictionary", icon: TranslateIcon },
+  { id: "anki", label: "settings.anki", icon: AnkiIcon },
   { id: "about", label: "settings.about", icon: InfoIcon },
 ] as const;
 
@@ -28,7 +33,7 @@ const sections = [
  * Settings on the phone: a list of its sections, each opening as its own page that Back
  * leaves. General holds the interface language and the application theme; Reader popup, the
  * lookup sheet's content, look, sources and scanning; Dictionary, the dictionaries and word
- * audio; About, the version.
+ * audio; Anki, AnkiDroid and the cards it gets; About, the version.
  */
 export function MobileSettingsPage() {
   const { t } = useI18n();
@@ -37,6 +42,7 @@ export function MobileSettingsPage() {
   const { lookupLanguage, setLookupLanguage, starterDefinitions, setStarterDefinitions } =
     useAppearance();
   const section = sections.find(({ id }) => id === searchParams.get("section"));
+  const deck = useAnkiDeck();
 
   if (!section)
     return (
@@ -53,7 +59,16 @@ export function MobileSettingsPage() {
               <span aria-hidden="true" className="mobile-row__icon">
                 <Icon weight="fill" />
               </span>
-              <span className="mobile-row__label">{t(label)}</span>
+              {id === "anki" ? (
+                <span className="mobile-row__text">
+                  <span className="mobile-row__label">{t(label)}</span>
+                  <span className="mobile-row__detail">
+                    {deck ? `AnkiDroid · ${deck}` : "AnkiDroid"}
+                  </span>
+                </span>
+              ) : (
+                <span className="mobile-row__label">{t(label)}</span>
+              )}
               <CaretRightIcon aria-hidden="true" className="mobile-row__chevron" weight="bold" />
             </button>
           ))}
@@ -82,6 +97,7 @@ export function MobileSettingsPage() {
           <WordAudioSettings />
         </>
       )}
+      {section.id === "anki" && <AnkiSettings lookupLanguage={lookupLanguage} />}
       {section.id === "about" && (
         <div className="mobile-about">
           <BrandMark className="mobile-about__brand" />
@@ -90,4 +106,26 @@ export function MobileSettingsPage() {
       )}
     </div>
   );
+}
+
+/** The deck new cards go to, as saved. */
+function useAnkiDeck() {
+  const [deck, setDeck] = useState("");
+  useEffect(() => {
+    let active = true;
+    const read = () =>
+      cachedAnki().then(
+        (preferences) => {
+          if (active) setDeck(preferences.deck);
+        },
+        () => {},
+      );
+    void read();
+    window.addEventListener(ankiChanged, read);
+    return () => {
+      active = false;
+      window.removeEventListener(ankiChanged, read);
+    };
+  }, []);
+  return deck;
 }

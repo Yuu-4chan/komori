@@ -483,6 +483,9 @@ export const ja: MessageCatalog = {
   "ankiError.protocol":
     "AnkiConnectがサポートしていない応答を返しました。AnkiConnectを更新して、もう一度接続をテストしてください。",
   "ankiError.busy": "別のAnkiの処理が終わるところです。完了してからもう一度お試しください。",
+  "ankiError.notInstalled": "AnkiDroidがインストールされていません。",
+  "ankiError.notAllowed": "KomoriにAnkiDroidの使用が許可されていません。",
+  "ankiError.notReady": "AnkiDroidを一度開いて設定を完了してください。",
   "ankiError.unreachable":
     "Ankiに接続できません。AnkiConnectを入れたAnkiを起動し、設定→ AnkiでポートとAPIキーを確認してください。",
   "ankiProblem.fieldsChanged":
@@ -532,6 +535,13 @@ export const ja: MessageCatalog = {
   "ankiSettings.connected": "Ankiに接続済み",
   "ankiSettings.disconnected": "未接続",
   "ankiSettings.unchecked": "接続を未確認",
+  "ankiSettings.connectedAnkiDroid": "AnkiDroidに接続済み",
+  "ankiSettings.notInstalled": "未インストール",
+  "ankiSettings.notAllowed": "未許可",
+  "ankiSettings.notReady": "未設定",
+  "ankiSettings.allowAccess": "アクセスを許可",
+  "ankiSettings.getAnkiDroid": "AnkiDroidを入手",
+  "ankiSettings.checkAgain": "再確認",
   "ankiSettings.port": "ローカルポート",
   "ankiSettings.portHint":
     "AnkiConnectのポート。Komoriはこのコンピューターの127.0.0.1にだけ接続します。",

@@ -585,6 +585,22 @@
   font-weight: 500;
 }
 
+.mobile-row__text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mobile-row__detail {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .mobile-row__chevron {
   color: var(--text-muted);
 }
@@ -623,6 +639,25 @@
 .mobile-settings .settings-section-header > div > span,
 .mobile-settings .settings-source-toolbar:empty {
   display: none;
+}
+
+.mobile-settings .anki-settings .settings-row > div > span,
+.mobile-settings .anki-settings .settings-note {
+  display: none;
+}
+
+.mobile-settings .anki-lapis-offer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.mobile-settings .anki-lapis-offer p {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
 }
 
 .mobile-settings .app-theme-grid {

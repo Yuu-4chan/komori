@@ -31,7 +31,7 @@ describe("Settings on the phone", () => {
       within(nav)
         .getAllByRole("button")
         .map((row) => row.textContent),
-    ).toEqual(["General", "Reader popup", "Dictionary", "About"]);
+    ).toEqual(["General", "Reader popup", "Dictionary", "AnkiAnkiDroid", "About"]);
     await userEvent.click(within(nav).getByRole("button", { name: "Dictionary" }));
     expect(screen.getByRole("heading", { level: 1, name: "Dictionary" })).toBeTruthy();
   });
@@ -46,7 +46,7 @@ describe("Settings on the phone", () => {
     expect(screen.queryByText("Popup width")).toBeNull();
     expect(screen.queryByText("Popup height")).toBeNull();
     expect(screen.queryByText("Rounded corners")).toBeNull();
-    expect(screen.queryByText("Add to Anki action")).toBeNull();
+    expect(screen.getByText("Add to Anki action")).toBeTruthy();
     // The phone has no preview popup.
     expect(document.querySelector(".reader-lookup")).toBeNull();
   });
