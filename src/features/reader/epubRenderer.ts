@@ -5300,6 +5300,20 @@ class EpubRenderer implements ReaderRenderer {
     this.onSelectionChanged?.(null);
   }
 
+  lookupAt(x: number, y: number): boolean {
+    // The frames run on under the margins, holding text the page hides.
+    const page = (this.scrollContainer ?? this.manager()?.container)?.getBoundingClientRect();
+    if (page && (x < page.left || x >= page.right || y < page.top || y >= page.bottom))
+      return false;
+    for (const [document, watch] of this.selectionWatches) {
+      const frame = document.defaultView?.frameElement?.getBoundingClientRect();
+      if (!frame || x < frame.left || x >= frame.right || y < frame.top || y >= frame.bottom)
+        continue;
+      if (watch.scanAt(x - frame.left, y - frame.top)) return true;
+    }
+    return false;
+  }
+
   highlightPointerMatch(scanId: number | null, length = 0): void {
     if (scanId !== null && this.pointerScan?.id !== scanId) return;
     this.clearPointerPaint?.();

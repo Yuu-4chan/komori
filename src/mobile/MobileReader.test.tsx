@@ -57,6 +57,7 @@ function reader({
   document.body.append(viewport);
   const props = {
     onTurn: vi.fn(),
+    onLookUp: vi.fn((_x: number, _y: number): boolean => false),
     onScroll: vi.fn(),
     onGoToEntry: vi.fn(),
     onGoToOffset: vi.fn((_offset: number, settled: (succeeded: boolean) => void) => settled(true)),
@@ -177,6 +178,17 @@ describe("the Reader by touch", () => {
     expect(continuous.onScroll).toHaveBeenCalled();
     tap(continuous.viewport, 950);
     expect(continuous.onTurn).toHaveBeenCalledWith("advance");
+  });
+
+  it("looks up a tapped word, and turns the page from blank space", () => {
+    const { viewport, onTurn, onLookUp } = reader();
+    onLookUp.mockReturnValueOnce(true);
+    expect(tap(viewport, 950, 300)).toBe(false);
+    expect(onLookUp).toHaveBeenCalledWith(950, 300);
+    expect(onTurn).not.toHaveBeenCalled();
+    expect(screen.queryByRole("banner")).toBeNull();
+    tap(viewport, 950, 300);
+    expect(onTurn).toHaveBeenCalledWith("advance");
   });
 
   it("takes touches from the book's own pages through the Reader", () => {

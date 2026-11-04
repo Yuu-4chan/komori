@@ -1,5 +1,6 @@
 import { PaletteIcon } from "@phosphor-icons/react";
 
+import { isAndroid } from "../../app/platform";
 import { Card } from "../../components/ui/Card";
 import { ColorField } from "../../components/ui/ColorField";
 import { Select } from "../../components/ui/Select";
@@ -113,25 +114,30 @@ export function PopupAppearanceSettings() {
         </div>
       )}
       <div className="settings-list">
-        <div className="settings-field">
-          <Stepper
-            label={t("popupSettings.width")}
-            value={readerPopupWidth}
-            {...lookupPopupWidth}
-            unit={t("unit.px")}
-            onChange={setReaderPopupWidth}
-          />
-          <p className="settings-field__hint">{t("popupSettings.widthHint")}</p>
-        </div>
-        <div className="settings-field">
-          <Stepper
-            label={t("popupSettings.height")}
-            value={readerPopupHeight}
-            {...lookupPopupHeight}
-            unit={t("unit.px")}
-            onChange={setReaderPopupHeight}
-          />
-        </div>
+        {/* The phone's lookups open in a sheet of its own size and shape. */}
+        {!isAndroid && (
+          <>
+            <div className="settings-field">
+              <Stepper
+                label={t("popupSettings.width")}
+                value={readerPopupWidth}
+                {...lookupPopupWidth}
+                unit={t("unit.px")}
+                onChange={setReaderPopupWidth}
+              />
+              <p className="settings-field__hint">{t("popupSettings.widthHint")}</p>
+            </div>
+            <div className="settings-field">
+              <Stepper
+                label={t("popupSettings.height")}
+                value={readerPopupHeight}
+                {...lookupPopupHeight}
+                unit={t("unit.px")}
+                onChange={setReaderPopupHeight}
+              />
+            </div>
+          </>
+        )}
         <div className="settings-field">
           <Stepper
             label={t("popupSettings.fontSize")}
@@ -159,16 +165,18 @@ export function PopupAppearanceSettings() {
             onChange={setReaderPopupLineHeight}
           />
         </div>
-        <div className="settings-field">
-          <Stepper
-            label={t("popupSettings.radius")}
-            value={readerPopupRadius}
-            {...lookupPopupRadius}
-            unit={t("unit.px")}
-            onChange={setReaderPopupRadius}
-          />
-          <p className="settings-field__hint">{t("popupSettings.radiusHint")}</p>
-        </div>
+        {!isAndroid && (
+          <div className="settings-field">
+            <Stepper
+              label={t("popupSettings.radius")}
+              value={readerPopupRadius}
+              {...lookupPopupRadius}
+              unit={t("unit.px")}
+              onChange={setReaderPopupRadius}
+            />
+            <p className="settings-field__hint">{t("popupSettings.radiusHint")}</p>
+          </div>
+        )}
         <div className="settings-field">
           <Select
             label={t("popupSettings.readingPosition")}

@@ -60,6 +60,7 @@ import type {
   ReaderLocator,
   ReaderPositionStore,
   ReaderProgressUnit,
+  ReaderRect,
   ReaderRendererFactory,
   ReaderSelection,
   ReaderStatus,
@@ -107,6 +108,8 @@ interface Lookup {
   trigger: LookupTrigger;
   /** The root lookup's highlight of its match in the book. */
   onMatch?: (length: number) => void;
+  /** The root lookup's text in the book, which the phone's sheet keeps clear of. */
+  rect?: ReaderRect;
   placement: { left: number; top: number; width: number; height: number; above?: boolean };
 }
 
@@ -115,6 +118,15 @@ const MobileReader =
   import.meta.env.TAURI_ENV_PLATFORM === "android"
     ? lazy(() =>
         import("../../mobile/MobileReader").then((module) => ({ default: module.MobileReader })),
+      )
+    : null;
+// There, a lookup opens in a sheet from the edge of the screen.
+const MobileLookupSheet =
+  import.meta.env.TAURI_ENV_PLATFORM === "android"
+    ? lazy(() =>
+        import("../../mobile/MobileLookupSheet").then((module) => ({
+          default: module.MobileLookupSheet,
+        })),
       )
     : null;
 
@@ -303,7 +315,7 @@ export function ReaderShell({
   const lookupIds = useRef(0);
   const popupRef = useRef<HTMLElement>(null);
   const insidePopup = (target: EventTarget | null) =>
-    !!(target as Element | null)?.closest?.(".reader-lookup");
+    !!(target as Element | null)?.closest?.(".reader-lookup, .mobile-lookup");
   // In VN, finishes the text reveal in progress, or reads on once all text shows (true
   // when it did either); undefined outside VN.
   const vnStep = useRef<((advance: boolean) => boolean) | undefined>(undefined);
@@ -388,6 +400,7 @@ export function ReaderShell({
           query,
           sentence: selection.sentence,
           trigger,
+          rect: selection.rect,
           onMatch: (length) => {
             if (
               triggerEnabled(triggersRef.current, trigger) &&
@@ -639,6 +652,7 @@ export function ReaderShell({
     revealVnText,
     measureReadingHeight,
     highlightPointerMatch,
+    lookupAt,
     setNoteHighlights,
   } = useReaderRenderer(
     rendererFactory,
@@ -1548,6 +1562,35 @@ export function ReaderShell({
     return () => media.removeEventListener("change", closeOnCompact);
   }, []);
 
+  // The lookup popups, deepest last; the phone shows the deepest in its sheet and keeps the
+  // others under it for Back.
+  const lookupPopups = lookups.map((shown, depth) => (
+    <ReaderLookupPopup
+      key={shown.id}
+      onMatch={shown.onMatch}
+      onSearchTerm={(term) => navigate(`/dictionary?q=${encodeURIComponent(term)}`)}
+      onChildLookup={
+        depth < readerPopupChildLevels ? (request) => openChildLookup(depth, request) : undefined
+      }
+      // A press in a parent popup closes the child popups above it.
+      onPointerDown={() =>
+        setLookups((current) =>
+          current.length > depth + 1 ? current.slice(0, depth + 1) : current,
+        )
+      }
+      placement={MobileLookupSheet ? undefined : shown.placement}
+      hidden={!!MobileLookupSheet && depth < lookups.length - 1}
+      definitionSources={definitionSources}
+      query={shown.query}
+      readerContext={{
+        sentence: lookup?.sentence,
+        bookTitle: identity.status === "book" ? (identity.book.title ?? "") : "",
+        bookId: identity.status === "book" ? identity.book.id : undefined,
+      }}
+      ref={depth === 0 ? popupRef : undefined}
+    />
+  ));
+
   return (
     <div
       ref={shellRef}
@@ -1872,6 +1915,7 @@ export function ReaderShell({
                 closeLookup();
                 turnPage(direction);
               }}
+              onLookUp={(x, y) => triggersRef.current.readerPopupEnabled && lookupAt(x, y)}
               onScroll={scrolledNatively}
               onGoToEntry={(id) => {
                 closeLookup();
@@ -1940,33 +1984,21 @@ export function ReaderShell({
         <p className="reader-floating-feedback" role="status" aria-live="polite">
           {escapeWarning ? t("reader.escapeAgain") : feedback}
         </p>
-        {lookups.map((shown, depth) => (
-          <ReaderLookupPopup
-            key={shown.id}
-            onMatch={shown.onMatch}
-            onSearchTerm={(term) => navigate(`/dictionary?q=${encodeURIComponent(term)}`)}
-            onChildLookup={
-              depth < readerPopupChildLevels
-                ? (request) => openChildLookup(depth, request)
-                : undefined
-            }
-            // A press in a parent popup closes the child popups above it.
-            onPointerDown={() =>
-              setLookups((current) =>
-                current.length > depth + 1 ? current.slice(0, depth + 1) : current,
-              )
-            }
-            placement={shown.placement}
-            definitionSources={definitionSources}
-            query={shown.query}
-            readerContext={{
-              sentence: lookup?.sentence,
-              bookTitle: identity.status === "book" ? (identity.book.title ?? "") : "",
-              bookId: identity.status === "book" ? identity.book.id : undefined,
-            }}
-            ref={depth === 0 ? popupRef : undefined}
-          />
-        ))}
+        {MobileLookupSheet
+          ? lookup && (
+              <Suspense fallback={null}>
+                <MobileLookupSheet
+                  key={lookup.id}
+                  label={t("popup.label", { query: lookups.at(-1)?.query ?? lookup.query })}
+                  rect={lookup.rect}
+                  onBack={() => (lookups.length > 1 ? closeDeepestLookup() : closeLookup())}
+                  onClose={closeLookup}
+                >
+                  {lookupPopups}
+                </MobileLookupSheet>
+              </Suspense>
+            )
+          : lookupPopups}
       </div>
       {noteDraft && noteDraft.store === noteStore && (
         <NoteEditor

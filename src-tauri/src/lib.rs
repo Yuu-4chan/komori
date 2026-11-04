@@ -21,6 +21,7 @@ mod event_target;
 mod external_link;
 mod failure;
 mod file_dialog;
+mod http;
 mod interface_text;
 mod library;
 mod library_drop;

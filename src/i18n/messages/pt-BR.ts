@@ -939,6 +939,7 @@ export const ptBR: MessageCatalog = {
   "starter.downloading": "Baixando… {received} MB recebidos",
   "starter.verifying": "Verificando o download…",
   "starter.importing": "Importando… Dicionários grandes podem levar um minuto.",
+  "starter.importingShort": "Importando…",
   "starter.imported": "Adicionado aos seus dicionários.",
   "starter.alreadyImported": "Esta revisão já está instalada. Nenhuma duplicata foi adicionada.",
   "starter.interrupted":
@@ -1100,6 +1101,7 @@ export const ptBR: MessageCatalog = {
   "libraryCard.justNow": "agora mesmo",
   "language.zhHans": "Chinês simplificado",
   "language.zhHant": "Chinês tradicional",
+  "language.ku": "curdo",
   "libraryCard.noSeries": "Sem série",
   "libraryCard.unknownLanguage": "Idioma desconhecido",
   "libraryCard.start": "Começar a ler",

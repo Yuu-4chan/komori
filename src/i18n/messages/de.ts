@@ -952,6 +952,7 @@ export const de: MessageCatalog = {
   "starter.downloading": "Wird heruntergeladen… {received} MB empfangen",
   "starter.verifying": "Download wird geprüft…",
   "starter.importing": "Wird importiert… Große Wörterbücher können eine Minute dauern.",
+  "starter.importingShort": "Wird importiert…",
   "starter.imported": "Zu deinen Wörterbüchern hinzugefügt.",
   "starter.alreadyImported":
     "Diese Revision ist bereits installiert. Es wurde kein Duplikat hinzugefügt.",
@@ -1116,6 +1117,7 @@ export const de: MessageCatalog = {
   "libraryCard.justNow": "gerade eben",
   "language.zhHans": "Chinesisch (vereinfacht)",
   "language.zhHant": "Chinesisch (traditionell)",
+  "language.ku": "Kurdisch",
   "libraryCard.noSeries": "Keine Reihe",
   "libraryCard.unknownLanguage": "Unbekannte Sprache",
   "libraryCard.start": "Lesen beginnen",

@@ -1,6 +1,7 @@
 import { ArrowClockwiseIcon, CheckIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { invoke } from "@tauri-apps/api/core";
 import { useRef, useState } from "react";
+import { isAndroid } from "../../app/platform";
 import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Select";
 import { starterActive, type StarterEntry, useStarterDictionaries } from "./useStarterDictionaries";
@@ -33,7 +34,10 @@ const starterName = (entry: StarterEntry) => {
 const languageName = (code: string | null, interfaceLanguage: InterfaceLanguage): string => {
   if (!code) return "";
   if (isLookupLanguage(code)) return i18n().t(`lookupLanguage.${code}`);
-  return new Intl.DisplayNames([interfaceLanguage], { type: "language" }).of(code) ?? code;
+  const name = new Intl.DisplayNames([interfaceLanguage], { type: "language" }).of(code);
+  // Android's WebView has no name for Kurdish.
+  if (code === "ku" && (!name || name === code)) return i18n().t("language.ku");
+  return name ?? code;
 };
 const starterDescription = (entry: StarterEntry, interfaceLanguage: InterfaceLanguage) => {
   const { t } = i18n();
@@ -244,7 +248,8 @@ function status(entry: StarterEntry): string {
     case "verifying":
       return t("starter.verifying");
     case "importing":
-      return t("starter.importing");
+      // The phone's settings are rows without explanations.
+      return t(isAndroid ? "starter.importingShort" : "starter.importing");
     case "imported":
       return t("starter.imported");
     case "alreadyImported":

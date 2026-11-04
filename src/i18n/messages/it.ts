@@ -984,6 +984,7 @@ export const it: MessageCatalog = {
   "starter.downloading": "Download… {received} MB ricevuti",
   "starter.verifying": "Verifica del download…",
   "starter.importing": "Importazione… I dizionari grandi possono richiedere un minuto.",
+  "starter.importingShort": "Importazione…",
   "starter.imported": "Aggiunto ai tuoi dizionari.",
   "starter.alreadyImported":
     "Questa revisione è già installata. Non è stato aggiunto alcun duplicato.",
@@ -1152,6 +1153,7 @@ export const it: MessageCatalog = {
   "libraryCard.justNow": "proprio ora",
   "language.zhHans": "Cinese semplificato",
   "language.zhHant": "Cinese tradizionale",
+  "language.ku": "curdo",
   "libraryCard.noSeries": "Nessuna serie",
   "libraryCard.unknownLanguage": "Lingua sconosciuta",
   "libraryCard.start": "Inizia a leggere",

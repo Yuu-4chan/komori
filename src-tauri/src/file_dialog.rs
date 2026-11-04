@@ -52,10 +52,6 @@ mod unavailable {
             None
         }
 
-        pub(crate) async fn pick_files(self) -> Option<Vec<FileHandle>> {
-            None
-        }
-
         pub(crate) async fn pick_folder(self) -> Option<FileHandle> {
             None
         }

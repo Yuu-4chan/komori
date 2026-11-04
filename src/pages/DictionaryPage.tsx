@@ -1,8 +1,9 @@
 import { BooksIcon, MagnifyingGlassIcon, TranslateIcon, XIcon } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { dictionariesChanged } from "../features/dictionary/sourcePolicy";
 
+import { MobileHeaderContext } from "../components/layout/mobileHeader";
 import { PageHeader } from "../components/layout/PageHeader";
 import { EmptyState } from "../components/ui/EmptyState";
 import { searchEscape } from "../components/ui/searchEscape";
@@ -52,6 +53,8 @@ interface DictionaryPageProps {
 }
 
 export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
+  // On the phone the search runs from the keyboard, and the sources are a row of chips.
+  const phone = useContext(MobileHeaderContext) !== null;
   const [query, setQuery] = useState(initialQuery);
   const [search, setSearch] = useState<SearchState>({ status: "empty" });
   const { readerPopupReadingPosition, lookupLanguage } = useAppearance();
@@ -192,6 +195,8 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
         className="dictionary-search-row"
         onSubmit={(event) => {
           event.preventDefault();
+          // The phone's keyboard stays up until the field lets go, covering the results.
+          if (phone && document.activeElement instanceof HTMLElement) document.activeElement.blur();
           void submitSearch(query);
         }}
       >
@@ -199,6 +204,8 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
           <MagnifyingGlassIcon aria-hidden="true" size={21} />
           <input
             aria-label={t("dictionaryPage.search")}
+            enterKeyHint={phone ? "search" : undefined}
+            type={phone ? "search" : undefined}
             onKeyDown={searchEscape}
             autoComplete="off"
             spellCheck={false}
@@ -222,56 +229,83 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
             </button>
           )}
         </label>
-        <button className="dictionary-search-button" type="submit">
-          <MagnifyingGlassIcon aria-hidden="true" size={18} /> {t("dictionaryPage.searchButton")}
-        </button>
+        {!phone && (
+          <button className="dictionary-search-button" type="submit">
+            <MagnifyingGlassIcon aria-hidden="true" size={18} /> {t("dictionaryPage.searchButton")}
+          </button>
+        )}
       </form>
-      <div className="dictionary-workspace">
-        <aside aria-label={t("dictionarySources.title")} className="dictionary-sources">
-          <div className="dictionary-sources__header">
-            <div>
-              <strong>{t("storage.dictionaries")}</strong>
-              <span>{t("settings.dictionaryDescription")}</span>
-            </div>
-            <BooksIcon aria-hidden="true" size={18} />
-          </div>
-          <div className="dictionary-sources__list">
-            <SourceButton
-              active={shownSource === null}
-              count={totalRows}
-              detail={t("dictionaryPage.everyMatching")}
-              name={t("dictionaryPage.allSources")}
-              onClick={() => setSelectedSource(null)}
+      {phone && search.status === "ready" && matchingSources.length > 0 && (
+        <div
+          aria-label={t("dictionarySources.title")}
+          className="dictionary-source-chips"
+          role="group"
+        >
+          <SourceChip
+            active={shownSource === null}
+            count={totalRows}
+            name={t("dictionaryPage.allSources")}
+            onClick={() => setSelectedSource(null)}
+          />
+          {matchingSources.map((dictionary) => (
+            <SourceChip
+              active={shownSource === dictionary.id}
+              count={sourceCounts.get(dictionary.id) ?? 0}
+              key={dictionary.id}
+              name={dictionary.title}
+              onClick={() => setSelectedSource(dictionary.id)}
             />
-            {matchingSources.map((dictionary) => (
+          ))}
+        </div>
+      )}
+      <div className="dictionary-workspace">
+        {!phone && (
+          <aside aria-label={t("dictionarySources.title")} className="dictionary-sources">
+            <div className="dictionary-sources__header">
+              <div>
+                <strong>{t("storage.dictionaries")}</strong>
+                <span>{t("settings.dictionaryDescription")}</span>
+              </div>
+              <BooksIcon aria-hidden="true" size={18} />
+            </div>
+            <div className="dictionary-sources__list">
               <SourceButton
-                active={shownSource === dictionary.id}
-                count={sourceCounts.get(dictionary.id) ?? 0}
-                detail={t("dictionarySources.revision", { revision: dictionary.revision })}
-                key={dictionary.id}
-                name={dictionary.title}
-                onClick={() => setSelectedSource(dictionary.id)}
+                active={shownSource === null}
+                count={totalRows}
+                detail={t("dictionaryPage.everyMatching")}
+                name={t("dictionaryPage.allSources")}
+                onClick={() => setSelectedSource(null)}
               />
-            ))}
-          </div>
-          {sources.status === "ready" &&
-            sources.dictionaries.some((dictionary) => dictionary.language === lookupLanguage) &&
-            matchingSources.length === 0 && (
-              <p className="dictionary-sources__message">
-                {search.status === "ready"
-                  ? t("dictionaryPage.noSourceMatches")
-                  : t("dictionaryPage.sourcesAppear")}
+              {matchingSources.map((dictionary) => (
+                <SourceButton
+                  active={shownSource === dictionary.id}
+                  count={sourceCounts.get(dictionary.id) ?? 0}
+                  detail={t("dictionarySources.revision", { revision: dictionary.revision })}
+                  key={dictionary.id}
+                  name={dictionary.title}
+                  onClick={() => setSelectedSource(dictionary.id)}
+                />
+              ))}
+            </div>
+            {sources.status === "ready" &&
+              sources.dictionaries.some((dictionary) => dictionary.language === lookupLanguage) &&
+              matchingSources.length === 0 && (
+                <p className="dictionary-sources__message">
+                  {search.status === "ready"
+                    ? t("dictionaryPage.noSourceMatches")
+                    : t("dictionaryPage.sourcesAppear")}
+                </p>
+              )}
+            {sources.status === "loading" && (
+              <p className="dictionary-sources__message">{t("popupSources.loadingSources")}</p>
+            )}
+            {sources.status === "error" && (
+              <p className="dictionary-sources__message" role="alert">
+                {t("popupSources.loadFailed")}
               </p>
             )}
-          {sources.status === "loading" && (
-            <p className="dictionary-sources__message">{t("popupSources.loadingSources")}</p>
-          )}
-          {sources.status === "error" && (
-            <p className="dictionary-sources__message" role="alert">
-              {t("popupSources.loadFailed")}
-            </p>
-          )}
-        </aside>
+          </aside>
+        )}
         <section
           aria-label={t("dictionaryPage.results")}
           className="dictionary-results"
@@ -341,6 +375,8 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
                       showOpenAction={false}
                       showPitch
                       showVoiceAction
+                      // The phone has no Anki connection yet.
+                      showAnkiAction={!phone}
                       start={group.text === search.matched ? null : group.text}
                     />
                   ))}
@@ -351,6 +387,32 @@ export function DictionaryPage({ initialQuery = "" }: DictionaryPageProps) {
         </section>
       </div>
     </div>
+  );
+}
+
+/** A source on the phone: its name and matching rows, chosen as the results' filter. */
+function SourceChip({
+  active,
+  count,
+  name,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  name: string;
+  onClick: () => void;
+}) {
+  const { tp } = useI18n();
+  return (
+    <button
+      aria-pressed={active}
+      className="dictionary-source-chip"
+      onClick={onClick}
+      title={tp("dictionaryPage.matchingRows", count)}
+      type="button"
+    >
+      {name} · {count}
+    </button>
   );
 }
 

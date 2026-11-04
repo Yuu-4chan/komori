@@ -6,6 +6,7 @@
 //! Dictionaries keep the reader's order, which lookups follow. Compaction gives the space that
 //! removals freed back to the disk. Paths never reach the frontend.
 
+#[cfg(desktop)]
 use crate::interface_text::{self, Text};
 use std::{
     collections::{HashMap, HashSet},
@@ -1581,6 +1582,38 @@ fn valid_pitch_data(data: &Value) -> bool {
             })
 }
 
+/// The archives the reader picks to import; `None` when they closed the picker.
+#[cfg(desktop)]
+async fn pick_archives(
+    catalog: &crate::library::CatalogState,
+) -> Result<Option<Vec<PickedArchive>>, String> {
+    let language = interface_text::language(&catalog.database);
+    let selected = crate::file_dialog::AsyncFileDialog::new()
+        .set_title(interface_text::text(language, Text::AddDictionaries))
+        .add_filter(
+            interface_text::text(language, Text::DictionaryArchives),
+            &["zip"],
+        )
+        .pick_files()
+        .await;
+    Ok(selected.map(|files| {
+        files
+            .iter()
+            .map(|file| PickedArchive::path(file.path().to_path_buf()))
+            .collect()
+    }))
+}
+
+/// On the phone, ZIP documents from the system picker, whose grant lasts for this import.
+#[cfg(mobile)]
+async fn pick_archives(
+    _: &crate::library::CatalogState,
+) -> Result<Option<Vec<PickedArchive>>, String> {
+    Ok(crate::android::pick_dictionaries()
+        .await?
+        .map(|documents| documents.into_iter().map(PickedArchive::document).collect()))
+}
+
 #[tauri::command]
 pub async fn import_dictionaries(
     app: AppHandle,
@@ -1592,25 +1625,12 @@ pub async fn import_dictionaries(
     let into = language.unwrap_or_default();
     let mut progress = BatchProgress::for_app(app, operation_id)?;
     progress.phase("picking");
-    let language = interface_text::language(&catalog.database);
-    let selected = crate::file_dialog::AsyncFileDialog::new()
-        .set_title(interface_text::text(language, Text::AddDictionaries))
-        .add_filter(
-            interface_text::text(language, Text::DictionaryArchives),
-            &["zip"],
-        )
-        .pick_files()
-        .await;
-    let Some(selected) = selected else {
+    let Some(picked) = pick_archives(&catalog).await? else {
         return Ok(DictionaryImportBatch {
             canceled: true,
             results: Vec::new(),
         });
     };
-    let paths: Vec<PathBuf> = selected
-        .iter()
-        .map(|file| file.path().to_path_buf())
-        .collect();
     let database = store.database.clone();
     let write_lock = Arc::clone(&store.write_lock);
     tauri::async_runtime::spawn_blocking(move || {
@@ -1620,7 +1640,7 @@ pub async fn import_dictionaries(
         let mut connection = open_store(&database)?;
         Ok(DictionaryImportBatch {
             canceled: false,
-            results: import_paths_with_progress(&mut connection, &paths, into, &mut progress),
+            results: import_picked_with_progress(&mut connection, &picked, into, &mut progress),
         })
     })
     .await
@@ -2269,24 +2289,63 @@ fn import_paths(connection: &mut Connection, paths: &[PathBuf]) -> Vec<Dictionar
     )
 }
 
+/// An archive picked for import: its file name, and how to open it.
+struct PickedArchive {
+    file_name: String,
+    open: Box<dyn Fn() -> Result<DictionaryArchive, DictionaryArchiveError> + Send>,
+}
+
+impl PickedArchive {
+    #[cfg(any(desktop, test))]
+    fn path(path: PathBuf) -> Self {
+        Self {
+            file_name: path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "Selected file".into()),
+            open: Box::new(move || DictionaryArchive::open(&path)),
+        }
+    }
+
+    /// A document the phone's picker granted, read once through that grant.
+    #[cfg(mobile)]
+    fn document(document: crate::android::Document) -> Self {
+        Self {
+            file_name: document.name,
+            open: Box::new(move || {
+                crate::android::open_document(&document.uri)
+                    .map_err(|_| DictionaryArchiveError::Unreadable)
+                    .and_then(DictionaryArchive::read)
+            }),
+        }
+    }
+}
+
 /// Imports each archive into `language`, unless its index declares another language Komori has.
+#[cfg(test)]
 fn import_paths_with_progress(
     connection: &mut Connection,
     paths: &[PathBuf],
     language: Language,
     progress: &mut BatchProgress,
 ) -> Vec<DictionaryImportResult> {
-    progress.start(paths.len());
-    paths
+    let picked: Vec<PickedArchive> = paths.iter().cloned().map(PickedArchive::path).collect();
+    import_picked_with_progress(connection, &picked, language, progress)
+}
+
+fn import_picked_with_progress(
+    connection: &mut Connection,
+    picked: &[PickedArchive],
+    language: Language,
+    progress: &mut BatchProgress,
+) -> Vec<DictionaryImportResult> {
+    progress.start(picked.len());
+    picked
         .iter()
-        .map(|path| {
-            let file_name = path
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "Selected file".into());
-            let (status, title) = import_one_into(connection, path, language);
+        .map(|archive| {
+            let (status, title) = import_archive_into(connection, (archive.open)(), language);
             let result = DictionaryImportResult {
-                file_name,
+                file_name: archive.file_name.clone(),
                 status,
                 title,
             };
@@ -2318,16 +2377,29 @@ pub(super) fn import_one(
     connection: &mut Connection,
     path: &Path,
 ) -> (ImportStatus, Option<String>) {
-    import_one_into(connection, path, Language::Japanese)
+    import_archive_into(
+        connection,
+        DictionaryArchive::open(path),
+        Language::Japanese,
+    )
 }
 
-/// Imports one archive into `language`, unless its index declares another language Komori has.
+#[cfg(test)]
 fn import_one_into(
     connection: &mut Connection,
     path: &Path,
     language: Language,
 ) -> (ImportStatus, Option<String>) {
-    let mut archive = match DictionaryArchive::open(path) {
+    import_archive_into(connection, DictionaryArchive::open(path), language)
+}
+
+/// Imports one archive into `language`, unless its index declares another language Komori has.
+fn import_archive_into(
+    connection: &mut Connection,
+    archive: Result<DictionaryArchive, DictionaryArchiveError>,
+    language: Language,
+) -> (ImportStatus, Option<String>) {
+    let mut archive = match archive {
         Ok(archive) => archive,
         Err(error) => return (archive_status(&error), None),
     };

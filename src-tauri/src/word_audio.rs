@@ -307,18 +307,10 @@ fn audio_type(bytes: &[u8]) -> Option<(&'static str, &'static str)> {
 }
 
 fn client() -> Option<Client> {
-    if rustls::crypto::CryptoProvider::get_default().is_none() {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
-    Client::builder()
+    crate::http::builder()
         .connect_timeout(Duration::from_secs(5))
         .timeout(Duration::from_secs(10))
         .redirect(Policy::limited(4))
-        .user_agent(concat!(
-            "Komori/",
-            env!("CARGO_PKG_VERSION"),
-            " (https://github.com/Yuu-4chan/komori)"
-        ))
         .build()
         .ok()
 }

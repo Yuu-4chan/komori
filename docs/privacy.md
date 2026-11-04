@@ -16,7 +16,7 @@ Komori keeps its data in `%APPDATA%\app.komori.reader`:
 
 The embedded browser engine (WebView2) keeps its own cache in `%LOCALAPPDATA%\app.komori.reader\EBWebView`.
 
-On Android the same files are in Komori's private app storage, which other apps cannot read. Books stay where they are on the phone: Komori keeps Android's read permission for each EPUB you pick, and gives it back when the book leaves the Library.
+On Android the same files are in Komori's private app storage, which other apps cannot read. Books stay where they are on the phone: Komori keeps Android's read permission for each EPUB you pick, and gives it back when the book leaves the Library. A dictionary ZIP you pick is read once to import it; Komori keeps no permission for it.
 
 When **Launch at startup** is on, Komori adds a `Komori` value under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`; turning it off, or uninstalling Komori, removes it.
 
@@ -33,6 +33,8 @@ Komori contacts the network only for these features:
 - **Anki.** When you use Anki features, Komori talks to AnkiConnect on your own computer (`127.0.0.1`) only.
 - **Discord status.** Off by default. When you turn it on in Settings > Discord, Komori tells the Discord app on your computer, through its local pipe, the open book's title, book and chapter progress and reading speed (each can be hidden), which Komori page you are using outside the Reader (Library, Dictionary, Statistics or Settings; can be hidden), or Idle. To tell when you stop using a page, Komori counts your clicks and key presses on it; what you typed or clicked is not recorded, and Discord is told only the page. Discord then shows this on your profile to the people who can see your activity. Komori itself sends nothing over the network for it: Discord loads the Komori icon shown with the status from GitHub, and the icon links to Komori's GitHub page.
 - **Links.** Dictionary links and source or license links open in your default web browser; Komori does not fetch them itself.
+
+On Android, starter dictionaries and word audio make the same requests; updates, Reader font downloads, Anki and Discord status are not on the phone.
 
 Those requests carry no identifier and no information about your library or reading. EPUB content is rendered offline, with scripts disabled and no access to remote resources.
 

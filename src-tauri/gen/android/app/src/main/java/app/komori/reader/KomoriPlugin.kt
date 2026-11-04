@@ -25,6 +25,8 @@ import java.io.FileNotFoundException
 @InvokeArg
 class PickArgs {
   var multiple: Boolean = false
+  /** Dictionary archives, read once to import, instead of books, whose permission is kept. */
+  var dictionaries: Boolean = false
 }
 
 @InvokeArg
@@ -55,7 +57,8 @@ class KeepArgs {
 /**
  * Komori's own Android plugin, called only from the native core (`src-tauri/src/android.rs`).
  * Books are linked, never copied: the picker's read permission is kept, and each read opens the
- * original document read-only and hands its descriptor to the native core.
+ * original document read-only and hands its descriptor to the native core. Dictionary archives
+ * are read the same way, once, without keeping their permission.
  */
 @TauriPlugin
 class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
@@ -132,18 +135,27 @@ class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
   @Command
   fun pick(invoke: Invoke) {
     val args = invoke.parseArgs(PickArgs::class.java)
+    // Many providers list EPUBs and ZIP archives as plain binary files.
+    val types =
+      if (args.dictionaries) arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")
+      else arrayOf("application/epub+zip", "application/octet-stream")
     val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
       addCategory(Intent.CATEGORY_OPENABLE)
-      // Many providers list EPUBs as plain binary files.
       type = "*/*"
-      putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/epub+zip", "application/octet-stream"))
+      putExtra(Intent.EXTRA_MIME_TYPES, types)
       putExtra(Intent.EXTRA_ALLOW_MULTIPLE, args.multiple)
     }
-    startActivityForResult(invoke, intent, "picked")
+    startActivityForResult(invoke, intent, if (args.dictionaries) "pickedArchives" else "picked")
   }
 
   @ActivityCallback
-  fun picked(invoke: Invoke, result: ActivityResult) {
+  fun picked(invoke: Invoke, result: ActivityResult) = resolvePicked(invoke, result, true)
+
+  /** Dictionary archives keep no permission: the picker's grant lasts long enough to import them. */
+  @ActivityCallback
+  fun pickedArchives(invoke: Invoke, result: ActivityResult) = resolvePicked(invoke, result, false)
+
+  private fun resolvePicked(invoke: Invoke, result: ActivityResult, keep: Boolean) {
     val data = result.data
     if (result.resultCode != Activity.RESULT_OK || data == null) {
       invoke.resolve(JSObject().apply { put("canceled", true) })
@@ -160,7 +172,7 @@ class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
     for (uri in uris) {
       // A provider that cannot keep the permission is still read now; the book then shows as
       // missing after a restart, with Relink.
-      try {
+      if (keep) try {
         activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
       } catch (_: SecurityException) {
       }

@@ -56,6 +56,8 @@ export interface MobileReaderProps {
   touchRef: MutableRefObject<(event: TouchEvent) => void>;
   viewportRef: RefObject<HTMLElement | null>;
   onTurn: (direction: "advance" | "retreat") => void;
+  /** Looks up the word at a tapped point of the screen; false when no word is there. */
+  onLookUp: (x: number, y: number) => boolean;
   /** A finger is on a continuously displayed book, which the WebView scrolls: reading on. */
   onScroll: () => void;
   onGoToEntry: (id: string) => void;
@@ -104,6 +106,7 @@ export function MobileReader({
   touchRef,
   viewportRef,
   onTurn,
+  onLookUp,
   onScroll,
   onGoToEntry,
   onGoToOffset,
@@ -123,8 +126,8 @@ export function MobileReader({
   const lightPage = isLightTheme(resolveReaderTheme(readerTheme, readerCustomThemes));
   useEffect(() => systemBarIcons(lightPage), [lightPage]);
 
-  const latest = useRef({ ready, pageTurns, onTurn, onScroll });
-  latest.current = { ready, pageTurns, onTurn, onScroll };
+  const latest = useRef({ ready, pageTurns, onTurn, onLookUp, onScroll });
+  latest.current = { ready, pageTurns, onTurn, onLookUp, onScroll };
   useEffect(() => {
     let start: { x: number; y: number; at: number } | null = null;
     const touched = (event: TouchEvent) => {
@@ -138,7 +141,7 @@ export function MobileReader({
       }
       const began = start;
       start = null;
-      const { ready, pageTurns, onTurn } = latest.current;
+      const { ready, pageTurns, onTurn, onLookUp } = latest.current;
       if (event.type !== "touchend" || !began || event.touches.length || !ready) return;
       const dx = point.x - began.x;
       const dy = point.y - began.y;
@@ -151,6 +154,8 @@ export function MobileReader({
         if (owner.getSelection()?.isCollapsed === false) return;
         // The tap's own click would otherwise land on the controls it shows, and hide them.
         if (event.cancelable) event.preventDefault();
+        // A tap on a word looks it up; one on blank space turns the page or shows the controls.
+        if (onLookUp(point.x, point.y)) return;
         const across = point.x / window.innerWidth;
         if (across < sideZone) onTurn(leftAdvances ? "advance" : "retreat");
         else if (across > 1 - sideZone) onTurn(leftAdvances ? "retreat" : "advance");

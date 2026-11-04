@@ -873,6 +873,7 @@ export const ko: MessageCatalog = {
   "starter.downloading": "다운로드하는 중… {received}MB 받음",
   "starter.verifying": "다운로드를 확인하는 중…",
   "starter.importing": "가져오는 중… 큰 사전은 1분쯤 걸릴 수 있습니다.",
+  "starter.importingShort": "가져오는 중…",
   "starter.imported": "사전에 추가했습니다.",
   "starter.alreadyImported": "이 리비전은 이미 설치되어 있습니다. 중복으로 추가하지 않았습니다.",
   "starter.interrupted":
@@ -1027,6 +1028,7 @@ export const ko: MessageCatalog = {
   "libraryCard.justNow": "방금",
   "language.zhHans": "중국어 간체",
   "language.zhHant": "중국어 번체",
+  "language.ku": "쿠르드어",
   "libraryCard.noSeries": "시리즈 없음",
   "libraryCard.unknownLanguage": "알 수 없는 언어",
   "libraryCard.start": "읽기 시작",

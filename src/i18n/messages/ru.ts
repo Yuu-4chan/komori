@@ -1008,6 +1008,7 @@ export const ru: MessageCatalog = {
   "starter.downloading": "Загрузка… получено {received} МБ",
   "starter.verifying": "Проверка загрузки…",
   "starter.importing": "Импорт… Большие словари могут занять минуту.",
+  "starter.importingShort": "Импорт…",
   "starter.imported": "Добавлено в ваши словари.",
   "starter.alreadyImported": "Эта редакция уже установлена. Дубликат не добавлен.",
   "starter.interrupted":
@@ -1178,6 +1179,7 @@ export const ru: MessageCatalog = {
   "libraryCard.justNow": "только что",
   "language.zhHans": "Китайский (упрощённый)",
   "language.zhHant": "Китайский (традиционный)",
+  "language.ku": "курдский",
   "libraryCard.noSeries": "Без серии",
   "libraryCard.unknownLanguage": "Неизвестный язык",
   "libraryCard.start": "Начать чтение",

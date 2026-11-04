@@ -1,6 +1,6 @@
-//! Komori's Android plugin (`gen/android/.../KomoriPlugin.kt`): the system document picker,
-//! read-only descriptors for the documents it granted and the APK's assets, and leaving the app
-//! from the Library.
+//! Komori's Android plugin (`gen/android/.../KomoriPlugin.kt`): the system document picker for
+//! books and dictionary archives, read-only descriptors for the documents it granted and the
+//! APK's assets, and leaving the app from the Library.
 //! Its calls wait for Android's main thread, so they run only from commands and worker threads.
 
 use std::{
@@ -64,9 +64,19 @@ pub(crate) fn is_document(source: &str) -> bool {
 /// Shows the system document picker for EPUBs and keeps the read permission of each document
 /// picked; `None` when the reader closed it.
 pub(crate) async fn pick_books(multiple: bool) -> Result<Option<Vec<Document>>, String> {
+    pick(json!({ "multiple": multiple })).await
+}
+
+/// Shows the system document picker for dictionary archives, several at once. Their grant
+/// lasts while Komori runs, long enough to import them; none is kept.
+pub(crate) async fn pick_dictionaries() -> Result<Option<Vec<Document>>, String> {
+    pick(json!({ "multiple": true, "dictionaries": true })).await
+}
+
+async fn pick(args: Value) -> Result<Option<Vec<Document>>, String> {
     let picked: Picked = plugin()
         .map_err(|error| error.to_string())?
-        .run_mobile_plugin_async("pick", json!({ "multiple": multiple }))
+        .run_mobile_plugin_async("pick", args)
         .await
         .map_err(|error| format!("The document picker could not open: {error}"))?;
     Ok((!picked.canceled).then_some(picked.documents))

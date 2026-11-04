@@ -26,9 +26,13 @@ a page (in the book's page progression), swipe in paginated view, scroll in cont
 and tap the middle, the clock or the footer for the controls: Back, the title, a bookmark
 toggle, Appearance (theme, font size, line height, page margin, writing and view mode), the
 chapter with a position slider, and the Chapters sheet. The status and navigation bars hide
-while reading. Reopening Komori after Android ends it opens the last book where it was.
-Statistics is the PC page in two columns; Settings has General (language, application
-theme) and About.
+while reading. A tap on a word looks it up in a sheet from the bottom of the screen (from the
+top for a word down there): drag its handle up for the whole screen or down to close it, tap
+a word in it for the next lookup, and Back returns to the one before. Reopening Komori after
+Android ends it opens the last book where it was. Dictionary searches from the keyboard, its
+sources a row of chips. Statistics is the PC page in two columns. Settings has General
+(language, application theme), Reader popup (appearance and scanning), Dictionary (ZIPs
+imported from the phone, starter downloads, order, removal and word audio) and About.
 
 ## Library
 

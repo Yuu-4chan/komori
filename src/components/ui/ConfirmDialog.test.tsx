@@ -12,12 +12,15 @@ const appWindow = vi.hoisted(() => ({
   onResized: vi.fn(async () => () => undefined),
   toggleMaximize: vi.fn(async () => undefined),
 }));
+const platform = vi.hoisted(() => ({ isAndroid: false }));
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: vi.fn() }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => appWindow }));
+vi.mock("../../app/platform", () => platform);
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(isTauri).mockReturnValue(true);
+  platform.isAndroid = false;
 });
 
 function renderDialog(onCancel = vi.fn()) {
@@ -70,6 +73,13 @@ it("draws no title bar outside the desktop application", () => {
   vi.mocked(isTauri).mockReturnValue(false);
   const dialog = renderDialog();
   expect(dialog.querySelector(".dialog-caption")).toBeNull();
+});
+
+it("draws no title bar on the phone, whose window has none", () => {
+  platform.isAndroid = true;
+  const dialog = renderDialog();
+  expect(dialog.querySelector(".dialog-caption")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Minimize" })).toBeNull();
 });
 
 it("closes on a backdrop click, not on a drag from inside released over the backdrop", async () => {

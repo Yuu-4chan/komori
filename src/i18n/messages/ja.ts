@@ -882,6 +882,7 @@ export const ja: MessageCatalog = {
   "starter.downloading": "ダウンロード中… {received} MB受信",
   "starter.verifying": "ダウンロードを確認しています…",
   "starter.importing": "取り込み中…大きな辞書は1分ほどかかります。",
+  "starter.importingShort": "取り込み中…",
   "starter.imported": "辞書に追加しました。",
   "starter.alreadyImported": "このリビジョンは取り込み済みです。重複して追加していません。",
   "starter.interrupted":
@@ -1036,6 +1037,7 @@ export const ja: MessageCatalog = {
   "libraryCard.justNow": "たった今",
   "language.zhHans": "中国語（簡体字）",
   "language.zhHant": "中国語（繁体字）",
+  "language.ku": "クルド語",
   "libraryCard.noSeries": "シリーズなし",
   "libraryCard.unknownLanguage": "言語不明",
   "libraryCard.start": "読み始める",

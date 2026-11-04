@@ -11,6 +11,8 @@ import type { DictionarySummary } from "./dictionaryApi";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(), isTauri: () => true }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
+const platform = vi.hoisted(() => ({ isAndroid: false }));
+vi.mock("../../app/platform", () => platform);
 let callback: EventCallback<StarterSnapshot>;
 let snapshot: StarterSnapshot;
 let dictionaries: DictionarySummary[];
@@ -77,7 +79,10 @@ beforeEach(() => {
     throw new Error(`Unexpected command ${command}`);
   });
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  platform.isAndroid = false;
+});
 
 it("notifies Dictionary and Reader consumers when Settings is absent, rejects old events and disposes the app listener", async () => {
   function ApplicationNotifications() {
@@ -160,6 +165,12 @@ it("retains native byte/verification/import progress across navigation, rejects 
   snapshot.entries[0].phase = "importing";
   emit();
   expect(screen.getByText(/Importing… Large/)).toBeInTheDocument();
+  // The phone's settings carry no explanations, so its status is the progress alone.
+  platform.isAndroid = true;
+  snapshot.revision++;
+  emit();
+  expect(screen.getByText("Importing…")).toBeInTheDocument();
+  platform.isAndroid = false;
   dictionaries = [imported];
   snapshot.revision++;
   snapshot.entries[0].phase = "imported";
@@ -317,5 +328,39 @@ describe("starter dictionaries for each language", () => {
     // Sources without definitions stay listed.
     view.rerender(<StarterDictionaries {...props} language="ja" />);
     expect(rows()).toEqual(["starter-jitendex", "starter-jiten"]);
+  });
+
+  it("names Kurdish definitions where the system has no name for them", () => {
+    const withKurdish = {
+      ...starter,
+      snapshot: {
+        ...starter.snapshot,
+        entries: [...starter.snapshot.entries, entry("wty-en-ku", "en", "ku")],
+      },
+    };
+    // Android's WebView gives Kurdish's code as its name.
+    const system = Intl.DisplayNames.prototype.of;
+    vi.spyOn(Intl.DisplayNames.prototype, "of").mockImplementation(function (
+      this: Intl.DisplayNames,
+      code: string,
+    ) {
+      return code === "ku" ? code : system.call(this, code);
+    });
+    try {
+      render(
+        <StarterDictionaries
+          empty
+          installed={[]}
+          busy={false}
+          starter={withKurdish}
+          language="en"
+          savedDefinitions="ku"
+        />,
+      );
+      expect(screen.getByRole("option", { name: "Kurdish" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Vietnamese" })).toBeInTheDocument();
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 });

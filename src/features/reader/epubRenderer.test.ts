@@ -11622,6 +11622,33 @@ describe("EPUB.js renderer adapter", () => {
       }
     });
 
+    it("looks up a tapped word on the page, but not text the page hides under its margins", async () => {
+      const view = await mountSelectable("<p>本を読む</p>");
+      const page = document.createElement("div");
+      page.getBoundingClientRect = () => domRect({ left: 40, top: 30, right: 480, bottom: 400 });
+      (view.rendition.manager as { container?: HTMLElement }).container = page;
+      try {
+        const node = view.contentDocument.querySelector("p")!.firstChild!;
+        pointAt(view, node, 2);
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(true);
+        expect(view.selected).toHaveBeenLastCalledWith(
+          expect.objectContaining({ origin: "tap", text: "読む" }),
+        );
+        // The frame runs on past the page's right edge, where the next column is clipped.
+        vi.mocked(view.contentDocument.createRange).mockImplementation(() => {
+          const range = view.contentDocument.implementation.createHTMLDocument().createRange();
+          range.getClientRects = () =>
+            [domRect({ left: 450, top: 5, right: 470, bottom: 29 })] as unknown as DOMRectList;
+          return range;
+        });
+        expect(view.renderer.lookupAt?.(500, 45)).toBe(false);
+        expect(view.selected).toHaveBeenCalledTimes(1);
+      } finally {
+        view.renderer.dispose();
+        view.iframe.remove();
+      }
+    });
+
     it("starts at the touched character when the nearest caret is after it, including supplementary characters", async () => {
       const view = await mountSelectable('<p style="writing-mode: vertical-rl">本𠮷読む</p>');
       try {

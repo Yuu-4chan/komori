@@ -108,6 +108,11 @@ export interface ReaderRenderer {
    * Scan IDs are session-local; obsolete IDs are ignored. No DOM range crosses this boundary.
    */
   highlightPointerMatch?(scanId: number | null, length?: number): void;
+  /**
+   * Look up the word at a tapped point, in the Reader window's CSS pixels, as a `tap` scan
+   * reported like any other; false when no text of the book is there.
+   */
+  lookupAt?(x: number, y: number): boolean;
   /** Idempotently release DOM, listeners, subscriptions, and pending work. */
   dispose(): void;
 }

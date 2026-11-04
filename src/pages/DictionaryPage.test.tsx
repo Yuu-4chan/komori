@@ -25,6 +25,7 @@ import themeCss from "../styles/theme.css?raw";
 import tokensCss from "../styles/tokens.css?raw";
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 import { getWordAudio } from "../features/dictionary/wordAudio";
+import { MobileHeaderContext } from "../components/layout/mobileHeader";
 import { DictionaryPage } from "./DictionaryPage";
 
 // The production Dictionary page lives in the app router, including the Anki
@@ -2019,6 +2020,39 @@ describe("Dictionary page", () => {
     await user.click(within(rail).getByRole("button", { name: /All sources/ }));
     expect(screen.getAllByRole("article")).toHaveLength(2);
     expect(lookupMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("searches from the phone's keyboard and filters by a row of source chips", async () => {
+    const another = { ...result.terms[0], dictionaryId: 3, glossary: ["to recite"] };
+    lookupMock.mockImplementation(exact([{ ...result, terms: [result.terms[0], another] }]));
+    const user = userEvent.setup();
+    render(
+      <MobileHeaderContext.Provider value={({ title }) => <h1>{title}</h1>}>
+        <DictionaryPage />
+      </MobileHeaderContext.Provider>,
+    );
+    expect(screen.queryByRole("button", { name: /^Search$/ })).toBeNull();
+    const input = screen.getByRole("searchbox", { name: "Dictionary search" });
+    expect(input).toHaveAttribute("enterkeyhint", "search");
+    await user.type(input, "よむ{Enter}");
+    // The search key puts the keyboard away so the results show.
+    expect(input).not.toHaveFocus();
+    const chips = await screen.findByRole("group", { name: "Dictionary sources" });
+    expect(screen.queryByRole("complementary")).toBeNull();
+    expect(
+      within(chips)
+        .getAllByRole("button")
+        .map((chip) => chip.textContent),
+    ).toEqual(["All sources · 2", "Jitendex · 1", "見本国語辞典 · 1"]);
+    expect(within(chips).getByRole("button", { name: /All sources/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.click(within(chips).getByRole("button", { name: /見本国語辞典/ }));
+    expect(screen.getByRole("article")).toHaveTextContent("to recite");
+    expect(screen.getByRole("article")).not.toHaveTextContent("to read");
+    // The phone has no Anki connection yet.
+    expect(document.querySelector(".anki-action")).toBeNull();
   });
 
   it("lists only sources with matches and keeps results if source loading fails", async () => {

@@ -2,6 +2,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState, type MouseEvent } from "react";
 
+import { isAndroid } from "../../app/platform";
 import { useI18n } from "../../i18n/i18n";
 
 /**
@@ -84,7 +85,8 @@ export function WindowControls({
  * inert: a strip along the top that drags the window, with the window controls on its right.
  */
 export function DialogCaption() {
-  if (!isTauri()) return null;
+  // The phone's window has no title bar to stand in for.
+  if (!isTauri() || isAndroid) return null;
   return (
     <div className="dialog-caption" data-tauri-drag-region>
       <WindowControls inDialog />

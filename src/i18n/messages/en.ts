@@ -951,6 +951,7 @@ export const en = {
   "starter.downloading": "Downloading… {received} MB received",
   "starter.verifying": "Verifying download…",
   "starter.importing": "Importing… Large dictionaries can take a minute.",
+  "starter.importingShort": "Importing…",
   "starter.imported": "Added to your dictionaries.",
   "starter.alreadyImported": "This revision is already installed. No duplicate was added.",
   "starter.interrupted":
@@ -1119,6 +1120,7 @@ export const en = {
   "libraryCard.justNow": "just now",
   "language.zhHans": "Chinese Simplified",
   "language.zhHant": "Chinese Traditional",
+  "language.ku": "Kurdish",
   "libraryCard.noSeries": "No series",
   "libraryCard.unknownLanguage": "Unknown language",
   "libraryCard.start": "Start reading",

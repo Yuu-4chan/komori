@@ -1,25 +1,41 @@
-import { CaretRightIcon, GearSixIcon, InfoIcon } from "@phosphor-icons/react";
+import {
+  CaretRightIcon,
+  ChatTextIcon,
+  GearSixIcon,
+  InfoIcon,
+  TranslateIcon,
+} from "@phosphor-icons/react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { version } from "../../package.json";
 import { BrandMark } from "../brand/BrandMark";
+import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { AppThemeSettings } from "../features/appearance/AppThemeSettings";
+import { DictionarySources } from "../features/dictionary/DictionarySources";
+import { WordAudioSettings } from "../features/dictionary/WordAudioSettings";
+import { ReaderPopupSettings } from "../features/reader/ReaderPopupSettings";
 import { useI18n } from "../i18n/i18n";
 import { MobilePageHeader } from "./MobileShell";
 
 const sections = [
   { id: "general", label: "settings.general", icon: GearSixIcon },
+  { id: "popup", label: "settings.popup", icon: ChatTextIcon },
+  { id: "dictionary", label: "settings.dictionary", icon: TranslateIcon },
   { id: "about", label: "settings.about", icon: InfoIcon },
 ] as const;
 
 /**
  * Settings on the phone: a list of its sections, each opening as its own page that Back
- * leaves. General holds the interface language and the application theme; About, the version.
+ * leaves. General holds the interface language and the application theme; Reader popup, the
+ * lookup sheet's content, look, sources and scanning; Dictionary, the dictionaries and word
+ * audio; About, the version.
  */
 export function MobileSettingsPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { lookupLanguage, setLookupLanguage, starterDefinitions, setStarterDefinitions } =
+    useAppearance();
   const section = sections.find(({ id }) => id === searchParams.get("section"));
 
   if (!section)
@@ -49,9 +65,24 @@ export function MobileSettingsPage() {
   return (
     <div className={`mobile-page mobile-settings mobile-settings--${section.id}`}>
       <MobilePageHeader back title={t(section.label)} />
-      {section.id === "general" ? (
-        <AppThemeSettings />
-      ) : (
+      {section.id === "general" && <AppThemeSettings />}
+      {section.id === "popup" && (
+        <ReaderPopupSettings
+          onDictionarySettings={() => navigate("/settings?section=dictionary")}
+        />
+      )}
+      {section.id === "dictionary" && (
+        <>
+          <DictionarySources
+            lookupLanguage={lookupLanguage}
+            onLookupLanguageChange={setLookupLanguage}
+            starterDefinitions={starterDefinitions}
+            onStarterDefinitionsChange={setStarterDefinitions}
+          />
+          <WordAudioSettings />
+        </>
+      )}
+      {section.id === "about" && (
         <div className="mobile-about">
           <BrandMark className="mobile-about__brand" />
           <p>{t("settings.version", { version })}</p>

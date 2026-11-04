@@ -206,6 +206,10 @@ export function useReaderRenderer(
     const active = activeRef.current;
     if (active?.ready) active.renderer.highlightPointerMatch?.(scanId, length);
   }, []);
+  const lookupAt = useCallback((x: number, y: number) => {
+    const active = activeRef.current;
+    return !!active?.ready && !!active.renderer.lookupAt?.(x, y);
+  }, []);
   const setNoteHighlights = useCallback((notes: readonly import("./notes").ReaderNote[]) => {
     const active = activeRef.current;
     if (active?.ready) active.renderer.setNoteHighlights?.(notes);
@@ -817,6 +821,7 @@ export function useReaderRenderer(
     hostRef,
     revealVnText: () => activeRef.current?.renderer.revealVnText?.(),
     highlightPointerMatch,
+    lookupAt,
     searchMatchRect,
     locatorOffset,
     setNoteHighlights,
