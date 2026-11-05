@@ -188,6 +188,8 @@ export function useReaderRenderer(
     ready: boolean;
     /** Whether the latest move was a jump rather than a turn or a scroll. */
     jumped: boolean;
+    /** While `kept`, the saved place stays as saved: see the position binding. */
+    place: { kept: boolean; section: number | null };
     /** The presentation the renderer displays or is applying. */
     presentation: ReaderPresentation;
   } | null>(null);
@@ -278,6 +280,7 @@ export function useReaderRenderer(
       return false;
     active.navigationPending = true;
     active.jumped = true;
+    active.place.kept = false;
     const { factory } = active;
     setState((current) => (current.factory === factory ? { ...current, turning: true } : current));
     void (async () => {
@@ -412,10 +415,25 @@ export function useReaderRenderer(
         (saved) => !saved.includes(false),
       );
     });
+    // A book reopened at its saved place keeps that place, and its progress, as saved until
+    // the reader moves: another screen lays the place out a little differently, which is not
+    // reading it, and a synced PC or phone would take it for reading. So does a place a sync
+    // brought (`goToPosition`). A reflow keeps the place too; another section, as a link in
+    // the book leads to, is a move.
+    const place: { kept: boolean; section: number | null } = { kept: false, section: null };
     const position: ReaderPositionBinding | undefined = saver && {
-      initial: positionStore.load().catch(() => null),
+      initial: positionStore
+        .load()
+        .then((saved) => {
+          place.kept = saved !== null;
+          place.section = saved?.spineIndex ?? null;
+          return saved;
+        })
+        .catch(() => null),
       onLocationChanged: (locator) => {
-        if (active) saver.update(locator);
+        if (place.kept && place.section !== null && locator.spineIndex !== place.section)
+          place.kept = false;
+        if (active && !place.kept) saver.update(locator);
       },
     };
 
@@ -460,6 +478,7 @@ export function useReaderRenderer(
         navigationPending: false,
         ready: false,
         jumped: true,
+        place,
         presentation,
       };
       activeRef.current = mounted;
@@ -483,7 +502,7 @@ export function useReaderRenderer(
           position,
           (progress) => {
             if (!active) return;
-            if (progress.total > 0) {
+            if (progress.total > 0 && !place.kept) {
               const { unit, current, total } = progress;
               progressSaver?.update({ unit, current, total });
             }
@@ -585,6 +604,7 @@ export function useReaderRenderer(
       return false;
     active.navigationPending = true;
     active.jumped = false;
+    active.place.kept = false;
     setState((current) => (current.factory === factory ? { ...current, turning: true } : current));
     void (async () => {
       try {
@@ -636,6 +656,7 @@ export function useReaderRenderer(
       return false;
     active.navigationPending = true;
     active.jumped = true;
+    active.place.kept = false;
     setState((current) =>
       current.factory === factory ? { ...current, turning: true, navigationError: false } : current,
     );
@@ -723,7 +744,13 @@ export function useReaderRenderer(
 
   /** Shows a saved reading position, as when the phone continues from the PC's place. */
   function goToPosition(locator: ReaderLocator, onSettled: (succeeded: boolean) => void): boolean {
-    return jumpTo("goToPosition", (renderer) => renderer.goToPosition!(locator), onSettled);
+    const started = jumpTo(
+      "goToPosition",
+      (renderer) => renderer.goToPosition!(locator),
+      onSettled,
+    );
+    if (started && activeRef.current) activeRef.current.place.section = locator.spineIndex;
+    return started;
   }
 
   function jumpTo(
@@ -741,6 +768,7 @@ export function useReaderRenderer(
       return false;
     active.navigationPending = true;
     active.jumped = true;
+    active.place.kept = method === "goToPosition";
     setState((current) => (current.factory === factory ? { ...current, turning: true } : current));
     void (async () => {
       let succeeded = false;
@@ -784,6 +812,7 @@ export function useReaderRenderer(
     if (visible.status !== "ready" || !visible.availability.scrollAxis) return "unavailable";
     if (!active.renderer.scrollBy) return "unavailable";
     active.jumped = false;
+    active.place.kept = false;
     return active.renderer.scrollBy(distance) !== false ? "scrolled" : "edge";
   }
 
@@ -796,6 +825,7 @@ export function useReaderRenderer(
     if (!active?.ready || active.factory !== factory || active.navigationPending) return;
     if (visible.status !== "ready" || !visible.availability.scrollAxis) return;
     active.jumped = false;
+    active.place.kept = false;
   }
 
   /** The Reader's own scrollbar follows and moves the ready, continuously displayed book. */
@@ -809,6 +839,7 @@ export function useReaderRenderer(
       const active = activeRef.current;
       if (!active?.ready || active.factory !== factory || active.navigationPending) return;
       active.jumped = false;
+      active.place.kept = false;
       active.renderer.scrollToPosition?.(position);
     },
     watch: (listener: () => void) => activeRef.current?.renderer.watchScroll?.(listener) ?? noop,

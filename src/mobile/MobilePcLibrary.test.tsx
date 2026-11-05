@@ -23,6 +23,7 @@ vi.mock("./pcLinkApi", async (importOriginal) => ({
   removePcBook: vi.fn(async () => {}),
   onPcTransfer: vi.fn(async () => () => {}),
   syncPc: vi.fn(),
+  autoSync: vi.fn(async () => null),
 }));
 
 const { MobileLibraryPage } = await import("./MobileLibraryPage");
@@ -171,6 +172,11 @@ describe("the PC's Library on the phone", () => {
     await userEvent.click(book);
     expect(api.openPcBook).toHaveBeenCalledWith(remote);
     expect(await screen.findByText("Reading phone-9")).toBeTruthy();
+    // Each copy made just now syncs, so it opens at the PC's place.
+    expect(api.autoSync).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(api.autoSync).mock.invocationCallOrder[1]).toBeGreaterThan(
+      vi.mocked(api.openPcBook).mock.invocationCallOrder[0],
+    );
   });
 
   it("offers opening, keeping and removing the copy here on a long press", async () => {

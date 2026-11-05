@@ -407,8 +407,7 @@ describe("Reader shell", () => {
     const sidebar = screen.getByRole("complementary", { name: "Reader sidebar" });
     fireEvent.click(document.querySelector(".reader-sidebar-hotspot")!);
     expect(sidebar).toHaveClass("reader-sidebar--shown");
-    screen.getByRole("main").focus();
-    await userEvent.setup().keyboard("{ArrowRight}");
+    fireEvent.keyDown(screen.getByRole("main"), { key: "ArrowDown" });
     expect(sidebar).toHaveClass("reader-sidebar--hidden");
   });
 
@@ -1157,7 +1156,8 @@ describe("Reader shell", () => {
     const bindings: ReaderPositionBinding[] = [];
     const factory = (): ReaderRendererFactory => () => ({
       ...pageActions,
-      mount: async (_host, _signal, _turns, _document, _contents, position) => {
+      mount: async (_host, _signal, turns, _document, _contents, position) => {
+        turns({ canAdvance: true, canRetreat: true });
         if (position) bindings.push(position);
         return "ready";
       },
@@ -1180,6 +1180,15 @@ describe("Reader shell", () => {
     await waitFor(() => expect(bindings).toHaveLength(1));
     expect(await bindings[0].initial).toEqual(at(0.3));
 
+    // Reopened there, the place laid out again is not reading it: it stays as saved.
+    bindings[0].onLocationChanged(at(0.31));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(firstStore.save).not.toHaveBeenCalled();
+    // A turn is.
+    await waitFor(() => expect(screen.getByText("Reader ready")).toBeInTheDocument());
+    screen.getByRole("main").focus();
+    await userEvent.setup().keyboard("{ArrowRight}");
+    await waitFor(() => expect(pageActions.advancePage).toHaveBeenCalled());
     bindings[0].onLocationChanged(at(0.4));
     await waitFor(() => expect(firstStore.save).toHaveBeenCalledWith(at(0.4)));
     // This position is still inside the write throttle when the book is switched.
@@ -1189,11 +1198,16 @@ describe("Reader shell", () => {
     await waitFor(() => expect(bindings).toHaveLength(2));
     expect(await bindings[1].initial).toBeNull();
 
+    // A book opened for the first time saves where it opens.
+    bindings[1].onLocationChanged({ spineIndex: 0, progress: 0 });
+    await waitFor(() =>
+      expect(secondStore.save).toHaveBeenCalledWith({ spineIndex: 0, progress: 0 }),
+    );
     // A late location from the old book is never written for either catalog ID.
     bindings[0].onLocationChanged(at(0.9));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(firstStore.save).toHaveBeenCalledTimes(2);
-    expect(secondStore.save).not.toHaveBeenCalled();
+    expect(secondStore.save).toHaveBeenCalledTimes(1);
     view.unmount();
   });
 

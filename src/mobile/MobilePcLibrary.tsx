@@ -39,6 +39,7 @@ import { useLongPress } from "./longPress";
 import { MobileSheet } from "./MobileSheet";
 import {
   asLibraryBook,
+  autoSync,
   keepPcBook,
   listPcLibrary,
   onPcTransfer,
@@ -179,13 +180,21 @@ export function MobilePcLibrary({
 
   async function open(entry: Entry) {
     setChosen(null);
-    const local = await download(entry, openPcBook);
-    if (local) navigate(`/reader/${local}`);
+    const copied = await copy(entry, openPcBook);
+    if (copied) navigate(`/reader/${copied}`);
   }
 
   async function keep(entry: Entry) {
     setChosen(null);
-    if (await download(entry, keepPcBook)) await refresh();
+    if (await copy(entry, keepPcBook)) await refresh();
+  }
+
+  /** A copy made just now has no place yet: a sync brings the PC's before the book opens. */
+  async function copy(entry: Entry, action: (book: PcBook) => Promise<string>) {
+    const fresh = entry.pc.localId === null;
+    const local = await download(entry, action);
+    if (local && fresh) await autoSync();
+    return local;
   }
 
   async function remove(entry: Entry) {
