@@ -124,11 +124,13 @@ import {
 import {
   isLibraryCardSize,
   isLibraryFilter,
+  isLibraryPlace,
   isLibraryGroup,
   isLibrarySort,
   isLibraryView,
   libraryCardSize,
   type LibraryFilter,
+  type LibraryPlace,
   type LibraryGroup,
   type LibrarySort,
   type LibraryView,
@@ -205,6 +207,8 @@ export interface AppearancePreferences
   libraryGroupSortReversed: boolean;
   /** The Library's reading-status filter. */
   libraryFilter: LibraryFilter;
+  /** On the phone paired with a PC: all books, those on the phone, or the PC's. */
+  libraryPlace: LibraryPlace;
   /** Optional details the Library's book cards show. */
   libraryCardSeries: boolean;
   libraryCardLanguage: boolean;
@@ -317,6 +321,7 @@ export const defaultAppearance: AppearancePreferences = {
   libraryGroupSort: "title",
   libraryGroupSortReversed: false,
   libraryFilter: "all",
+  libraryPlace: "all",
   libraryCardSeries: true,
   libraryCardLanguage: true,
   libraryCardLastRead: true,
@@ -416,6 +421,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     libraryGroupSort,
     libraryGroupSortReversed,
     libraryFilter,
+    libraryPlace,
     libraryCardSeries,
     libraryCardLanguage,
     libraryCardLastRead,
@@ -529,6 +535,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(isLibrarySort(libraryGroupSort) && { libraryGroupSort }),
     ...(typeof libraryGroupSortReversed === "boolean" && { libraryGroupSortReversed }),
     ...(isLibraryFilter(libraryFilter) && { libraryFilter }),
+    ...(isLibraryPlace(libraryPlace) && { libraryPlace }),
     ...(typeof libraryCardSeries === "boolean" && { libraryCardSeries }),
     ...(typeof libraryCardLanguage === "boolean" && { libraryCardLanguage }),
     ...(typeof libraryCardLastRead === "boolean" && { libraryCardLastRead }),

@@ -167,6 +167,8 @@ const APP_THEMES: [&str; 9] = [
 ];
 /// The Library's saved view choices. Keep in step with `src/features/library/libraryView.ts`.
 const LIBRARY_VIEWS: [&str; 2] = ["grid", "list"];
+/// Which books the phone's Library shows while paired with a PC.
+const LIBRARY_PLACES: [&str; 3] = ["all", "phone", "pc"];
 const LIBRARY_SORTS: [&str; 7] = [
     "recent",
     "added",
@@ -354,6 +356,8 @@ pub struct AppearancePreferences {
     library_sort: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     library_sort_reversed: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    library_place: Option<String>,
     /// A group's own page sorts apart from the Library.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     library_group_sort: Option<String>,
@@ -705,6 +709,10 @@ impl AppearancePreferences {
                 .as_deref()
                 .is_none_or(|sort| LIBRARY_SORTS.contains(&sort))
             && self
+                .library_place
+                .as_deref()
+                .is_none_or(|place| LIBRARY_PLACES.contains(&place))
+            && self
                 .library_group_sort
                 .as_deref()
                 .is_none_or(|sort| LIBRARY_SORTS.contains(&sort))
@@ -897,6 +905,7 @@ impl AppearancePreferences {
             library_view: choice("libraryView", &LIBRARY_VIEWS),
             library_sort: choice("librarySort", &LIBRARY_SORTS),
             library_sort_reversed: flag("librarySortReversed"),
+            library_place: choice("libraryPlace", &LIBRARY_PLACES),
             library_group_sort: choice("libraryGroupSort", &LIBRARY_SORTS),
             library_group_sort_reversed: flag("libraryGroupSortReversed"),
             library_filter: choice("libraryFilter", &LIBRARY_FILTERS),
@@ -1639,6 +1648,7 @@ mod tests {
             library_view: None,
             library_sort: None,
             library_sort_reversed: None,
+            library_place: None,
             library_group_sort: None,
             library_group_sort_reversed: None,
             library_filter: None,
@@ -3195,6 +3205,7 @@ mod tests {
             library_view: Some("list".into()),
             library_sort: Some("progress".into()),
             library_sort_reversed: Some(true),
+            library_place: Some("pc".into()),
             library_group_sort: Some("added".into()),
             library_group_sort_reversed: Some(false),
             library_filter: Some("reading".into()),
@@ -3239,6 +3250,10 @@ mod tests {
             },
             AppearancePreferences {
                 library_view: Some("shelf".into()),
+                ..chosen.clone()
+            },
+            AppearancePreferences {
+                library_place: Some("tablet".into()),
                 ..chosen.clone()
             },
             AppearancePreferences {
@@ -3289,6 +3304,7 @@ mod tests {
                         },
                         "libraryView": "list",
                         "librarySort": "publisher",
+                        "libraryPlace": "everywhere",
                         "libraryGroupSort": "publisher",
                         "libraryGroupSortReversed": "yes",
                         "libraryFilter": "completed",
@@ -3309,6 +3325,7 @@ mod tests {
         assert_eq!(loaded.app_custom_theme, None);
         assert_eq!(loaded.library_view.as_deref(), Some("list"));
         assert_eq!(loaded.library_sort, None);
+        assert_eq!(loaded.library_place, None);
         assert_eq!(loaded.library_group_sort, None);
         assert_eq!(loaded.library_group_sort_reversed, None);
         assert_eq!(loaded.library_filter.as_deref(), Some("completed"));

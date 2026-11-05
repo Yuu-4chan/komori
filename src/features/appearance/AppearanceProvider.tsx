@@ -92,7 +92,9 @@ import {
 } from "../reader/readerThemes";
 import {
   isLibraryCardSize,
+  isLibraryPlace,
   type LibraryFilter,
+  type LibraryPlace,
   type LibraryGroup,
   type LibrarySort,
   type LibraryView,
@@ -137,6 +139,8 @@ export interface LibraryDisplay {
   groupSort: LibrarySort;
   groupSortReversed: boolean;
   filter: LibraryFilter;
+  /** The phone's All / On this phone / On PC. */
+  place: LibraryPlace;
   group: LibraryGroup;
   cardSeries: boolean;
   cardLanguage: boolean;
@@ -473,6 +477,7 @@ export function AppearanceProvider({
     libraryGroupSort,
     libraryGroupSortReversed,
     libraryFilter,
+    libraryPlace,
     libraryCardSeries,
     libraryCardLanguage,
     libraryCardLastRead,
@@ -675,6 +680,7 @@ export function AppearanceProvider({
         groupSort: libraryGroupSort,
         groupSortReversed: libraryGroupSortReversed,
         filter: libraryFilter,
+        place: libraryPlace,
         group: libraryGroup,
         cardSeries: libraryCardSeries,
         cardLanguage: libraryCardLanguage,
@@ -693,6 +699,7 @@ export function AppearanceProvider({
             libraryGroupSortReversed: patch.groupSortReversed,
           }),
           ...(patch.filter !== undefined && { libraryFilter: patch.filter }),
+          ...(isLibraryPlace(patch.place) && { libraryPlace: patch.place }),
           ...(patch.group !== undefined && { libraryGroup: patch.group }),
           ...(patch.cardKanji !== undefined && { libraryCardKanji: patch.cardKanji }),
           ...(patch.cardSeries !== undefined && { libraryCardSeries: patch.cardSeries }),
@@ -916,6 +923,7 @@ export function AppearanceProvider({
       libraryGroupSort,
       libraryGroupSortReversed,
       libraryFilter,
+      libraryPlace,
       libraryCardSeries,
       libraryCardLanguage,
       libraryCardLastRead,

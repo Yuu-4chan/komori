@@ -1026,28 +1026,42 @@
   background: var(--surface-card);
 }
 
-/* Library: the paired PC's tab */
-.mobile-library__tabs {
-  width: 100%;
-  grid-auto-columns: minmax(0, 1fr);
+/* Library: the books in progress, a row of cards that scrolls sideways. */
+.mobile-continue-row {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-columns: 100%;
+  grid-auto-flow: column;
+  gap: 0.625rem;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
 }
 
-.mobile-library__tabs button {
+.mobile-continue-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* The next card shows at the edge, so the row reads as one to scroll. */
+.mobile-continue-row--several {
+  grid-auto-columns: calc(100% - 2.5rem);
+}
+
+.mobile-continue-row > li {
   min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  scroll-snap-align: start;
 }
 
-.mobile-library__tabs svg {
-  flex: none;
-  font-size: 1rem;
+.mobile-continue-row .mobile-continue {
+  min-width: 0;
+  flex: 1;
 }
 
+/* Library: the paired PC's status */
 .mobile-pc-status {
   min-height: 2rem;
   display: flex;

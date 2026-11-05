@@ -3,9 +3,7 @@ import {
   BooksIcon,
   CaretRightIcon,
   CheckCircleIcon,
-  DeviceMobileIcon,
   LinkSimpleIcon,
-  MonitorIcon,
   PencilSimpleIcon,
   PlusIcon,
   StackIcon,
@@ -13,12 +11,13 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { EmptyState } from "../components/ui/EmptyState";
 import { NoticeClose } from "../components/ui/NoticeClose";
+import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { BookCover } from "../features/library/BookCover";
 import { BookEditDialog } from "../features/library/BookEditDialog";
 import {
@@ -56,13 +55,22 @@ import {
   readingStatus,
   seriesFromTitles,
   sortBooks,
+  type LibraryPlace,
 } from "../features/library/libraryView";
 import { failureText } from "../i18n/failure";
 import { i18n, useI18n } from "../i18n/i18n";
 import { MobilePageHeader } from "./MobileShell";
 
 import { useLongPress } from "./longPress";
-import { MobilePcLibrary, usePcLibrary } from "./MobilePcLibrary";
+import {
+  PcBookSheet,
+  PcContinueCard,
+  PcStatusRow,
+  PcTile,
+  usePcBookActions,
+  usePcLibrary,
+  type PcEntry,
+} from "./MobilePcLibrary";
 import { MobileSheet } from "./MobileSheet";
 import { onPcSynced, syncPc, usePcLink } from "./pcLinkApi";
 import { PullToSync } from "./pullToSync";
@@ -72,10 +80,31 @@ type Listing =
   | { status: "ready"; books: LibraryBook[] }
   | { status: "error"; books: LibraryBook[]; message: string };
 
+/** A book the Library lists: the phone's own, or the paired PC's (with its copy here, if any). */
+type Item =
+  { kind: "phone"; book: LibraryBook } | { kind: "pc"; book: LibraryBook; entry: PcEntry };
+
+const phoneItem = (book: LibraryBook): Item => ({ kind: "phone", book });
+
+/** A PC book with the later of its two places: the PC's, or its copy's on this phone. */
+function pcItem(entry: PcEntry, copy: LibraryBook | undefined): Item {
+  const later = copy && (copy.lastReadAt ?? "") > (entry.book.lastReadAt ?? "");
+  const book = later
+    ? { ...entry.book, progress: copy.progress, lastReadAt: copy.lastReadAt }
+    : entry.book;
+  return { kind: "pc", book, entry: { ...entry, book } };
+}
+
+const onThisPhone = (item: Item) => item.kind === "phone" || item.entry.pc.kept;
+
 /**
- * The Library on the phone: its count of books, search, Add books, the book read last to
- * continue, and every book as a cover with its progress. Tapping a book opens it; a long press
- * shows what can be done with it. A book whose file is gone offers Relink and Remove instead.
+ * The Library on the phone: its count of books, search, Add books, the books in progress to
+ * continue, and every book as a cover with its progress. Paired with a PC (Sync with PC on), it
+ * lists the PC's books with the phone's own, with the PC's status above them and All / On this
+ * phone / On PC to choose from; the PC's books show at once from what the phone saved, while
+ * the PC is listed again behind them. Tapping a book opens it (a PC book downloads first unless
+ * it is here); a long press shows what can be done with it. A book whose file is gone offers
+ * Relink and Remove instead.
  */
 export function MobileLibraryPage() {
   const { t, tp } = useI18n();
@@ -92,6 +121,7 @@ export function MobileLibraryPage() {
   const [removeError, setRemoveError] = useState<string | null>(null);
   // The book a long press chose, and what was opened from its sheet.
   const [chosen, setChosen] = useState<LibraryBook | null>(null);
+  const [chosenPc, setChosenPc] = useState<PcEntry | null>(null);
   const [editing, setEditing] = useState<LibraryBook | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [inSeries, setInSeries] = useState<LibraryBook | null>(null);
@@ -126,28 +156,27 @@ export function MobileLibraryPage() {
     void refresh();
   }, [refresh, imports.version]);
 
-  // With Sync with PC on, the paired PC's Library is a tab of its own, and the books copied
-  // from it stay there.
   const link = usePcLink();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const pcTab = link?.paired === true && link.syncOn;
-  const onPc = pcTab && searchParams.get("from") === "pc";
-  const pc = usePcLibrary(onPc);
+  const pcActive = link?.paired === true && link.syncOn;
+  const pc = usePcLibrary(pcActive);
+  const pcActions = usePcBookActions();
   const pcName = link?.pcName ?? "";
+  const { library: display, updateLibrary } = useAppearance();
+  const place: LibraryPlace = pcActive ? display.place : "all";
   // After each sync, the books show where they were read to on both sides.
   const relistPc = pc.refresh;
   useEffect(
     () =>
       onPcSynced(() => {
         void refresh();
-        if (onPc) void relistPc();
+        if (pcActive) void relistPc();
       }),
-    [refresh, onPc, relistPc],
+    [refresh, pcActive, relistPc],
   );
   const [syncing, setSyncing] = useState(false);
   // Pulling the Library down, or Sync now, syncs with the PC and lists both again.
   const syncNow = useCallback(async () => {
-    if (!pcTab) {
+    if (!pcActive) {
       await refresh();
       return;
     }
@@ -155,63 +184,71 @@ export function MobileLibraryPage() {
     try {
       await syncPc();
     } catch {
-      await Promise.all([refresh(), onPc ? relistPc() : undefined]);
+      await Promise.all([refresh(), relistPc()]);
     } finally {
       setSyncing(false);
     }
-  }, [pcTab, onPc, refresh, relistPc]);
+  }, [pcActive, refresh, relistPc]);
+
   const allBooks = listing.books;
-  const books = useMemo(
-    () => (pcTab ? allBooks.filter((book) => !book.fromPc) : allBooks),
-    [allBooks, pcTab],
+  const pcEntries = pc.entries;
+  const items = useMemo<Item[]>(() => {
+    // Until the pairing is read, the PC's copies wait, so they never show as the phone's.
+    if (link === null) return allBooks.filter((book) => !book.fromPc).map(phoneItem);
+    if (!pcActive) return allBooks.map(phoneItem);
+    const copies = new Map(allBooks.filter((book) => book.fromPc).map((book) => [book.id, book]));
+    const fromPc = (pcEntries ?? []).map((entry) => {
+      const copy = entry.pc.localId === null ? undefined : copies.get(entry.pc.localId);
+      if (copy) copies.delete(copy.id);
+      return pcItem(entry, copy);
+    });
+    // A copy of a book the PC no longer has stays the phone's while its file is here.
+    const own = allBooks.filter(
+      (book) =>
+        !book.fromPc ||
+        (pcEntries !== null && copies.has(book.id) && book.availability === "available"),
+    );
+    return [...own.map(phoneItem), ...fromPc];
+  }, [allBooks, link, pcActive, pcEntries]);
+  const placed = useMemo(
+    () =>
+      place === "phone"
+        ? items.filter(onThisPhone)
+        : place === "pc"
+          ? items.filter((item) => item.kind === "pc")
+          : items,
+    [items, place],
   );
-  const pcBooks = useMemo(() => pc.listing.entries.map((entry) => entry.book), [pc.listing]);
-  const tabs = pcTab ? (
-    <div
-      className="segmented-control mobile-library__tabs"
-      role="group"
-      aria-label={t("shell.library")}
-    >
-      {(
-        [
-          ["phone", t("sync.thisPhone"), DeviceMobileIcon],
-          ["pc", pcName, MonitorIcon],
-        ] as const
-      ).map(([value, label, Icon]) => {
-        const active = (value === "pc") === onPc;
-        return (
-          <button
-            aria-pressed={active}
-            className={active ? "is-active" : undefined}
-            key={value}
-            onClick={() => {
-              setQuery("");
-              setSearchParams(value === "pc" ? { from: "pc" } : {}, { replace: true });
-            }}
-            type="button"
-          >
-            <Icon aria-hidden="true" weight={active ? "fill" : "regular"} />
-            {label}
-          </button>
-        );
-      })}
-    </div>
-  ) : null;
+  const placedBooks = useMemo(() => placed.map((item) => item.book), [placed]);
+  const byId = useMemo(() => new Map(placed.map((item) => [item.book.id, item])), [placed]);
   const shown = useMemo(
-    () => sortBooks(books, "title", false).filter((book) => matchesQuery(book, query)),
-    [books, query],
+    () =>
+      sortBooks(placedBooks, "title", false)
+        .filter((book) => matchesQuery(book, query))
+        .flatMap((book) => byId.get(book.id) ?? []),
+    [byId, placedBooks, query],
   );
-  const inProgress = books.filter(
-    (book) => book.availability === "available" && hasReadingProgress(book),
+  const inProgress = useMemo(
+    () =>
+      sortBooks(
+        placedBooks.filter((book) => book.availability === "available" && hasReadingProgress(book)),
+        "recent",
+        false,
+      ).flatMap((book) => byId.get(book.id) ?? []),
+    [byId, placedBooks],
   );
-  const continueBook = sortBooks(inProgress, "recent", false)[0];
+  const ownBooks = useMemo(() => allBooks.filter((book) => !book.fromPc), [allBooks]);
   const seriesNames = useMemo(
     () =>
-      [...new Set(books.flatMap((book) => (book.series ? [book.series] : [])))].sort((a, b) =>
+      [...new Set(ownBooks.flatMap((book) => (book.series ? [book.series] : [])))].sort((a, b) =>
         a.localeCompare(b),
       ),
-    [books],
+    [ownBooks],
   );
+  // Nothing to show yet only until the phone's books, and the PC's while paired, are read.
+  const known =
+    listing.status !== "loading" &&
+    (!pcActive || pcEntries !== null || pc.connection !== "unknown");
 
   // A long press on a book whose file is gone offers what a tap does.
   const choose = useCallback((book: LibraryBook) => {
@@ -325,20 +362,23 @@ export function MobileLibraryPage() {
     </button>
   );
 
+  const status = pcActive ? (
+    <PcStatusRow
+      connection={pc.connection}
+      lastSynced={link?.lastSynced ?? null}
+      onRetry={() => void relistPc()}
+      onSync={() => void syncNow()}
+      pcName={pcName}
+      syncing={syncing}
+    />
+  ) : null;
+
   return (
     <div className="mobile-page mobile-library">
       <PullToSync enabled onPull={syncNow} />
       <MobilePageHeader
         actions={addBooks}
-        summary={
-          onPc ? (
-            pc.listing.status === "loading" ? null : (
-              <LibrarySummary books={pcBooks} shown={pcBooks} />
-            )
-          ) : listing.status === "loading" ? null : (
-            <LibrarySummary books={books} shown={books} />
-          )
-        }
+        summary={known ? <LibrarySummary books={placedBooks} shown={placedBooks} /> : null}
         title={t("shell.library")}
       />
 
@@ -359,82 +399,140 @@ export function MobileLibraryPage() {
             <NoticeClose onClose={() => setCompleteError(null)} />
           </div>
         ) : null}
+        {pcActions.problem ? (
+          <div className="library-notice" role="alert">
+            <span>{t(pcActions.problem, { name: pcName })}</span>
+            <NoticeClose onClose={pcActions.dismissProblem} />
+          </div>
+        ) : null}
       </div>
 
-      {onPc ? (
-        <MobilePcLibrary
-          lastSynced={link?.lastSynced ?? null}
-          listing={pc.listing}
-          onQueryChange={setQuery}
-          onSync={() => void syncNow()}
-          pcName={pcName}
-          query={query}
-          refresh={pc.refresh}
-          syncing={syncing}
-          tabs={tabs}
-        />
-      ) : listing.status === "error" && books.length === 0 ? (
-        <>
-          {tabs}
-          <EmptyState
-            description={listing.message}
-            icon={WarningCircleIcon}
-            title={t("library.unavailable")}
-          />
-        </>
-      ) : listing.status === "ready" && books.length === 0 ? (
-        <>
-          {tabs}
-          <EmptyState
-            action={
-              <Button
-                disabled={imports.busy}
-                icon={<PlusIcon aria-hidden="true" weight="bold" />}
-                onClick={() => void imports.run()}
-              >
-                {imports.busy ? imports.label : t("shell.addBooks")}
-              </Button>
-            }
-            description={t("library.emptyDescription")}
-            icon={BooksIcon}
-            title={t("library.empty")}
-          />
-        </>
-      ) : books.length > 0 ? (
+      {items.length === 0 ? (
+        listing.status === "error" ? (
+          <>
+            {status}
+            <EmptyState
+              description={listing.message}
+              icon={WarningCircleIcon}
+              title={t("library.unavailable")}
+            />
+          </>
+        ) : known ? (
+          <>
+            {status}
+            <EmptyState
+              action={
+                <Button
+                  disabled={imports.busy}
+                  icon={<PlusIcon aria-hidden="true" weight="bold" />}
+                  onClick={() => void imports.run()}
+                >
+                  {imports.busy ? imports.label : t("shell.addBooks")}
+                </Button>
+              }
+              description={t("library.emptyDescription")}
+              icon={BooksIcon}
+              title={t("library.empty")}
+            />
+          </>
+        ) : (
+          status
+        )
+      ) : (
         <>
           <div className="mobile-search">
             <LibrarySearch onQueryChange={setQuery} query={query} />
           </div>
-          {tabs}
+          {status}
 
-          {continueBook && !query ? (
+          {inProgress.length > 0 && !query ? (
             <section className="mobile-library__section" aria-labelledby="mobile-continue">
               <h2 className="mobile-section-heading">
                 <span id="mobile-continue">{t("libraryCard.continue")}</span>
                 <small>{tp("librarySummary.inProgress", inProgress.length)}</small>
               </h2>
-              <ContinueCard book={continueBook} onChoose={choose} />
+              <ul
+                className={
+                  inProgress.length > 1
+                    ? "mobile-continue-row mobile-continue-row--several"
+                    : "mobile-continue-row"
+                }
+              >
+                {inProgress.map((item) => (
+                  <li key={`${item.kind}:${item.book.id}`}>
+                    {item.kind === "phone" ? (
+                      <ContinueCard book={item.book} onChoose={choose} />
+                    ) : (
+                      <PcContinueCard
+                        entry={item.entry}
+                        onChoose={setChosenPc}
+                        onOpen={(entry) => void pcActions.open(entry)}
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
 
-          <section className="mobile-library__section" aria-labelledby="mobile-all-books">
-            <h2 className="mobile-section-heading" id="mobile-all-books">
-              {t("libraryToolbar.filter.all")}
-            </h2>
+          <section
+            className="mobile-library__section"
+            aria-label={pcActive ? t("libraryToolbar.filter.all") : undefined}
+            aria-labelledby={pcActive ? undefined : "mobile-all-books"}
+          >
+            {pcActive ? (
+              <div className="mobile-filter" role="group" aria-label={t("sync.show")}>
+                {(
+                  [
+                    ["all", t("sync.all", { count: items.length })],
+                    ["phone", t("sync.onPhoneCount", { count: items.filter(onThisPhone).length })],
+                    [
+                      "pc",
+                      t("sync.onPcCount", {
+                        count: items.filter((item) => item.kind === "pc").length,
+                      }),
+                    ],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    aria-pressed={place === value}
+                    key={value}
+                    onClick={() => updateLibrary({ place: value })}
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <h2 className="mobile-section-heading" id="mobile-all-books">
+                {t("libraryToolbar.filter.all")}
+              </h2>
+            )}
             {shown.length === 0 ? (
               <p className="mobile-library__none">{t("library.noneFound")}</p>
             ) : (
               <ul className="mobile-library__grid">
-                {shown.map((book) => (
-                  <li key={book.id}>
-                    <BookTile book={book} onChoose={choose} onMissing={setMissing} />
+                {shown.map((item) => (
+                  <li key={`${item.kind}:${item.book.id}`}>
+                    {item.kind === "phone" ? (
+                      <BookTile book={item.book} onChoose={choose} onMissing={setMissing} />
+                    ) : (
+                      <PcTile
+                        entry={item.entry}
+                        onChoose={setChosenPc}
+                        onKeep={(entry) => void pcActions.keep(entry)}
+                        onOpen={(entry) => void pcActions.open(entry)}
+                        saving={pcActions.saving[item.entry.pc.id]}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
             )}
           </section>
         </>
-      ) : null}
+      )}
 
       <MobileSheet
         label={t("libraryCard.missing")}
@@ -501,6 +599,23 @@ export function MobileLibraryPage() {
           setSeriesError(null);
           setInSeries(book);
           setChosen(null);
+        }}
+      />
+
+      <PcBookSheet
+        entry={chosenPc}
+        onClose={() => setChosenPc(null)}
+        onKeep={(entry) => {
+          setChosenPc(null);
+          void pcActions.keep(entry);
+        }}
+        onOpen={(entry) => {
+          setChosenPc(null);
+          void pcActions.open(entry);
+        }}
+        onRemove={(entry) => {
+          setChosenPc(null);
+          void pcActions.remove(entry);
         }}
       />
 

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { LibraryBook, LibraryBookProgress } from "../features/library/libraryApi";
 import type { ReaderLocator } from "../features/reader/renderer";
 import type { MessageKey } from "../i18n/i18n";
+import { pcSession } from "./pcLibrarySession";
 
 /** The phone's pairing with Komori PC, as native code keeps it. */
 export interface PcLink {
@@ -108,9 +109,26 @@ export const pairPc = (address: string, port: number, code: string) =>
 export const setPcAddress = (address: string, port: number) =>
   invoke<PcLink>("set_pc_address", { address, port }).then(changed);
 export const setPcSync = (on: boolean) => invoke<PcLink>("set_pc_sync", { on }).then(changed);
-export const unpairPc = () => invoke<PcLink>("unpair_pc").then(changed);
+export const unpairPc = () =>
+  invoke<PcLink>("unpair_pc").then((link) => {
+    pcSession.reset();
+    return changed(link);
+  });
 export const checkPc = () => invoke<PcStatus>("check_pc");
+/** Lists the PC's Library, which the phone saves, and fetches its new covers behind it. */
 export const listPcLibrary = () => invoke<PcBook[]>("list_pc_library");
+/** The PC's Library as last listed, from the phone alone; null before the first listing. */
+export const cachedPcLibrary = () => invoke<PcBook[] | null>("cached_pc_library");
+
+/** What the PC's books take on this phone, in bytes. */
+export interface PcStorage {
+  kept: number;
+  cached: number;
+  covers: number;
+}
+export const pcStorage = () => invoke<PcStorage>("pc_storage");
+/** Removes the PC's covers here; they download again when shown. */
+export const clearPcCovers = () => invoke<PcStorage>("clear_pc_covers");
 /** Downloads the book unless it is here, and returns its catalog ID on this phone. */
 export const openPcBook = (book: PcBook) =>
   invoke<string>("open_pc_book", { id: book.id, fileName: book.fileName });
@@ -124,6 +142,7 @@ export const copyPcDictionary = (id: number) =>
 /** Syncs places, bookmarks, notes and reading sessions with the PC. */
 export async function syncPc(): Promise<PcSync> {
   const result = await invoke<PcSync>("sync_pc");
+  pcSession.markStale();
   window.dispatchEvent(new Event(pcLinkChanged));
   window.dispatchEvent(new CustomEvent<PcSync>(pcSynced, { detail: result }));
   return result;
@@ -195,14 +214,18 @@ export function asLibraryBook(book: PcBook): LibraryBook {
   };
 }
 
-/** The pairing as saved, kept current when it changes; null until read. */
+let lastLink: PcLink | null = null;
+
+/** The pairing as saved, kept current when it changes; null until first read. */
 export function usePcLink(): PcLink | null {
-  const [link, setLink] = useState<PcLink | null>(null);
+  // The pairing read last this session, so a page shown again starts from it.
+  const [link, setLink] = useState<PcLink | null>(lastLink);
   useEffect(() => {
     let active = true;
     const read = () =>
       void getPcLink().then(
         (saved) => {
+          lastLink = saved;
           if (active) setLink(saved);
         },
         () => {},

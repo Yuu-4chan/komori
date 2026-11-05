@@ -20,6 +20,8 @@ vi.mock("./pcLinkApi", async (importOriginal) => ({
   copyPcDictionary: vi.fn(),
   syncPc: vi.fn(),
   onPcTransfer: vi.fn(async () => () => {}),
+  pcStorage: vi.fn(async () => ({ kept: 0, cached: 0, covers: 0 })),
+  clearPcCovers: vi.fn(),
 }));
 
 const { MobileSettingsPage } = await import("./MobileSettingsPage");
@@ -118,6 +120,34 @@ describe("Sync on the phone", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
     expect(api.syncPc).toHaveBeenCalled();
     expect(await screen.findByText("Last synced just now")).toBeTruthy();
+  });
+
+  it("shows what the PC's books and covers take here, and clears the covers", async () => {
+    vi.mocked(api.getPcLink).mockResolvedValue(paired);
+    vi.mocked(api.checkPc).mockResolvedValue({ status: "connected", name: "KOMORI-PC" });
+    vi.mocked(api.listPcDictionaries).mockResolvedValue([]);
+    vi.mocked(api.pcStorage).mockResolvedValue({
+      kept: 30 * 1024 * 1024,
+      cached: 2 * 1024 * 1024,
+      covers: 5 * 1024 * 1024,
+    });
+    vi.mocked(api.clearPcCovers).mockResolvedValue({
+      kept: 30 * 1024 * 1024,
+      cached: 2 * 1024 * 1024,
+      covers: 0,
+    });
+    sync();
+    const storage = await screen.findByRole("region", { name: "Storage" });
+    expect(within(storage).getByText("Books from KOMORI-PC")).toBeTruthy();
+    expect(within(storage).getByText("32 MB")).toBeTruthy();
+    expect(within(storage).getByText("5 MB")).toBeTruthy();
+
+    await userEvent.click(within(storage).getByRole("button", { name: "Clear" }));
+    expect(api.clearPcCovers).toHaveBeenCalled();
+    expect(await within(storage).findByText("0 bytes")).toBeTruthy();
+    expect(within(storage).getByRole("button", { name: "Clear" }).hasAttribute("disabled")).toBe(
+      true,
+    );
   });
 
   it("says why pairing failed in words, without pairing", async () => {

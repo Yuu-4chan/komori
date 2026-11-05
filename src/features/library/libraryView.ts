@@ -30,6 +30,11 @@ export const isLibraryView = (value: unknown): value is LibraryView =>
   libraryViews.includes(value as LibraryView);
 export const isLibrarySort = (value: unknown): value is LibrarySort =>
   librarySorts.includes(value as LibrarySort);
+/** Which of the phone's books its Library shows while paired with a PC. */
+export type LibraryPlace = "all" | "phone" | "pc";
+const libraryPlaces: readonly LibraryPlace[] = ["all", "phone", "pc"];
+export const isLibraryPlace = (value: unknown): value is LibraryPlace =>
+  libraryPlaces.includes(value as LibraryPlace);
 export const isLibraryFilter = (value: unknown): value is LibraryFilter =>
   libraryFilters.includes(value as LibraryFilter);
 export const isLibraryGroup = (value: unknown): value is LibraryGroup =>

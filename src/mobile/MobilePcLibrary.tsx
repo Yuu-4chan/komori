@@ -1,7 +1,6 @@
 import {
   ArrowsClockwiseIcon,
   BookOpenIcon,
-  BooksIcon,
   CheckIcon,
   DownloadSimpleIcon,
   TrashIcon,
@@ -13,33 +12,29 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
-  type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "../components/ui/Button";
-import { EmptyState } from "../components/ui/EmptyState";
-import { NoticeClose } from "../components/ui/NoticeClose";
 import { BookCover } from "../features/library/BookCover";
 import type { LibraryBook } from "../features/library/libraryApi";
-import { LibrarySearch } from "../features/library/LibraryToolbar";
 import {
-  hasReadingProgress,
   lastReadLabel,
-  matchesQuery,
   progressLabel,
   progressPercent,
   readingStatus,
-  sortBooks,
   timeAgo,
 } from "../features/library/libraryView";
 import { useI18n, type MessageKey } from "../i18n/i18n";
 import { useLongPress } from "./longPress";
 import { MobileSheet } from "./MobileSheet";
+import { pcSession, type PcConnection } from "./pcLibrarySession";
 import {
   asLibraryBook,
   autoSync,
+  cachedPcLibrary,
   keepPcBook,
   listPcLibrary,
   onPcTransfer,
@@ -51,81 +46,81 @@ import {
 } from "./pcLinkApi";
 
 /** A PC book with the shape the Library's covers, progress and search read. */
-interface Entry {
+export interface PcEntry {
   pc: PcBook;
   book: LibraryBook;
 }
 
-export type PcListing =
-  | { status: "loading"; entries: Entry[] }
-  | { status: "ready"; entries: Entry[] }
-  | { status: "error"; entries: Entry[]; problem: MessageKey };
+/** How long a listing stays current before showing the Library lists the PC again. */
+const STALE_AFTER = 2 * 60_000;
 
-/** The paired PC's Library while its tab is shown, listed again on each visit. */
-export function usePcLibrary(active: boolean) {
-  const [listing, setListing] = useState<PcListing>({ status: "loading", entries: [] });
-  const requests = useRef(0);
-  const refresh = useCallback(async () => {
-    const request = ++requests.current;
-    try {
-      const books = await listPcLibrary();
-      if (request !== requests.current) return;
-      setListing({
-        status: "ready",
-        entries: books.map((pc) => ({ pc, book: asLibraryBook(pc) })),
-      });
-    } catch (error) {
-      if (request === requests.current)
-        setListing((current) => ({
-          status: "error",
-          entries: current.entries,
-          problem: pcErrorKey(error),
-        }));
-    }
-  }, []);
-  useEffect(() => {
-    if (active) void refresh();
-  }, [active, refresh]);
-  return { listing, refresh };
-}
-
-type Filter = "all" | "kept";
+let listing: Promise<void> | null = null;
+let listAgain = false;
 
 /**
- * The paired PC's Library on the phone: whether the PC answers and when the phone last synced,
- * syncing now, its search, the book it read last, and every book with whether it is on this
- * phone. Tapping a book downloads it unless it
- * is here and opens it; its badge keeps it on this phone; a long press offers both and removing
- * the copy here.
+ * Lists the PC again in the background. A request while one runs lists once more after it,
+ * so a listing asked for after a sync shows what the sync did.
  */
-export function MobilePcLibrary({
-  lastSynced,
-  listing,
-  onQueryChange,
-  onSync,
-  pcName,
-  query,
-  refresh,
-  syncing,
-  tabs,
-}: {
-  lastSynced: string | null;
-  listing: PcListing;
-  onQueryChange: (query: string) => void;
-  onSync: () => void;
-  pcName: string;
-  query: string;
-  refresh: () => Promise<void>;
-  syncing: boolean;
-  tabs: ReactNode;
-}) {
-  const { t } = useI18n();
+export function refreshPcLibrary(): Promise<void> {
+  if (listing) {
+    listAgain = true;
+    return listing;
+  }
+  listing = (async () => {
+    do {
+      listAgain = false;
+      try {
+        const books = await listPcLibrary();
+        pcSession.set({ books, connection: "connected", listedAt: Date.now() });
+      } catch (error) {
+        pcSession.set({ connection: pcErrorKey(error) });
+      }
+    } while (listAgain);
+  })().finally(() => {
+    listing = null;
+  });
+  return listing;
+}
+
+/** Reads the copies here again from the saved listing, as after keeping or removing one. */
+async function relistCopies() {
+  const books = await cachedPcLibrary().catch(() => null);
+  if (books) pcSession.set({ books });
+}
+
+/**
+ * The paired PC's Library while `active`: the saved listing at once, listed again in the
+ * background on the first showing in a session, after a sync, or once the listing is old.
+ */
+export function usePcLibrary(active: boolean) {
+  const session = useSyncExternalStore(pcSession.subscribe, pcSession.get);
+  useEffect(() => {
+    if (!active) return;
+    void (async () => {
+      if (pcSession.get().books === null) {
+        const saved = await cachedPcLibrary().catch(() => null);
+        if (saved && pcSession.get().books === null) pcSession.set({ books: saved });
+      }
+      if (Date.now() - pcSession.get().listedAt > STALE_AFTER) await refreshPcLibrary();
+    })();
+  }, [active]);
+  const entries = useMemo(
+    () => session.books?.map((pc) => ({ pc, book: asLibraryBook(pc) })) ?? null,
+    [session.books],
+  );
+  return { entries, connection: session.connection, refresh: refreshPcLibrary };
+}
+
+/**
+ * Opening, keeping and removing PC books on the phone, with each download's progress and the
+ * last problem.
+ */
+export function usePcBookActions() {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<Filter>("all");
-  const [chosen, setChosen] = useState<Entry | null>(null);
   // Books downloading, by PC book ID, with how much has arrived.
   const [saving, setSaving] = useState<Record<string, number>>({});
   const [problem, setProblem] = useState<MessageKey | null>(null);
+  const downloading = useRef(new Set<string>());
 
   useEffect(() => {
     const stop = onPcTransfer((transfer) => {
@@ -135,210 +130,125 @@ export function MobilePcLibrary({
           ? current
           : { ...current, [transfer.id]: transferPercent(transfer) },
       );
-    });
-    return () => void stop.then((unlisten) => unlisten());
+    }).catch(() => null);
+    return () => void stop.then((unlisten) => unlisten?.());
   }, []);
 
-  const { entries } = listing;
-  const byId = useMemo(() => new Map(entries.map((entry) => [entry.pc.id, entry])), [entries]);
-  const kept = entries.filter((entry) => entry.pc.kept);
-  const shown = useMemo(
-    () =>
-      sortBooks(
-        entries
-          .filter((entry) => filter === "all" || entry.pc.kept)
-          .map((entry) => entry.book)
-          .filter((book) => matchesQuery(book, query)),
-        "title",
-        false,
-      ).flatMap((book) => byId.get(book.id) ?? []),
-    [byId, entries, filter, query],
+  const download = useCallback(
+    async (entry: PcEntry, action: (book: PcBook) => Promise<string>) => {
+      const { id } = entry.pc;
+      if (downloading.current.has(id)) return null;
+      downloading.current.add(id);
+      setSaving((current) => ({ ...current, [id]: 0 }));
+      setProblem(null);
+      try {
+        const local = await action(entry.pc);
+        // A copy made just now has no place yet: a sync brings the PC's before it opens.
+        if (entry.pc.localId === null) await autoSync();
+        return local;
+      } catch (error) {
+        setProblem(pcErrorKey(error));
+        return null;
+      } finally {
+        downloading.current.delete(id);
+        setSaving(({ [id]: _done, ...rest }) => rest);
+      }
+    },
+    [],
   );
-  const continueEntry = useMemo(() => {
-    const read = sortBooks(
-      entries.map((entry) => entry.book).filter(hasReadingProgress),
-      "recent",
-      false,
-    )[0];
-    return read ? byId.get(read.id) : undefined;
-  }, [byId, entries]);
 
-  async function download(entry: Entry, action: (book: PcBook) => Promise<string>) {
-    const { id } = entry.pc;
-    if (saving[id] !== undefined) return null;
-    setSaving((current) => ({ ...current, [id]: 0 }));
-    setProblem(null);
-    try {
-      return await action(entry.pc);
-    } catch (error) {
-      setProblem(pcErrorKey(error));
-      return null;
-    } finally {
-      setSaving(({ [id]: _done, ...rest }) => rest);
-    }
-  }
+  const open = useCallback(
+    async (entry: PcEntry) => {
+      const local = await download(entry, openPcBook);
+      if (local) navigate(`/reader/${local}`);
+    },
+    [download, navigate],
+  );
 
-  async function open(entry: Entry) {
-    setChosen(null);
-    const copied = await copy(entry, openPcBook);
-    if (copied) navigate(`/reader/${copied}`);
-  }
+  const keep = useCallback(
+    async (entry: PcEntry) => {
+      if (await download(entry, keepPcBook)) await relistCopies();
+    },
+    [download],
+  );
 
-  async function keep(entry: Entry) {
-    setChosen(null);
-    if (await copy(entry, keepPcBook)) await refresh();
-  }
-
-  /** A copy made just now has no place yet: a sync brings the PC's before the book opens. */
-  async function copy(entry: Entry, action: (book: PcBook) => Promise<string>) {
-    const fresh = entry.pc.localId === null;
-    const local = await download(entry, action);
-    if (local && fresh) await autoSync();
-    return local;
-  }
-
-  async function remove(entry: Entry) {
-    setChosen(null);
+  const remove = useCallback(async (entry: PcEntry) => {
     setProblem(null);
     try {
       await removePcBook(entry.pc);
-      await refresh();
+      await relistCopies();
     } catch (error) {
       setProblem(pcErrorKey(error));
     }
-  }
+  }, []);
 
-  const connected = listing.status === "ready";
+  return { saving, problem, dismissProblem: () => setProblem(null), open, keep, remove };
+}
+
+/**
+ * The PC's status above the Library: Connected · Synced … with Sync now, the last sync until
+ * the PC answers in this session, or why it does not with Try again.
+ */
+export function PcStatusRow({
+  connection,
+  lastSynced,
+  onRetry,
+  onSync,
+  pcName,
+  syncing,
+}: {
+  connection: PcConnection;
+  lastSynced: string | null;
+  onRetry: () => void;
+  onSync: () => void;
+  pcName: string;
+  syncing: boolean;
+}) {
+  const { t } = useI18n();
+  const connected = connection === "connected";
   const synced = timeAgo(lastSynced);
+  if (connection !== "connected" && connection !== "unknown")
+    return (
+      <div className="mobile-pc-status" aria-live="polite">
+        <WarningCircleIcon aria-hidden="true" weight="fill" />
+        <span>{t(connection, { name: pcName })}</span>
+        <Button tone="secondary" onClick={onRetry}>
+          {t("common.tryAgain")}
+        </Button>
+      </div>
+    );
   return (
-    <>
-      <div className="mobile-search">
-        <LibrarySearch
-          onQueryChange={onQueryChange}
-          placeholder={t("sync.searchPc", { name: pcName })}
-          query={query}
-        />
-      </div>
-      {tabs}
-      <div
-        className={connected ? "mobile-pc-status mobile-pc-status--synced" : "mobile-pc-status"}
-        aria-live="polite"
-      >
-        {listing.status === "error" ? (
-          <>
-            <WarningCircleIcon aria-hidden="true" weight="fill" />
-            <span>{t(listing.problem, { name: pcName })}</span>
-            <Button tone="secondary" onClick={() => void refresh()}>
-              {t("common.tryAgain")}
-            </Button>
-          </>
-        ) : (
-          <>
-            <span
-              aria-hidden="true"
-              className={connected ? "mobile-sync__dot" : "mobile-sync__dot mobile-sync__dot--off"}
-            />
-            {connected ? (
-              <span>
-                <span className="mobile-pc-status__label">{t("sync.connectedShort")}</span>
-                {synced ? <small>{` · ${t("sync.syncedShort", { time: synced })}`}</small> : null}
-              </span>
-            ) : (
-              <span>{t("sync.checking")}</span>
-            )}
-            {connected ? (
-              <button
-                aria-busy={syncing}
-                aria-label={t("sync.syncNow")}
-                className="mobile-pc-status__sync"
-                disabled={syncing}
-                onClick={onSync}
-                type="button"
-              >
-                <ArrowsClockwiseIcon aria-hidden="true" weight="bold" />
-              </button>
-            ) : null}
-          </>
-        )}
-      </div>
-
-      {problem ? (
-        <div className="mobile-notices">
-          <div className="library-notice" role="alert">
-            <span>{t(problem, { name: pcName })}</span>
-            <NoticeClose onClose={() => setProblem(null)} />
-          </div>
-        </div>
-      ) : null}
-
-      {connected && entries.length === 0 ? (
-        <EmptyState
-          description={t("sync.pcEmptyDescription", { name: pcName })}
-          icon={BooksIcon}
-          title={t("library.empty")}
-        />
-      ) : entries.length > 0 ? (
-        <>
-          {continueEntry && !query ? (
-            <section className="mobile-library__section" aria-labelledby="mobile-pc-continue">
-              <h2 className="mobile-section-heading">
-                <span id="mobile-pc-continue">{t("libraryCard.continue")}</span>
-                <small>{t("sync.lastReadOn", { name: pcName })}</small>
-              </h2>
-              <PcContinueCard
-                entry={continueEntry}
-                onChoose={setChosen}
-                onOpen={(entry) => void open(entry)}
-              />
-            </section>
-          ) : null}
-
-          <section className="mobile-library__section" aria-label={pcName}>
-            <div className="mobile-filter" role="group" aria-label={t("sync.show")}>
-              <button
-                aria-pressed={filter === "all"}
-                onClick={() => setFilter("all")}
-                type="button"
-              >
-                {t("sync.all", { count: entries.length })}
-              </button>
-              <button
-                aria-pressed={filter === "kept"}
-                onClick={() => setFilter("kept")}
-                type="button"
-              >
-                {t("sync.onPhoneCount", { count: kept.length })}
-              </button>
-            </div>
-            {shown.length === 0 ? (
-              <p className="mobile-library__none">{t("library.noneFound")}</p>
-            ) : (
-              <ul className="mobile-library__grid">
-                {shown.map((entry) => (
-                  <li key={entry.pc.id}>
-                    <PcTile
-                      entry={entry}
-                      onChoose={setChosen}
-                      onKeep={(each) => void keep(each)}
-                      onOpen={(each) => void open(each)}
-                      saving={saving[entry.pc.id]}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
-      ) : null}
-
-      <PcBookSheet
-        entry={chosen}
-        onClose={() => setChosen(null)}
-        onKeep={(entry) => void keep(entry)}
-        onOpen={(entry) => void open(entry)}
-        onRemove={(entry) => void remove(entry)}
+    <div
+      className={connected ? "mobile-pc-status mobile-pc-status--synced" : "mobile-pc-status"}
+      aria-live="polite"
+    >
+      <span
+        aria-hidden="true"
+        className={connected ? "mobile-sync__dot" : "mobile-sync__dot mobile-sync__dot--off"}
       />
-    </>
+      <span>
+        {connected ? (
+          <>
+            <span className="mobile-pc-status__label">{t("sync.connectedShort")}</span>
+            {synced ? <small>{` · ${t("sync.syncedShort", { time: synced })}`}</small> : null}
+          </>
+        ) : synced ? (
+          <small>{t("sync.syncedShort", { time: synced })}</small>
+        ) : (
+          <small>{pcName}</small>
+        )}
+      </span>
+      <button
+        aria-busy={syncing}
+        aria-label={t("sync.syncNow")}
+        className="mobile-pc-status__sync"
+        disabled={syncing}
+        onClick={onSync}
+        type="button"
+      >
+        <ArrowsClockwiseIcon aria-hidden="true" weight="bold" />
+      </button>
+    </div>
   );
 }
 
@@ -349,18 +259,18 @@ const openLabel = {
 } as const;
 
 /** What a long press on a PC book offers: opening it, and keeping or removing it here. */
-function PcBookSheet({
+export function PcBookSheet({
   entry,
   onClose,
   onKeep,
   onOpen,
   onRemove,
 }: {
-  entry: Entry | null;
+  entry: PcEntry | null;
   onClose: () => void;
-  onKeep: (entry: Entry) => void;
-  onOpen: (entry: Entry) => void;
-  onRemove: (entry: Entry) => void;
+  onKeep: (entry: PcEntry) => void;
+  onOpen: (entry: PcEntry) => void;
+  onRemove: (entry: PcEntry) => void;
 }) {
   const { t } = useI18n();
   const title = entry?.book.title ?? t("library.untitled");
@@ -418,7 +328,7 @@ function PcBookSheet({
 }
 
 /** How far a book is read, as a bar and its label. */
-function Progress({ book }: { book: LibraryBook }) {
+export function Progress({ book }: { book: LibraryBook }) {
   const { t } = useI18n();
   const percent = progressPercent(book);
   return (
@@ -438,15 +348,15 @@ function Progress({ book }: { book: LibraryBook }) {
   );
 }
 
-/** The book the PC read last, large, with whether it is on this phone. */
-function PcContinueCard({
+/** A PC book in Continue reading, with whether it is on this phone. */
+export function PcContinueCard({
   entry,
   onChoose,
   onOpen,
 }: {
-  entry: Entry;
-  onChoose: (entry: Entry) => void;
-  onOpen: (entry: Entry) => void;
+  entry: PcEntry;
+  onChoose: (entry: PcEntry) => void;
+  onOpen: (entry: PcEntry) => void;
 }) {
   const { t } = useI18n();
   const longPress = useLongPress(() => onChoose(entry));
@@ -480,17 +390,17 @@ function PcContinueCard({
 }
 
 /** A PC book in the grid, with a badge for whether it is on this phone. */
-function PcTile({
+export function PcTile({
   entry,
   onChoose,
   onKeep,
   onOpen,
   saving,
 }: {
-  entry: Entry;
-  onChoose: (entry: Entry) => void;
-  onKeep: (entry: Entry) => void;
-  onOpen: (entry: Entry) => void;
+  entry: PcEntry;
+  onChoose: (entry: PcEntry) => void;
+  onKeep: (entry: PcEntry) => void;
+  onOpen: (entry: PcEntry) => void;
   saving: number | undefined;
 }) {
   const { t } = useI18n();

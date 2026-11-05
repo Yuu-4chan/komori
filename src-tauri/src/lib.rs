@@ -29,6 +29,8 @@ mod library_drop;
 mod library_folders;
 #[cfg(mobile)]
 mod pc_link;
+#[cfg(any(mobile, test))]
+mod pc_listing;
 mod reader_background;
 mod reader_content;
 mod reader_fonts;
@@ -251,6 +253,12 @@ pub fn run() {
             pc_link::resolve_pc_conflict,
             #[cfg(mobile)]
             pc_link::list_pc_library,
+            #[cfg(mobile)]
+            pc_link::cached_pc_library,
+            #[cfg(mobile)]
+            pc_link::pc_storage,
+            #[cfg(mobile)]
+            pc_link::clear_pc_covers,
             #[cfg(mobile)]
             pc_link::open_pc_book,
             #[cfg(mobile)]

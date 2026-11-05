@@ -1,16 +1,17 @@
-//! Settings > Sync and the Library's PC tab on the phone: the pairing with one Komori PC (its
+//! Settings > Sync and the PC's books in the Library on the phone: the pairing with one Komori PC (its
 //! address, the certificate fingerprint it paired with, and the device token, kept in the
 //! catalog's preferences), the PC's books and dictionaries, and their copies on the phone.
 //!
 //! A PC book opened here is downloaded into Komori's cache and imported like any other book;
 //! only the one opened last stays there. Keep on this phone moves it into Komori's own storage.
 //! Each copy keeps its catalog record (and so its reading state) for the PC's next sync, and is
-//! listed only under the PC. Unpairing removes the PC's books from the phone, and what the last
+//! listed once, as the PC's book. Unpairing removes the PC's books from the phone, and what the last
 //! sync saw, so pairing again combines both sides. `sync_pc` syncs the reading state (`sync`).
 
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
 };
 
 use rusqlite::{params, Connection, OptionalExtension};
@@ -24,6 +25,7 @@ use crate::devices::{
 };
 use crate::dictionary::store::{import_pack, open_store, DictionaryStoreState, PackImport};
 use crate::library::{open_catalog, storage_error, CatalogState};
+use crate::pc_listing;
 
 const RECORD: &str = "pc-link";
 const TRANSFER_EVENT: &str = "pc-transfer";
@@ -358,6 +360,7 @@ pub async fn unpair_pc(
             .execute("DELETE FROM pc_books", [])
             .map_err(storage_error)?;
         crate::sync::forget(&connection)?;
+        pc_listing::forget(&connection)?;
         for root in roots.iter().chain(covers.iter()) {
             let _ = std::fs::remove_dir_all(root);
         }
@@ -528,8 +531,52 @@ pub struct PcBook {
     kept: bool,
 }
 
+/// The listing's books with their copies on this phone.
+fn with_copies(connection: &Connection, books: Vec<RemoteBook>) -> Result<Vec<PcBook>, String> {
+    books
+        .into_iter()
+        .map(|book| {
+            let copy = copy_of(connection, &book.id)?;
+            Ok(PcBook {
+                cover_url: book
+                    .cover
+                    .map(|revision| crate::covers::pc_cover_url(&book.id, revision)),
+                on_phone: copy
+                    .as_ref()
+                    .is_some_and(|copy| Path::new(&copy.source).is_file()),
+                kept: copy.as_ref().is_some_and(|copy| copy.kept),
+                local_id: copy.map(|copy| copy.book),
+                book,
+            })
+        })
+        .collect()
+}
+
+/// The PC's Library as last listed, without asking the PC; none before the first listing.
 #[tauri::command]
-pub async fn list_pc_library(catalog: State<'_, CatalogState>) -> Result<Vec<PcBook>, String> {
+pub async fn cached_pc_library(
+    catalog: State<'_, CatalogState>,
+) -> Result<Option<Vec<PcBook>>, String> {
+    let database = catalog_path(&catalog);
+    blocking(move || {
+        let connection = open_catalog(&database)?;
+        if load(&connection)?.pinned().is_none() {
+            return Ok(None);
+        }
+        pc_listing::saved(&connection)?
+            .map(|books| with_copies(&connection, books))
+            .transpose()
+    })
+    .await
+}
+
+/// Lists the PC's Library and saves it, then fetches the covers the phone lacks in the
+/// background and removes those the PC no longer has.
+#[tauri::command]
+pub async fn list_pc_library(
+    app: AppHandle,
+    catalog: State<'_, CatalogState>,
+) -> Result<Vec<PcBook>, String> {
     let database = catalog_path(&catalog);
     let link = {
         let database = database.clone();
@@ -540,28 +587,137 @@ pub async fn list_pc_library(catalog: State<'_, CatalogState>) -> Result<Vec<PcB
         .library()
         .await
         .map_err(|error| error.code())?;
-    blocking(move || {
+    let wanted = pc_listing::wanted_covers(&library.books);
+    let books = blocking(move || {
         let connection = open_catalog(&database)?;
-        library
-            .books
-            .into_iter()
-            .map(|book| {
-                let copy = copy_of(&connection, &book.id)?;
-                Ok(PcBook {
-                    cover_url: book
-                        .cover
-                        .map(|revision| crate::covers::pc_cover_url(&book.id, revision)),
-                    on_phone: copy
-                        .as_ref()
-                        .is_some_and(|copy| Path::new(&copy.source).is_file()),
-                    kept: copy.as_ref().is_some_and(|copy| copy.kept),
-                    local_id: copy.map(|copy| copy.book),
-                    book,
-                })
-            })
-            .collect()
+        pc_listing::save(&connection, &library.books)?;
+        with_copies(&connection, library.books)
+    })
+    .await?;
+    tauri::async_runtime::spawn(fetch_covers(app, link, wanted));
+    Ok(books)
+}
+
+/// One cover fetch at a time, so the covers never take more of the PC's connections than one.
+static COVERS: tauri::async_runtime::Mutex<()> = tauri::async_runtime::Mutex::const_new(());
+static FETCHING: AtomicBool = AtomicBool::new(false);
+static UNREACHABLE_SINCE: AtomicU64 = AtomicU64::new(0);
+
+async fn fetch_covers(app: AppHandle, link: Link, wanted: Vec<(String, i64)>) {
+    let Ok(cache) = covers_directory(&app) else {
+        return;
+    };
+    pc_listing::remove_stale_covers(&cache, &wanted);
+    if FETCHING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    if let Ok(client) = link.client() {
+        for (id, revision) in &wanted {
+            if fetch_cover(&client, &cache, id, *revision).await.is_none()
+                && client.hello().await.is_err()
+            {
+                // The PC went away: the rest wait for the next listing.
+                break;
+            }
+        }
+    }
+    FETCHING.store(false, Ordering::SeqCst);
+}
+
+fn covers_directory(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_cache_dir()
+        .map(|root| root.join(PC_COVERS))
+        .map_err(|error| error.to_string())
+}
+
+/// The cover from the cache, or from the PC into the cache.
+async fn fetch_cover(client: &Client, cache: &Path, id: &str, revision: i64) -> Option<CoverImage> {
+    let file = cache.join(pc_listing::cover_file(id, revision));
+    if let Some(cover) = cached_cover(&file) {
+        return Some(cover);
+    }
+    let _fetching = COVERS.lock().await;
+    if let Some(cover) = cached_cover(&file) {
+        return Some(cover);
+    }
+    // A PC that did not answer just now is not asked for every cover on the page.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs());
+    if now < UNREACHABLE_SINCE.load(Ordering::SeqCst) + 20 {
+        return None;
+    }
+    let (mime, bytes) = match client.cover(id).await {
+        Ok(cover) => cover,
+        Err(LinkError::Unreachable) => {
+            UNREACHABLE_SINCE.store(now, Ordering::SeqCst);
+            return None;
+        }
+        Err(_) => return None,
+    };
+    UNREACHABLE_SINCE.store(0, Ordering::SeqCst);
+    if !mime.starts_with("image/") {
+        return None;
+    }
+    let _ = std::fs::create_dir_all(cache);
+    let mut stored = Vec::with_capacity(mime.len() + 1 + bytes.len());
+    stored.extend_from_slice(mime.as_bytes());
+    stored.push(b'\n');
+    stored.extend_from_slice(&bytes);
+    let part = file.with_extension("part");
+    if std::fs::write(&part, stored).is_ok() && std::fs::rename(&part, &file).is_err() {
+        let _ = std::fs::remove_file(&part);
+    }
+    Some(CoverImage { mime, bytes })
+}
+
+fn cached_cover(file: &Path) -> Option<CoverImage> {
+    let (mime, bytes) = split_cover(&std::fs::read(file).ok()?)?;
+    Some(CoverImage { mime, bytes })
+}
+
+/// What the PC's books take on this phone, in bytes.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PcStorage {
+    /// The books kept on this phone.
+    kept: u64,
+    /// The book opened last, kept until another is opened.
+    cached: u64,
+    covers: u64,
+}
+
+#[tauri::command]
+pub async fn pc_storage(app: AppHandle) -> Result<PcStorage, String> {
+    let (kept, cached, covers) = (
+        directory(&app, true)?,
+        directory(&app, false)?,
+        covers_directory(&app)?,
+    );
+    blocking(move || {
+        Ok(PcStorage {
+            kept: pc_listing::size_of(&kept),
+            cached: pc_listing::size_of(&cached),
+            covers: pc_listing::size_of(&covers),
+        })
     })
     .await
+}
+
+/// Removes the PC's covers from the phone; they download again when shown or listed.
+#[tauri::command]
+pub async fn clear_pc_covers(app: AppHandle) -> Result<PcStorage, String> {
+    let covers = covers_directory(&app)?;
+    {
+        let _fetching = COVERS.lock().await;
+        let _ = blocking(move || {
+            let _ = std::fs::remove_dir_all(&covers);
+            Ok(())
+        })
+        .await;
+    }
+    pc_storage(app).await
 }
 
 /// Downloads the PC's book (unless its copy is already here) into the cache, or Komori's own
@@ -819,30 +975,18 @@ pub async fn copy_pc_dictionary(
     })
 }
 
-/// A PC book's cover for the Library's PC tab, kept in the cache once fetched.
+/// A PC book's cover for the Library, kept in the cache once fetched.
 pub(crate) async fn pc_cover(app: &AppHandle, id: &str, revision: i64) -> Option<CoverImage> {
-    let cache = app.path().app_cache_dir().ok()?.join(PC_COVERS);
-    let file = cache.join(format!("{id}-{revision}"));
-    if let Ok(bytes) = std::fs::read(&file) {
-        let (mime, bytes) = split_cover(&bytes)?;
-        return Some(CoverImage { mime, bytes });
+    let cache = covers_directory(app).ok()?;
+    if let Some(cover) = cached_cover(&cache.join(pc_listing::cover_file(id, revision))) {
+        return Some(cover);
     }
     let database = app.state::<CatalogState>().database.clone();
     let link = tauri::async_runtime::spawn_blocking(move || read_link(&database))
         .await
         .ok()?
         .ok()?;
-    let (mime, bytes) = link.client().ok()?.cover(id).await.ok()?;
-    if !mime.starts_with("image/") {
-        return None;
-    }
-    let _ = std::fs::create_dir_all(&cache);
-    let mut stored = Vec::with_capacity(mime.len() + 1 + bytes.len());
-    stored.extend_from_slice(mime.as_bytes());
-    stored.push(b'\n');
-    stored.extend_from_slice(&bytes);
-    let _ = std::fs::write(&file, stored);
-    Some(CoverImage { mime, bytes })
+    fetch_cover(&link.client().ok()?, &cache, id, revision).await
 }
 
 /// A cached cover: its type on the first line, then the image.

@@ -15,6 +15,7 @@ import { formatSize } from "../features/storage/formatSize";
 import { useI18n, type MessageKey } from "../i18n/i18n";
 import {
   checkPc,
+  clearPcCovers,
   copyPcDictionary,
   getPcLink,
   listPcDictionaries,
@@ -22,6 +23,7 @@ import {
   onPcTransfer,
   pairPc,
   pcErrorKey,
+  pcStorage,
   setPcAddress,
   setPcSync,
   syncPc,
@@ -29,6 +31,7 @@ import {
   unpairPc,
   type PcDictionary,
   type PcLink,
+  type PcStorage,
 } from "./pcLinkApi";
 
 type Status =
@@ -57,6 +60,8 @@ export function MobileSyncSettings() {
   const [copying, setCopying] = useState<Record<string, number>>({});
   const [unpairing, setUnpairing] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [storage, setStorage] = useState<PcStorage | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   const show = useCallback((saved: PcLink) => {
     setLink(saved);
@@ -99,6 +104,33 @@ export function MobileSyncSettings() {
     if (paired) void check();
     else setDictionaries(null);
   }, [paired, check]);
+
+  // What the PC's books and covers take here, read from the phone alone.
+  useEffect(() => {
+    let active = true;
+    if (paired)
+      void pcStorage().then(
+        (sizes) => {
+          if (active) setStorage(sizes);
+        },
+        () => {},
+      );
+    else setStorage(null);
+    return () => {
+      active = false;
+    };
+  }, [paired]);
+
+  async function clearCovers() {
+    setClearing(true);
+    try {
+      setStorage(await clearPcCovers());
+    } catch {
+      setProblem("sync.error.failed");
+    } finally {
+      setClearing(false);
+    }
+  }
 
   // A sync started elsewhere, as on returning to Komori, shows here too.
   useEffect(() => onPcSynced(show), [show]);
@@ -374,6 +406,40 @@ export function MobileSyncSettings() {
                     </li>
                   );
                 })}
+              </ul>
+            </section>
+          ) : null}
+
+          {storage ? (
+            <section className="mobile-sync__section" aria-labelledby="mobile-sync-storage">
+              <h2 className="mobile-section-heading" id="mobile-sync-storage">
+                {t("settings.storage")}
+              </h2>
+              <ul className="mobile-group mobile-sync__dictionaries">
+                <li className="mobile-sync__dictionary">
+                  <span className="mobile-row__text">
+                    <span className="mobile-row__label">
+                      {t("sync.storageBooks", { name: pcName })}
+                    </span>
+                    <span className="mobile-row__detail">
+                      {formatSize(storage.kept + storage.cached)}
+                    </span>
+                  </span>
+                </li>
+                <li className="mobile-sync__dictionary">
+                  <span className="mobile-row__text">
+                    <span className="mobile-row__label">{t("sync.storageCovers")}</span>
+                    <span className="mobile-row__detail">{formatSize(storage.covers)}</span>
+                  </span>
+                  <button
+                    className="mobile-sync__copy"
+                    disabled={clearing || storage.covers === 0}
+                    onClick={() => void clearCovers()}
+                    type="button"
+                  >
+                    {t("sync.clear")}
+                  </button>
+                </li>
               </ul>
             </section>
           ) : null}

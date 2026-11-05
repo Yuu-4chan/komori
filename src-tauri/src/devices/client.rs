@@ -147,6 +147,11 @@ pub(crate) struct Pairing {
     pub(crate) device: String,
 }
 
+/// How long a request may take in all, so a PC that stops answering is never waited on forever.
+const QUICK: Duration = Duration::from_secs(10);
+const LISTING: Duration = Duration::from_secs(30);
+const SYNCING: Duration = Duration::from_secs(120);
+
 pub(crate) struct Client {
     base: String,
     http: reqwest::Client,
@@ -249,7 +254,10 @@ impl Client {
 
     pub(crate) async fn hello(&self) -> Result<Hello, LinkError> {
         let hello: Hello = self
-            .json(self.request(reqwest::Method::GET, "/v1/hello"))
+            .json(
+                self.request(reqwest::Method::GET, "/v1/hello")
+                    .timeout(QUICK),
+            )
             .await?;
         if hello.protocol != protocol::PROTOCOL {
             return Err(LinkError::OtherVersion);
@@ -306,8 +314,11 @@ impl Client {
     }
 
     pub(crate) async fn library(&self) -> Result<RemoteLibrary, LinkError> {
-        self.json(self.request(reqwest::Method::GET, "/v1/library"))
-            .await
+        self.json(
+            self.request(reqwest::Method::GET, "/v1/library")
+                .timeout(LISTING),
+        )
+        .await
     }
 
     /// The PC's state of these books and every session, for the phone to merge.
@@ -317,7 +328,8 @@ impl Client {
     ) -> Result<crate::sync::PullResponse, LinkError> {
         self.json(
             self.request(reqwest::Method::POST, "/v1/sync/pull")
-                .json(request),
+                .json(request)
+                .timeout(SYNCING),
         )
         .await
     }
@@ -329,19 +341,26 @@ impl Client {
     ) -> Result<crate::sync::PushResponse, LinkError> {
         self.json(
             self.request(reqwest::Method::POST, "/v1/sync/push")
-                .json(request),
+                .json(request)
+                .timeout(SYNCING),
         )
         .await
     }
 
     pub(crate) async fn dictionaries(&self) -> Result<Vec<RemoteDictionary>, LinkError> {
-        self.json(self.request(reqwest::Method::GET, "/v1/dictionaries"))
-            .await
+        self.json(
+            self.request(reqwest::Method::GET, "/v1/dictionaries")
+                .timeout(LISTING),
+        )
+        .await
     }
 
     pub(crate) async fn cover(&self, book: &str) -> Result<(String, Vec<u8>), LinkError> {
         let response = self
-            .send(self.request(reqwest::Method::GET, &format!("/v1/books/{book}/cover")))
+            .send(
+                self.request(reqwest::Method::GET, &format!("/v1/books/{book}/cover"))
+                    .timeout(LISTING),
+            )
             .await?;
         let kind = response
             .headers()
