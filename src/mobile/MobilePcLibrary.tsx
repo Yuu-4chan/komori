@@ -21,10 +21,12 @@ import { Button } from "../components/ui/Button";
 import { BookCover } from "../features/library/BookCover";
 import type { LibraryBook } from "../features/library/libraryApi";
 import {
+  languageName,
   lastReadLabel,
   progressLabel,
   progressPercent,
   readingStatus,
+  readTotalLabel,
   timeAgo,
 } from "../features/library/libraryView";
 import { useI18n, type MessageKey } from "../i18n/i18n";
@@ -381,9 +383,11 @@ export function PcContinueCard({
               {t("sync.onPhone")}
             </span>
           ) : null}
+          {entry.book.language ? <span>{languageName(entry.book.language)}</span> : null}
           {lastRead ? <span>{lastRead}</span> : null}
         </span>
         <Progress book={entry.book} />
+        <span className="mobile-continue__count">{readTotalLabel(entry.book)}</span>
       </span>
     </button>
   );

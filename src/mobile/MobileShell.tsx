@@ -47,34 +47,39 @@ export function MobileShell() {
   );
 }
 
-/** A page's heading on the phone: the brand, its title, Settings and its own actions. */
+/**
+ * A page's heading on the phone: the brand, its title, Settings and its own actions, with the
+ * page's summary on its own line under the title.
+ */
 export function MobilePageHeader({ title, summary, actions, back = false }: MobileHeaderProps) {
   const { t } = useI18n();
   const navigate = useNavigate();
   return (
     <header className="mobile-header">
-      {back ? (
-        <button
-          aria-label={t("common.back")}
-          className="mobile-round-button"
-          onClick={() => navigate(-1)}
-          type="button"
-        >
-          <ArrowLeftIcon aria-hidden="true" weight="bold" />
-        </button>
-      ) : (
-        <BrandMark className="mobile-header__brand" />
-      )}
-      <div className="mobile-header__title">
-        <h1>{title}</h1>
-        {summary}
+      <div className="mobile-header__row">
+        {back ? (
+          <button
+            aria-label={t("common.back")}
+            className="mobile-round-button"
+            onClick={() => navigate(-1)}
+            type="button"
+          >
+            <ArrowLeftIcon aria-hidden="true" weight="bold" />
+          </button>
+        ) : (
+          <BrandMark className="mobile-header__brand" />
+        )}
+        <div className="mobile-header__title">
+          <h1>{title}</h1>
+        </div>
+        {back ? null : (
+          <Link aria-label={t("shell.settings")} className="mobile-round-button" to="/settings">
+            <GearSixIcon aria-hidden="true" weight="duotone" />
+          </Link>
+        )}
+        {actions}
       </div>
-      {back ? null : (
-        <Link aria-label={t("shell.settings")} className="mobile-round-button" to="/settings">
-          <GearSixIcon aria-hidden="true" weight="duotone" />
-        </Link>
-      )}
-      {actions}
+      {summary ? <div className="mobile-header__summary">{summary}</div> : null}
     </header>
   );
 }

@@ -77,7 +77,7 @@
 }
 
 /* Header: the brand or Back, the title, Settings and the page's own actions. */
-.mobile-header {
+.mobile-header__row {
   min-height: var(--mobile-control);
   display: flex;
   align-items: center;
@@ -106,9 +106,18 @@
   white-space: nowrap;
 }
 
+/* Under the title, from its start; each part stays whole. */
+.mobile-header__summary {
+  padding-left: calc(2.5rem + 0.625rem);
+}
+
 .mobile-header .library-summary {
-  margin: 0.125rem 0 0;
+  margin: 0;
   font-size: 0.75rem;
+}
+
+.mobile-header .library-summary span {
+  white-space: nowrap;
 }
 
 .mobile-round-button {
@@ -353,12 +362,26 @@
 }
 
 .mobile-library__grid {
-  margin: 0;
-  padding: 0;
+  /* Each row ends with the gap to the next; the last row's gap is taken back. */
+  margin: 0 0 -1.125rem;
+}
+
+.mobile-library__grid--virtual {
+  position: relative;
+}
+
+.mobile-library__row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.125rem 0.75rem;
-  list-style: none;
+  column-gap: 0.75rem;
+  padding-bottom: 1.125rem;
+}
+
+.mobile-library__grid--virtual .mobile-library__row {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
 }
 
 .mobile-tile {
@@ -1150,9 +1173,14 @@
 .mobile-filter {
   display: flex;
   gap: 0.375rem;
+  /* Pills stay on one line; with large counts or text they scroll sideways. */
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .mobile-filter button {
+  flex: none;
+  white-space: nowrap;
   height: 1.875rem;
   padding: 0 0.75rem;
   color: var(--text-secondary);

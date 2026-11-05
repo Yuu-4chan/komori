@@ -124,6 +124,8 @@ mod tests {
             series: None,
             series_index: None,
             language: None,
+            characters: None,
+            words: None,
         }
     }
 

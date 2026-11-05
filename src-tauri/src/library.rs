@@ -74,7 +74,7 @@ pub struct LibraryBook {
     unique_kanji: Option<i64>,
     /// Words in any other book's text.
     words: Option<i64>,
-    /// On the phone, whether the book came from the paired PC, whose tab lists it instead.
+    /// On the phone, whether the book came from the paired PC, as whose book the Library lists it.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     from_pc: bool,
 }
@@ -706,6 +706,8 @@ pub(crate) fn remote_books(
                 series: book.series,
                 series_index: book.series_index,
                 language: book.language,
+                characters: book.characters,
+                words: book.words,
             })
         })
         .collect())
@@ -1585,6 +1587,54 @@ impl LibraryBook {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+
+    #[test]
+    fn a_paired_phone_sees_each_books_characters_and_words() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut connection = open_catalog(&directory.path().join(CATALOG_FILE_NAME)).unwrap();
+        let first = directory.path().join("first.epub");
+        let second = directory.path().join("second.epub");
+        fixture(&first, Some("First"), None, false);
+        fixture(&second, Some("Second"), None, false);
+        let (mut progress, _) = crate::bulk_progress::recording();
+        import_paths_with_progress(&mut connection, &[first, second], &mut progress);
+        connection
+            .execute_batch(
+                "UPDATE book_details SET characters = 1200, words = NULL
+                   WHERE book_id = (SELECT id FROM books WHERE title = 'First');
+                 UPDATE book_details SET characters = NULL, words = 340
+                   WHERE book_id = (SELECT id FROM books WHERE title = 'Second');",
+            )
+            .unwrap();
+        let books = remote_books(&connection).unwrap();
+        let counts = |title: &str| {
+            let book = books
+                .iter()
+                .find(|book| book.title.as_deref() == Some(title))
+                .unwrap();
+            (book.characters, book.words)
+        };
+        assert_eq!(counts("First"), (Some(1200), None));
+        assert_eq!(counts("Second"), (None, Some(340)));
+        let sent = serde_json::to_value(&books).unwrap();
+        let first = sent
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|book| book["title"] == "First")
+            .unwrap();
+        assert_eq!(first["characters"], 1200);
+        assert!(first.get("words").is_none(), "an unknown count is left out");
+        // A listing from a PC that does not send them reads as unknown.
+        let older: crate::devices::protocol::RemoteBook =
+            serde_json::from_value(serde_json::json!({
+                "id": "a", "title": null, "author": null, "fileName": "a.epub", "size": 1,
+                "cover": null, "progress": null, "lastReadAt": null, "series": null,
+                "seriesIndex": null, "language": null
+            }))
+            .unwrap();
+        assert_eq!((older.characters, older.words), (None, None));
+    }
 
     #[test]
     fn bulk_progress_counts_failed_imports_and_partial_deletions_in_order() {

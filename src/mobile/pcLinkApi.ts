@@ -62,6 +62,9 @@ export interface PcBook {
   series: string | null;
   seriesIndex: number | null;
   language: string | null;
+  /** Its characters and words, when the PC sends them. */
+  characters?: number | null;
+  words?: number | null;
   /** The copy's catalog ID on this phone, once it was opened here. */
   localId: string | null;
   /** Whether the copy's file is on this phone now. */
@@ -211,6 +214,8 @@ export function asLibraryBook(book: PcBook): LibraryBook {
     language: book.language,
     series: book.series,
     seriesIndex: book.seriesIndex,
+    characters: book.characters ?? null,
+    words: book.words ?? null,
   };
 }
 

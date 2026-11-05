@@ -140,6 +140,25 @@ describe("the Library on a phone paired with a PC", () => {
     expect(titles(books)).toEqual(["それから", "三四郎", "羅生門"]);
   });
 
+  it("sums the books and their characters and words of the chosen pill under the title", async () => {
+    vi.mocked(api.usePcLink).mockReturnValue(paired);
+    vi.mocked(listLibrary).mockResolvedValue([{ ...own, characters: 500 }, copied]);
+    vi.mocked(api.listPcLibrary).mockResolvedValue([
+      { ...remote, characters: 1000 },
+      { ...kept, characters: 2000 },
+      { ...remote, id: "pc-3", title: "Kokoro", language: "en", words: 300 },
+    ]);
+    page();
+    const summary = () => document.querySelector(".mobile-header__summary")!;
+    await waitFor(() => expect(summary().textContent).toBe("4 books3.5K characters300 words"));
+    expect(summary().closest(".mobile-header__row")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "On this phone · 2" }));
+    expect(summary().textContent).toBe("2 books2.5K characters");
+    await userEvent.click(screen.getByRole("button", { name: "On PC · 3" }));
+    expect(summary().textContent).toBe("3 books3K characters300 words");
+  });
+
   it("shows the saved listing at once, and Connected once the PC answers", async () => {
     const minutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
     vi.mocked(api.cachedPcLibrary).mockResolvedValueOnce([remote, kept]);
@@ -219,6 +238,10 @@ describe("the Library on a phone paired with a PC", () => {
       ]),
     );
     expect(within(shelf).getByText("2 books in progress")).toBeTruthy();
+    // The PC's book shows how much was read as the phone's own does.
+    expect(
+      [...shelf.querySelectorAll(".mobile-continue__count")].map((each) => each.textContent),
+    ).toEqual(["100 / 1,000 characters", "1,200 / 10,000 characters"]);
   });
 
   it("is only the phone's books unpaired or with Sync with PC off", async () => {
@@ -261,6 +284,65 @@ describe("the Library on a phone paired with a PC", () => {
     expect(vi.mocked(api.autoSync).mock.invocationCallOrder[0]).toBeGreaterThan(
       vi.mocked(api.openPcBook).mock.invocationCallOrder[0],
     );
+  });
+
+  it("renders only the books near the view of a large PC Library, following the scroll", async () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const height = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(800);
+    // jsdom has no layout: the grid moves up as its scroll container scrolls.
+    let scroller: HTMLElement | null = null;
+    const rect = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        const top = this.classList.contains("mobile-library__grid")
+          ? -(scroller?.scrollTop ?? 0)
+          : 0;
+        return { top, bottom: top, left: 0, right: 0, width: 0, height: 0 } as DOMRect;
+      });
+    try {
+      vi.mocked(api.usePcLink).mockReturnValue(paired);
+      vi.mocked(listLibrary).mockResolvedValue([own]);
+      vi.mocked(api.listPcLibrary).mockResolvedValue(
+        Array.from({ length: 600 }, (_, index) => ({
+          ...remote,
+          id: `pc-${index}`,
+          title: `Book ${String(index).padStart(3, "0")}`,
+        })),
+      );
+      render(
+        <AppearanceProvider store={null}>
+          <MemoryRouter>
+            <div style={{ overflowY: "auto" }}>
+              <MobileLibraryPage />
+            </div>
+          </MemoryRouter>
+        </AppearanceProvider>,
+      );
+      expect(await screen.findByRole("button", { name: "All · 601" })).toBeTruthy();
+      const books = await allBooks();
+      await waitFor(() => expect(titles(books)[0]).toBe("Book 000"));
+      expect(titles(books).length).toBeLessThan(60);
+      expect(titles(books)).not.toContain("Book 599");
+
+      scroller = books
+        .querySelector<HTMLElement>(".mobile-library__grid")!
+        .closest<HTMLElement>("[style*=overflow]")!;
+      scroller.scrollTop = 54_000;
+      fireEvent.scroll(scroller);
+      await waitFor(() => expect(titles(books)).toContain("羅生門"));
+      expect(titles(books)).not.toContain("Book 000");
+      expect(titles(books).length).toBeLessThan(60);
+    } finally {
+      height.mockRestore();
+      rect.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("offers opening, keeping and removing the copy here on a long press", async () => {

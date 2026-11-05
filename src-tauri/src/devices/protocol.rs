@@ -77,6 +77,12 @@ pub(crate) struct RemoteBook {
     pub(crate) series: Option<String>,
     pub(crate) series_index: Option<f64>,
     pub(crate) language: Option<String>,
+    /// The book's characters and words, as its Library card counts them; none before the PC
+    /// counted them, or from a PC that does not send them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) characters: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) words: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

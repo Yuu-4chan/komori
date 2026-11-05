@@ -10,7 +10,7 @@ import {
   TrashIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "../components/ui/Button";
@@ -42,6 +42,7 @@ import {
 import { LibrarySummary } from "../features/library/LibraryOverview";
 import { LibrarySearch } from "../features/library/LibraryToolbar";
 import { SeriesDialog, type SeriesChoice } from "../features/library/SeriesDialog";
+import { useVirtualRows } from "../features/library/useVirtualRows";
 import {
   bookTitle,
   canMarkCompleted,
@@ -512,23 +513,23 @@ export function MobileLibraryPage() {
             {shown.length === 0 ? (
               <p className="mobile-library__none">{t("library.noneFound")}</p>
             ) : (
-              <ul className="mobile-library__grid">
-                {shown.map((item) => (
-                  <li key={`${item.kind}:${item.book.id}`}>
-                    {item.kind === "phone" ? (
-                      <BookTile book={item.book} onChoose={choose} onMissing={setMissing} />
-                    ) : (
-                      <PcTile
-                        entry={item.entry}
-                        onChoose={setChosenPc}
-                        onKeep={(entry) => void pcActions.keep(entry)}
-                        onOpen={(entry) => void pcActions.open(entry)}
-                        saving={pcActions.saving[item.entry.pc.id]}
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <BookGrid
+                items={shown}
+                keyOf={(item) => `${item.kind}:${item.book.id}`}
+                render={(item) =>
+                  item.kind === "phone" ? (
+                    <BookTile book={item.book} onChoose={choose} onMissing={setMissing} />
+                  ) : (
+                    <PcTile
+                      entry={item.entry}
+                      onChoose={setChosenPc}
+                      onKeep={(entry) => void pcActions.keep(entry)}
+                      onOpen={(entry) => void pcActions.open(entry)}
+                      saving={pcActions.saving[item.entry.pc.id]}
+                    />
+                  )
+                }
+              />
             )}
           </section>
         </>
@@ -801,6 +802,65 @@ function ContinueCard({
         <span className="mobile-continue__count">{readTotalLabel(book)}</span>
       </div>
     </Link>
+  );
+}
+
+const GRID_COLUMNS = 3;
+
+/**
+ * The grid of books, three to a row. Only the rows within about a screen of the view are
+ * rendered, so a Library of thousands of the PC's books shows and scrolls as fast as a small one.
+ */
+function BookGrid<T>({
+  items,
+  keyOf,
+  render,
+}: {
+  items: readonly T[];
+  keyOf: (item: T) => string;
+  render: (item: T) => ReactNode;
+}) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const rows = useMemo(() => {
+    const chunks: T[][] = [];
+    for (let index = 0; index < items.length; index += GRID_COLUMNS)
+      chunks.push(items.slice(index, index + GRID_COLUMNS));
+    return chunks;
+  }, [items]);
+  const grid = useVirtualRows(listRef, {
+    count: rows.length,
+    estimate: 270,
+    gap: 0,
+    layoutKey: "mobile-grid",
+  });
+  return (
+    <div
+      className={`mobile-library__grid${grid.virtual ? " mobile-library__grid--virtual" : ""}`}
+      ref={listRef}
+      role="list"
+      style={grid.virtual ? { height: grid.total } : undefined}
+    >
+      {grid.rows.map(({ index, start }) => {
+        const row = rows[index];
+        if (!row) return null;
+        return (
+          <div
+            className="mobile-library__row"
+            data-index={index}
+            key={keyOf(row[0])}
+            ref={grid.measureRef}
+            role="presentation"
+            style={grid.virtual ? { transform: `translateY(${start}px)` } : undefined}
+          >
+            {row.map((item) => (
+              <div key={keyOf(item)} role="listitem">
+                {render(item)}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
