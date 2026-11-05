@@ -197,6 +197,8 @@ pub fn run() {
             reading_sessions::list_reading_devices,
             reading_sessions::edit_daily_activity,
             reading_sessions::list_library_kanji,
+            #[cfg(mobile)]
+            pc_link::list_pc_library_kanji,
             reading_sessions::get_statistics_counts,
             reading_sessions::delete_reading_sessions,
             reading_sessions::mark_book_unread,

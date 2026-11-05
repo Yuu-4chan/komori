@@ -197,18 +197,26 @@ const units: [Intl.RelativeTimeFormatUnit, number][] = [
   ["minute", 60],
 ];
 
-/** "2 days ago", or null for a book never opened. */
-export function lastReadLabel(book: LibraryBook, now = Date.now()): string | null {
-  return timeAgo(book.lastReadAt, now);
+/** "2 days ago" ("2d ago" narrow), or null for a book never opened. */
+export function lastReadLabel(
+  book: LibraryBook,
+  now = Date.now(),
+  style: Intl.RelativeTimeFormatStyle = "long",
+): string | null {
+  return timeAgo(book.lastReadAt, now, style);
 }
 
-/** "2 days ago" for a stored time, or null for none. */
-export function timeAgo(at: string | null | undefined, now = Date.now()): string | null {
+/** "2 days ago" ("2d ago" narrow) for a stored time, or null for none. */
+export function timeAgo(
+  at: string | null | undefined,
+  now = Date.now(),
+  style: Intl.RelativeTimeFormatStyle = "long",
+): string | null {
   const read = at ? Date.parse(at) : Number.NaN;
   if (Number.isNaN(read)) return null;
   const seconds = Math.round((read - now) / 1000);
   for (const [unit, size] of units) {
-    if (Math.abs(seconds) >= size) return i18n().relative(Math.round(seconds / size), unit);
+    if (Math.abs(seconds) >= size) return i18n().relative(Math.round(seconds / size), unit, style);
   }
   return i18n().t("libraryCard.justNow");
 }

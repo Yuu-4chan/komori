@@ -89,6 +89,24 @@ fn a_phone_pairs_with_the_code_and_then_reads_the_library_without_paths() {
     assert!(!listing.contains(&*directory), "{listing}");
     assert!(!listing.contains("Gone"));
 
+    // The Library's kanji, for the phone's Statistics.
+    open_catalog(&pc.shared.catalog)
+        .unwrap()
+        .execute(
+            "INSERT OR REPLACE INTO book_details (book_id, details_version, language, kanji)
+             VALUES (?1, 1, 'ja', '日本')",
+            [&book.id],
+        )
+        .unwrap();
+    let kanji = serde_json::to_value(run(client.library_kanji()).unwrap()).unwrap();
+    assert_eq!(kanji[0]["language"], "ja");
+    assert_eq!(kanji[0]["books"], 1);
+    assert_eq!(kanji[0]["kanji"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        run(unpaired.library_kanji()).unwrap_err(),
+        LinkError::NotPaired
+    );
+
     let (kind, cover) = run(client.cover(&book.id)).unwrap();
     assert!(kind.starts_with("image/"));
     assert!(!cover.is_empty());

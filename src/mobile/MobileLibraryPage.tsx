@@ -3,6 +3,8 @@ import {
   BooksIcon,
   CaretRightIcon,
   CheckCircleIcon,
+  CheckIcon,
+  FunnelSimpleIcon,
   LinkSimpleIcon,
   PencilSimpleIcon,
   PlusIcon,
@@ -39,7 +41,6 @@ import {
   relinkNoticeFor,
   type RelinkNoticeState,
 } from "../features/library/LibraryNotices";
-import { LibrarySummary } from "../features/library/LibraryOverview";
 import { LibrarySearch } from "../features/library/LibraryToolbar";
 import { SeriesDialog, type SeriesChoice } from "../features/library/SeriesDialog";
 import { useVirtualRows } from "../features/library/useVirtualRows";
@@ -74,6 +75,7 @@ import {
 } from "./MobilePcLibrary";
 import { MobileSheet } from "./MobileSheet";
 import { onPcSynced, syncPc, usePcLink } from "./pcLinkApi";
+import { mergePcLibrary, phoneItem, type MergedBook } from "./pcLibraryMerge";
 import { PullToSync } from "./pullToSync";
 
 type Listing =
@@ -82,19 +84,14 @@ type Listing =
   | { status: "error"; books: LibraryBook[]; message: string };
 
 /** A book the Library lists: the phone's own, or the paired PC's (with its copy here, if any). */
-type Item =
-  { kind: "phone"; book: LibraryBook } | { kind: "pc"; book: LibraryBook; entry: PcEntry };
+type Item = MergedBook;
 
-const phoneItem = (book: LibraryBook): Item => ({ kind: "phone", book });
-
-/** A PC book with the later of its two places: the PC's, or its copy's on this phone. */
-function pcItem(entry: PcEntry, copy: LibraryBook | undefined): Item {
-  const later = copy && (copy.lastReadAt ?? "") > (entry.book.lastReadAt ?? "");
-  const book = later
-    ? { ...entry.book, progress: copy.progress, lastReadAt: copy.lastReadAt }
-    : entry.book;
-  return { kind: "pc", book, entry: { ...entry, book } };
-}
+/** The heading of the books for each place the Library shows. */
+const PLACE_LABELS = {
+  all: "sync.placeAll",
+  phone: "sync.placePhone",
+  pc: "sync.placePc",
+} as const satisfies Record<LibraryPlace, string>;
 
 const onThisPhone = (item: Item) => item.kind === "phone" || item.entry.pc.kept;
 
@@ -108,7 +105,7 @@ const onThisPhone = (item: Item) => item.kind === "phone" || item.entry.pc.kept;
  * Relink and Remove instead.
  */
 export function MobileLibraryPage() {
-  const { t, tp } = useI18n();
+  const { number, t, tp } = useI18n();
   const imports = useLibraryImport();
   const cached = libraryCache.books();
   const [listing, setListing] = useState<Listing>(
@@ -125,6 +122,7 @@ export function MobileLibraryPage() {
   const [chosenPc, setChosenPc] = useState<PcEntry | null>(null);
   const [editing, setEditing] = useState<LibraryBook | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
+  const [choosingPlace, setChoosingPlace] = useState(false);
   const [inSeries, setInSeries] = useState<LibraryBook | null>(null);
   const [seriesError, setSeriesError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
@@ -197,19 +195,7 @@ export function MobileLibraryPage() {
     // Until the pairing is read, the PC's copies wait, so they never show as the phone's.
     if (link === null) return allBooks.filter((book) => !book.fromPc).map(phoneItem);
     if (!pcActive) return allBooks.map(phoneItem);
-    const copies = new Map(allBooks.filter((book) => book.fromPc).map((book) => [book.id, book]));
-    const fromPc = (pcEntries ?? []).map((entry) => {
-      const copy = entry.pc.localId === null ? undefined : copies.get(entry.pc.localId);
-      if (copy) copies.delete(copy.id);
-      return pcItem(entry, copy);
-    });
-    // A copy of a book the PC no longer has stays the phone's while its file is here.
-    const own = allBooks.filter(
-      (book) =>
-        !book.fromPc ||
-        (pcEntries !== null && copies.has(book.id) && book.availability === "available"),
-    );
-    return [...own.map(phoneItem), ...fromPc];
+    return mergePcLibrary(allBooks, pcEntries);
   }, [allBooks, link, pcActive, pcEntries]);
   const placed = useMemo(
     () =>
@@ -377,11 +363,7 @@ export function MobileLibraryPage() {
   return (
     <div className="mobile-page mobile-library">
       <PullToSync enabled onPull={syncNow} />
-      <MobilePageHeader
-        actions={addBooks}
-        summary={known ? <LibrarySummary books={placedBooks} shown={placedBooks} /> : null}
-        title={t("shell.library")}
-      />
+      <MobilePageHeader actions={addBooks} title={t("shell.library")} />
 
       <div className="mobile-notices">
         {imports.error ? (
@@ -476,40 +458,29 @@ export function MobileLibraryPage() {
             </section>
           ) : null}
 
-          <section
-            className="mobile-library__section"
-            aria-label={pcActive ? t("libraryToolbar.filter.all") : undefined}
-            aria-labelledby={pcActive ? undefined : "mobile-all-books"}
-          >
-            {pcActive ? (
-              <div className="mobile-filter" role="group" aria-label={t("sync.show")}>
-                {(
-                  [
-                    ["all", t("sync.all", { count: items.length })],
-                    ["phone", t("sync.onPhoneCount", { count: items.filter(onThisPhone).length })],
-                    [
-                      "pc",
-                      t("sync.onPcCount", {
-                        count: items.filter((item) => item.kind === "pc").length,
-                      }),
-                    ],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    aria-pressed={place === value}
-                    key={value}
-                    onClick={() => updateLibrary({ place: value })}
-                    type="button"
-                  >
-                    {label}
-                  </button>
-                ))}
+          <section className="mobile-library__section" aria-labelledby="mobile-all-books">
+            <div className="mobile-books-heading">
+              <div className="mobile-books-heading__text">
+                <h2 className="mobile-section-heading" id="mobile-all-books">
+                  {t(PLACE_LABELS[place])}
+                </h2>
+                {known ? (
+                  <small className="mobile-books-heading__count">
+                    {tp("librarySummary.books", placedBooks.length)}
+                  </small>
+                ) : null}
               </div>
-            ) : (
-              <h2 className="mobile-section-heading" id="mobile-all-books">
-                {t("libraryToolbar.filter.all")}
-              </h2>
-            )}
+              {pcActive ? (
+                <button
+                  aria-label={t("sync.show")}
+                  className="mobile-books-heading__filter"
+                  onClick={() => setChoosingPlace(true)}
+                  type="button"
+                >
+                  <FunnelSimpleIcon aria-hidden="true" weight="bold" />
+                </button>
+              ) : null}
+            </div>
             {shown.length === 0 ? (
               <p className="mobile-library__none">{t("library.noneFound")}</p>
             ) : (
@@ -534,6 +505,37 @@ export function MobileLibraryPage() {
           </section>
         </>
       )}
+
+      <MobileSheet
+        label={t("sync.show")}
+        onClose={() => setChoosingPlace(false)}
+        open={choosingPlace && pcActive}
+      >
+        <div className="mobile-place-choices" role="group">
+          {(
+            [
+              ["all", items.length],
+              ["phone", items.filter(onThisPhone).length],
+              ["pc", items.filter((item) => item.kind === "pc").length],
+            ] as const
+          ).map(([value, count]) => (
+            <button
+              aria-pressed={place === value}
+              className="mobile-sheet-row"
+              key={value}
+              onClick={() => {
+                updateLibrary({ place: value });
+                setChoosingPlace(false);
+              }}
+              type="button"
+            >
+              <span>{t(PLACE_LABELS[value])}</span>
+              <small>{number(count)}</small>
+              {place === value ? <CheckIcon aria-hidden="true" weight="bold" /> : null}
+            </button>
+          ))}
+        </div>
+      </MobileSheet>
 
       <MobileSheet
         label={t("libraryCard.missing")}
@@ -772,7 +774,7 @@ function ContinueCard({
 }) {
   const { t } = useI18n();
   const percent = progressPercent(book);
-  const lastRead = lastReadLabel(book);
+  const lastRead = lastReadLabel(book, Date.now(), "narrow");
   const longPress = useLongPress(() => onChoose(book));
   return (
     <Link className="mobile-continue" to={`/reader/${book.id}`} {...longPress}>

@@ -74,7 +74,7 @@ function library(books: LibraryBook[] = [reading, finished, gone]) {
 }
 
 async function tile(title: string) {
-  const books = await screen.findByRole("region", { name: "All books" });
+  const books = await screen.findByRole("region", { name: "All" });
   const titles = [...books.querySelectorAll(".mobile-tile__title")];
   return titles.find((each) => each.textContent === title)!.closest("a, button")!;
 }

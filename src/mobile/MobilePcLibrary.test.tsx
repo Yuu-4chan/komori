@@ -102,7 +102,13 @@ const paired: api.PcLink = {
   lastSynced: null,
 };
 
-const allBooks = () => screen.findByRole("region", { name: "All books" });
+const allBooks = () => screen.findByRole("region", { name: "All" });
+
+/** Chooses the place the Library shows from the books' filter, as a tap would. */
+async function choosePlace(place: RegExp) {
+  await userEvent.click(screen.getByRole("button", { name: "Show" }));
+  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: place }));
+}
 
 function titles(region: HTMLElement) {
   return [...region.querySelectorAll(".mobile-tile__title")].map((each) => each.textContent);
@@ -124,7 +130,7 @@ afterEach(() => {
 });
 
 describe("the Library on a phone paired with a PC", () => {
-  it("lists the PC's books with the phone's own, each copy once, with pills to choose", async () => {
+  it("lists the PC's books with the phone's own, each copy once, with a filter to choose", async () => {
     library(paired);
     const books = await allBooks();
     await waitFor(() => expect(titles(books)).toEqual(["それから", "三四郎", "羅生門"]));
@@ -132,15 +138,25 @@ describe("the Library on a phone paired with a PC", () => {
     expect(screen.queryByRole("button", { name: "KOMORI-PC" })).toBeNull();
     expect(screen.getByRole("searchbox").getAttribute("placeholder")).not.toContain("KOMORI-PC");
 
-    await userEvent.click(within(books).getByRole("button", { name: "On PC · 2" }));
+    await userEvent.click(within(books).getByRole("button", { name: "Show" }));
+    const choices = within(screen.getByRole("dialog")).getAllByRole("button");
+    expect(choices.map((each) => [each.textContent, each.getAttribute("aria-pressed")])).toEqual([
+      ["All3", "true"],
+      ["On this phone2", "false"],
+      ["On PC2", "false"],
+    ]);
+    await userEvent.click(choices[2]!);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(books.querySelector("h2")!.textContent).toBe("On PC");
     expect(titles(books)).toEqual(["それから", "三四郎"]);
-    await userEvent.click(within(books).getByRole("button", { name: "On this phone · 2" }));
+    await choosePlace(/^On this phone/);
+    expect(books.querySelector("h2")!.textContent).toBe("On this phone");
     expect(titles(books)).toEqual(["三四郎", "羅生門"]);
-    await userEvent.click(within(books).getByRole("button", { name: "All · 3" }));
+    await choosePlace(/^All/);
     expect(titles(books)).toEqual(["それから", "三四郎", "羅生門"]);
   });
 
-  it("sums the books and their characters and words of the chosen pill under the title", async () => {
+  it("counts the books of the chosen place beside its heading, without characters or words", async () => {
     vi.mocked(api.usePcLink).mockReturnValue(paired);
     vi.mocked(listLibrary).mockResolvedValue([{ ...own, characters: 500 }, copied]);
     vi.mocked(api.listPcLibrary).mockResolvedValue([
@@ -149,14 +165,18 @@ describe("the Library on a phone paired with a PC", () => {
       { ...remote, id: "pc-3", title: "Kokoro", language: "en", words: 300 },
     ]);
     page();
-    const summary = () => document.querySelector(".mobile-header__summary")!;
-    await waitFor(() => expect(summary().textContent).toBe("4 books3.5K characters300 words"));
-    expect(summary().closest(".mobile-header__row")).toBeNull();
+    const counts = () =>
+      [...document.querySelectorAll(".mobile-books-heading__text > *")].map(
+        (each) => each.textContent,
+      );
+    await waitFor(() => expect(counts()).toEqual(["All", "4 books"]));
+    expect(document.querySelector(".mobile-header .library-summary")).toBeNull();
 
-    await userEvent.click(screen.getByRole("button", { name: "On this phone · 2" }));
-    expect(summary().textContent).toBe("2 books2.5K characters");
-    await userEvent.click(screen.getByRole("button", { name: "On PC · 3" }));
-    expect(summary().textContent).toBe("3 books3K characters300 words");
+    await choosePlace(/^On this phone/);
+    expect(counts()).toEqual(["On this phone", "2 books"]);
+    await choosePlace(/^On PC/);
+    expect(counts()).toEqual(["On PC", "3 books"]);
+    expect(document.querySelector(".mobile-books-heading")!.textContent).toBe("On PC3 books");
   });
 
   it("shows the saved listing at once, and Connected once the PC answers", async () => {
@@ -188,7 +208,7 @@ describe("the Library on a phone paired with a PC", () => {
 
     page();
     // The first render already has every book: nothing loads on returning.
-    expect(titles(screen.getByRole("region", { name: "All books" }))).toHaveLength(3);
+    expect(titles(screen.getByRole("region", { name: "All" }))).toHaveLength(3);
     expect(screen.getByText("Connected")).toBeTruthy();
     await waitFor(() => expect(listLibrary).toHaveBeenCalledTimes(2));
     expect(api.listPcLibrary).toHaveBeenCalledTimes(1);
@@ -248,7 +268,7 @@ describe("the Library on a phone paired with a PC", () => {
     library({ ...paired, syncOn: false });
     const books = await allBooks();
     await waitFor(() => expect(titles(books)).toEqual(["三四郎", "羅生門"]));
-    expect(screen.queryByRole("button", { name: /^All · / })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Sync now" })).toBeNull();
     expect(api.listPcLibrary).not.toHaveBeenCalled();
   });
@@ -324,8 +344,10 @@ describe("the Library on a phone paired with a PC", () => {
           </MemoryRouter>
         </AppearanceProvider>,
       );
-      expect(await screen.findByRole("button", { name: "All · 601" })).toBeTruthy();
       const books = await allBooks();
+      await waitFor(() =>
+        expect(books.querySelector(".mobile-books-heading__count")!.textContent).toBe("601 books"),
+      );
       await waitFor(() => expect(titles(books)[0]).toBe("Book 000"));
       expect(titles(books).length).toBeLessThan(60);
       expect(titles(books)).not.toContain("Book 599");

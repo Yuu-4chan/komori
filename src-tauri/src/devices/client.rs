@@ -321,6 +321,17 @@ impl Client {
         .await
     }
 
+    /// The kanji of the PC's Library, as its Statistics counts them.
+    pub(crate) async fn library_kanji(
+        &self,
+    ) -> Result<Vec<crate::reading_sessions::LibraryKanji>, LinkError> {
+        self.json(
+            self.request(reqwest::Method::GET, "/v1/library/kanji")
+                .timeout(LISTING),
+        )
+        .await
+    }
+
     /// The PC's state of these books and every session, for the phone to merge.
     pub(crate) async fn sync_pull(
         &self,

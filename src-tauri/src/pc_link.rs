@@ -598,6 +598,40 @@ pub async fn list_pc_library(
     Ok(books)
 }
 
+/// The kanji of the phone's books and the PC's as one, for Statistics: the PC's as it sends them
+/// now, or as last received when it does not answer. The phone's copies of PC books count as
+/// the PC's books, so they are left out of the phone's own while the PC's kanji are known.
+#[tauri::command]
+pub async fn list_pc_library_kanji(
+    catalog: State<'_, CatalogState>,
+) -> Result<Vec<crate::reading_sessions::LibraryKanji>, String> {
+    let database = catalog_path(&catalog);
+    let link = {
+        let database = database.clone();
+        blocking(move || read_link(&database)).await?
+    };
+    let fetched = match link.client() {
+        Ok(client) => client.library_kanji().await.ok(),
+        Err(_) => None,
+    };
+    blocking(move || {
+        let connection = open_catalog(&database)?;
+        if let Some(kanji) = &fetched {
+            pc_listing::save_kanji(&connection, kanji)?;
+        }
+        let Some(pc) = fetched.map_or_else(
+            || pc_listing::saved_kanji(&connection),
+            |kanji| Ok(Some(kanji)),
+        )?
+        else {
+            return crate::reading_sessions::kanji_from(&connection);
+        };
+        let own = crate::reading_sessions::kanji_skipping(&connection, &pc_book_ids(&connection))?;
+        Ok(crate::reading_sessions::merge_kanji(own, pc))
+    })
+    .await
+}
+
 /// One cover fetch at a time, so the covers never take more of the PC's connections than one.
 static COVERS: tauri::async_runtime::Mutex<()> = tauri::async_runtime::Mutex::const_new(());
 static FETCHING: AtomicBool = AtomicBool::new(false);

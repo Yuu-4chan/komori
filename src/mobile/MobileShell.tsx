@@ -7,7 +7,9 @@ import { flushPendingWrites } from "../app/windowLifecycle";
 import { BrandMark } from "../brand/BrandMark";
 import { MobileHeaderContext, type MobileHeaderProps } from "../components/layout/mobileHeader";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
+import { StatisticsSourceContext } from "../features/statistics/statisticsSource";
 import { useI18n } from "../i18n/i18n";
+import { mobileStatisticsSource } from "./mobileStatisticsSource";
 import { autoSync } from "./pcLinkApi";
 import { systemBarIcons, useBackButton, watchKeyboard, watchSafeArea } from "./system";
 
@@ -24,34 +26,35 @@ export function MobileShell() {
   useEffect(() => systemBarIcons(lightTheme), [lightTheme]);
   return (
     <MobileHeaderContext.Provider value={MobilePageHeader}>
-      <div className="mobile-shell">
-        <main className="mobile-shell__content" id="main-content">
-          <Outlet />
-        </main>
-        <nav className="mobile-dock" aria-label={t("shell.primaryNavigation")} hidden={!docked}>
-          {navigationItems.map(({ icon: NavigationIcon, label, path }) => (
-            <NavLink
-              className={({ isActive }) =>
-                isActive ? "mobile-dock__item mobile-dock__item--active" : "mobile-dock__item"
-              }
-              key={path}
-              to={path}
-            >
-              <NavigationIcon aria-hidden="true" weight="duotone" />
-              <span>{t(label)}</span>
-            </NavLink>
-          ))}
-        </nav>
-      </div>
+      <StatisticsSourceContext.Provider value={mobileStatisticsSource}>
+        <div className="mobile-shell">
+          <main className="mobile-shell__content" id="main-content">
+            <Outlet />
+          </main>
+          <nav className="mobile-dock" aria-label={t("shell.primaryNavigation")} hidden={!docked}>
+            {navigationItems.map(({ icon: NavigationIcon, label, path }) => (
+              <NavLink
+                className={({ isActive }) =>
+                  isActive ? "mobile-dock__item mobile-dock__item--active" : "mobile-dock__item"
+                }
+                key={path}
+                to={path}
+              >
+                <NavigationIcon aria-hidden="true" weight="duotone" />
+                <span>{t(label)}</span>
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+      </StatisticsSourceContext.Provider>
     </MobileHeaderContext.Provider>
   );
 }
 
 /**
- * A page's heading on the phone: the brand, its title, Settings and its own actions, with the
- * page's summary on its own line under the title.
+ * A page's heading on the phone: the brand, its title, Settings and its own actions.
  */
-export function MobilePageHeader({ title, summary, actions, back = false }: MobileHeaderProps) {
+export function MobilePageHeader({ title, actions, back = false }: MobileHeaderProps) {
   const { t } = useI18n();
   const navigate = useNavigate();
   return (
@@ -79,7 +82,6 @@ export function MobilePageHeader({ title, summary, actions, back = false }: Mobi
         )}
         {actions}
       </div>
-      {summary ? <div className="mobile-header__summary">{summary}</div> : null}
     </header>
   );
 }

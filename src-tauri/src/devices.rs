@@ -502,6 +502,17 @@ fn route(
                 }
             }
         }
+        ("GET", ["v1", "library", "kanji"]) => {
+            let kanji = open_catalog(&shared.catalog)
+                .and_then(|connection| crate::reading_sessions::kanji_from(&connection));
+            match kanji {
+                Ok(kanji) => http::respond_json(stream, 200, &kanji),
+                Err(message) => {
+                    eprintln!("Komori devices could not list the Library's kanji: {message}");
+                    error(stream, 500, "failed")
+                }
+            }
+        }
         ("GET", ["v1", "books", id, "cover"]) => {
             let cover = Uuid::parse_str(id)
                 .ok()

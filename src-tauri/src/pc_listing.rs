@@ -8,8 +8,10 @@ use rusqlite::{Connection, OptionalExtension};
 
 use crate::devices::protocol::RemoteBook;
 use crate::library::storage_error;
+use crate::reading_sessions::LibraryKanji;
 
 const LISTING: &str = "pc-library";
+const KANJI: &str = "pc-kanji";
 
 /// The PC's listing as last saved, or none before the first.
 pub(crate) fn saved(connection: &Connection) -> Result<Option<Vec<RemoteBook>>, String> {
@@ -49,10 +51,40 @@ pub(crate) fn save(connection: &Connection, books: &[RemoteBook]) -> Result<bool
     Ok(true)
 }
 
-/// Forgets the listing, as unpairing does.
+/// The kanji of the PC's Library as last received, or none before the first.
+pub(crate) fn saved_kanji(connection: &Connection) -> Result<Option<Vec<LibraryKanji>>, String> {
+    let value: Option<String> = connection
+        .query_row(
+            "SELECT value FROM preferences WHERE name = ?1",
+            [KANJI],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(storage_error)?;
+    Ok(value.and_then(|value| serde_json::from_str(&value).ok()))
+}
+
+/// Saves the kanji of the PC's Library.
+pub(crate) fn save_kanji(connection: &Connection, kanji: &[LibraryKanji]) -> Result<(), String> {
+    let value = serde_json::to_string(kanji).map_err(|error| error.to_string())?;
+    connection
+        .execute(
+            "INSERT INTO preferences (name, value) VALUES (?1, ?2)
+             ON CONFLICT(name) DO UPDATE SET value = excluded.value,
+               updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')",
+            [KANJI, &value],
+        )
+        .map(|_| ())
+        .map_err(storage_error)
+}
+
+/// Forgets the listing and the kanji, as unpairing does.
 pub(crate) fn forget(connection: &Connection) -> Result<(), String> {
     connection
-        .execute("DELETE FROM preferences WHERE name = ?1", [LISTING])
+        .execute(
+            "DELETE FROM preferences WHERE name IN (?1, ?2)",
+            [LISTING, KANJI],
+        )
         .map(|_| ())
         .map_err(storage_error)
 }
@@ -154,8 +186,16 @@ mod tests {
         assert!(save(&connection, &books[..1]).unwrap());
         assert_eq!(saved(&connection).unwrap().unwrap().len(), 1);
 
+        assert!(saved_kanji(&connection).unwrap().is_none());
+        let kanji: Vec<LibraryKanji> =
+            serde_json::from_str(r#"[{"language":"ja","books":1,"kanji":[{"character":"日","books":1,"completed":false}]}]"#)
+                .unwrap();
+        save_kanji(&connection, &kanji).unwrap();
+        assert_eq!(saved_kanji(&connection).unwrap().unwrap(), kanji);
+
         forget(&connection).unwrap();
         assert!(saved(&connection).unwrap().is_none());
+        assert!(saved_kanji(&connection).unwrap().is_none());
     }
 
     #[test]

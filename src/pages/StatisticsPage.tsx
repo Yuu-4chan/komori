@@ -21,11 +21,7 @@ import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { MenuButton } from "../components/ui/MenuButton";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
-import {
-  listLibrary,
-  onLibraryDetailsUpdated,
-  type LibraryBook,
-} from "../features/library/libraryApi";
+import { onLibraryDetailsUpdated, type LibraryBook } from "../features/library/libraryApi";
 import { libraryCache } from "../features/library/libraryCache";
 import { formatDuration } from "../features/statistics/readingSession";
 import {
@@ -48,13 +44,13 @@ import {
   type StatisticsRange,
 } from "../features/statistics/statistics";
 import {
-  listLibraryKanji,
   listReadingDevices,
   listReadingSessions,
   type LibraryKanji,
   type ReadingDevice,
   type StoredReadingSession,
 } from "../features/statistics/statisticsApi";
+import { StatisticsSourceContext } from "../features/statistics/statisticsSource";
 import {
   ActivityCalendar,
   CharacterExplorer,
@@ -86,6 +82,7 @@ type Loaded = {
 export function StatisticsPage() {
   const navigate = useNavigate();
   const MobileHeader = useContext(MobileHeaderContext);
+  const source = useContext(StatisticsSourceContext);
   const { statisticsEnabled } = useAppearance();
   const { t, tp, language } = useI18n();
   const [range, setRange] = useState<StatisticsRange>("month");
@@ -104,25 +101,24 @@ export function StatisticsPage() {
     setData((current) => (current === "failed" || !cached ? "loading" : current));
     try {
       const [books, sessions, devices] = await Promise.all([
-        listLibrary(),
+        source.books(),
         listReadingSessions(),
         listReadingDevices().catch(() => []),
       ]);
       if (version !== loadVersion.current) return;
-      libraryCache.setBooks(books);
       setData({ books, sessions, devices });
     } catch {
       if (version === loadVersion.current) setData("failed");
     }
-  }, []);
+  }, [source]);
   const loadKanji = useCallback(async () => {
     setKanji(null);
     try {
-      setKanji(await listLibraryKanji());
+      setKanji(await source.kanji());
     } catch {
       setKanji("failed");
     }
-  }, []);
+  }, [source]);
   useEffect(() => {
     void load();
     void loadKanji();

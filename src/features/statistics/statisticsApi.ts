@@ -181,9 +181,14 @@ export async function listReadingDevices(): Promise<ReadingDevice[]> {
   });
 }
 
-export async function listLibraryKanji(): Promise<LibraryKanji[]> {
+export const listLibraryKanji = () => kanjiOf("list_library_kanji");
+
+/** On a paired phone: its books' kanji with the PC's, the phone's copies counted as the PC's. */
+export const listPcLibraryKanji = () => kanjiOf("list_pc_library_kanji");
+
+async function kanjiOf(command: string): Promise<LibraryKanji[]> {
   if (!isTauri()) throw new Error(i18n().t("statistics.desktopOnly"));
-  const listed = await invoke<unknown>("list_library_kanji");
+  const listed = await invoke<unknown>(command);
   if (!Array.isArray(listed)) return [];
   return listed.flatMap((value): LibraryKanji[] => {
     const group = value as Partial<LibraryKanji> | null;

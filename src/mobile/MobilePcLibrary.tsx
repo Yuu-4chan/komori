@@ -362,7 +362,7 @@ export function PcContinueCard({
 }) {
   const { t } = useI18n();
   const longPress = useLongPress(() => onChoose(entry));
-  const lastRead = lastReadLabel(entry.book);
+  const lastRead = lastReadLabel(entry.book, Date.now(), "narrow");
   return (
     <button
       className="mobile-continue mobile-continue--button"

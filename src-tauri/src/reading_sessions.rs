@@ -8,7 +8,7 @@
 //! so an older Komori still opens the catalog. Sessions outlive their book's removal, keeping
 //! the title it had, until the reader deletes them from Settings. Sources are never read here.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use rusqlite::{params, Connection, TransactionBehavior};
 use serde::{Deserialize, Serialize};
@@ -638,19 +638,19 @@ pub(crate) fn list_from(connection: &Connection) -> Result<Vec<StoredSession>, S
     Ok(sessions)
 }
 
-/// One script's kanji across the Library.
-#[derive(Debug, PartialEq, Serialize)]
+/// One script's kanji across the Library; a paired phone also receives the PC's.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryKanji {
     /// `ja` or `zh`.
-    language: &'static str,
+    language: String,
     /// The books of this language with counted kanji.
     books: i64,
     /// Each kanji, the books containing it, and whether a completed book does.
     kanji: Vec<KanjiEntry>,
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KanjiEntry {
     character: String,
@@ -661,9 +661,18 @@ pub struct KanjiEntry {
 /// Groups the counted kanji of Japanese and Chinese books, most widespread first. A book is
 /// completed when its saved progress reached its total.
 pub(crate) fn kanji_from(connection: &Connection) -> Result<Vec<LibraryKanji>, String> {
+    kanji_skipping(connection, &HashSet::new())
+}
+
+/// The same, leaving out the books `skip` names, such as a phone's copies of the PC's books
+/// when the PC's kanji count them.
+pub(crate) fn kanji_skipping(
+    connection: &Connection,
+    skip: &HashSet<String>,
+) -> Result<Vec<LibraryKanji>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT details.language, details.kanji,
+            "SELECT details.book_id, details.language, details.kanji,
                     coalesce(progress.current_units >= progress.total_units
                              AND progress.total_units > 0, 0)
                FROM book_details AS details
@@ -674,9 +683,10 @@ pub(crate) fn kanji_from(connection: &Connection) -> Result<Vec<LibraryKanji>, S
     let rows = statement
         .query_map([], |row| {
             Ok((
-                row.get::<_, Option<String>>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, bool>(2)?,
+                row.get::<_, String>(0)?,
+                row.get::<_, Option<String>>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, bool>(3)?,
             ))
         })
         .map_err(storage_error)?;
@@ -684,7 +694,10 @@ pub(crate) fn kanji_from(connection: &Connection) -> Result<Vec<LibraryKanji>, S
     type Kanji = BTreeMap<char, (i64, bool)>;
     let mut groups: BTreeMap<&'static str, (i64, Kanji)> = BTreeMap::new();
     for row in rows {
-        let (language, kanji, completed) = row.map_err(storage_error)?;
+        let (book, language, kanji, completed) = row.map_err(storage_error)?;
+        if skip.contains(&book) {
+            continue;
+        }
         let Some(script) = script_of(language.as_deref()) else {
             continue;
         };
@@ -710,12 +723,51 @@ pub(crate) fn kanji_from(connection: &Connection) -> Result<Vec<LibraryKanji>, S
             // Stable over code point order, so ties stay in code point order.
             kanji.sort_by_key(|entry| std::cmp::Reverse(entry.books));
             LibraryKanji {
-                language,
+                language: language.to_owned(),
                 books,
                 kanji,
             }
         })
         .collect())
+}
+
+/// Two Libraries' kanji as one, such as the phone's and the PC's: per script the books add up,
+/// as do each kanji's, and a kanji is completed when either completed a book with it.
+#[cfg(any(mobile, test))]
+pub(crate) fn merge_kanji(
+    first: Vec<LibraryKanji>,
+    second: Vec<LibraryKanji>,
+) -> Vec<LibraryKanji> {
+    type Kanji = BTreeMap<String, (i64, bool)>;
+    let mut groups: BTreeMap<String, (i64, Kanji)> = BTreeMap::new();
+    for group in first.into_iter().chain(second) {
+        let (books, entries) = groups.entry(group.language).or_default();
+        *books += group.books;
+        for entry in group.kanji {
+            let merged = entries.entry(entry.character).or_default();
+            merged.0 += entry.books;
+            merged.1 |= entry.completed;
+        }
+    }
+    groups
+        .into_iter()
+        .map(|(language, (books, entries))| {
+            let mut kanji: Vec<KanjiEntry> = entries
+                .into_iter()
+                .map(|(character, (books, completed))| KanjiEntry {
+                    character,
+                    books,
+                    completed,
+                })
+                .collect();
+            kanji.sort_by_key(|entry| std::cmp::Reverse(entry.books));
+            LibraryKanji {
+                language,
+                books,
+                kanji,
+            }
+        })
+        .collect()
 }
 
 fn script_of(language: Option<&str>) -> Option<&'static str> {
@@ -1244,6 +1296,9 @@ mod tests {
             },
         )
         .unwrap();
+        let skipped = kanji_skipping(&connection, &HashSet::from([BOOK.to_owned()])).unwrap();
+        assert_eq!(skipped[0].books, 1);
+        assert_eq!(skipped[0].kanji.len(), 2);
         let groups = kanji_from(&connection).unwrap();
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].language, "ja");
@@ -1260,6 +1315,50 @@ mod tests {
                 ("人".into(), 1, false),
                 ("月".into(), 1, true),
                 ("本".into(), 1, false),
+            ]
+        );
+    }
+
+    #[test]
+    fn merges_two_libraries_kanji() {
+        let entry = |character: &str, books: i64, completed: bool| KanjiEntry {
+            character: character.to_owned(),
+            books,
+            completed,
+        };
+        let phone = vec![LibraryKanji {
+            language: "ja".into(),
+            books: 2,
+            kanji: vec![entry("日", 2, false), entry("月", 1, true)],
+        }];
+        let pc = vec![
+            LibraryKanji {
+                language: "ja".into(),
+                books: 3,
+                kanji: vec![entry("人", 3, false), entry("日", 1, true)],
+            },
+            LibraryKanji {
+                language: "zh".into(),
+                books: 1,
+                kanji: vec![entry("书", 1, false)],
+            },
+        ];
+        let json = serde_json::to_string(&pc).unwrap();
+        let pc: Vec<LibraryKanji> = serde_json::from_str(&json).unwrap();
+        let merged = merge_kanji(phone, pc);
+        assert_eq!(
+            merged
+                .iter()
+                .map(|group| (group.language.as_str(), group.books))
+                .collect::<Vec<_>>(),
+            [("ja", 5), ("zh", 1)]
+        );
+        assert_eq!(
+            merged[0].kanji,
+            vec![
+                entry("人", 3, false),
+                entry("日", 3, true),
+                entry("月", 1, true)
             ]
         );
     }

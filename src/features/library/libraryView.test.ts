@@ -135,6 +135,10 @@ describe("Library view", () => {
       new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(-2, "day"),
     );
     expect(lastReadLabel(book("b"), now)).toBeNull();
+    // The phone's narrow cards: "44m ago", "2h ago".
+    const narrow = (at: string) => lastReadLabel(book("c", { lastReadAt: at }), now, "narrow");
+    expect(narrow("2026-09-29T11:16:00Z")).toBe("44m ago");
+    expect(narrow("2026-09-29T10:00:00Z")).toBe("2h ago");
   });
 });
 
