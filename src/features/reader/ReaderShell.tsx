@@ -648,6 +648,7 @@ export function ReaderShell({
     captureNote,
     goToBookmark,
     goToOffset,
+    goToPosition,
     searchBook,
     goToSearchResult,
     searchMatchRect,
@@ -1979,6 +1980,10 @@ export function ReaderShell({
                     if (!started) settled(false);
                   },
                 );
+              }}
+              onGoToPosition={(locator, settled) => {
+                closeLookup();
+                if (!goToPosition(locator, settled)) settled(false);
               }}
               onBack={() => navigate(libraryCache.lastPage(), { state: libraryReturn })}
               onFeedback={showFeedback}

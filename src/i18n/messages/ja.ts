@@ -1838,4 +1838,13 @@ export const ja: MessageCatalog = {
   "sync.error.notFound": "PCにはもうありません。",
   "sync.error.wrongCode": "ペアリングコードが違います。",
   "sync.error.failed": "問題が発生しました。もう一度お試しください。",
+  "sync.lastSynced": "最終同期{time}",
+  "sync.syncedShort": "同期{time}",
+  "sync.syncNow": "今すぐ同期",
+  "sync.continueFrom": "続きから読む",
+  "devices.lastSynced": "最終同期{time}",
+  "statistics.thisPc": "このPC",
+  "statistics.phoneAndPc": "スマートフォンとPC",
+  "statistics.byDevice": "デバイス別の読書",
+  "statistics.otherDevice": "別のデバイス",
 };

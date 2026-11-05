@@ -162,6 +162,7 @@ export function DevicesSettings() {
         )}
         {view?.devices.map((device) => {
           const seen = timeAgo(device.lastSeenAt);
+          const synced = timeAgo(device.lastSyncedAt);
           return (
             <div className="settings-row devices-device" key={device.id}>
               <div>
@@ -169,7 +170,11 @@ export function DevicesSettings() {
                   <DeviceMobileIcon aria-hidden="true" className="devices-device__icon" />
                   {device.name}
                 </strong>
-                {seen && <span>{t("devices.lastConnected", { time: seen })}</span>}
+                {synced ? (
+                  <span>{t("devices.lastSynced", { time: synced })}</span>
+                ) : (
+                  seen && <span>{t("devices.lastConnected", { time: seen })}</span>
+                )}
               </div>
               <Button
                 tone="danger"

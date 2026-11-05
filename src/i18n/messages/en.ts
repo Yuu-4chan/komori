@@ -1981,4 +1981,13 @@ export const en = {
   "sync.error.notFound": "That is no longer on the PC.",
   "sync.error.wrongCode": "Wrong pairing code.",
   "sync.error.failed": "Something went wrong. Try again.",
+  "sync.lastSynced": "Last synced {time}",
+  "sync.syncedShort": "Synced {time}",
+  "sync.syncNow": "Sync now",
+  "sync.continueFrom": "Continue from",
+  "devices.lastSynced": "Last synced {time}",
+  "statistics.thisPc": "This PC",
+  "statistics.phoneAndPc": "Phone and PC",
+  "statistics.byDevice": "Reading by device",
+  "statistics.otherDevice": "Another device",
 } as const;

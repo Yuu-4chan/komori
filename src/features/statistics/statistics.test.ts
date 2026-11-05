@@ -187,6 +187,10 @@ describe("statistics", () => {
   it("accepts only well-formed stored sessions", () => {
     const valid = session(A, now, 10, 100);
     expect(normalizeSession(valid)).toEqual(valid);
+    // Another device's session keeps who read it.
+    const synced = { ...valid, device: B };
+    expect(normalizeSession(synced)).toEqual(synced);
+    expect(normalizeSession({ ...valid, device: "phone" })).toEqual(valid);
     for (const invalid of [
       null,
       { ...valid, bookId: "C:/private/a.epub" },

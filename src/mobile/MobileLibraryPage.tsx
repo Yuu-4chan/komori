@@ -64,7 +64,8 @@ import { MobilePageHeader } from "./MobileShell";
 import { useLongPress } from "./longPress";
 import { MobilePcLibrary, usePcLibrary } from "./MobilePcLibrary";
 import { MobileSheet } from "./MobileSheet";
-import { usePcLink } from "./pcLinkApi";
+import { onPcSynced, syncPc, usePcLink } from "./pcLinkApi";
+import { PullToSync } from "./pullToSync";
 
 type Listing =
   | { status: "loading"; books: LibraryBook[] }
@@ -133,6 +134,32 @@ export function MobileLibraryPage() {
   const onPc = pcTab && searchParams.get("from") === "pc";
   const pc = usePcLibrary(onPc);
   const pcName = link?.pcName ?? "";
+  // After each sync, the books show where they were read to on both sides.
+  const relistPc = pc.refresh;
+  useEffect(
+    () =>
+      onPcSynced(() => {
+        void refresh();
+        if (onPc) void relistPc();
+      }),
+    [refresh, onPc, relistPc],
+  );
+  const [syncing, setSyncing] = useState(false);
+  // Pulling the Library down, or Sync now, syncs with the PC and lists both again.
+  const syncNow = useCallback(async () => {
+    if (!pcTab) {
+      await refresh();
+      return;
+    }
+    setSyncing(true);
+    try {
+      await syncPc();
+    } catch {
+      await Promise.all([refresh(), onPc ? relistPc() : undefined]);
+    } finally {
+      setSyncing(false);
+    }
+  }, [pcTab, onPc, refresh, relistPc]);
   const allBooks = listing.books;
   const books = useMemo(
     () => (pcTab ? allBooks.filter((book) => !book.fromPc) : allBooks),
@@ -300,6 +327,7 @@ export function MobileLibraryPage() {
 
   return (
     <div className="mobile-page mobile-library">
+      <PullToSync enabled onPull={syncNow} />
       <MobilePageHeader
         actions={addBooks}
         summary={
@@ -335,11 +363,14 @@ export function MobileLibraryPage() {
 
       {onPc ? (
         <MobilePcLibrary
+          lastSynced={link?.lastSynced ?? null}
           listing={pc.listing}
           onQueryChange={setQuery}
+          onSync={() => void syncNow()}
           pcName={pcName}
           query={query}
           refresh={pc.refresh}
+          syncing={syncing}
           tabs={tabs}
         />
       ) : listing.status === "error" && books.length === 0 ? (

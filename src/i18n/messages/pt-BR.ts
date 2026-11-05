@@ -1934,4 +1934,13 @@ export const ptBR: MessageCatalog = {
   "sync.error.notFound": "Isso não está mais no PC.",
   "sync.error.wrongCode": "Código de pareamento incorreto.",
   "sync.error.failed": "Algo deu errado. Tente novamente.",
+  "sync.lastSynced": "Última sincronização {time}",
+  "sync.syncedShort": "Sincronizado {time}",
+  "sync.syncNow": "Sincronizar agora",
+  "sync.continueFrom": "Continuar de",
+  "devices.lastSynced": "Última sincronização {time}",
+  "statistics.thisPc": "Este PC",
+  "statistics.phoneAndPc": "Celular e PC",
+  "statistics.byDevice": "Leitura por dispositivo",
+  "statistics.otherDevice": "Outro dispositivo",
 };

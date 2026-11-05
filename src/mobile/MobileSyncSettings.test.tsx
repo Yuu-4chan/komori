@@ -18,6 +18,7 @@ vi.mock("./pcLinkApi", async (importOriginal) => ({
   checkPc: vi.fn(),
   listPcDictionaries: vi.fn(),
   copyPcDictionary: vi.fn(),
+  syncPc: vi.fn(),
   onPcTransfer: vi.fn(async () => () => {}),
 }));
 
@@ -29,6 +30,7 @@ const unpaired: api.PcLink = {
   paired: false,
   pcName: null,
   syncOn: true,
+  lastSynced: null,
 };
 const paired: api.PcLink = {
   address: "192.168.0.10",
@@ -36,6 +38,7 @@ const paired: api.PcLink = {
   paired: true,
   pcName: "KOMORI-PC",
   syncOn: true,
+  lastSynced: null,
 };
 const dictionary: api.PcDictionary = {
   id: 4,
@@ -96,6 +99,25 @@ describe("Sync on the phone", () => {
     await userEvent.click(within(rows[0]!).getByRole("button", { name: "Copy" }));
     expect(api.copyPcDictionary).toHaveBeenCalledWith(4);
     await waitFor(() => expect(rows[0]!.textContent).toContain("On this phone"));
+  });
+
+  it("shows when it last synced, and syncs now", async () => {
+    const minutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+    vi.mocked(api.getPcLink).mockResolvedValue({ ...paired, lastSynced: minutesAgo });
+    vi.mocked(api.checkPc).mockResolvedValue({ status: "connected", name: "KOMORI-PC" });
+    vi.mocked(api.listPcDictionaries).mockResolvedValue([]);
+    vi.mocked(api.syncPc).mockResolvedValue({
+      ...paired,
+      lastSynced: new Date().toISOString(),
+      changed: false,
+      moved: [],
+    });
+    sync();
+
+    expect(await screen.findByText("Last synced 5 minutes ago")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
+    expect(api.syncPc).toHaveBeenCalled();
+    expect(await screen.findByText("Last synced just now")).toBeTruthy();
   });
 
   it("says why pairing failed in words, without pairing", async () => {

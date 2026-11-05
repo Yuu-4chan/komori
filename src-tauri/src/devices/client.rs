@@ -310,6 +310,30 @@ impl Client {
             .await
     }
 
+    /// The PC's state of these books and every session, for the phone to merge.
+    pub(crate) async fn sync_pull(
+        &self,
+        request: &crate::sync::PullRequest,
+    ) -> Result<crate::sync::PullResponse, LinkError> {
+        self.json(
+            self.request(reqwest::Method::POST, "/v1/sync/pull")
+                .json(request),
+        )
+        .await
+    }
+
+    /// What the PC lacks after the merge, written there all or nothing.
+    pub(crate) async fn sync_push(
+        &self,
+        request: &crate::sync::PushRequest,
+    ) -> Result<crate::sync::PushResponse, LinkError> {
+        self.json(
+            self.request(reqwest::Method::POST, "/v1/sync/push")
+                .json(request),
+        )
+        .await
+    }
+
     pub(crate) async fn dictionaries(&self) -> Result<Vec<RemoteDictionary>, LinkError> {
         self.json(self.request(reqwest::Method::GET, "/v1/dictionaries"))
             .await

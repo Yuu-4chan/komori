@@ -1746,4 +1746,13 @@ export const zhCN: MessageCatalog = {
   "sync.error.notFound": "电脑上已没有此项。",
   "sync.error.wrongCode": "配对码错误。",
   "sync.error.failed": "出了点问题。请重试。",
+  "sync.lastSynced": "上次同步：{time}",
+  "sync.syncedShort": "已同步：{time}",
+  "sync.syncNow": "立即同步",
+  "sync.continueFrom": "从此处继续",
+  "devices.lastSynced": "上次同步：{time}",
+  "statistics.thisPc": "这台电脑",
+  "statistics.phoneAndPc": "手机和电脑",
+  "statistics.byDevice": "按设备的阅读",
+  "statistics.otherDevice": "其他设备",
 };

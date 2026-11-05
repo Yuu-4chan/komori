@@ -12,7 +12,9 @@ import type { useBookmarks } from "../features/reader/useBookmarks";
 import type { useNotes } from "../features/reader/useNotes";
 import type { MobileReaderTools } from "./MobileReader";
 
-const invoke = vi.hoisted(() => vi.fn(async () => undefined));
+const invoke = vi.hoisted(() =>
+  vi.fn(async (_command: string, _args?: unknown): Promise<unknown> => undefined),
+);
 vi.mock("@tauri-apps/api/core", () => ({ invoke, isTauri: () => false }));
 
 const { MobileReader } = await import("./MobileReader");
@@ -63,6 +65,7 @@ function reader({
     onScroll: vi.fn(),
     onGoToEntry: vi.fn(),
     onGoToOffset: vi.fn((_offset: number, settled: (succeeded: boolean) => void) => settled(true)),
+    onGoToPosition: vi.fn(),
     onBack: vi.fn(),
     onFeedback: vi.fn(),
     captureBookmark: vi.fn(async () => place),
@@ -452,6 +455,51 @@ describe("the Reader by touch", () => {
     expect(invoke).toHaveBeenLastCalledWith("book_selection", { own: true });
     fireEvent.touchStart(document.body, { touches: [{ clientX: 10, clientY: 10 }] });
     expect(invoke).toHaveBeenLastCalledWith("book_selection", { own: false });
+  });
+
+  it("asks where to continue a book read on the PC and here since they last synced", async () => {
+    const today = new Date();
+    today.setHours(8, 2, 0, 0);
+    const conflict = {
+      pc: {
+        position: { spineIndex: 6, progress: 0.4 },
+        progress: { unit: "characters", current: 5_200, total: 10_000 },
+      },
+      pcAt: new Date(+today + 60_000).toISOString(),
+      phone: {
+        position: { spineIndex: 2, progress: 0.25 },
+        progress: { unit: "characters", current: 3_500, total: 10_000 },
+      },
+      phoneAt: today.toISOString(),
+    };
+    invoke.mockImplementation(async (command) =>
+      command === "get_pc_conflict"
+        ? conflict
+        : command === "get_pc_link"
+          ? { paired: true, syncOn: false, pcName: "KOMORI-PC" }
+          : command === "resolve_pc_conflict"
+            ? true
+            : undefined,
+    );
+    const { onGoToPosition } = reader();
+    const dialog = await screen.findByRole("dialog", { name: "Continue from" });
+    expect(within(dialog).getByText("A Book")).toBeTruthy();
+    const [pc, phone] = within(dialog).getAllByRole("button");
+    await waitFor(() => expect(pc!.textContent).toContain("KOMORI-PC"));
+    expect(pc!.textContent).toContain("Third · 52% · Today, ");
+    expect(phone!.textContent).toContain("This phone");
+    expect(phone!.textContent).toContain("Second · 35% · Today, ");
+    // The later place is marked.
+    expect(pc!.className).toContain("--later");
+    expect(phone!.className).not.toContain("--later");
+
+    await userEvent.click(pc!);
+    expect(invoke).toHaveBeenCalledWith("resolve_pc_conflict", { id: "1", keep: "pc" });
+    await waitFor(() =>
+      expect(onGoToPosition).toHaveBeenCalledWith(conflict.pc.position, expect.any(Function)),
+    );
+    expect(screen.queryByRole("dialog", { name: "Continue from" })).toBeNull();
+    invoke.mockImplementation(async () => undefined);
   });
 
   it("changes the Reader's appearance from its sheet", async () => {

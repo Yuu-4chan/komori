@@ -49,8 +49,10 @@ import {
 } from "../features/statistics/statistics";
 import {
   listLibraryKanji,
+  listReadingDevices,
   listReadingSessions,
   type LibraryKanji,
+  type ReadingDevice,
   type StoredReadingSession,
 } from "../features/statistics/statisticsApi";
 import {
@@ -75,7 +77,11 @@ const rangeOptions = [
   { value: "all", label: "statistics.all", description: "statistics.allHint" },
 ] as const;
 
-type Loaded = { books: LibraryBook[]; sessions: StoredReadingSession[] };
+type Loaded = {
+  books: LibraryBook[];
+  sessions: StoredReadingSession[];
+  devices: ReadingDevice[];
+};
 
 export function StatisticsPage() {
   const navigate = useNavigate();
@@ -97,10 +103,14 @@ export function StatisticsPage() {
     const cached = libraryCache.books();
     setData((current) => (current === "failed" || !cached ? "loading" : current));
     try {
-      const [books, sessions] = await Promise.all([listLibrary(), listReadingSessions()]);
+      const [books, sessions, devices] = await Promise.all([
+        listLibrary(),
+        listReadingSessions(),
+        listReadingDevices().catch(() => []),
+      ]);
       if (version !== loadVersion.current) return;
       libraryCache.setBooks(books);
-      setData({ books, sessions });
+      setData({ books, sessions, devices });
     } catch {
       if (version === loadVersion.current) setData("failed");
     }
@@ -124,15 +134,27 @@ export function StatisticsPage() {
   }, [load, loadKanji]);
 
   const loaded = typeof data === "object" ? data : null;
-  // Books removed from the Library keep their sessions, shown by the title they had.
+  const devices = useMemo(
+    () => new Map((loaded?.devices ?? []).map((device) => [device.id, device.name])),
+    [loaded],
+  );
+  // Books removed from the Library keep their sessions, shown by the title they had; a book
+  // only another device has is shown with that device's name.
   const library = useMemo(() => {
     const known = new Map((loaded?.books ?? []).map((book) => [book.id, book]));
+    const readHere = new Set(
+      (loaded?.sessions ?? []).filter((session) => !session.device).map((s) => s.bookId),
+    );
     for (const session of loaded?.sessions ?? [])
-      if (!known.has(session.bookId))
-        known.set(session.bookId, removedBook(session.bookId, session.bookTitle));
+      if (!known.has(session.bookId)) {
+        const elsewhere = readHere.has(session.bookId)
+          ? undefined
+          : (devices.get(session.device ?? "") ?? i18n().t("statistics.otherDevice"));
+        known.set(session.bookId, removedBook(session.bookId, session.bookTitle, elsewhere));
+      }
     return known;
     // Removed books are named in the interface language.
-  }, [loaded, language]);
+  }, [loaded, devices, language]);
   const sessions = useMemo(() => loaded?.sessions ?? [], [loaded]);
   const periods = useMemo(() => rangePeriods(range, now), [range, now]);
   const summary = useMemo(() => summarize(sessions, periods.current), [sessions, periods]);
@@ -270,7 +292,11 @@ export function StatisticsPage() {
             label={t("statistics.sessions")}
             note={
               comparison(summary.sessions, previous?.sessions, range) ??
-              t("statistics.recordedSessions")
+              t(
+                summary.devices.length > 1
+                  ? "statistics.phoneAndPc"
+                  : "statistics.recordedSessions",
+              )
             }
             tone="blue"
             value={numbers.format(summary.sessions)}
@@ -334,7 +360,11 @@ export function StatisticsPage() {
           />
           {selected ? (
             <div className="statistics-daily-side">
-              <DailyDetail date={selected.date} summary={selected.summary} />
+              <DailyDetail
+                date={selected.date}
+                deviceName={(id) => devices.get(id)}
+                summary={selected.summary}
+              />
               <DailyBooks
                 key={dayKey(selected.date)}
                 books={selected.summary.books}
@@ -505,12 +535,12 @@ function daysRead(summary: ActivitySummary): string {
   return i18n().t(summary.sessions ? "statistics.activeOnly" : "statistics.idleExcluded");
 }
 
-/** A book removed from the Library, by the title its sessions kept. */
-function removedBook(id: string, title: string | null): LibraryBook {
+/** A book removed from the Library, or only on `device`, by the title its sessions kept. */
+function removedBook(id: string, title: string | null, device?: string): LibraryBook {
   return {
     id,
     title: title ?? i18n().t("statistics.removedBook"),
-    author: i18n().t("statistics.removedFromLibrary"),
+    author: device ?? i18n().t("statistics.removedFromLibrary"),
     fileName: "",
     importedAt: "",
     availability: "missing",

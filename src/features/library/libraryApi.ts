@@ -45,7 +45,7 @@ export interface LibraryBook {
 }
 
 /** Whole-book progress as the Reader's footer counts it. */
-interface LibraryBookProgress {
+export interface LibraryBookProgress {
   /** Characters for Chinese, Japanese, and Korean books, words for the rest. */
   unit: "characters" | "words";
   current: number;

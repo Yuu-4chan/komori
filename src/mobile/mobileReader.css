@@ -719,3 +719,97 @@ dialog.reader-image-viewer {
   padding: calc(var(--safe-area-top) + 0.5rem) calc(var(--safe-area-right) + 0.75rem)
     calc(var(--safe-area-bottom) + 0.75rem) calc(var(--safe-area-left) + 0.75rem);
 }
+
+/* Where to continue a book read on the PC and on this phone since they last synced. */
+.mobile-continue-from-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  padding: 0 calc(var(--safe-area-right) + 1.25rem) 0 calc(var(--safe-area-left) + 1.25rem);
+  background: rgba(8, 9, 14, 0.58);
+  animation: mobile-fade var(--duration-normal) var(--ease-out);
+}
+
+.mobile-continue-from {
+  width: 100%;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  color: var(--text-primary);
+  background: var(--surface-main);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-float);
+}
+
+.mobile-continue-from h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.mobile-continue-from p {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.mobile-continue-from__side {
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-primary);
+  text-align: start;
+  background: var(--surface-card);
+  border: 1.5px solid var(--border-soft);
+  border-radius: 1rem;
+}
+
+.mobile-continue-from__side--later {
+  background: var(--accent-faint);
+  border-color: var(--border-accent);
+}
+
+.mobile-continue-from__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+  border-radius: 0.75rem;
+  font-size: 1.25rem;
+}
+
+.mobile-continue-from__side--later .mobile-continue-from__icon {
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+}
+
+.mobile-continue-from__text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.mobile-continue-from__text strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.mobile-continue-from__text > span {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.mobile-continue-from__caret {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+}

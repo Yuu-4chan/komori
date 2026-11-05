@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 
-import type { LibraryBook } from "../features/library/libraryApi";
+import type { LibraryBook, LibraryBookProgress } from "../features/library/libraryApi";
+import type { ReaderLocator } from "../features/reader/renderer";
 import type { MessageKey } from "../i18n/i18n";
 
 /** The phone's pairing with Komori PC, as native code keeps it. */
@@ -12,6 +13,30 @@ export interface PcLink {
   paired: boolean;
   pcName: string | null;
   syncOn: boolean;
+  /** When the phone last synced its reading with the PC. */
+  lastSynced: string | null;
+}
+
+/** What one sync did on the phone. */
+export interface PcSync extends PcLink {
+  /** Whether the phone's books changed. */
+  changed: boolean;
+  /** The phone's books whose place the PC's moved. */
+  moved: string[];
+}
+
+/** A book's place, as each side last saved it. */
+export interface PcReading {
+  position: ReaderLocator | null;
+  progress: LibraryBookProgress | null;
+}
+
+/** A book read apart on the PC and here since they last synced. */
+export interface PcConflict {
+  pc: PcReading;
+  pcAt: string | null;
+  phone: PcReading;
+  phoneAt: string | null;
 }
 
 /** Why the PC did not answer, or `connected`. */
@@ -69,6 +94,8 @@ export interface PcTransfer {
 
 /** Sent on the window when the pairing or Sync with PC changes. */
 export const pcLinkChanged = "komori:pc-link-changed";
+/** Sent on the window after each sync, with what it did as its detail. */
+export const pcSynced = "komori:pc-synced";
 
 const changed = <T>(value: T) => {
   window.dispatchEvent(new Event(pcLinkChanged));
@@ -93,6 +120,40 @@ export const removePcBook = (book: PcBook) => invoke<void>("remove_pc_book", { i
 export const listPcDictionaries = () => invoke<PcDictionary[]>("list_pc_dictionaries");
 export const copyPcDictionary = (id: number) =>
   invoke<"imported" | "alreadyImported">("copy_pc_dictionary", { id });
+
+/** Syncs places, bookmarks, notes and reading sessions with the PC. */
+export async function syncPc(): Promise<PcSync> {
+  const result = await invoke<PcSync>("sync_pc");
+  window.dispatchEvent(new Event(pcLinkChanged));
+  window.dispatchEvent(new CustomEvent<PcSync>(pcSynced, { detail: result }));
+  return result;
+}
+
+/**
+ * Syncs when the phone is paired and Sync with PC is on, as on starting, returning, pulling
+ * the Library down and leaving the Reader; a PC that does not answer is tried the next time.
+ */
+export async function autoSync(): Promise<PcSync | null> {
+  try {
+    const link = await getPcLink();
+    if (!link.paired || !link.syncOn) return null;
+    return await syncPc();
+  } catch {
+    return null;
+  }
+}
+
+/** Calls back after each sync with what it did. */
+export function onPcSynced(handler: (result: PcSync) => void): () => void {
+  const listener = (event: Event) => handler((event as CustomEvent<PcSync>).detail);
+  window.addEventListener(pcSynced, listener);
+  return () => window.removeEventListener(pcSynced, listener);
+}
+
+export const getPcConflict = (id: string) => invoke<PcConflict | null>("get_pc_conflict", { id });
+/** Continues the book from the PC's place or this phone's. */
+export const resolvePcConflict = (id: string, keep: "pc" | "phone") =>
+  invoke<boolean>("resolve_pc_conflict", { id, keep });
 
 export const onPcTransfer = (handler: (transfer: PcTransfer) => void) =>
   listen<PcTransfer>("pc-transfer", ({ payload }) => handler(payload));

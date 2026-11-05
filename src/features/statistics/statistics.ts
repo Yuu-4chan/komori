@@ -72,6 +72,14 @@ export interface ActivitySummary {
   finished: number;
   /** Each book read, most read first (by time). */
   books: BookActivity[];
+  /** The time each device read, this one (null) first, then the most read. */
+  devices: DeviceActivity[];
+}
+
+export interface DeviceActivity {
+  /** The device that read, or null for this one. */
+  device: string | null;
+  activeMs: number;
 }
 
 /** Totals over the sessions in a period. */
@@ -89,8 +97,10 @@ export function summarize(
     started: 0,
     finished: 0,
     books: [],
+    devices: [],
   };
   const books = new Map<string, BookActivity>();
+  const devices = new Map<string | null, number>();
   const started = new Set<string>();
   const finished = new Set<string>();
   for (const session of sessions) {
@@ -122,12 +132,17 @@ export function summarize(
     book.unitsRead += unitsRead;
     book.activeMs += activeMs;
     books.set(session.bookId, book);
+    const device = session.device ?? null;
+    devices.set(device, (devices.get(device) ?? 0) + activeMs);
   }
   summary.started = started.size;
   summary.finished = finished.size;
   summary.books = [...books.values()].sort(
     (a, b) => b.activeMs - a.activeMs || b.unitsRead - a.unitsRead,
   );
+  summary.devices = [...devices]
+    .map(([device, activeMs]) => ({ device, activeMs }))
+    .sort((a, b) => (a.device === null ? -1 : b.device === null ? 1 : b.activeMs - a.activeMs));
   return summary;
 }
 

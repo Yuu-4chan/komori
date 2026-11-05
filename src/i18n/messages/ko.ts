@@ -1823,4 +1823,13 @@ export const ko: MessageCatalog = {
   "sync.error.notFound": "PC에 더 이상 없습니다.",
   "sync.error.wrongCode": "페어링 코드가 올바르지 않습니다.",
   "sync.error.failed": "문제가 발생했습니다. 다시 시도하세요.",
+  "sync.lastSynced": "마지막 동기화 {time}",
+  "sync.syncedShort": "동기화 {time}",
+  "sync.syncNow": "지금 동기화",
+  "sync.continueFrom": "이어서 읽기",
+  "devices.lastSynced": "마지막 동기화 {time}",
+  "statistics.thisPc": "이 PC",
+  "statistics.phoneAndPc": "휴대폰과 PC",
+  "statistics.byDevice": "기기별 독서",
+  "statistics.otherDevice": "다른 기기",
 };

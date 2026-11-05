@@ -2015,4 +2015,13 @@ export const fr: MessageCatalog = {
   "sync.error.notFound": "Cet élément n'est plus sur le PC.",
   "sync.error.wrongCode": "Code d'association incorrect.",
   "sync.error.failed": "Une erreur s'est produite. Réessayez.",
+  "sync.lastSynced": "Dernière synchronisation {time}",
+  "sync.syncedShort": "Synchronisé {time}",
+  "sync.syncNow": "Synchroniser maintenant",
+  "sync.continueFrom": "Reprendre depuis",
+  "devices.lastSynced": "Dernière synchronisation {time}",
+  "statistics.thisPc": "Ce PC",
+  "statistics.phoneAndPc": "Téléphone et PC",
+  "statistics.byDevice": "Lecture par appareil",
+  "statistics.otherDevice": "Autre appareil",
 };

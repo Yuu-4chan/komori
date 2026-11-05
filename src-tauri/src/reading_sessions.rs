@@ -81,7 +81,12 @@ pub(crate) fn create_tables(connection: &Connection) -> Result<(), String> {
             ))
             .map_err(storage_error)?;
     }
-    for column in ["units_adjustment", "active_adjustment"] {
+    for (column, kind) in [
+        ("units_adjustment", "INTEGER NOT NULL DEFAULT 0"),
+        ("active_adjustment", "INTEGER NOT NULL DEFAULT 0"),
+        // The device that read the session, when another one did (a synced PC or phone).
+        ("device", "TEXT"),
+    ] {
         let exists: bool = connection
             .query_row(
                 "SELECT count(*) FROM pragma_table_info('reading_sessions') WHERE name = ?1",
@@ -92,7 +97,7 @@ pub(crate) fn create_tables(connection: &Connection) -> Result<(), String> {
         if !exists {
             connection
                 .execute_batch(&format!(
-                    "ALTER TABLE reading_sessions ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"
+                    "ALTER TABLE reading_sessions ADD COLUMN {column} {kind}"
                 ))
                 .map_err(storage_error)?;
         }
@@ -100,8 +105,65 @@ pub(crate) fn create_tables(connection: &Connection) -> Result<(), String> {
     connection
         .execute_batch(
             "CREATE INDEX IF NOT EXISTS reading_sessions_book
-               ON reading_sessions (book_id, started_at);",
+               ON reading_sessions (book_id, started_at);
+             CREATE TABLE IF NOT EXISTS reading_devices (
+               id TEXT PRIMARY KEY,
+               name TEXT NOT NULL
+             );",
         )
+        .map_err(storage_error)
+}
+
+/// The longest device name kept, as the PC keeps it at pairing.
+pub(crate) const DEVICE_NAME_LIMIT: usize = 64;
+
+/// Another device that read sessions recorded here, by the name it had when it last synced.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReadingDevice {
+    pub(crate) id: String,
+    pub(crate) name: String,
+}
+
+impl ReadingDevice {
+    pub(crate) fn is_valid(&self) -> bool {
+        Uuid::parse_str(&self.id).is_ok()
+            && !self.name.trim().is_empty()
+            && self.name.trim() == self.name
+            && self.name.chars().count() <= DEVICE_NAME_LIMIT
+            && !self.name.chars().any(char::is_control)
+    }
+}
+
+pub(crate) fn devices_from(connection: &Connection) -> Result<Vec<ReadingDevice>, String> {
+    let mut statement = connection
+        .prepare("SELECT id, name FROM reading_devices ORDER BY name, id")
+        .map_err(storage_error)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(ReadingDevice {
+                id: row.get(0)?,
+                name: row.get(1)?,
+            })
+        })
+        .map_err(storage_error)?;
+    Ok(rows
+        .filter_map(Result::ok)
+        .filter(ReadingDevice::is_valid)
+        .collect())
+}
+
+pub(crate) fn save_device(connection: &Connection, device: &ReadingDevice) -> Result<(), String> {
+    if !device.is_valid() {
+        return Ok(());
+    }
+    connection
+        .execute(
+            "INSERT INTO reading_devices (id, name) VALUES (?1, ?2)
+             ON CONFLICT(id) DO UPDATE SET name = excluded.name",
+            params![device.id, device.name],
+        )
+        .map(|_| ())
         .map_err(storage_error)
 }
 
@@ -139,15 +201,18 @@ impl ReadingSession {
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StoredSession {
-    book_id: String,
+    pub(crate) book_id: String,
     /// The book's title when the session was last saved, for books since removed.
-    book_title: Option<String>,
+    pub(crate) book_title: Option<String>,
     /// Marked unread since: the session no longer counts as finishing the book.
-    finish_cleared: bool,
+    pub(crate) finish_cleared: bool,
     /// Corrections affect measured totals only; Reader checkpoints remain original.
-    adjustment: SessionAdjustment,
+    pub(crate) adjustment: SessionAdjustment,
+    /// The device that read it, when another one did; see `list_reading_devices`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) device: Option<String>,
     #[serde(flatten)]
-    session: ReadingSession,
+    pub(crate) session: ReadingSession,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -341,6 +406,17 @@ pub async fn list_reading_sessions(
         .map_err(|error| format!("Reading session task failed: {error}"))?
 }
 
+/// The other devices that read sessions recorded here (a synced PC or phone), with their names.
+#[tauri::command]
+pub async fn list_reading_devices(
+    catalog: State<'_, CatalogState>,
+) -> Result<Vec<ReadingDevice>, String> {
+    let database = catalog.database.clone();
+    tauri::async_runtime::spawn_blocking(move || devices_from(&open_catalog(&database)?))
+        .await
+        .map_err(|error| format!("Reading session task failed: {error}"))?
+}
+
 /// How many sessions are recorded, and how many belong to books no longer in the Library.
 #[tauri::command]
 pub async fn get_statistics_counts(
@@ -387,8 +463,9 @@ pub(crate) fn counts_from(connection: &Connection) -> Result<StatisticsCounts, S
     connection
         .query_row(
             "SELECT count(*),
-                    count(*) FILTER (WHERE books.id IS NULL),
-                    count(DISTINCT CASE WHEN books.id IS NULL THEN sessions.book_id END)
+                    count(*) FILTER (WHERE books.id IS NULL AND sessions.device IS NULL),
+                    count(DISTINCT CASE WHEN books.id IS NULL AND sessions.device IS NULL
+                                        THEN sessions.book_id END)
                FROM reading_sessions AS sessions
                LEFT JOIN books ON books.id = sessions.book_id",
             [],
@@ -405,7 +482,8 @@ pub(crate) fn counts_from(connection: &Connection) -> Result<StatisticsCounts, S
 
 pub(crate) fn delete_from(connection: &Connection, orphans: bool) -> Result<i64, String> {
     let sql = if orphans {
-        "DELETE FROM reading_sessions WHERE book_id NOT IN (SELECT id FROM books)"
+        "DELETE FROM reading_sessions
+          WHERE device IS NULL AND book_id NOT IN (SELECT id FROM books)"
     } else {
         "DELETE FROM reading_sessions"
     };
@@ -502,13 +580,17 @@ pub(crate) fn list_from(connection: &Connection) -> Result<Vec<StoredSession>, S
         .prepare(
             "SELECT book_id, id, started_at, ended_at, active_ms, unit, units_read,
                     start_units, end_units, total_units, book_title, finish_cleared,
-                    units_adjustment, active_adjustment
+                    units_adjustment, active_adjustment, device
                FROM reading_sessions ORDER BY started_at, id",
         )
         .map_err(storage_error)?;
     let rows = statement
         .query_map([], |row| {
             Ok((
+                row.get::<_, Option<String>>(14)
+                    .ok()
+                    .flatten()
+                    .filter(|device| Uuid::parse_str(device).is_ok()),
                 row.get::<_, String>(0),
                 row.get::<_, Option<String>>(10).unwrap_or(None),
                 row.get::<_, bool>(11).unwrap_or(false),
@@ -534,11 +616,12 @@ pub(crate) fn list_from(connection: &Connection) -> Result<Vec<StoredSession>, S
         .map_err(storage_error)?;
     let mut sessions = Vec::new();
     for row in rows {
-        if let (Ok(book_id), book_title, finish_cleared, adjustment, Ok(session)) =
+        if let (device, Ok(book_id), book_title, finish_cleared, adjustment, Ok(session)) =
             row.map_err(storage_error)?
         {
             if session.is_valid() {
                 sessions.push(StoredSession {
+                    device,
                     book_id,
                     book_title,
                     finish_cleared,

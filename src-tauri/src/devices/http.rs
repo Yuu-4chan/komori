@@ -5,8 +5,10 @@ use std::io::{self, Read, Write};
 
 /// The most a request's line and headers may take.
 const HEAD_LIMIT: usize = 16 * 1024;
-/// The most a request's body may take; only pairing sends one.
-const BODY_LIMIT: usize = 64 * 1024;
+/// The most a request's body may take: pairing's, unless `body_limit` allows a sync's.
+pub(crate) const BODY_LIMIT: usize = 64 * 1024;
+/// The most a paired phone's sync may send: every session and note of a large Library.
+pub(crate) const SYNC_BODY_LIMIT: usize = 64 * 1024 * 1024;
 
 #[derive(Debug)]
 pub(crate) struct Request {
@@ -25,7 +27,12 @@ pub(crate) enum ReadError {
     TooLarge,
 }
 
-pub(crate) fn read_request(stream: &mut impl Read) -> Result<Request, ReadError> {
+/// Reads one request. `body_limit` gives the most its body may take, from its method, path and
+/// token, so only a paired phone may send a large one.
+pub(crate) fn read_request(
+    stream: &mut impl Read,
+    body_limit: impl FnOnce(&str, &str, Option<&str>) -> usize,
+) -> Result<Request, ReadError> {
     let mut head = Vec::with_capacity(1024);
     let mut byte = [0u8; 1];
     while !head.ends_with(b"\r\n\r\n") {
@@ -61,7 +68,7 @@ pub(crate) fn read_request(stream: &mut impl Read) -> Result<Request, ReadError>
             authorization = value.strip_prefix("Bearer ").map(str::to_owned);
         }
     }
-    if length > BODY_LIMIT {
+    if length > BODY_LIMIT && length > body_limit(method, path, authorization.as_deref()) {
         return Err(ReadError::TooLarge);
     }
     let mut body = vec![0u8; length];
@@ -140,11 +147,13 @@ pub(crate) fn respond_stream(
 mod tests {
     use super::*;
 
+    const SMALL: fn(&str, &str, Option<&str>) -> usize = |_, _, _| BODY_LIMIT;
+
     #[test]
     fn reads_a_request_with_its_token_and_body() {
         let mut input: &[u8] =
             b"POST /v1/pair/start HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer abc\r\nContent-Length: 2\r\n\r\n{}";
-        let request = read_request(&mut input).unwrap();
+        let request = read_request(&mut input, SMALL).unwrap();
         assert_eq!(request.method, "POST");
         assert_eq!(request.path, "/v1/pair/start");
         assert_eq!(request.authorization.as_deref(), Some("abc"));
@@ -155,7 +164,7 @@ mod tests {
     fn refuses_what_is_not_a_bounded_request() {
         let mut chunked: &[u8] = b"POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n";
         assert_eq!(
-            read_request(&mut chunked).unwrap_err(),
+            read_request(&mut chunked, SMALL).unwrap_err(),
             ReadError::Malformed
         );
         let big = format!(
@@ -163,19 +172,40 @@ mod tests {
             BODY_LIMIT + 1
         );
         assert_eq!(
-            read_request(&mut big.as_bytes()).unwrap_err(),
+            read_request(&mut big.as_bytes(), SMALL).unwrap_err(),
             ReadError::TooLarge
+        );
+        // A larger body only where the limit allows one, as for a paired phone's sync.
+        let sync = format!(
+            "POST /v1/sync/push HTTP/1.1
+Authorization: Bearer t
+Content-Length: {}
+
+",
+            BODY_LIMIT + 1
+        );
+        let limit = |method: &str, path: &str, token: Option<&str>| {
+            assert_eq!((method, path, token), ("POST", "/v1/sync/push", Some("t")));
+            SYNC_BODY_LIMIT
+        };
+        // The body is cut short here, so the request was read past the limit.
+        assert_eq!(
+            read_request(&mut sync.as_bytes(), limit).unwrap_err(),
+            ReadError::Closed
         );
         let long = format!("GET /{} HTTP/1.1\r\n\r\n", "a".repeat(HEAD_LIMIT));
         assert_eq!(
-            read_request(&mut long.as_bytes()).unwrap_err(),
+            read_request(&mut long.as_bytes(), SMALL).unwrap_err(),
             ReadError::TooLarge
         );
         let mut cut: &[u8] = b"GET / HTTP/1.1\r\n";
-        assert_eq!(read_request(&mut cut).unwrap_err(), ReadError::Closed);
+        assert_eq!(
+            read_request(&mut cut, SMALL).unwrap_err(),
+            ReadError::Closed
+        );
         let mut absolute: &[u8] = b"GET http://x/ HTTP/1.1\r\n\r\n";
         assert_eq!(
-            read_request(&mut absolute).unwrap_err(),
+            read_request(&mut absolute, SMALL).unwrap_err(),
             ReadError::Malformed
         );
     }

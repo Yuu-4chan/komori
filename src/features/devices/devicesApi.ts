@@ -6,6 +6,8 @@ export interface PairedDevice {
   name: string;
   pairedAt: string;
   lastSeenAt: string | null;
+  /** When the phone last synced its reading here. */
+  lastSyncedAt?: string | null;
 }
 
 /** Settings > Devices on the PC, as native code reports it. */

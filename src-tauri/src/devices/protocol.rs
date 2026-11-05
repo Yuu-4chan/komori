@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use spake2::{Ed25519Group, Identity, Password, Spake2};
 
-/// The protocol version; a phone and a PC that disagree refuse each other.
-pub(crate) const PROTOCOL: u32 = 1;
+/// The protocol version; a phone and a PC that disagree refuse each other. 2 added syncing.
+pub(crate) const PROTOCOL: u32 = 2;
 /// The port the PC listens on unless the reader changes it.
 pub(crate) const DEFAULT_PORT: u16 = 7461;
 /// Wrong codes before the PC replaces its code.

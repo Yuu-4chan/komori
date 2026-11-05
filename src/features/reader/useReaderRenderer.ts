@@ -721,8 +721,13 @@ export function useReaderRenderer(
     return jumpTo("goToOffset", (renderer) => renderer.goToOffset!(offset), onSettled);
   }
 
+  /** Shows a saved reading position, as when the phone continues from the PC's place. */
+  function goToPosition(locator: ReaderLocator, onSettled: (succeeded: boolean) => void): boolean {
+    return jumpTo("goToPosition", (renderer) => renderer.goToPosition!(locator), onSettled);
+  }
+
   function jumpTo(
-    method: "goToBookmark" | "goToOffset",
+    method: "goToBookmark" | "goToOffset" | "goToPosition",
     go: (renderer: ReaderRenderer) => Promise<boolean>,
     onSettled: (succeeded: boolean) => void,
   ): boolean {
@@ -842,6 +847,7 @@ export function useReaderRenderer(
     captureNote,
     goToBookmark,
     goToOffset,
+    goToPosition,
     searchBook,
     goToSearchResult: (id: string, signal: AbortSignal, settled: (success: boolean) => void) =>
       jumpToResult("goToSearchResult", id, signal, settled),

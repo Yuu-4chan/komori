@@ -37,6 +37,7 @@ mod reader_notes;
 mod reading_position;
 mod reading_sessions;
 mod startup;
+mod sync;
 mod title_cleaning;
 mod title_series;
 mod updates;
@@ -191,6 +192,7 @@ pub fn run() {
             reading_position::mark_books_completed,
             reading_sessions::save_reading_session,
             reading_sessions::list_reading_sessions,
+            reading_sessions::list_reading_devices,
             reading_sessions::edit_daily_activity,
             reading_sessions::list_library_kanji,
             reading_sessions::get_statistics_counts,
@@ -241,6 +243,12 @@ pub fn run() {
             pc_link::unpair_pc,
             #[cfg(mobile)]
             pc_link::check_pc,
+            #[cfg(mobile)]
+            pc_link::sync_pc,
+            #[cfg(mobile)]
+            pc_link::get_pc_conflict,
+            #[cfg(mobile)]
+            pc_link::resolve_pc_conflict,
             #[cfg(mobile)]
             pc_link::list_pc_library,
             #[cfg(mobile)]

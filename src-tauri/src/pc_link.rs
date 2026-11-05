@@ -5,7 +5,8 @@
 //! A PC book opened here is downloaded into Komori's cache and imported like any other book;
 //! only the one opened last stays there. Keep on this phone moves it into Komori's own storage.
 //! Each copy keeps its catalog record (and so its reading state) for the PC's next sync, and is
-//! listed only under the PC. Unpairing removes the PC's books from the phone.
+//! listed only under the PC. Unpairing removes the PC's books from the phone, and what the last
+//! sync saw, so pairing again combines both sides. `sync_pc` syncs the reading state (`sync`).
 
 use std::{
     collections::HashSet,
@@ -40,6 +41,8 @@ struct Link {
     fingerprint: Option<String>,
     token: Option<String>,
     device_id: Option<String>,
+    #[serde(default)]
+    last_synced: Option<String>,
 }
 
 fn on() -> bool {
@@ -56,6 +59,7 @@ impl Default for Link {
             fingerprint: None,
             token: None,
             device_id: None,
+            last_synced: None,
         }
     }
 }
@@ -82,6 +86,7 @@ pub struct LinkView {
     paired: bool,
     pc_name: Option<String>,
     sync_on: bool,
+    last_synced: Option<String>,
 }
 
 impl From<&Link> for LinkView {
@@ -92,6 +97,7 @@ impl From<&Link> for LinkView {
             paired: link.pinned().is_some(),
             pc_name: link.pc_name.clone(),
             sync_on: link.sync_on,
+            last_synced: link.last_synced.clone(),
         }
     }
 }
@@ -351,6 +357,7 @@ pub async fn unpair_pc(
         connection
             .execute("DELETE FROM pc_books", [])
             .map_err(storage_error)?;
+        crate::sync::forget(&connection)?;
         for root in roots.iter().chain(covers.iter()) {
             let _ = std::fs::remove_dir_all(root);
         }
@@ -366,6 +373,114 @@ pub async fn unpair_pc(
     .inspect(|_| {
         let _ = app.emit(crate::book_details::DETAILS_EVENT, ());
     })
+}
+
+/// One sync at a time: leaving the Reader while one runs waits for it, then syncs again.
+static SYNCING: tauri::async_runtime::Mutex<()> = tauri::async_runtime::Mutex::const_new(());
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SyncResult {
+    #[serde(flatten)]
+    link: LinkView,
+    /// Whether the phone's books changed, for the pages showing them to read them again.
+    changed: bool,
+    /// The phone's books whose place the PC's moved, for an open Reader to follow.
+    moved: Vec<String>,
+}
+
+/// Syncs the reading state with the PC (see `sync`): places, bookmarks, notes and sessions.
+#[tauri::command]
+pub async fn sync_pc(
+    app: AppHandle,
+    catalog: State<'_, CatalogState>,
+) -> Result<SyncResult, String> {
+    let database = catalog_path(&catalog);
+    let _syncing = SYNCING.lock().await;
+    let link = {
+        let database = database.clone();
+        blocking(move || read_link(&database)).await?
+    };
+    let client = link.client()?;
+    let own = link
+        .device_id
+        .clone()
+        .ok_or_else(|| LinkError::NotPaired.code())?;
+    client.hello().await.map_err(|error| error.code())?;
+    let request = {
+        let database = database.clone();
+        blocking(move || Ok(crate::sync::pull_request(&open_catalog(&database)?))).await?
+    };
+    let pulled = client
+        .sync_pull(&request)
+        .await
+        .map_err(|error| error.code())?;
+    let plan = {
+        let database = database.clone();
+        blocking(move || crate::sync::plan(&open_catalog(&database)?, &own, &pulled)).await?
+    };
+    // Even with nothing to send, the PC notes that the phone synced.
+    let answer = client
+        .sync_push(&plan.push)
+        .await
+        .map_err(|error| error.code())?;
+    let changed = plan.changes_phone();
+    let (link, moved) = blocking(move || {
+        let mut connection = open_catalog(&database)?;
+        let moved = crate::sync::finish(&mut connection, &plan, &answer)?;
+        let mut link = load(&connection)?;
+        link.last_synced = Some(
+            connection
+                .query_row("SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now')", [], |row| {
+                    row.get(0)
+                })
+                .map_err(storage_error)?,
+        );
+        save(&connection, &link)?;
+        Ok((LinkView::from(&link), moved))
+    })
+    .await?;
+    if changed {
+        let _ = app.emit(crate::book_details::DETAILS_EVENT, ());
+    }
+    Ok(SyncResult {
+        link,
+        changed,
+        moved,
+    })
+}
+
+/// The book's place on the PC and here, when both changed since they last synced.
+#[tauri::command]
+pub async fn get_pc_conflict(
+    catalog: State<'_, CatalogState>,
+    id: String,
+) -> Result<Option<crate::sync::Conflict>, String> {
+    let database = catalog_path(&catalog);
+    blocking(move || {
+        if uuid::Uuid::parse_str(&id).is_err() {
+            return Ok(None);
+        }
+        crate::sync::conflict_of(&open_catalog(&database)?, &id)
+    })
+    .await
+}
+
+/// Continues the book from the PC's place (`pc`) or this phone's (`phone`).
+#[tauri::command]
+pub async fn resolve_pc_conflict(
+    catalog: State<'_, CatalogState>,
+    id: String,
+    keep: String,
+) -> Result<bool, String> {
+    let database = catalog_path(&catalog);
+    blocking(move || {
+        if uuid::Uuid::parse_str(&id).is_err() || !matches!(keep.as_str(), "pc" | "phone") {
+            return Ok(false);
+        }
+        crate::sync::resolve(&mut open_catalog(&database)?, &id, keep == "pc")
+    })
+    .await
 }
 
 #[derive(Debug, Serialize)]
@@ -519,7 +634,7 @@ async fn fetch_book(
                     .map_err(storage_error)?;
                 copy.book
             }
-            None => crate::library::import_file(&mut connection, &target)?,
+            None => crate::library::import_file(&mut connection, &target, Some(&id))?,
         };
         connection
             .execute(

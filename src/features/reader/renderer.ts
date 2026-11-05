@@ -75,6 +75,8 @@ export interface ReaderRenderer {
   goToBookmark?(locator: ReaderBookmarkLocator): Promise<boolean>;
   /** Show the page at a book offset in the book's progress unit, once the book is counted. */
   goToOffset?(offset: number): Promise<boolean>;
+  /** Show a saved reading position, as when another device's place is chosen. */
+  goToPosition?(locator: ReaderLocator): Promise<boolean>;
   /** Literal readable-text search. Destinations remain session-local and adapter-owned. */
   searchBook?(
     query: string,

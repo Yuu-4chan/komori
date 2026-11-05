@@ -1746,4 +1746,13 @@ export const zhTW: MessageCatalog = {
   "sync.error.notFound": "電腦上已沒有此項目。",
   "sync.error.wrongCode": "配對碼錯誤。",
   "sync.error.failed": "發生問題。請再試一次。",
+  "sync.lastSynced": "上次同步：{time}",
+  "sync.syncedShort": "已同步：{time}",
+  "sync.syncNow": "立即同步",
+  "sync.continueFrom": "從此處繼續",
+  "devices.lastSynced": "上次同步：{time}",
+  "statistics.thisPc": "這台電腦",
+  "statistics.phoneAndPc": "手機和電腦",
+  "statistics.byDevice": "依裝置的閱讀",
+  "statistics.otherDevice": "其他裝置",
 };

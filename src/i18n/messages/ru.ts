@@ -2029,4 +2029,13 @@ export const ru: MessageCatalog = {
   "sync.error.notFound": "Этого больше нет на ПК.",
   "sync.error.wrongCode": "Неверный код сопряжения.",
   "sync.error.failed": "Что-то пошло не так. Попробуйте ещё раз.",
+  "sync.lastSynced": "Последняя синхронизация {time}",
+  "sync.syncedShort": "Синхронизировано {time}",
+  "sync.syncNow": "Синхронизировать",
+  "sync.continueFrom": "Продолжить с",
+  "devices.lastSynced": "Последняя синхронизация {time}",
+  "statistics.thisPc": "Этот ПК",
+  "statistics.phoneAndPc": "Телефон и ПК",
+  "statistics.byDevice": "Чтение по устройствам",
+  "statistics.otherDevice": "Другое устройство",
 };

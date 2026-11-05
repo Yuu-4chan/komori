@@ -712,10 +712,15 @@ pub(crate) fn remote_books(
 }
 
 /// Imports the EPUB at `path`, a file in Komori's own storage, and returns its catalog ID,
-/// whether it was just added or already listed.
+/// whether it was just added or already listed. A new book takes `id` when given: a PC book's
+/// copy keeps the PC's catalog ID, so its reading state syncs under the same IDs.
 #[cfg(mobile)]
-pub(crate) fn import_file(connection: &mut Connection, path: &Path) -> Result<String, String> {
-    import_one(connection, path)?;
+pub(crate) fn import_file(
+    connection: &mut Connection,
+    path: &Path,
+    id: Option<&str>,
+) -> Result<String, String> {
+    import_one(connection, path, id)?;
     let source = path
         .canonicalize()
         .map_err(|error| format!("Cannot access the source file: {error}"))?;
@@ -918,7 +923,7 @@ pub(crate) fn import_paths_with_progress(
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "Selected file".into())
         },
-        |connection, path| import_one(connection, path),
+        |connection, path| import_one(connection, path, None),
     )
 }
 
@@ -993,7 +998,11 @@ fn has_epub_extension(name: &Path) -> bool {
         .is_some_and(|extension| extension.eq_ignore_ascii_case("epub"))
 }
 
-fn import_one(connection: &mut Connection, path: &Path) -> Result<&'static str, String> {
+fn import_one(
+    connection: &mut Connection,
+    path: &Path,
+    id: Option<&str>,
+) -> Result<&'static str, String> {
     let canonical = path
         .canonicalize()
         .map_err(|error| format!("Cannot access the source file: {error}"))?;
@@ -1012,6 +1021,7 @@ fn import_one(connection: &mut Connection, path: &Path) -> Result<&'static str, 
         source,
         canonical.to_string_lossy().into_owned(),
         file_name,
+        id,
     )
 }
 
@@ -1041,6 +1051,7 @@ fn import_document(
         source,
         document.uri.clone(),
         document.name.clone(),
+        None,
     )
 }
 
@@ -1070,6 +1081,7 @@ fn import_source(
     source: File,
     private_path: String,
     file_name: String,
+    id: Option<&str>,
 ) -> Result<&'static str, String> {
     // A stream some providers hand over is no file, and an EPUB needs random access.
     let source_metadata = source.metadata().map_err(|error| error.to_string())?;
@@ -1097,7 +1109,9 @@ fn import_source(
     let (cover_mime, cover_bytes) = metadata
         .cover
         .map_or((None, None), |cover| (Some(cover.mime), Some(cover.bytes)));
-    let id = Uuid::new_v4().to_string();
+    let id = id
+        .filter(|id| Uuid::parse_str(id).is_ok())
+        .map_or_else(|| Uuid::new_v4().to_string(), str::to_owned);
     let transaction = connection.transaction().map_err(storage_error)?;
     // Another writer can add the same file while this one reads it; that is already imported.
     let inserted = transaction

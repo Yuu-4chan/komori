@@ -1,4 +1,5 @@
 import {
+  ArrowsClockwiseIcon,
   BookOpenIcon,
   BooksIcon,
   CheckIcon,
@@ -31,6 +32,7 @@ import {
   progressPercent,
   readingStatus,
   sortBooks,
+  timeAgo,
 } from "../features/library/libraryView";
 import { useI18n, type MessageKey } from "../i18n/i18n";
 import { useLongPress } from "./longPress";
@@ -89,24 +91,31 @@ export function usePcLibrary(active: boolean) {
 type Filter = "all" | "kept";
 
 /**
- * The paired PC's Library on the phone: whether the PC answers, its search, the book it read
- * last, and every book with whether it is on this phone. Tapping a book downloads it unless it
+ * The paired PC's Library on the phone: whether the PC answers and when the phone last synced,
+ * syncing now, its search, the book it read last, and every book with whether it is on this
+ * phone. Tapping a book downloads it unless it
  * is here and opens it; its badge keeps it on this phone; a long press offers both and removing
  * the copy here.
  */
 export function MobilePcLibrary({
+  lastSynced,
   listing,
   onQueryChange,
+  onSync,
   pcName,
   query,
   refresh,
+  syncing,
   tabs,
 }: {
+  lastSynced: string | null;
   listing: PcListing;
   onQueryChange: (query: string) => void;
+  onSync: () => void;
   pcName: string;
   query: string;
   refresh: () => Promise<void>;
+  syncing: boolean;
   tabs: ReactNode;
 }) {
   const { t } = useI18n();
@@ -191,6 +200,7 @@ export function MobilePcLibrary({
   }
 
   const connected = listing.status === "ready";
+  const synced = timeAgo(lastSynced);
   return (
     <>
       <div className="mobile-search">
@@ -201,7 +211,10 @@ export function MobilePcLibrary({
         />
       </div>
       {tabs}
-      <div className="mobile-pc-status" aria-live="polite">
+      <div
+        className={connected ? "mobile-pc-status mobile-pc-status--synced" : "mobile-pc-status"}
+        aria-live="polite"
+      >
         {listing.status === "error" ? (
           <>
             <WarningCircleIcon aria-hidden="true" weight="fill" />
@@ -216,7 +229,26 @@ export function MobilePcLibrary({
               aria-hidden="true"
               className={connected ? "mobile-sync__dot" : "mobile-sync__dot mobile-sync__dot--off"}
             />
-            <span>{t(connected ? "sync.connectedShort" : "sync.checking")}</span>
+            {connected ? (
+              <span>
+                <span className="mobile-pc-status__label">{t("sync.connectedShort")}</span>
+                {synced ? <small>{` · ${t("sync.syncedShort", { time: synced })}`}</small> : null}
+              </span>
+            ) : (
+              <span>{t("sync.checking")}</span>
+            )}
+            {connected ? (
+              <button
+                aria-busy={syncing}
+                aria-label={t("sync.syncNow")}
+                className="mobile-pc-status__sync"
+                disabled={syncing}
+                onClick={onSync}
+                type="button"
+              >
+                <ArrowsClockwiseIcon aria-hidden="true" weight="bold" />
+              </button>
+            ) : null}
           </>
         )}
       </div>

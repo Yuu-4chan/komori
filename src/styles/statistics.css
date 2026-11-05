@@ -448,6 +448,48 @@ div.statistics-card__empty p {
   font-size: var(--font-size-2);
 }
 
+/* With more than one device read that day, each one's time. */
+.statistics-day-detail__devices {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  background: var(--surface-raised);
+  border-radius: 0.625rem;
+  overflow: hidden;
+}
+
+.statistics-day-detail__devices li {
+  min-height: 2.625rem;
+  padding: 0 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: var(--font-size-2);
+}
+
+.statistics-day-detail__devices li + li {
+  border-top: 1px solid var(--border-soft);
+}
+
+.statistics-day-detail__devices svg {
+  flex: none;
+  font-size: 1.0625rem;
+}
+
+.statistics-day-detail__devices span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statistics-day-detail__devices strong {
+  font-weight: 600;
+}
+
 .statistics-day-detail__rows {
   margin: auto 0 0;
   padding-top: 1rem;

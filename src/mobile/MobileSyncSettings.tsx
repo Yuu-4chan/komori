@@ -1,10 +1,16 @@
-import { CheckIcon, DownloadSimpleIcon, MonitorIcon } from "@phosphor-icons/react";
+import {
+  ArrowsClockwiseIcon,
+  CheckIcon,
+  DownloadSimpleIcon,
+  MonitorIcon,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useId, useState } from "react";
 
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { ToggleSetting } from "../components/ui/ToggleSetting";
 import { rowCounts } from "../features/dictionary/DictionarySources";
+import { timeAgo } from "../features/library/libraryView";
 import { formatSize } from "../features/storage/formatSize";
 import { useI18n, type MessageKey } from "../i18n/i18n";
 import {
@@ -12,11 +18,13 @@ import {
   copyPcDictionary,
   getPcLink,
   listPcDictionaries,
+  onPcSynced,
   onPcTransfer,
   pairPc,
   pcErrorKey,
   setPcAddress,
   setPcSync,
+  syncPc,
   transferPercent,
   unpairPc,
   type PcDictionary,
@@ -32,7 +40,8 @@ const validPort = (port: number) => Number.isInteger(port) && port >= 1024 && po
 
 /**
  * Settings > Sync on the phone: whether it syncs with Komori PC, where the PC is and the code
- * it pairs with, whether the PC answers, the PC's dictionaries to copy here, and unpairing.
+ * it pairs with, whether the PC answers and when the phone last synced, syncing now, the PC's
+ * dictionaries to copy here, and unpairing.
  */
 export function MobileSyncSettings() {
   const { t } = useI18n();
@@ -47,6 +56,7 @@ export function MobileSyncSettings() {
   const [dictionaries, setDictionaries] = useState<PcDictionary[] | null>(null);
   const [copying, setCopying] = useState<Record<string, number>>({});
   const [unpairing, setUnpairing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const show = useCallback((saved: PcLink) => {
     setLink(saved);
@@ -89,6 +99,23 @@ export function MobileSyncSettings() {
     if (paired) void check();
     else setDictionaries(null);
   }, [paired, check]);
+
+  // A sync started elsewhere, as on returning to Komori, shows here too.
+  useEffect(() => onPcSynced(show), [show]);
+
+  async function syncNow() {
+    setSyncing(true);
+    try {
+      show(await syncPc());
+      setStatus((current) =>
+        current.kind === "connected" ? current : { kind: "connected", name: pcName },
+      );
+    } catch (error) {
+      setStatus({ kind: "problem", message: pcErrorKey(error) });
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   useEffect(() => {
     const stop = onPcTransfer((transfer) => {
@@ -158,6 +185,7 @@ export function MobileSyncSettings() {
   }
 
   const pcName = link?.pcName ?? "";
+  const lastSynced = timeAgo(link?.lastSynced);
   const fieldProps = {
     autoCapitalize: "off",
     autoCorrect: "off",
@@ -249,32 +277,50 @@ export function MobileSyncSettings() {
       {paired ? (
         <>
           <section className="mobile-group mobile-sync__status" aria-live="polite">
-            <span aria-hidden="true" className="mobile-sync__pc">
-              <MonitorIcon />
-            </span>
-            <span className="mobile-row__text">
-              <span className="mobile-row__label">
-                {status.kind === "connected" ? (
-                  <>
-                    <span aria-hidden="true" className="mobile-sync__dot" />
-                    {t("sync.connected", { name: status.name || pcName })}
-                  </>
-                ) : (
-                  pcName
-                )}
+            <div className="mobile-sync__state">
+              <span aria-hidden="true" className="mobile-sync__pc">
+                <MonitorIcon />
               </span>
-              {status.kind !== "connected" ? (
-                <span className="mobile-row__detail">
-                  {status.kind === "checking"
-                    ? t("sync.checking")
-                    : t(status.message, { name: pcName })}
+              <span className="mobile-row__text">
+                <span className="mobile-row__label">
+                  {status.kind === "connected" ? (
+                    <>
+                      <span aria-hidden="true" className="mobile-sync__dot" />
+                      {t("sync.connected", { name: status.name || pcName })}
+                    </>
+                  ) : (
+                    pcName
+                  )}
                 </span>
+                {status.kind !== "connected" ? (
+                  <span className="mobile-row__detail">
+                    {status.kind === "checking"
+                      ? t("sync.checking")
+                      : t(status.message, { name: pcName })}
+                  </span>
+                ) : lastSynced ? (
+                  <span className="mobile-row__detail">
+                    {t("sync.lastSynced", { time: lastSynced })}
+                  </span>
+                ) : null}
+              </span>
+              {status.kind === "problem" ? (
+                <Button tone="secondary" onClick={() => void check()}>
+                  {t("common.tryAgain")}
+                </Button>
               ) : null}
-            </span>
-            {status.kind === "problem" ? (
-              <Button tone="secondary" onClick={() => void check()}>
-                {t("common.tryAgain")}
-              </Button>
+            </div>
+            {link?.syncOn ? (
+              <button
+                aria-busy={syncing}
+                className="mobile-sync__now"
+                disabled={status.kind !== "connected" || syncing}
+                onClick={() => void syncNow()}
+                type="button"
+              >
+                <ArrowsClockwiseIcon aria-hidden="true" weight="bold" />
+                {t("sync.syncNow")}
+              </button>
             ) : null}
           </section>
 

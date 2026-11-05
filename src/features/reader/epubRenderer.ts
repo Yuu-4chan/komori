@@ -1782,7 +1782,15 @@ class EpubRenderer implements ReaderRenderer {
   async goToOffset(offset: number): Promise<boolean> {
     if (this.sectionsLoading) await this.sectionsLoaded();
     const counts = this.progressCounts;
-    const locator = counts && offsetLocator(counts, offset);
+    return this.goToLocator(counts && offsetLocator(counts, offset));
+  }
+
+  async goToPosition(value: ReaderLocator): Promise<boolean> {
+    if (this.sectionsLoading) await this.sectionsLoaded();
+    return this.goToLocator(normalizeReaderLocator(value));
+  }
+
+  private async goToLocator(locator: ReaderLocator | null | undefined): Promise<boolean> {
     const rendition = this.rendition;
     const book = this.book;
     if (

@@ -1995,4 +1995,13 @@ export const it: MessageCatalog = {
   "sync.error.notFound": "Non è più sul PC.",
   "sync.error.wrongCode": "Codice di associazione errato.",
   "sync.error.failed": "Qualcosa è andato storto. Riprova.",
+  "sync.lastSynced": "Ultima sincronizzazione {time}",
+  "sync.syncedShort": "Sincronizzato {time}",
+  "sync.syncNow": "Sincronizza ora",
+  "sync.continueFrom": "Continua da",
+  "devices.lastSynced": "Ultima sincronizzazione {time}",
+  "statistics.thisPc": "Questo PC",
+  "statistics.phoneAndPc": "Telefono e PC",
+  "statistics.byDevice": "Lettura per dispositivo",
+  "statistics.otherDevice": "Altro dispositivo",
 };

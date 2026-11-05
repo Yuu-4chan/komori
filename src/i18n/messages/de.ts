@@ -1956,4 +1956,13 @@ export const de: MessageCatalog = {
   "sync.error.notFound": "Das ist nicht mehr auf dem PC.",
   "sync.error.wrongCode": "Falscher Kopplungscode.",
   "sync.error.failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
+  "sync.lastSynced": "Zuletzt synchronisiert {time}",
+  "sync.syncedShort": "Synchronisiert {time}",
+  "sync.syncNow": "Jetzt synchronisieren",
+  "sync.continueFrom": "Weiterlesen ab",
+  "devices.lastSynced": "Zuletzt synchronisiert {time}",
+  "statistics.thisPc": "Dieser PC",
+  "statistics.phoneAndPc": "Handy und PC",
+  "statistics.byDevice": "Lesen nach Gerät",
+  "statistics.otherDevice": "Anderes Gerät",
 };

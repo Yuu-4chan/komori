@@ -58,11 +58,13 @@ import type {
   ReaderBookmarkPlace,
   ReaderBookProgress,
   ReaderContentsEntry,
+  ReaderLocator,
   ReaderPageTurnAvailability,
 } from "../features/reader/renderer";
 import type { useBookmarks } from "../features/reader/useBookmarks";
 import type { SessionState } from "../features/reader/useReadingSession";
 import { i18n, useI18n } from "../i18n/i18n";
+import { ContinueFromDialog, useReaderSync } from "./ContinueFrom";
 import "./mobileReader.css";
 import { MobileSheet } from "./MobileSheet";
 import { ownBookSelection, showSystemBars, systemBarIcons, useBackCloser } from "./system";
@@ -108,6 +110,8 @@ export interface MobileReaderProps {
   onScroll: () => void;
   onGoToEntry: (id: string) => void;
   onGoToOffset: (offset: number, settled: (succeeded: boolean) => void) => void;
+  /** Shows a saved reading position, such as the PC's. */
+  onGoToPosition: (locator: ReaderLocator, settled: (succeeded: boolean) => void) => void;
   onBack: () => void;
   onFeedback: (message: string) => void;
 }
@@ -160,6 +164,7 @@ export function MobileReader({
   onScroll,
   onGoToEntry,
   onGoToOffset,
+  onGoToPosition,
   onBack,
   onFeedback,
 }: MobileReaderProps) {
@@ -349,6 +354,14 @@ export function MobileReader({
   };
   const title = identity.status === "book" ? (identity.book.title ?? t("library.untitled")) : "";
   const author = identity.status === "book" ? (identity.book.author ?? undefined) : undefined;
+  const sync = useReaderSync({
+    bookId: identity.status === "book" ? identity.book.id : null,
+    ready,
+    goToPosition: (locator) => {
+      if (locator) onGoToPosition(locator, () => {});
+      else onGoToOffset(0, () => {});
+    },
+  });
 
   return (
     <>
@@ -486,6 +499,14 @@ export function MobileReader({
         title={title}
       />
       <AppearanceSheet onClose={() => setAppearanceOpen(false)} open={appearanceOpen} />
+      <ContinueFromDialog
+        chapterAt={(offset) => chapterAt(entries, offset)?.label}
+        conflict={ready ? sync.conflict : null}
+        lang={bookLanguage(identity)}
+        onChoose={(keep) => void sync.choose(keep)}
+        onClose={sync.close}
+        title={title}
+      />
       {selected && ready && !turning && !shown && !tool && !chaptersOpen && !appearanceOpen ? (
         <SelectionToolbar onAct={act} rect={selected.rect} />
       ) : null}

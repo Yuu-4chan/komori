@@ -1,7 +1,8 @@
 //! Settings > Devices: the PC's server for paired phones. It is off until the reader allows
 //! devices, then serves HTTPS on one port with the PC's own certificate (made once and kept in
 //! the catalog's preferences), pairs a phone with the code it shows (see `protocol`), and answers
-//! paired phones with the Library's books and the installed dictionaries, by ID, never by path.
+//! paired phones with the Library's books and the installed dictionaries, by ID, never by path,
+//! and with the reading state they sync (see `sync`).
 #![cfg_attr(mobile, allow(dead_code))]
 
 pub(crate) mod client;
@@ -25,15 +26,19 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 
-/// Tells the Devices page that something changed.
-type Notify = Box<dyn Fn() + Send + Sync>;
+/// Tells the PC's pages that something changed, by the event they listen for.
+type Notify = Box<dyn Fn(&'static str) + Send + Sync>;
+const DEVICES_EVENT: &str = "devices-changed";
 use uuid::Uuid;
 
 use crate::library::{open_catalog, storage_error};
+use crate::reading_sessions::ReadingDevice;
 use protocol::{decode, encode, Hello, PairFinish, PairStart, PairStarted, Paired};
 
 const SETTINGS: &str = "devices";
 const IDENTITY: &str = "devices-identity";
+/// The PC's own device ID, which the sessions it read carry on a phone.
+const SELF: &str = "devices-self";
 /// Connections answered at once; more wait for the next.
 const CONNECTIONS: usize = 8;
 /// How long a started pairing waits for its proof.
@@ -70,6 +75,8 @@ struct Device {
     token_hash: String,
     paired_at: String,
     last_seen_at: Option<String>,
+    #[serde(default)]
+    last_synced_at: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -105,6 +112,7 @@ struct DeviceView {
     name: String,
     paired_at: String,
     last_seen_at: Option<String>,
+    last_synced_at: Option<String>,
 }
 
 struct Pending {
@@ -168,8 +176,12 @@ impl Shared {
     }
 
     fn changed(&self) {
+        self.emit(DEVICES_EVENT);
+    }
+
+    fn emit(&self, event: &'static str) {
         if let Some(notify) = &self.notify {
-            notify();
+            notify(event);
         }
     }
 
@@ -230,6 +242,22 @@ fn now(connection: &Connection) -> Result<String, String> {
             row.get(0)
         })
         .map_err(storage_error)
+}
+
+/// The PC's own device ID, made the first time a phone syncs.
+fn own_device(connection: &Connection) -> Result<String, String> {
+    #[derive(Serialize, Deserialize)]
+    struct Own {
+        id: String,
+    }
+    if let Some(own) = load_record::<Own>(connection, SELF)? {
+        if Uuid::parse_str(&own.id).is_ok() {
+            return Ok(own.id);
+        }
+    }
+    let id = Uuid::new_v4().to_string();
+    save_record(connection, SELF, &Own { id: id.clone() })?;
+    Ok(id)
 }
 
 /// The PC's certificate and key, made the first time devices are allowed.
@@ -387,6 +415,7 @@ fn view(shared: &Shared) -> Result<DevicesView, String> {
                 name: device.name,
                 paired_at: device.paired_at,
                 last_seen_at: device.last_seen_at,
+                last_synced_at: device.last_synced_at,
             })
             .collect(),
     })
@@ -405,7 +434,17 @@ fn serve(
         return;
     };
     let mut tls = rustls::StreamOwned::new(connection, stream);
-    match http::read_request(&mut tls) {
+    let limit = |method: &str, path: &str, token: Option<&str>| {
+        if method == "POST"
+            && path.starts_with("/v1/sync/")
+            && authenticate(shared, token).is_some()
+        {
+            http::SYNC_BODY_LIMIT
+        } else {
+            http::BODY_LIMIT
+        }
+    };
+    match http::read_request(&mut tls, limit) {
         Ok(request) => {
             if let Err(error) = route(shared, &certificate, &request, &mut tls) {
                 eprintln!("Komori devices could not answer {}: {error}", request.path);
@@ -525,6 +564,8 @@ fn route(
             let _ = std::fs::remove_file(&pack);
             result
         }
+        ("POST", ["v1", "sync", "pull"]) => sync_pull(shared, request, stream),
+        ("POST", ["v1", "sync", "push"]) => sync_push(shared, &device, request, stream),
         ("DELETE", ["v1", "device"]) => {
             let removed = shared.update(|settings| {
                 settings.devices.retain(|known| known.id != device);
@@ -536,6 +577,76 @@ fn route(
             }
         }
         _ => error(stream, 404, "notFound"),
+    }
+}
+
+/// The paired phones by name, as their sessions show in Statistics.
+fn phones(connection: &Connection) -> Result<Vec<ReadingDevice>, String> {
+    Ok(load_settings(connection)?
+        .devices
+        .into_iter()
+        .map(|device| ReadingDevice {
+            id: device.id,
+            name: device.name,
+        })
+        .collect())
+}
+
+fn sync_pull(shared: &Shared, request: &http::Request, stream: &mut impl Write) -> io::Result<()> {
+    let Ok(pull) = serde_json::from_slice::<crate::sync::PullRequest>(&request.body) else {
+        return error(stream, 400, "malformed");
+    };
+    let answer = open_catalog(&shared.catalog).and_then(|connection| {
+        let own = ReadingDevice {
+            id: own_device(&connection)?,
+            name: pc_name(),
+        };
+        crate::sync::pull(&connection, &own, &phones(&connection)?, &pull)
+    });
+    match answer {
+        Ok(answer) => http::respond_json(stream, 200, &answer),
+        Err(message) => {
+            eprintln!("Komori devices could not answer a sync: {message}");
+            error(stream, 500, "failed")
+        }
+    }
+}
+
+fn sync_push(
+    shared: &Shared,
+    device: &str,
+    request: &http::Request,
+    stream: &mut impl Write,
+) -> io::Result<()> {
+    let Ok(push) = serde_json::from_slice::<crate::sync::PushRequest>(&request.body) else {
+        return error(stream, 400, "malformed");
+    };
+    let answer = open_catalog(&shared.catalog).and_then(|mut connection| {
+        let own = own_device(&connection)?;
+        let phone = phones(&connection)?
+            .into_iter()
+            .find(|phone| phone.id == device)
+            .ok_or_else(|| "The phone is no longer paired.".to_owned())?;
+        let answer = crate::sync::push(&mut connection, &own, &phone, &push)?;
+        let at = now(&connection)?;
+        shared.update(|settings| {
+            if let Some(known) = settings.devices.iter_mut().find(|known| known.id == device) {
+                known.last_synced_at = Some(at);
+            }
+        })?;
+        Ok(answer)
+    });
+    match answer {
+        Ok(answer) => {
+            shared.changed();
+            // The Library and Statistics show what the phone read.
+            shared.emit(crate::book_details::DETAILS_EVENT);
+            http::respond_json(stream, 200, &answer)
+        }
+        Err(message) => {
+            eprintln!("Komori devices could not take a sync: {message}");
+            error(stream, 500, "failed")
+        }
     }
 }
 
@@ -665,6 +776,7 @@ fn pair_finish(
                     token_hash: protocol::hash_token(&token),
                     paired_at: at.clone(),
                     last_seen_at: Some(at),
+                    last_synced_at: None,
                 })
             })
         });
@@ -689,8 +801,8 @@ pub fn start(catalog: PathBuf, dictionaries: PathBuf, app: AppHandle) -> Devices
         catalog,
         dictionaries,
         IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-        Some(Box::new(move || {
-            let _ = app.emit("devices-changed", ());
+        Some(Box::new(move |event| {
+            let _ = app.emit(event, ());
         })),
     ));
     let starting = shared.clone();
@@ -820,6 +932,15 @@ impl Shared {
             .devices
             .into_iter()
             .map(|device| device.name)
+            .collect()
+    }
+
+    pub(crate) fn last_synced(&self) -> Vec<Option<String>> {
+        load_settings(&open_catalog(&self.catalog).unwrap())
+            .unwrap()
+            .devices
+            .into_iter()
+            .map(|device| device.last_synced_at)
             .collect()
     }
 

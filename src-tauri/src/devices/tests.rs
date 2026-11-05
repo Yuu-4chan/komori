@@ -200,3 +200,80 @@ fn a_dictionary_arrives_as_a_pack_the_phone_imports() {
         .count();
     assert_eq!(left, 0);
 }
+
+#[test]
+fn a_paired_phone_syncs_its_reading_and_the_pc_notes_when() {
+    let pc = pc();
+    let pairing = pair(&pc, &pc.shared.code()).unwrap();
+    let client = paired(&pc, &pairing);
+    assert_eq!(run(client.hello()).unwrap().protocol, 2);
+    let book = run(client.library()).unwrap().books.remove(0);
+
+    // The phone has a copy of the PC's book under the PC's ID, and read some of it.
+    let phone = open_catalog(&pc.directory.join("phone.sqlite3")).unwrap();
+    phone
+        .execute(
+            "INSERT INTO books (id, source_path, file_name) VALUES (?1, 'copy.epub', 'Alice.epub')",
+            [&book.id],
+        )
+        .unwrap();
+    phone
+        .execute_batch(&format!(
+            "CREATE TABLE pc_books (book_id TEXT PRIMARY KEY, pc_book TEXT NOT NULL UNIQUE,
+               kept INTEGER NOT NULL DEFAULT 0);
+             INSERT INTO pc_books (book_id, pc_book) VALUES ('{0}', '{0}');",
+            book.id
+        ))
+        .unwrap();
+    let position = crate::reading_position::position(3, None, 0.5);
+    assert!(crate::reading_position::save_to(&phone, &book.id, &position).unwrap());
+    // Enough sessions to need more than a pairing's body.
+    for index in 0..400 {
+        let session = crate::reading_sessions::ReadingSession {
+            id: uuid::Uuid::new_v4().to_string(),
+            started_at: 1_760_000_000_000 + index * 100_000,
+            ended_at: 1_760_000_000_000 + index * 100_000 + 60_000,
+            active_ms: 30_000,
+            unit: "characters".into(),
+            units_read: 10,
+            start_units: 0,
+            end_units: 10,
+            total_units: 100,
+        };
+        assert!(crate::reading_sessions::save_to(&phone, &book.id, &session).unwrap());
+    }
+
+    let pulled = run(client.sync_pull(&crate::sync::pull_request(&phone))).unwrap();
+    assert_eq!(pulled.books.len(), 1);
+    assert!(pulled
+        .devices
+        .iter()
+        .any(|device| device.name == "Test phone"));
+    let plan = crate::sync::plan(&phone, &pairing.device, &pulled).unwrap();
+    assert!(serde_json::to_vec(&plan.push).unwrap().len() > super::http::BODY_LIMIT);
+    let answer = run(client.sync_push(&plan.push)).unwrap();
+    assert!(answer.refused.is_empty());
+
+    let catalog = open_catalog(&pc.directory.join("library.sqlite3")).unwrap();
+    assert_eq!(
+        crate::reading_position::load_from(&catalog, &book.id).unwrap(),
+        Some(position)
+    );
+    let sessions = crate::reading_sessions::list_from(&catalog).unwrap();
+    assert_eq!(sessions.len(), 400);
+    assert!(sessions
+        .iter()
+        .all(|stored| stored.device.as_deref() == Some(pairing.device.as_str())));
+    assert!(pc.shared.last_synced()[0].is_some());
+
+    // Only a paired phone may sync, and only it may send that much.
+    let unpaired = Client::new("127.0.0.1", pc.port, Some(pairing.fingerprint), None).unwrap();
+    assert_eq!(
+        run(unpaired.sync_pull(&Default::default())).unwrap_err(),
+        LinkError::NotPaired
+    );
+    assert!(matches!(
+        run(unpaired.sync_push(&plan.push)).unwrap_err(),
+        LinkError::Failed(_) | LinkError::Unreachable
+    ));
+}

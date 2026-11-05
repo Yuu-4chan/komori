@@ -8,6 +8,7 @@ import { BrandMark } from "../brand/BrandMark";
 import { MobileHeaderContext, type MobileHeaderProps } from "../components/layout/mobileHeader";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { useI18n } from "../i18n/i18n";
+import { autoSync } from "./pcLinkApi";
 import { systemBarIcons, useBackButton, watchKeyboard, watchSafeArea } from "./system";
 
 /**
@@ -80,19 +81,21 @@ export function MobilePageHeader({ title, summary, actions, back = false }: Mobi
 
 /**
  * What the phone asks of every page: the safe area's insets, the keyboard's height, Android's
- * Back, and saving what is pending when Komori goes to the background, where Android may end
- * it without warning.
+ * Back, saving what is pending when Komori goes to the background, where Android may end it
+ * without warning, and syncing with the PC on starting and on coming back.
  */
 export function MobileSystem() {
   useBackButton();
   useEffect(() => watchSafeArea(), []);
   useEffect(() => watchKeyboard(), []);
   useEffect(() => {
-    const hidden = () => {
+    void autoSync();
+    const changed = () => {
       if (document.visibilityState === "hidden") void flushPendingWrites();
+      else void autoSync();
     };
-    document.addEventListener("visibilitychange", hidden);
-    return () => document.removeEventListener("visibilitychange", hidden);
+    document.addEventListener("visibilitychange", changed);
+    return () => document.removeEventListener("visibilitychange", changed);
   }, []);
   return null;
 }

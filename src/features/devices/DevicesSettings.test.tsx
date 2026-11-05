@@ -28,6 +28,13 @@ const listening: api.DevicesView = {
       pairedAt: "2026-11-01T00:00:00Z",
       lastSeenAt: new Date(Date.now() - 120_000).toISOString(),
     },
+    {
+      id: "phone-2",
+      name: "Pixel 8",
+      pairedAt: "2026-11-01T00:00:00Z",
+      lastSeenAt: new Date(Date.now() - 60_000).toISOString(),
+      lastSyncedAt: new Date(Date.now() - 180_000).toISOString(),
+    },
   ],
 };
 
@@ -53,6 +60,10 @@ describe("Settings > Devices", () => {
 
     const phone = screen.getByText("Galaxy S24").closest(".settings-row") as HTMLElement;
     expect(phone.textContent).toContain("Last connected 2 minutes ago");
+    // A phone that synced says when.
+    const synced = screen.getByText("Pixel 8").closest(".settings-row") as HTMLElement;
+    expect(synced.textContent).toContain("Last synced 3 minutes ago");
+    expect(synced.textContent).not.toContain("Last connected");
     await userEvent.click(within(phone).getByRole("button", { name: "Remove" }));
     expect(api.removeDevice).toHaveBeenCalledWith("phone-1");
     expect(await screen.findByText("No phones paired")).toBeTruthy();

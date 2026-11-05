@@ -22,6 +22,7 @@ vi.mock("./pcLinkApi", async (importOriginal) => ({
   keepPcBook: vi.fn(),
   removePcBook: vi.fn(async () => {}),
   onPcTransfer: vi.fn(async () => () => {}),
+  syncPc: vi.fn(),
 }));
 
 const { MobileLibraryPage } = await import("./MobileLibraryPage");
@@ -91,6 +92,7 @@ const paired: api.PcLink = {
   paired: true,
   pcName: "KOMORI-PC",
   syncOn: true,
+  lastSynced: null,
 };
 
 async function pcTab() {
@@ -125,6 +127,25 @@ describe("the PC's Library on the phone", () => {
 
     await userEvent.click(within(pc).getByRole("button", { name: "On this phone · 1" }));
     expect(titles(pc)).toEqual(["三四郎"]);
+  });
+
+  it("shows when it last synced, and syncs now, listing both Libraries again", async () => {
+    const minutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+    library({ ...paired, lastSynced: minutesAgo });
+    vi.mocked(api.syncPc).mockImplementation(async () => {
+      const result = { ...paired, lastSynced: minutesAgo, changed: true, moved: [] };
+      window.dispatchEvent(new CustomEvent(api.pcSynced, { detail: result }));
+      return result;
+    });
+    await pcTab();
+    const status = await screen.findByText("Connected");
+    expect(status.parentElement!.textContent).toBe("Connected · Synced 5 minutes ago");
+    expect(listLibrary).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
+    expect(api.syncPc).toHaveBeenCalled();
+    await waitFor(() => expect(api.listPcLibrary).toHaveBeenCalledTimes(2));
+    expect(listLibrary).toHaveBeenCalledTimes(2);
   });
 
   it("is not there unpaired or with Sync with PC off", async () => {
