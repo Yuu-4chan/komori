@@ -8,6 +8,7 @@ import {
   ListBulletsIcon,
   MagnifyingGlassIcon,
   NotePencilIcon,
+  PlusIcon,
   TextAaIcon,
   TranslateIcon,
   XIcon,
@@ -44,9 +45,11 @@ import {
   type ReaderSearchPanelProps,
 } from "../features/reader/ReaderSearchPanel";
 import type { ReaderIdentity } from "../features/reader/readerIdentity";
+import { ReaderCustomThemeEditor } from "../features/reader/ReaderThemeSection";
 import {
   isLightTheme,
   presetThemeLabel,
+  readerCustomThemeLimit,
   readerPresetThemes,
   resolveReaderTheme,
 } from "../features/reader/readerThemes";
@@ -1010,6 +1013,9 @@ function AppearanceSheet({
 }) {
   const { t } = useI18n();
   const appearance = useAppearance();
+  const customTheme = appearance.readerCustomThemes.find(
+    (theme) => theme.id === appearance.readerTheme,
+  );
   return (
     <MobileSheet
       className="mobile-reader-appearance"
@@ -1047,7 +1053,29 @@ function AppearanceSheet({
             <small>{"label" in theme ? presetThemeLabel(theme) : theme.name}</small>
           </button>
         ))}
+        <button
+          aria-label={t("readerTheme.new")}
+          className="mobile-reader-theme mobile-reader-theme--new"
+          disabled={appearance.readerCustomThemes.length >= readerCustomThemeLimit}
+          onClick={panel.onCreateCustomTheme}
+          type="button"
+        >
+          <span aria-hidden="true" className="mobile-reader-theme__preview">
+            <PlusIcon size={20} />
+          </span>
+          <small aria-hidden="true">{t("appearance.custom")}</small>
+        </button>
       </div>
+      {customTheme && (
+        <section className="reader-appearance-card" aria-label={customTheme.name}>
+          <ReaderCustomThemeEditor
+            key={customTheme.id}
+            theme={customTheme}
+            onChange={(change) => panel.onCustomThemeChange(customTheme.id, change)}
+            onDelete={() => panel.onDeleteCustomTheme(customTheme.id)}
+          />
+        </section>
+      )}
       <ReaderAppearancePanel {...panel} touch />
       <section className="reader-appearance-card" aria-labelledby="mobile-reader-touch">
         <h3 className="reader-appearance-card__title" id="mobile-reader-touch">

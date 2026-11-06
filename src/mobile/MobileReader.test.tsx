@@ -716,6 +716,29 @@ describe("the Reader by touch", () => {
     expect(invoke).toHaveBeenLastCalledWith("system_bar_icons", { dark: false });
   });
 
+  it("makes, edits and deletes a custom theme from its sheet", async () => {
+    const { viewport } = reader();
+    tap(viewport, 500);
+    await userEvent.click(await screen.findByRole("button", { name: "Appearance" }));
+    const sheet = screen.getByRole("dialog", { name: "Appearance" });
+    expect(within(sheet).queryByRole("textbox", { name: "Theme name" })).toBeNull();
+    await userEvent.click(
+      within(sheet).getByRole("button", { name: "New custom theme from the current colors" }),
+    );
+    const name = within(sheet).getByRole("textbox", { name: "Theme name" });
+    expect(name).toHaveValue("Custom 1");
+    await userEvent.clear(name);
+    await userEvent.type(name, "Evening");
+    const themes = within(sheet).getByRole("group", { name: "Theme" });
+    expect(within(themes).getByRole("button", { name: "Evening" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await userEvent.click(within(sheet).getByRole("button", { name: "Delete theme" }));
+    expect(within(themes).queryByRole("button", { name: "Evening" })).toBeNull();
+    expect(within(sheet).queryByRole("textbox", { name: "Theme name" })).toBeNull();
+  });
+
   it("offers the PC's view modes and options in its sheet, without a window's", async () => {
     const { viewport, onTurn, onLookUp } = reader();
     tap(viewport, 500);

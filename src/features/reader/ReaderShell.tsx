@@ -2069,6 +2069,14 @@ export function ReaderShell({
                   rect={lookup.rect}
                   onBack={() => (lookups.length > 1 ? closeDeepestLookup() : closeLookup())}
                   onClose={closeLookup}
+                  onTapBeside={(x, y) => {
+                    // Another word beside the sheet is looked up at once, as in the popup.
+                    const tapped =
+                      appearance.readerTapLookup &&
+                      triggersRef.current.readerPopupEnabled &&
+                      lookupAt(x, y);
+                    if (!tapped) closeLookup();
+                  }}
                 >
                   {lookupPopups}
                 </MobileLookupSheet>

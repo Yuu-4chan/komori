@@ -797,3 +797,17 @@ dialog.reader-image-viewer {
   color: var(--text-muted);
   font-size: 1rem;
 }
+
+.mobile-reader-theme--new .mobile-reader-theme__preview {
+  color: var(--text-secondary);
+  border-style: dashed;
+}
+
+.mobile-reader-theme:disabled {
+  opacity: 0.45;
+}
+
+.mobile-reader-appearance .reader-custom-theme__delete {
+  margin-top: 0.75rem;
+  width: 100%;
+}

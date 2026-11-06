@@ -11,6 +11,7 @@ import {
   type ReaderFontPair,
 } from "./fontChoices";
 import { isFaceWeight } from "./fontWeights";
+import { keepFontFiles, keptFontFiles } from "./fontFiles";
 import ePub, { type Book, type Rendition } from "epubjs";
 import {
   installEpubTolerance,
@@ -869,33 +870,44 @@ class EpubRenderer implements ReaderRenderer {
       // EPUB.js waits for the book's font-weight and text-indent rules before it
       // serializes the section.
       const opened = book;
+      const styleSection = (
+        document: Document,
+        section?: { url?: string; index?: number; document?: Document },
+      ) => {
+        const headingImages = this.fixedLayout
+          ? []
+          : applyHeadingCentering(document, this.headingTargets.get(section));
+        if (!this.fixedLayout) applyBookImageLayout(document);
+        else fillFixedSvgPage(document);
+        applyPresentation(document, this.sectionPresentation());
+        let index = section?.index ?? -1;
+        if (index < 0) {
+          let ordinal = -1;
+          book!.spine.each((candidate: { document?: Document }) => {
+            ordinal++;
+            if (candidate === section || candidate.document === document) index = ordinal;
+          });
+        }
+        this.blurDocument(document, index);
+        this.furiganaDocument(document, index);
+        this.styleSectionDocument(document, index);
+        return Promise.all([
+          this.collectStyleRules(opened, document, section?.url).then((rules) => {
+            if (this.disposed) return;
+            this.styleRules.set(document, rules);
+            applyBookStyles(document, rules, this.sectionPresentation());
+          }),
+          this.centerHeadingInk(opened, headingImages, section?.url),
+        ]);
+      };
       book.spine.hooks.content.register(
         (document: Document, section?: { url?: string; index?: number; document?: Document }) => {
-          const headingImages = this.fixedLayout
-            ? []
-            : applyHeadingCentering(document, this.headingTargets.get(section));
-          if (!this.fixedLayout) applyBookImageLayout(document);
-          else fillFixedSvgPage(document);
-          applyPresentation(document, this.sectionPresentation());
-          let index = section?.index ?? -1;
-          if (index < 0) {
-            let ordinal = -1;
-            book!.spine.each((candidate: { document?: Document }) => {
-              ordinal++;
-              if (candidate === section || candidate.document === document) index = ordinal;
-            });
-          }
-          this.blurDocument(document, index);
-          this.furiganaDocument(document, index);
-          this.styleSectionDocument(document, index);
-          return Promise.all([
-            this.collectStyleRules(opened, document, section?.url).then((rules) => {
-              if (this.disposed) return;
-              this.styleRules.set(document, rules);
-              applyBookStyles(document, rules, this.sectionPresentation());
-            }),
-            this.centerHeadingInk(opened, headingImages, section?.url),
-          ]);
+          // On the phone the font files are fetched once, before the first section asks.
+          const pair = this.sectionPresentation().fontPair;
+          const fonts = pair ? keepFontFiles(fontPairFaces(pair)) : undefined;
+          return fonts
+            ? fonts.then(() => styleSection(document, section))
+            : styleSection(document, section);
         },
       );
       this.sectionHooks = [...sectionHookList(book)];
@@ -1967,6 +1979,11 @@ class EpubRenderer implements ReaderRenderer {
         // The chapter is found again at the reading point; until then the book shows whole.
         this.shownChapter = undefined;
         this.applyChapterBounds();
+      }
+      const fonts = next.fontPair ? keepFontFiles(fontPairFaces(next.fontPair)) : undefined;
+      if (fonts) {
+        await fonts;
+        if (this.disposed) return;
       }
       const displayed = this.restyleSections(book, rendition);
       this.registerContentDocuments();
@@ -6513,7 +6530,7 @@ function applyFontFamilies(
     (document.head ?? document.documentElement).prepend(style);
   }
   style.textContent =
-    (pair ? fontPairFaces(pair) : group2 === "inter" ? readerInterFace : "") +
+    keptFontFiles(pair ? fontPairFaces(pair) : group2 === "inter" ? readerInterFace : "") +
     `@layer komori-fonts { :root, :root body, :root body * { font-family: ${stack} !important; } }`;
 }
 
@@ -7571,7 +7588,7 @@ function applyBookStyles(
     const style = document.querySelector(`style[${FONT_FAMILY_STYLE}]`);
     if (style)
       style.textContent =
-        fontPairFaces(presentation.fontPair, [...weights]) +
+        keptFontFiles(fontPairFaces(presentation.fontPair, [...weights])) +
         `@layer komori-fonts { :root, :root body, :root body * { font-family: ${fontPairStack(presentation.fontPair)} !important; } }`;
   }
 }

@@ -2,6 +2,7 @@ import { useI18n, type MessageKey } from "../../i18n/i18n";
 import { TrashIcon } from "@phosphor-icons/react";
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 
+import { Button } from "../../components/ui/Button";
 import { ColorField } from "../../components/ui/ColorField";
 import { ContextMenu } from "../../components/ui/ContextMenu";
 import { TextField } from "../../components/ui/TextField";
@@ -36,6 +37,53 @@ const colorFields: { key: keyof ReaderThemeColors; label: MessageKey }[] = [
   { key: "selection", label: "readerTheme.selection" },
   { key: "footerText", label: "readerTheme.footerText" },
 ];
+
+/**
+ * A custom theme's name and colors; with `onDelete`, also a button deleting it, for the
+ * phone, which has no context menu.
+ */
+export function ReaderCustomThemeEditor({
+  theme,
+  onChange,
+  onDelete,
+}: {
+  theme: ReaderCustomTheme;
+  onChange: (change: ReaderCustomThemeChange) => void;
+  onDelete?: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="reader-custom-theme">
+      <div className="reader-custom-theme-grid">
+        <TextField
+          label={t("readerTheme.name")}
+          value={theme.name}
+          maxLength={readerThemeNameMaxLength}
+          accepts={isThemeName}
+          onChange={(name) => onChange({ name })}
+        />
+        {colorFields.map(({ key, label }) => (
+          <ColorField
+            key={key}
+            label={t(label)}
+            value={theme[key]}
+            onChange={(color) => onChange({ [key]: color })}
+          />
+        ))}
+      </div>
+      {onDelete && (
+        <Button
+          className="reader-custom-theme__delete"
+          icon={<TrashIcon aria-hidden="true" />}
+          onClick={onDelete}
+          tone="danger"
+        >
+          {t("readerTheme.delete")}
+        </Button>
+      )}
+    </div>
+  );
+}
 
 /**
  * The Theme section: its preset swatches, a swatch for each saved custom theme,
@@ -121,25 +169,11 @@ export function ReaderThemeSection({
         </button>
       </div>
       {custom && (
-        <div className="reader-custom-theme" key={custom.id}>
-          <div className="reader-custom-theme-grid">
-            <TextField
-              label={t("readerTheme.name")}
-              value={custom.name}
-              maxLength={readerThemeNameMaxLength}
-              accepts={isThemeName}
-              onChange={(name) => onCustomThemeChange(custom.id, { name })}
-            />
-            {colorFields.map(({ key, label }) => (
-              <ColorField
-                key={key}
-                label={t(label)}
-                value={custom[key]}
-                onChange={(color) => onCustomThemeChange(custom.id, { [key]: color })}
-              />
-            ))}
-          </div>
-        </div>
+        <ReaderCustomThemeEditor
+          key={custom.id}
+          theme={custom}
+          onChange={(change) => onCustomThemeChange(custom.id, change)}
+        />
       )}
       <ContextMenu
         items={

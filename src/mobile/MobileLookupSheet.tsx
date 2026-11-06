@@ -29,6 +29,11 @@ interface MobileLookupSheetProps {
   /** Back: returns to the lookup before, or closes the sheet from the first. */
   onBack: () => void;
   onClose: () => void;
+  /**
+   * A tap on the book beside the sheet, at that place on the screen: looks up the word there,
+   * or closes the sheet. Without it the tap closes the sheet.
+   */
+  onTapBeside?: (x: number, y: number) => void;
   /** The lookups, the one shown last. */
   children: ReactNode;
 }
@@ -53,13 +58,15 @@ export function sheetPlace(
 /**
  * A Reader lookup on the phone: a sheet from the bottom of the screen, or from the top for a
  * word under that place, in the popup's theme. Its handle drags it to the whole screen and
- * back, or away; tapping the book beside it or Back closes it.
+ * back, or away; tapping a word in the book beside it looks that word up, and tapping blank
+ * space there or Back closes it.
  */
 export function MobileLookupSheet({
   rect,
   label,
   onBack,
   onClose,
+  onTapBeside,
   children,
 }: MobileLookupSheetProps) {
   const { t } = useI18n();
@@ -93,7 +100,7 @@ export function MobileLookupSheet({
       <button
         aria-label={t("common.close")}
         className="mobile-lookup__close"
-        onClick={onClose}
+        onClick={(event) => (onTapBeside ? onTapBeside(event.clientX, event.clientY) : onClose())}
         type="button"
       />
       <section

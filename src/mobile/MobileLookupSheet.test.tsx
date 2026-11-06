@@ -81,6 +81,28 @@ describe("the phone's lookup sheet", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("passes a tap beside it on, to look up another word", () => {
+    const onTapBeside = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <MemoryRouter initialEntries={["/reader"]}>
+        <AppearanceProvider store={null}>
+          <MobileLookupSheet
+            label="Lookup: 見当"
+            onBack={() => {}}
+            onClose={onClose}
+            onTapBeside={onTapBeside}
+          >
+            <p>けんとう</p>
+          </MobileLookupSheet>
+        </AppearanceProvider>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close" }), { clientX: 40, clientY: 120 });
+    expect(onTapBeside).toHaveBeenCalledWith(40, 120);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("takes the whole screen when its handle is dragged up, and closes when dragged down", () => {
     const { section, onClose, drag } = sheet();
     const height = section.style.height;
