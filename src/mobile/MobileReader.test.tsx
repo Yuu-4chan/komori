@@ -579,9 +579,25 @@ describe("the Reader by touch", () => {
     expect(invoke).toHaveBeenCalledWith("show_system_bars", { shown: false });
     // The tap's click would land on the controls' backdrop and hide them again.
     expect(tap(viewport, 500)).toBe(false);
+    // The title's pill between Back and Search, in place of the clock; the chapter's
+    // between Appearance and Bookmark, in place of the footer.
     const header = await screen.findByRole("banner");
+    expect(
+      within(header)
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Back to library", "Contents", "Search"]);
     expect(within(header).getByText("A Book")).toBeTruthy();
-    expect(within(header).getByText("Someone")).toBeTruthy();
+    const bottom = screen.getByRole("region", { name: "Reading position and tools" });
+    expect(
+      within(bottom)
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Appearance", "Chapters", "Bookmark this page"]);
+    expect(within(bottom).getByRole("button", { name: "Chapters" }).textContent).toBe(
+      "Second· 35%",
+    );
+    expect(screen.queryByRole("button", { name: "Show reader controls" })).toBeNull();
     expect(invoke).toHaveBeenLastCalledWith("show_system_bars", { shown: true });
     await userEvent.click(within(header).getByRole("button", { name: "Back to library" }));
     expect(onBack).toHaveBeenCalled();
@@ -594,10 +610,12 @@ describe("the Reader by touch", () => {
     expect(await screen.findByRole("banner")).toBeTruthy();
   });
 
-  it("shows the chapter and position, and jumps where the slider is let go", async () => {
+  it("shows the chapter and position in Contents, and jumps where the slider is let go", async () => {
     const { viewport, onGoToOffset } = reader();
     tap(viewport, 500);
-    const panel = await screen.findByRole("region", { name: "Reading position and tools" });
+    await userEvent.click(await screen.findByRole("button", { name: "Contents" }));
+    const sheet = screen.getByRole("dialog", { name: "Chapters" });
+    const panel = sheet.querySelector<HTMLElement>(".mobile-chapters__now")!;
     expect(within(panel).getByText("Second")).toBeTruthy();
     expect(within(panel).getByText("25%")).toBeTruthy();
     const slider = within(panel).getByRole("slider", { name: "Position in the book" });
@@ -607,6 +625,9 @@ describe("the Reader by touch", () => {
     expect(onGoToOffset).not.toHaveBeenCalled();
     fireEvent.pointerUp(slider);
     expect(onGoToOffset).toHaveBeenCalledWith(6_000, expect.any(Function));
+    // The jump returns to the book.
+    expect(screen.queryByRole("dialog", { name: "Chapters" })).toBeNull();
+    expect(screen.queryByRole("banner")).toBeNull();
   });
 
   it("bookmarks the page, or removes its bookmark", async () => {
@@ -649,24 +670,35 @@ describe("the Reader by touch", () => {
     expect(screen.queryByRole("banner")).toBeNull();
   });
 
-  it("opens Images, Bookmarks, Notes and Search from the controls and from Chapters", async () => {
+  it("opens Search from the controls, and Images, Bookmarks, Notes and Search from Contents", async () => {
     const { viewport, tools } = reader();
     tap(viewport, 500);
-    const panel = await screen.findByRole("region", { name: "Reading position and tools" });
+    const header = await screen.findByRole("banner");
+    await userEvent.click(within(header).getByRole("button", { name: "Search" }));
+    expect(screen.getByRole("dialog", { name: "Search" })).toBeTruthy();
+    await userEvent.click(
+      within(screen.getByRole("dialog", { name: "Search" })).getByRole("button", {
+        name: "Close",
+      }),
+    );
+    // The title and the chapter both open Contents.
+    const bottom = screen.getByRole("region", { name: "Reading position and tools" });
+    await userEvent.click(within(bottom).getByRole("button", { name: "Chapters" }));
+    const contents = screen.getByRole("dialog", { name: "Chapters" });
     expect(
-      within(panel)
+      within(contents)
         .getAllByRole("button")
         .filter((button) => button.classList.contains("mobile-reader-tool"))
         .map((button) => button.textContent),
-    ).toEqual(["Chapters", "Images", "Bookmarks", "Notes", "Search"]);
-    await userEvent.click(within(panel).getByRole("button", { name: "Notes" }));
+    ).toEqual(["Images", "Bookmarks", "Notes", "Search"]);
+    await userEvent.click(within(contents).getByRole("button", { name: "Notes" }));
     expect(screen.getByRole("dialog", { name: "Notes" }).textContent).toContain("No notes yet");
     await userEvent.click(
       within(screen.getByRole("dialog", { name: "Notes" })).getByRole("button", {
         name: "Close",
       }),
     );
-    await userEvent.click(within(panel).getByRole("button", { name: "Chapters" }));
+    await userEvent.click(within(header).getByRole("button", { name: "Contents" }));
     const chapters = screen.getByRole("dialog", { name: "Chapters" });
     await userEvent.click(within(chapters).getByRole("button", { name: "Images" }));
     expect(screen.queryByRole("dialog", { name: "Chapters" })).toBeNull();

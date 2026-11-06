@@ -1589,6 +1589,7 @@ export const it: MessageCatalog = {
   "mobileReader.hideControls": "Nascondi i controlli di lettura",
   "mobileReader.bookmark": "Aggiungi un segnalibro a questa pagina",
   "mobileReader.removeBookmark": "Rimuovi il segnalibro di questa pagina",
+  "mobileReader.contents": "Indice",
   "mobileReader.position": "Posizione nel libro",
   "mobileReader.tools": "Posizione di lettura e strumenti",
   "sidebar.readerAppearance": "Aspetto del lettore",

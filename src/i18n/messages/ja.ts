@@ -1445,6 +1445,7 @@ export const ja: MessageCatalog = {
   "mobileReader.hideControls": "リーダーの操作を隠す",
   "mobileReader.bookmark": "このページをブックマーク",
   "mobileReader.removeBookmark": "このページのブックマークを削除",
+  "mobileReader.contents": "目次",
   "mobileReader.position": "本の中の位置",
   "mobileReader.tools": "読書位置とツール",
   "sidebar.readerAppearance": "読書画面の外観",

@@ -1623,6 +1623,7 @@ export const ru: MessageCatalog = {
   "mobileReader.hideControls": "Скрыть элементы управления чтением",
   "mobileReader.bookmark": "Добавить закладку на эту страницу",
   "mobileReader.removeBookmark": "Удалить закладку с этой страницы",
+  "mobileReader.contents": "Содержание",
   "mobileReader.position": "Позиция в книге",
   "mobileReader.tools": "Позиция чтения и инструменты",
   "sidebar.readerAppearance": "Оформление режима чтения",

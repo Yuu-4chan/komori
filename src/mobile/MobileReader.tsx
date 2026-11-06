@@ -5,7 +5,6 @@ import {
   CopyIcon,
   HighlighterIcon,
   ImageIcon,
-  ListBulletsIcon,
   MagnifyingGlassIcon,
   NotePencilIcon,
   PlusIcon,
@@ -513,7 +512,7 @@ export function MobileReader({
 
   return (
     <>
-      {ready && (readerShowClock || readerShowReadingTime) && (
+      {ready && !shown && (readerShowClock || readerShowReadingTime) && (
         <button
           aria-label={t("mobileReader.showControls")}
           className="mobile-reader__status"
@@ -528,7 +527,7 @@ export function MobileReader({
           />
         </button>
       )}
-      {ready && footer.length ? (
+      {ready && !shown && footer.length ? (
         <button
           aria-label={t("mobileReader.showControls")}
           className="mobile-reader__footer"
@@ -554,7 +553,9 @@ export function MobileReader({
             onClick={() => setShown(false)}
             type="button"
           />
-          <header className="mobile-reader-controls__header">
+          {/* Each pill flanked by round buttons, where the clock and the footer show while
+              reading; the title and the chapter open Contents. */}
+          <header className="mobile-reader-controls__row mobile-reader-controls__row--top">
             <button
               aria-label={t("statistics.back")}
               className="mobile-reader-controls__button"
@@ -563,10 +564,47 @@ export function MobileReader({
             >
               <ArrowLeftIcon aria-hidden="true" size={20} />
             </button>
-            <div className="mobile-reader-controls__title">
+            <button
+              aria-label={t("mobileReader.contents")}
+              className="mobile-reader-controls__pill"
+              onClick={() => setChaptersOpen(true)}
+              type="button"
+            >
               <span lang={bookLanguage(identity)}>{title}</span>
-              {author ? <small lang={bookLanguage(identity)}>{author}</small> : null}
-            </div>
+            </button>
+            <button
+              aria-label={t("sidebar.search")}
+              className="mobile-reader-controls__button"
+              onClick={() => openTool("search")}
+              type="button"
+            >
+              <MagnifyingGlassIcon aria-hidden="true" size={20} />
+            </button>
+          </header>
+          <section
+            aria-label={t("mobileReader.tools")}
+            className="mobile-reader-controls__row mobile-reader-controls__row--bottom"
+          >
+            <button
+              aria-label={t("sidebar.appearance")}
+              className="mobile-reader-controls__button"
+              onClick={() => {
+                setShown(false);
+                setAppearanceOpen(true);
+              }}
+              type="button"
+            >
+              <TextAaIcon aria-hidden="true" size={20} />
+            </button>
+            <button
+              aria-label={t("sidebar.chapters")}
+              className="mobile-reader-controls__pill"
+              onClick={() => setChaptersOpen(true)}
+              type="button"
+            >
+              <span lang={bookLanguage(identity)}>{chapter?.label ?? title}</span>
+              {total ? <small>· {percent(progress?.current ?? 0, total)}%</small> : null}
+            </button>
             <button
               aria-label={t(bookmark ? "mobileReader.removeBookmark" : "mobileReader.bookmark")}
               aria-pressed={!!bookmark}
@@ -581,55 +619,6 @@ export function MobileReader({
                 weight={bookmark ? "fill" : "regular"}
               />
             </button>
-            <button
-              aria-label={t("sidebar.appearance")}
-              className="mobile-reader-controls__button"
-              onClick={() => {
-                setShown(false);
-                setAppearanceOpen(true);
-              }}
-              type="button"
-            >
-              <TextAaIcon aria-hidden="true" size={20} />
-            </button>
-          </header>
-          <section aria-label={t("mobileReader.tools")} className="mobile-reader-controls__panel">
-            <div className="mobile-reader-controls__chapter">
-              <span lang={bookLanguage(identity)}>{chapter?.label ?? title}</span>
-              {chapterPercent === null ? null : (
-                <span className="mobile-reader-chip">{chapterPercent}%</span>
-              )}
-            </div>
-            <input
-              aria-label={t("mobileReader.position")}
-              className="mobile-reader-controls__slider"
-              disabled={!total || turning}
-              max={total}
-              min={0}
-              onChange={(event) => setDragged(Number(event.currentTarget.value))}
-              onKeyUp={commit}
-              onPointerUp={commit}
-              step={1}
-              type="range"
-              value={at}
-            />
-            {total ? (
-              <div className="mobile-reader-controls__counts">
-                <BookPosition current={at} total={total} unit={progress?.unit ?? "characters"} />
-                <span>{percent(at, total)}%</span>
-              </div>
-            ) : null}
-            <div className="mobile-reader-controls__tools">
-              <button
-                className="mobile-reader-tool"
-                onClick={() => setChaptersOpen(true)}
-                type="button"
-              >
-                <ListBulletsIcon aria-hidden="true" size={20} />
-                <ToolLabel>{t("sidebar.chapters")}</ToolLabel>
-              </button>
-              <ToolButtons onOpen={openTool} />
-            </div>
           </section>
         </div>
       )}
@@ -646,7 +635,21 @@ export function MobileReader({
           onGoToEntry(id);
         }}
         open={chaptersOpen}
-        progress={progress}
+        position={{
+          at,
+          total,
+          unit: progress?.unit ?? "characters",
+          chapter: chapter?.label ?? title,
+          chapterPercent,
+          disabled: !total || turning,
+          onDrag: setDragged,
+          onCommit: () => {
+            if (dragged === null) return;
+            setChaptersOpen(false);
+            setShown(false);
+            commit();
+          },
+        }}
         title={title}
       />
       <AppearanceSheet
@@ -725,7 +728,7 @@ function ChaptersSheet({
   author,
   entries,
   current,
-  progress,
+  position,
 }: {
   open: boolean;
   onClose: () => void;
@@ -736,7 +739,17 @@ function ChaptersSheet({
   author?: string;
   entries: FlatEntry[];
   current?: string;
-  progress: ReaderBookProgress | null;
+  /** The book's position, which the slider changes: it shows where it is dragged. */
+  position: {
+    at: number;
+    total: number;
+    unit: ReaderBookProgress["unit"];
+    chapter: string;
+    chapterPercent: number | null;
+    disabled: boolean;
+    onDrag: (at: number) => void;
+    onCommit: () => void;
+  };
 }) {
   const { t, number } = useI18n();
   const currentRef = useRef<HTMLButtonElement>(null);
@@ -744,7 +757,6 @@ function ChaptersSheet({
     if (open) currentRef.current?.scrollIntoView?.({ block: "center" });
   }, [open]);
   const index = entries.findIndex((entry) => entry.id === current);
-  const shown = index >= 0 ? entries[index] : undefined;
   const language = bookLanguage(identity);
   return (
     <MobileSheet
@@ -808,33 +820,30 @@ function ChaptersSheet({
           );
         })}
       </ol>
-      {progress?.total ? (
+      {position.total ? (
         <div className="mobile-chapters__now">
           <div className="mobile-reader-controls__chapter">
-            <span lang={language}>{shown?.label ?? title}</span>
-            {progress.chapter.total ? (
-              <span className="mobile-reader-chip">
-                {percent(progress.chapter.current, progress.chapter.total)}%
-              </span>
-            ) : null}
+            <span lang={language}>{position.chapter}</span>
+            {position.chapterPercent === null ? null : (
+              <span className="mobile-reader-chip">{position.chapterPercent}%</span>
+            )}
           </div>
-          <div className="mobile-chapters__progress">
-            <span>
-              <BookPosition
-                current={progress.current}
-                total={progress.total}
-                unit={progress.unit}
-              />
-              {" · "}
-              {percent(progress.current, progress.total)}%
-            </span>
-            <span aria-hidden="true" className="mobile-progress__bar">
-              <span
-                style={{
-                  width: `${(Math.min(progress.current, progress.total) / progress.total) * 100}%`,
-                }}
-              />
-            </span>
+          <input
+            aria-label={t("mobileReader.position")}
+            className="mobile-reader-controls__slider"
+            disabled={position.disabled}
+            max={position.total}
+            min={0}
+            onChange={(event) => position.onDrag(Number(event.currentTarget.value))}
+            onKeyUp={position.onCommit}
+            onPointerUp={position.onCommit}
+            step={1}
+            type="range"
+            value={position.at}
+          />
+          <div className="mobile-reader-controls__counts">
+            <BookPosition current={position.at} total={position.total} unit={position.unit} />
+            <span>{percent(position.at, position.total)}%</span>
           </div>
         </div>
       ) : null}

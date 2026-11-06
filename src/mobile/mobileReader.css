@@ -59,6 +59,7 @@
 .mobile-reader__status:focus-visible,
 .mobile-reader__footer:focus-visible,
 .mobile-reader-controls__button:focus-visible,
+.mobile-reader-controls__pill:focus-visible,
 .mobile-reader-tool:focus-visible,
 .mobile-reader-theme:focus-visible,
 .mobile-chapter:focus-visible {
@@ -86,75 +87,74 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.mobile-reader-controls__header {
+.mobile-reader-controls__row {
   position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  padding: calc(var(--stable-area-top) + 0.25rem) calc(var(--stable-area-right) + 0.625rem) 0.625rem
-    calc(var(--stable-area-left) + 0.625rem);
+  right: calc(var(--stable-area-right) + var(--mobile-gutter));
+  left: calc(var(--stable-area-left) + var(--mobile-gutter));
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  background: var(--mobile-reader-surface);
-  border-bottom: 1px solid var(--mobile-reader-line);
+  gap: 0.5rem;
+}
+
+.mobile-reader-controls__row--top {
+  top: max(0.875rem, calc(var(--safe-area-top) + 0.375rem));
+}
+
+.mobile-reader-controls__row--bottom {
+  bottom: max(0.75rem, calc(var(--safe-area-bottom) + 0.375rem));
+}
+
+/* The round buttons and the pill between them, drawn as the reading pills are. */
+.mobile-reader-controls__button,
+.mobile-reader-controls__pill {
+  height: var(--mobile-control);
+  color: inherit;
+  background: color-mix(in srgb, var(--reader-page) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--reader-ink) 10%, transparent);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(10px);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-reader-controls__button {
   width: var(--mobile-control);
-  height: var(--mobile-control);
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--radius-pill);
-  cursor: pointer;
 }
 
 .mobile-reader-controls__button:disabled {
   opacity: 0.5;
 }
 
-.mobile-reader-controls__title {
+.mobile-reader-controls__pill {
   min-width: 0;
   flex: 1;
-  padding-inline-start: 0.125rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.mobile-reader-controls__title > span {
-  overflow: hidden;
-  font-size: 0.9375rem;
+  padding: 0 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3125rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.mobile-reader-controls__title > small {
+.mobile-reader-controls__pill > span {
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-reader-controls__pill > small {
+  flex: none;
   color: var(--reader-footer-text);
   font-size: 0.75rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mobile-reader-controls__panel {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  padding: 1rem calc(var(--stable-area-right) + 1rem) calc(var(--stable-area-bottom) + 1.25rem)
-    calc(var(--stable-area-left) + 1rem);
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  background: var(--mobile-reader-surface);
-  border-top: 1px solid var(--mobile-reader-line);
-  border-radius: 1.5rem 1.5rem 0 0;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .mobile-reader-controls__chapter {
@@ -199,13 +199,6 @@
   color: var(--reader-footer-text);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
-}
-
-.mobile-reader-controls__tools {
-  margin-top: 0.25rem;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.5rem;
 }
 
 .mobile-reader-tool {
@@ -422,14 +415,9 @@ li:only-child > .mobile-chapter .mobile-chapter__dot::before {
   background: var(--accent-soft);
 }
 
-.mobile-chapters__progress {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
+/* The position slider, which jumps where it is let go. */
+.mobile-chapters__now .mobile-reader-controls__counts {
   color: var(--text-secondary);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 /* The appearance sheet leaves the book in view, so each change shows in it. */

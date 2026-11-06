@@ -1563,6 +1563,7 @@ export const en = {
   "mobileReader.hideControls": "Hide reader controls",
   "mobileReader.bookmark": "Bookmark this page",
   "mobileReader.removeBookmark": "Remove this page's bookmark",
+  "mobileReader.contents": "Contents",
   "mobileReader.position": "Position in the book",
   "mobileReader.tools": "Reading position and tools",
   "sidebar.readerAppearance": "Reader appearance",

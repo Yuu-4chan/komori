@@ -1433,6 +1433,7 @@ export const ko: MessageCatalog = {
   "mobileReader.hideControls": "읽기 컨트롤 숨기기",
   "mobileReader.bookmark": "이 페이지 북마크",
   "mobileReader.removeBookmark": "이 페이지의 북마크 삭제",
+  "mobileReader.contents": "목차",
   "mobileReader.position": "책 속 위치",
   "mobileReader.tools": "읽기 위치와 도구",
   "sidebar.readerAppearance": "뷰어 외관",

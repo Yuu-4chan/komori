@@ -1602,6 +1602,7 @@ export const fr: MessageCatalog = {
   "mobileReader.hideControls": "Masquer les commandes de lecture",
   "mobileReader.bookmark": "Ajouter un signet à cette page",
   "mobileReader.removeBookmark": "Retirer le signet de cette page",
+  "mobileReader.contents": "Sommaire",
   "mobileReader.position": "Position dans le livre",
   "mobileReader.tools": "Position de lecture et outils",
   "sidebar.readerAppearance": "Apparence du lecteur",

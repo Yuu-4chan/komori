@@ -1544,6 +1544,7 @@ export const de: MessageCatalog = {
   "mobileReader.hideControls": "Lesesteuerung ausblenden",
   "mobileReader.bookmark": "Diese Seite als Lesezeichen speichern",
   "mobileReader.removeBookmark": "Lesezeichen dieser Seite entfernen",
+  "mobileReader.contents": "Inhalt",
   "mobileReader.position": "Position im Buch",
   "mobileReader.tools": "Leseposition und Werkzeuge",
   "sidebar.readerAppearance": "Darstellung der Leseansicht",

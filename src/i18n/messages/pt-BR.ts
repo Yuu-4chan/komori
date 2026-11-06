@@ -1529,6 +1529,7 @@ export const ptBR: MessageCatalog = {
   "mobileReader.hideControls": "Ocultar os controles de leitura",
   "mobileReader.bookmark": "Marcar esta página",
   "mobileReader.removeBookmark": "Remover o marcador desta página",
+  "mobileReader.contents": "Sumário",
   "mobileReader.position": "Posição no livro",
   "mobileReader.tools": "Posição de leitura e ferramentas",
   "sidebar.readerAppearance": "Aparência do leitor",

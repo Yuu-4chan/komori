@@ -24,9 +24,10 @@ book to continue and a grid of covers with progress; books stay where they are, 
 or deleted one offers Relink and Remove. The Reader is read by touch: in paginated and VN
 views tap the sides to turn a page (in the book's page progression), swipe in paginated view,
 scroll in continuous views, where a tap anywhere shows the controls, optionally turn pages with
-the volume keys, and tap the middle, the clock or the footer for the controls: Back, the title, a bookmark
-toggle, Appearance (theme, font size, line height, page margin, writing and view mode), the
-chapter with a position slider, and the Chapters sheet. The status and navigation bars hide
+the volume keys, and tap the middle, the clock or the footer for the controls: two rows of a pill between round
+buttons, Back, the title and Search at the top, Appearance (theme, font size, line height,
+page margin, writing and view mode), the chapter and a bookmark toggle at the bottom. Either
+pill opens Contents: Images, Bookmarks, Notes, Search, the chapters and a position slider. The status and navigation bars hide
 while reading. A tap on a word looks it up in the PC's popup, below a word high on the
 screen and above one low on it, tap a word in it for the next lookup, and Back closes the
 deepest one. A long press selects text for Komori's toolbar (note, highlight, copy, look up,

@@ -1364,6 +1364,7 @@ export const zhCN: MessageCatalog = {
   "mobileReader.hideControls": "隐藏阅读控件",
   "mobileReader.bookmark": "为此页添加书签",
   "mobileReader.removeBookmark": "移除此页的书签",
+  "mobileReader.contents": "目录",
   "mobileReader.position": "在书中的位置",
   "mobileReader.tools": "阅读位置和工具",
   "sidebar.readerAppearance": "阅读器外观",

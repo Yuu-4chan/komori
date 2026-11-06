@@ -1364,6 +1364,7 @@ export const zhTW: MessageCatalog = {
   "mobileReader.hideControls": "隱藏閱讀控制項",
   "mobileReader.bookmark": "為此頁加入書籤",
   "mobileReader.removeBookmark": "移除此頁的書籤",
+  "mobileReader.contents": "目錄",
   "mobileReader.position": "在書中的位置",
   "mobileReader.tools": "閱讀位置與工具",
   "sidebar.readerAppearance": "閱讀器外觀",
