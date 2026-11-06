@@ -9,7 +9,6 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { IconButton } from "../../components/ui/IconButton";
 import {
   groupKey,
-  KanjiCard,
   lookupDictionary,
   useWordAudioAvailable,
   type DictionaryLookup,
@@ -17,6 +16,7 @@ import {
 import { useAppearance } from "../appearance/AppearanceProvider";
 import { popupThemeStyle } from "./popupThemes";
 import { resolveReaderTheme } from "./readerThemes";
+import { KanjiCard } from "../dictionary/KanjiCard";
 import { DictionaryLookupEntry, LookupEntry } from "../dictionary/LookupEntry";
 import { type ReaderCardContext } from "../anki/AnkiAction";
 import { lookupPopupFontSize, lookupQuery } from "./lookupPopup";

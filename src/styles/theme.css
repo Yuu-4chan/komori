@@ -24,10 +24,6 @@
   --border-accent: color-mix(in srgb, var(--accent-base) 52%, var(--border-soft));
   --progress-fill: color-mix(in srgb, #3fbf86 80%, var(--accent-base));
 
-  --tag-ink-toward: #ffffff;
-  --tag-ink-share: 45%;
-  --tag-tint-share: 22%;
-
   --shadow-xs: 0 2px 6px rgba(0, 0, 0, 0.18);
   --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.24);
   --shadow-shell: 0 14px 40px rgba(0, 0, 0, 0.28);

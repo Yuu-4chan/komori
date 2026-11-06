@@ -1070,12 +1070,12 @@
   display: none;
 }
 
-.mobile-shell .dictionary-sheet > .dictionary-kanji-card {
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--border-soft);
-  border-radius: 1rem;
-  background: var(--surface-card);
+.mobile-shell .dictionary-sheet > .lookup-entry {
+  padding: 0.75rem 1rem 0.875rem;
+}
+
+.mobile-shell .dictionary-sheet > .lookup-entry + .lookup-entry {
+  border-top-color: var(--border-soft);
 }
 
 /* Library: the books in progress, a row of cards that scrolls sideways. */

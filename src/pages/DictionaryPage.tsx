@@ -12,7 +12,6 @@ import { useI18n } from "../i18n/i18n";
 import {
   DictionaryResultsHeader,
   groupKey,
-  KanjiCard,
   lookupDictionary,
   noKanji,
   useWordAudioAvailable,
@@ -20,6 +19,7 @@ import {
 } from "../features/dictionary/DictionaryResults";
 import { listDictionaries, type DictionarySummary } from "../features/dictionary/dictionaryApi";
 import { suppliesDefinitions } from "../features/dictionary/definitionSources";
+import { KanjiCard } from "../features/dictionary/KanjiCard";
 import { LookupEntry } from "../features/dictionary/LookupEntry";
 
 type SearchState =

@@ -143,26 +143,7 @@ function customPaletteStyle(palette: ReaderPopupPalette): CSSProperties {
     "--border-medium": border,
     "--border-accent": mixColor(border, accent, 0.38),
     "--popup-tag": tag,
-    "--tag-ink-share": "100%",
-    "--tag-tint-share": "0%",
-    "--tag-ink-toward": anchor,
   };
-  // Preserve category hues with readable ink on the popup background. Keep base colors
-  // in step with the category tokens in styles/tokens.css.
-  const categories = {
-    name: "#5cb85c",
-    expression: "#f0ad4e",
-    popular: "#0275d8",
-    frequent: "#5bc0de",
-    archaism: "#d9534f",
-    dictionary: "#aa66cc",
-    frequency: "#5cb85c",
-    "part-of-speech": "#565656",
-    search: "#8a8a91",
-    "pronunciation-dictionary": "#6640be",
-  };
-  for (const [name, color] of Object.entries(categories))
-    tokens[`--tag-${name}`] = readable(color, anchor, [background]);
   return { ...tokens, colorScheme: anchor === "#ffffff" ? "dark" : "light" } as CSSProperties;
 }
 
@@ -231,9 +212,6 @@ export function popupThemeStyle(
     "--border-soft": border,
     "--border-medium": border,
     "--border-accent": `color-mix(in srgb, ${accent} 38%, ${border})`,
-    "--tag-ink-toward": dark ? "#ffffff" : "#0f1a3d",
-    "--tag-ink-share": dark ? "45%" : "50%",
-    "--tag-tint-share": dark ? "22%" : "16%",
     "--popup-tag": tag,
   } as CSSProperties;
 }

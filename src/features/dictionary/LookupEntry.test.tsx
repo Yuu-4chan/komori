@@ -99,7 +99,7 @@ describe("LookupEntry", () => {
     }
   });
 
-  it("shows four headword tags before +N more, so the definitions stay in view", () => {
+  it("shows four of a dictionary's tags before +N more, so the definitions stay in view", () => {
     const names = ["n", "vs", "uk", "P", "news", "ichi", "spec"];
     const tagged = group("本", [{ ...good.terms[0], tags: names.map((name) => ({ name })) }]);
     render(
@@ -120,6 +120,84 @@ describe("LookupEntry", () => {
     expect(shown()).toEqual(names);
     fireEvent.click(screen.getByRole("button", { name: "Show fewer" }));
     expect(shown()).toEqual(["n", "vs", "uk", "P"]);
+  });
+});
+
+describe("dictionary parts", () => {
+  const term = (
+    dictionaryId: number,
+    dictionaryTitle: string,
+    gloss: string,
+    sequence: number,
+  ) => ({
+    ...good.terms[0],
+    dictionaryId,
+    dictionaryTitle,
+    glossary: [gloss],
+    sequence,
+  });
+  const entry = (terms: TermMatch[]) =>
+    render(
+      <LookupEntry
+        canPlayAudio={false}
+        group={group("本", terms)}
+        onSearchTerm={() => {}}
+        showDictionaryNames
+        showFrequency
+        showPitch
+        showVoiceAction={false}
+        start={null}
+      />,
+    );
+
+  it("groups definitions under their dictionary's name, numbered when there are several", () => {
+    entry([
+      term(1, "Jitendex", "book", 1),
+      term(2, "国語", "書物", 2),
+      term(1, "Jitendex", "main", 3),
+    ]);
+    const jitendex = screen.getByRole("region", { name: "Jitendex" });
+    const list = jitendex.querySelector("ol")!;
+    expect([...list.children].map((item) => item.textContent)).toEqual(["book", "main"]);
+    expect(list).not.toHaveClass("lookup-source__senses--single");
+    expect(screen.getByRole("region", { name: "国語" }).querySelector("ol")).toHaveClass(
+      "lookup-source__senses--single",
+    );
+    expect(
+      [...document.querySelectorAll(".lookup-source__name")].map((name) => name.textContent),
+    ).toEqual(["Jitendex", "国語"]);
+  });
+
+  it("folds one dictionary's definitions from its name and keeps the others open", () => {
+    entry([term(1, "Jitendex", "book", 1), term(2, "国語", "書物", 2)]);
+    const name = screen.getByRole("button", { name: "Collapse Jitendex definitions" });
+    expect(name).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(name);
+    expect(name).toHaveAttribute("aria-expanded", "false");
+    expect(name).toHaveAccessibleName("Expand Jitendex definitions");
+    expect(screen.getByText("book")).not.toBeVisible();
+    expect(screen.getByText("書物")).toBeVisible();
+    fireEvent.click(name);
+    expect(screen.getByText("book")).toBeVisible();
+  });
+
+  it("leads the frequencies with a common word's star, out of the dictionary's tags", () => {
+    entry([
+      {
+        ...term(1, "Jitendex", "book", 1),
+        tags: [
+          { name: "⭐", category: "popular", order: 0, notes: "common", score: 0 },
+          { name: "n", category: "partOfSpeech", order: 0, notes: "noun", score: 0 },
+        ],
+      },
+    ]);
+    const frequencies = screen.getByRole("list", { name: "Frequency" });
+    expect(frequencies.firstElementChild).toHaveTextContent("⭐");
+    expect(frequencies.firstElementChild).toHaveClass("lookup-entry__popular");
+    const tags = screen
+      .getByRole("region", { name: "Jitendex" })
+      .querySelector(".lookup-source__tags")!;
+    expect(tags).toHaveTextContent(/^n$/);
   });
 });
 
@@ -186,5 +264,93 @@ describe("headword furigana", () => {
       "よ",
       "こ",
     ]);
+  });
+});
+
+describe("headword pitch", () => {
+  const pitched = (expression: string, reading: string, position: number) => ({
+    ...good,
+    expression,
+    reading,
+    text: expression,
+    pitches: [
+      {
+        dictionaryId: 9,
+        dictionaryTitle: "Pitch",
+        data: { reading, pitches: [{ position }] },
+      },
+    ],
+  });
+  const marks = (root: Element) =>
+    [...root.children].map((span) => [span.textContent, span.className]);
+
+  it("draws the pitch on the reading beside the headword", () => {
+    const { container } = render(
+      <LookupEntry
+        canPlayAudio={false}
+        group={pitched("圧力", "あつりょく", 2)}
+        onSearchTerm={() => {}}
+        showDictionaryNames
+        showFrequency
+        showPitch
+        showVoiceAction={false}
+        start={null}
+      />,
+    );
+    expect(marks(container.querySelector(".lookup-entry__reading")!)).toEqual([
+      ["あ", ""],
+      ["つ", "pitch-kana--high pitch-kana--drop"],
+      ["り", ""],
+      ["ょ", ""],
+      ["く", ""],
+    ]);
+    expect(container.querySelector(".lookup-entry__pitch")).toHaveAttribute("title", "[2] Pitch");
+  });
+
+  it("draws the pitch over the furigana and on the kana between its kanji", () => {
+    const { container } = render(
+      <LookupEntry
+        canPlayAudio={false}
+        group={pitched("読み込む", "よみこむ", 3)}
+        onSearchTerm={() => {}}
+        readingPosition="above"
+        showDictionaryNames
+        showFrequency
+        showPitch
+        showVoiceAction={false}
+        start={null}
+      />,
+    );
+    const expression = container.querySelector(".lookup-entry__expression")!;
+    expect(
+      [...expression.querySelectorAll("rt span, .lookup-entry__expression > span")].map((span) => [
+        span.textContent,
+        span.className,
+      ]),
+    ).toEqual([
+      ["よ", ""],
+      ["み", "pitch-kana--high"],
+      ["こ", "pitch-kana--high pitch-kana--drop"],
+    ]);
+    // Kana with no mark of their own stay plain text.
+    expect(expression).toHaveTextContent(/^読よみ込こむ$/);
+    expect(container.querySelector(".lookup-entry__reading")).toBeNull();
+  });
+
+  it("draws nothing when pitch is off", () => {
+    const { container } = render(
+      <LookupEntry
+        canPlayAudio={false}
+        group={pitched("圧力", "あつりょく", 2)}
+        onSearchTerm={() => {}}
+        showDictionaryNames
+        showFrequency
+        showPitch={false}
+        showVoiceAction={false}
+        start={null}
+      />,
+    );
+    expect(container.querySelector("[class^='pitch-kana'], .lookup-entry__pitch")).toBeNull();
+    expect(container.querySelector(".lookup-entry__reading")).toHaveTextContent(/^あつりょく$/);
   });
 });

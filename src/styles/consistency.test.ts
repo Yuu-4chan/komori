@@ -85,7 +85,6 @@ describe("native text selection", () => {
         "input",
         "textarea",
         ".lookup-entry",
-        ".dictionary-result-card",
         ".reader-note-passage",
         ".reader-sidebar__book--open",
         ".library-folders strong",

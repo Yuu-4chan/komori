@@ -1484,7 +1484,6 @@ export const en = {
   "dictionaryResults.meanings": "Meanings",
   "dictionaryResults.readings": "Readings",
   "dictionaryResults.mora": "{kana} (mora {mora})",
-  "dictionaryResults.pitchPositions": "Pitch positions",
   "dictionaryResults.pitch": "Pitch",
   "dictionaryResults.nasal": "Nasal {marks}",
   "dictionaryResults.devoiced": "Devoiced {marks}",
@@ -1499,8 +1498,8 @@ export const en = {
   "lookupEntry.inflectedLabel": "Inflected:",
   "lookupEntry.fewer": "Show fewer",
   "lookupEntry.more": "+{count} more",
-  "lookupEntry.collapse": "Collapse {title} definition {index}",
-  "lookupEntry.expand": "Expand {title} definition {index}",
+  "lookupEntry.collapse": "Collapse {title} definitions",
+  "lookupEntry.expand": "Expand {title} definitions",
 
   // Glossary
   "glossary.search": "Search {term}",

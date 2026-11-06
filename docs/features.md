@@ -129,13 +129,15 @@ back. The search stays in the top bar even in an empty Library.
 
 A lookup trigger (by default Shift scan, the Shift+Enter shortcut and a middle click on a
 word; mouse selection and hover can be turned on in Settings > Reader popup) opens a borderless floating sheet beside the text with the
-Dictionary's result entries: headword (kept close to its definitions' size), reading
-(beside, or above as furigana spread over each kanji run), tags,
-frequency chips, pitch, and numbered, source-labelled collapsible definitions.
+Dictionary's result entries, compact: headword (kept close to its definitions' size), reading
+(beside, or above as furigana spread over each kanji run) with the pitch accent drawn on
+it, small frequency boxes led by ★ for a common word, then each dictionary's name (which
+folds its definitions) with its tags in small italics and its numbered definitions.
 Headword kanji and dictionary links open child popups up to the saved level. Each entry
 has Voice (a recorded pronunciation from the word audio sources) and, left to right, Open in Dictionary, Open card in Anki (when a card
-exists), and the one-click Anki + action on its headword row; kanji cards have no Anki action
-and centre the character under their Kanji label.
+exists), and the one-click Anki + action on its headword row, as identical plain icons; a
+single kanji is an ordinary entry with its On/Kun readings, frequencies, meanings and stats,
+and no Anki action.
 With click lookup on, the mouse trigger can also be a middle click, which scans text and
 leaves blank space to autoscroll.
 Alt+wheel reveals the beginning of a tall selected entry.
@@ -156,8 +158,8 @@ Microsoft JhengHei or Malgun Gothic when looking up Chinese or Korean.
 A search bar and a source rail listing only dictionaries with matches, in the Settings
 order. Lookup is exact, or the longest matching start (with deinflection chains named in
 the header and on each entry), followed by shorter matching starts. Single kanji show a
-Kanji card first. Pitch positions merge across agreeing sources, with nasal, devoiced
-and tag marks. Until an installed dictionary can supply definitions, this page and the Reader's
+kanji entry first. Pitch positions merge across agreeing sources, drawn on the reading with
+nasal and devoiced marks; the other positions, tags and sources follow in its note. Until an installed dictionary can supply definitions, this page and the Reader's
 lookup popup (and its Settings preview) offer Get dictionaries, linking to Settings; the
 Dictionary page says it has no dictionaries only in that offer.
 
@@ -172,7 +174,7 @@ endings (먹었어요 → 먹다). Chinese lookups read on from the character un
 in traditional or simplified characters as the dictionary lists them, and its readings (pinyin) show
 beside the headword.
 Entries show the word's pronunciation when a dictionary with IPA data is on, and Anki can use it as a field.
-Only look up Japanese/CJK text, the Kanji card and JapanesePod101 are for Japanese.
+Only look up Japanese/CJK text, the kanji entry and JapanesePod101 are for Japanese.
 
 ## Statistics
 

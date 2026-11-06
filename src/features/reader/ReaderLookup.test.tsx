@@ -456,19 +456,15 @@ describe("Reader lookup popup", () => {
     // In the popup that line, the headword and the dictionary labels stay near the definitions'
     // size, so the meaning leads.
     expect(readerCss).toMatch(
-      /\.reader-lookup \.lookup-entry__headline\s*\{[^}]*--lookup-headword-line: 32px/,
+      /\.reader-lookup \.lookup-entry__headline\s*\{[^}]*--lookup-headword-line: 34px/,
     );
     expect(readerCss).toMatch(
-      /\.reader-lookup \.lookup-entry__expression\s*\{[^}]*font-size: 27px/,
+      /\.reader-lookup \.lookup-entry__expression\s*\{[^}]*font-size: 28px/,
     );
+    expect(readerCss).toMatch(/\.lookup-source__name\s*\{[^}]*font-size: 12px/);
+    expect(readerCss).toMatch(/\.lookup-entry__frequencies li\s*\{[^}]*font-size: 12\.5px/);
     expect(readerCss).toMatch(
-      /\.reader-lookup \.lookup-definition__source\s*\{[^}]*font-size: 11\.5px/,
-    );
-    expect(readerCss).toMatch(
-      /\.reader-lookup \.lookup-entry__frequencies li\s*\{[^}]*font-size: 11\.5px/,
-    );
-    expect(readerCss).toMatch(
-      /\.reader-lookup \.lookup-entry \.dictionary-pitch li\s*\{[^}]*font-size: 12px/,
+      /\.pitch-kana--high,\s*\.pitch-kana--drop\s*\{[^}]*border-top: 1\.5px solid var\(--accent-ink\)/,
     );
     expect(readerCss).toMatch(
       /\.lookup-entry__expression rt\s*\{[^}]*position: absolute;[^}]*bottom: 100%/,
@@ -590,13 +586,13 @@ describe("Reader lookup popup", () => {
     const popup = await screen.findByRole("dialog", { name: "Lookup: 読書" });
     await within(popup).findByText("reading books");
     fireEvent.click(
-      within(popup).getAllByRole("button", { name: "Collapse Jitendex definition 1" })[0],
+      within(popup).getAllByRole("button", { name: "Collapse Jitendex definitions" })[0],
     );
     for (const { key } of readerFooterChoices) {
       fireEvent.click(screen.getByRole("button", { name: `Toggle ${key}` }));
       expect(popup).toBeInTheDocument();
       expect(
-        within(popup).getByRole("button", { name: "Expand Jitendex definition 1" }),
+        within(popup).getByRole("button", { name: "Expand Jitendex definitions" }),
       ).toBeInTheDocument();
       expect(within(popup).getByText("reading")).toBeInTheDocument();
     }
@@ -995,18 +991,18 @@ describe("Reader lookup popup", () => {
       const snapshots = articles.map((article) => {
         const ui = within(article);
         fireEvent.click(ui.getByRole("button", { name: "+2 more" }));
-        fireEvent.click(ui.getByRole("button", { name: "Collapse Jitendex definition 1" }));
+        fireEvent.click(ui.getByRole("button", { name: "Collapse Jitendex definitions" }));
         return {
-          pitch: ui.getByRole("region", { name: "Pitch positions" }).innerHTML,
+          pitch: article.querySelector(".lookup-entry__pitch")!.innerHTML,
           frequency: ui.getByRole("list", { name: "Frequency" }).innerHTML,
-          definitions: article.querySelector(".lookup-entry__definitions"),
+          definitions: ui.getByRole("region", { name: "Jitendex" }),
         };
       });
       const verify = () =>
         articles.forEach((article, index) => {
           const ui = within(article);
-          const pitch = ui.getByRole("region", { name: "Pitch positions" });
-          const definitions = article.querySelector(".lookup-entry__definitions")!;
+          const pitch = article.querySelector(".lookup-entry__pitch")!;
+          const definitions = ui.getByRole("region", { name: "Jitendex" });
           expect(
             pitch.compareDocumentPosition(definitions) & Node.DOCUMENT_POSITION_FOLLOWING,
           ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
@@ -1016,25 +1012,25 @@ describe("Reader lookup popup", () => {
             snapshots[index].frequency,
           );
           expect(ui.getByRole("button", { name: "Show fewer" })).toBeInTheDocument();
-          expect(ui.getByRole("button", { name: "Expand Jitendex definition 1" })).toHaveAttribute(
+          expect(ui.getByRole("button", { name: "Expand Jitendex definitions" })).toHaveAttribute(
             "aria-expanded",
             "false",
           );
           expect(
-            ui.getByRole("button", { name: "Collapse Second source definition 2" }),
+            ui.getByRole("button", { name: "Collapse Second source definitions" }),
           ).toHaveAttribute("aria-expanded", "true");
         });
       verify();
       fireEvent.click(screen.getByRole("button", { name: "Toggle pitch" }));
-      expect(within(popup).queryAllByRole("region", { name: "Pitch positions" })).toHaveLength(0);
+      expect(popup.querySelectorAll(".lookup-entry__pitch, .pitch-kana--high")).toHaveLength(0);
       expect(within(popup).getAllByRole("list", { name: "Frequency" })).toHaveLength(2);
       fireEvent.click(screen.getByRole("button", { name: "Toggle frequency" }));
       expect(within(popup).queryAllByRole("list", { name: "Frequency" })).toHaveLength(0);
       expect(
-        within(popup).getAllByRole("button", { name: "Expand Jitendex definition 1" }),
+        within(popup).getAllByRole("button", { name: "Expand Jitendex definitions" }),
       ).toHaveLength(2);
       fireEvent.click(screen.getByRole("button", { name: "Toggle pitch" }));
-      expect(within(popup).getAllByRole("region", { name: "Pitch positions" })).toHaveLength(2);
+      expect(popup.querySelectorAll(".lookup-entry__pitch")).toHaveLength(2);
       expect(within(popup).queryAllByRole("list", { name: "Frequency" })).toHaveLength(0);
       fireEvent.click(screen.getByRole("button", { name: "Toggle frequency" }));
       verify();
@@ -1074,13 +1070,11 @@ describe("Reader lookup popup", () => {
     const popup = screen.getByRole("dialog");
     await within(popup).findByText("reading books");
     expect(within(popup).getAllByRole("article")).toHaveLength(2);
-    expect(
-      within(popup).queryByRole("region", { name: "Pitch positions" }),
-    ).not.toBeInTheDocument();
+    expect(popup.querySelector(".lookup-entry__pitch")).not.toBeInTheDocument();
     expect(within(popup).queryByRole("list", { name: "Frequency" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Toggle pitch" }));
     fireEvent.click(screen.getByRole("button", { name: "Toggle frequency" }));
-    expect(within(popup).getAllByRole("region", { name: "Pitch positions" })).toHaveLength(1);
+    expect(popup.querySelectorAll(".lookup-entry__pitch")).toHaveLength(1);
     expect(within(popup).getAllByRole("list", { name: "Frequency" })).toHaveLength(1);
     expect(lookupMock).toHaveBeenCalledTimes(1);
   });
@@ -1114,10 +1108,15 @@ describe("Reader lookup popup", () => {
         .getAllByText(/^Rank/)
         .map((value) => value.textContent);
     const originalValues = values();
-    const pitch = within(popup).getByRole("region", { name: "Pitch positions" });
+    const pitch = popup.querySelector(".lookup-entry__pitch")!;
     const originalPitch = pitch.innerHTML;
-    expect(pitch.querySelectorAll(".dictionary-pitch__contour")).toHaveLength(2);
-    fireEvent.click(within(popup).getByRole("button", { name: "Collapse Jitendex definition 1" }));
+    // The first pattern is drawn on the reading: どくしょ is flat, high after its first mora.
+    expect(
+      [...popup.querySelectorAll(".lookup-entry__reading .pitch-kana--high")].map(
+        (kana) => kana.textContent,
+      ),
+    ).toEqual(["く", "し", "ょ"]);
+    fireEvent.click(within(popup).getByRole("button", { name: "Collapse Jitendex definitions" }));
     fireEvent.click(screen.getByRole("button", { name: "Toggle names" }));
     expect(values()).toEqual(originalValues);
     expect(within(frequencies).getByRole("button", { name: "Show fewer" })).toBeInTheDocument();
@@ -1125,21 +1124,17 @@ describe("Reader lookup popup", () => {
       expect(source).toHaveClass("visually-hidden");
       expect(source.closest("li")).toHaveAttribute("title", source.textContent);
     }
-    const sources = pitch.querySelectorAll(".visually-hidden");
-    expect([...sources].map((source) => source.textContent)).toEqual([
-      "Pitch A, Pitch B, Pitch A",
-      "Pitch A, Pitch B, Pitch A",
-    ]);
-    for (const source of sources) {
-      expect(source).not.toHaveAttribute("aria-hidden");
-      expect(source.closest("li")).toHaveAttribute("title", "Pitch A, Pitch B, Pitch A");
-    }
-    expect(pitch.querySelectorAll(".dictionary-pitch__contour")).toHaveLength(2);
-    expect(within(pitch).getByText("Position 2")).toBeInTheDocument();
-    expect(within(pitch).getByText("noun")).toBeInTheDocument();
-    expect(within(pitch).getByText(/Nasal.*Devoiced/)).toBeInTheDocument();
+    expect(pitch).toHaveAttribute(
+      "title",
+      "[0] Pitch A, Pitch B, Pitch A\n[2] noun Pitch A, Pitch B, Pitch A",
+    );
+    const spoken = pitch.querySelector(".visually-hidden")!;
+    expect(spoken).not.toHaveAttribute("aria-hidden");
+    expect(spoken.textContent).toContain("Position 0");
+    expect(spoken.textContent).toMatch(/Position 2; noun; Nasal.*Devoiced.*; Pitch A, Pitch B/);
+    expect(pitch).toHaveTextContent("[2]");
     expect(
-      within(popup).getByRole("button", { name: "Expand Jitendex definition 1" }),
+      within(popup).getByRole("button", { name: "Expand Jitendex definitions" }),
     ).toHaveTextContent("Jitendex");
     fireEvent.click(screen.getByRole("button", { name: "Toggle names" }));
     expect(pitch.innerHTML).toBe(originalPitch);
@@ -1173,10 +1168,8 @@ describe("Reader lookup popup", () => {
     const popup = screen.getByRole("dialog");
     const card = await within(popup).findByRole("article", { name: "Kanji 本" });
     expect(within(card).getByText("Kanji frequency")).toHaveClass("visually-hidden");
-    expect(within(card).getByRole("term", { name: "Kanji frequency" })).not.toHaveAttribute(
-      "aria-hidden",
-    );
-    expect(within(card).getByText("12")).toHaveAttribute("title", "Kanji frequency");
+    expect(within(card).getByText("Kanji frequency")).not.toHaveAttribute("aria-hidden");
+    expect(within(card).getByText("12").closest("li")).toHaveAttribute("title", "Kanji frequency");
     expect(within(card).getByText("Kanji source")).not.toHaveClass("visually-hidden");
     const originalCard = card;
     fireEvent.click(screen.getByRole("button", { name: "Toggle frequency" }));
@@ -1198,13 +1191,13 @@ describe("Reader lookup popup", () => {
     await within(popup).findByText("reading books");
     expect(within(popup).queryAllByRole("button", { name: /^Play pronunciation/ })).toHaveLength(0);
     fireEvent.click(
-      within(popup).getAllByRole("button", { name: "Collapse Jitendex definition 1" })[0],
+      within(popup).getAllByRole("button", { name: "Collapse Jitendex definitions" })[0],
     );
     fireEvent.click(screen.getByRole("button", { name: "Toggle voice" }));
     expect(within(popup).getAllByRole("button", { name: /^Play pronunciation/ })).toHaveLength(2);
     expect(within(popup).getAllByRole("button", { name: /^Play pronunciation/ })[0]).toBeDisabled();
     expect(
-      within(popup).getByRole("button", { name: "Expand Jitendex definition 1" }),
+      within(popup).getByRole("button", { name: "Expand Jitendex definitions" }),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Toggle voice" }));
     expect(within(popup).queryAllByRole("button", { name: /^Play pronunciation/ })).toHaveLength(0);
@@ -1409,7 +1402,7 @@ describe("Reader lookup popup", () => {
     ]);
     // Each dictionary's definitions are a numbered section, open until collapsed.
     const section = within(entries[0]).getByRole("button", {
-      name: "Collapse Jitendex definition 1",
+      name: "Collapse Jitendex definitions",
     });
     expect(section).toHaveAttribute("aria-expanded", "true");
     expect(within(popup).getByText("reading books")).toBeVisible();
@@ -1505,14 +1498,12 @@ describe("Reader lookup popup", () => {
     reader.select(horizontal("読書"));
     const popup = screen.getByRole("dialog", { name: "Lookup: 読書" });
     const [, second] = await within(popup).findAllByRole("button", {
-      name: "Collapse Jitendex definition 1",
+      name: "Collapse Jitendex definitions",
     });
     fireEvent.pointerDown(second);
     fireEvent.click(second);
     expect(second).toHaveAttribute("aria-expanded", "false");
-    expect(within(popup).getByRole("button", { name: "Expand Jitendex definition 1" })).toBe(
-      second,
-    );
+    expect(within(popup).getByRole("button", { name: "Expand Jitendex definitions" })).toBe(second);
     fireEvent.pointerDown(screen.getByRole("main"));
     expect(screen.queryByRole("dialog", { name: /^Lookup: / })).not.toBeInTheDocument();
 

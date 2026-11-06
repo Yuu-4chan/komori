@@ -1521,7 +1521,6 @@ export const es: MessageCatalog = {
   "dictionaryResults.meanings": "Significados",
   "dictionaryResults.readings": "Lecturas",
   "dictionaryResults.mora": "{kana} (mora {mora})",
-  "dictionaryResults.pitchPositions": "Posiciones del acento",
   "dictionaryResults.pitch": "Acento",
   "dictionaryResults.nasal": "Nasal {marks}",
   "dictionaryResults.devoiced": "Ensordecido {marks}",
@@ -1534,8 +1533,8 @@ export const es: MessageCatalog = {
   "lookupEntry.inflectedLabel": "Flexionado:",
   "lookupEntry.fewer": "Mostrar menos",
   "lookupEntry.more": "+{count} más",
-  "lookupEntry.collapse": "Contraer la definición {index} de {title}",
-  "lookupEntry.expand": "Expandir la definición {index} de {title}",
+  "lookupEntry.collapse": "Contraer las definiciones de {title}",
+  "lookupEntry.expand": "Expandir las definiciones de {title}",
   "glossary.search": "Buscar {term}",
   "dictionary.desktopOnly":
     "Abre Komori en la aplicación de escritorio para gestionar los diccionarios.",
