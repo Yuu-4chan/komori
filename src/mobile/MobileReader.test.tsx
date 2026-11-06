@@ -610,7 +610,7 @@ describe("the Reader by touch", () => {
 
   it("starts and pauses counting from the status pill, shown in Manual mode however bare", async () => {
     const toggle = vi.fn();
-    reader({
+    const harness = reader({
       preferences: {
         readerShowClock: false,
         readerShowReadingTime: false,
@@ -621,6 +621,12 @@ describe("the Reader by touch", () => {
     await shown();
     const start = screen.getByRole("button", { name: "Start counting" });
     expect(start.getAttribute("aria-pressed")).toBe("false");
+    // Over the page, its tap is its own click, not one showing the controls.
+    const over = document.createElement("button");
+    over.className = "mobile-reader__session";
+    harness.viewport.append(over);
+    expect(tap(over, 200, 60)).toBe(true);
+    expect(document.querySelector(".mobile-reader-controls")).toBeNull();
     fireEvent.click(start);
     expect(toggle).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "Show reader controls" })).not.toBeNull();

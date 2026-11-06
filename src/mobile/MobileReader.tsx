@@ -379,7 +379,12 @@ export function MobileReader({
       if (Math.hypot(dx, dy) < tapSlop) {
         const target = event.target as Element | null;
         const owner = (target as Node | null)?.ownerDocument ?? document;
-        if (event.timeStamp - began.at > tapTime || target?.closest?.("a[href]")) return;
+        // Links, and the session's play/stop button over the page, take their own clicks.
+        if (
+          event.timeStamp - began.at > tapTime ||
+          target?.closest?.("a[href], .mobile-reader__session")
+        )
+          return;
         if (owner.getSelection()?.isCollapsed === false) return;
         // The tap's own click would otherwise land on the controls it shows, and hide them.
         if (event.cancelable) event.preventDefault();
