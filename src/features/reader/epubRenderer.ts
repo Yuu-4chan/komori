@@ -603,6 +603,7 @@ class EpubRenderer implements ReaderRenderer {
     const document =
       start && this.rendition && sectionContents(this.rendition, start.spineIndex)?.document;
     if (!this.vnView || !document || !start || !this.host) {
+      this.vnShownGroup = undefined;
       this.vnReveal.clear();
       return;
     }
@@ -615,6 +616,8 @@ class EpubRenderer implements ReaderRenderer {
         end?.spineIndex === start.spineIndex ? end.blockIndex : undefined,
       )
       .map((block) => block.element);
+    this.vnShownGroup = elements.length ? { document, elements } : undefined;
+    this.keepSelectionInGroup(document);
     this.vnReveal.start(
       `${start.spineIndex}:${start.blockIndex ?? 0}`,
       elements,
@@ -623,6 +626,58 @@ class EpubRenderer implements ReaderRenderer {
     );
     // The Reader's Show all text, click and Space follow the reveal at once.
     if (this.vnReveal.revealing !== revealing) void this.refreshPageTurns();
+  }
+  /** The blocks VN view shows, as the reveal last started on them. */
+  private vnShownGroup?: { document: Document; elements: Element[] };
+  private groupSelectionDocuments = new WeakSet<Document>();
+  /**
+   * In VN view a selection stays within the group shown: a selection handle dragged past the
+   * group's end would otherwise take in the text hidden around it, which the reader cannot see.
+   */
+  private keepSelectionInGroup(document: Document): void {
+    if (this.groupSelectionDocuments.has(document)) return;
+    this.groupSelectionDocuments.add(document);
+    document.addEventListener("selectionchange", () => {
+      const group = this.vnShownGroup;
+      if (!this.vnView || group?.document !== document) return;
+      const selection = document.getSelection();
+      if (!selection?.rangeCount || selection.isCollapsed) return;
+      const first = group.elements[0];
+      const last = group.elements.at(-1);
+      if (!first?.isConnected || !last?.isConnected) return;
+      const range = selection.getRangeAt(0);
+      const groupStart = document.createRange();
+      groupStart.setStartBefore(first);
+      const groupEnd = document.createRange();
+      groupEnd.setStartAfter(last);
+      const startsBefore = range.compareBoundaryPoints(Range.START_TO_START, groupStart) < 0;
+      const endsAfter = range.compareBoundaryPoints(Range.END_TO_END, groupEnd) > 0;
+      if (!startsBefore && !endsAfter) return;
+      const kept = range.cloneRange();
+      if (startsBefore) kept.setStart(groupStart.startContainer, groupStart.startOffset);
+      if (endsAfter) kept.setEnd(groupEnd.startContainer, groupEnd.startOffset);
+      if (kept.collapsed || !kept.toString().trim()) {
+        selection.removeAllRanges();
+        return;
+      }
+      // Keep the end the reader drags as the selection's focus.
+      const backward =
+        selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
+      if (backward)
+        selection.setBaseAndExtent(
+          kept.endContainer,
+          kept.endOffset,
+          kept.startContainer,
+          kept.startOffset,
+        );
+      else
+        selection.setBaseAndExtent(
+          kept.startContainer,
+          kept.startOffset,
+          kept.endContainer,
+          kept.endOffset,
+        );
+    });
   }
   /** Where the book's chapters begin, found once per book, and once found. */
   private chapterStarts?: Promise<ChapterStart[]>;

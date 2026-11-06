@@ -832,7 +832,9 @@ order (vertically in horizontal text, horizontally in vertical text) by a lead b
 its clipped section, with a clip path hiding what the lead would bring back into view;
 the clipped-start measurements already account for both. A clipped section's view never
 scrolls itself: a selection handle dragged past the clip would scroll it to text outside
-the group, so a scroll there returns it to its start. A group narrower than the
+the group, so a scroll there returns it to its start, and a selection reaching past the
+group's first or last block is cut back to the group (keeping the end being dragged as its
+focus), or cleared when none of it is in the group. A group narrower than the
 reading area is also centered across the reading order (horizontally in horizontal
 text, vertically in vertical text): its section moves by the distance from the middle
 of the group's text, ruby and images to the area's middle, measured from where the

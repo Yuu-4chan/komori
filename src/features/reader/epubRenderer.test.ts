@@ -4160,6 +4160,41 @@ describe("EPUB.js renderer adapter", () => {
       renderer.dispose();
     });
 
+    it("keeps a selection in VN view within the group shown", async () => {
+      const book = chapterBook([], "vertical", ["<p>ab</p><p>cd</p><p>ef</p>"]);
+      const { renderer } = await mountChapters(book, {
+        fontSize: 16,
+        viewMode: "vn",
+        vnParagraphs: 1,
+        vnTextSpeed: 0,
+      });
+      await renderer.advancePage();
+      const document = book.views[0].contents.document;
+      const [ab, cd, ef] = Array.from(document.querySelectorAll("p"), (p) => p.firstChild!);
+      const selection = document.getSelection()!;
+      // A handle dragged past the group's end into the hidden text after it.
+      selection.setBaseAndExtent(cd, 1, ef, 1);
+      document.dispatchEvent(new Event("selectionchange"));
+      expect(selection.toString()).toBe("d");
+      expect(selection.focusNode).not.toBe(ef);
+      // And backward, past its start, keeping the dragged end as the focus.
+      selection.setBaseAndExtent(cd, 1, ab, 0);
+      document.dispatchEvent(new Event("selectionchange"));
+      expect(selection.toString()).toBe("c");
+      expect(selection.anchorNode).toBe(cd);
+      expect(selection.anchorOffset).toBe(1);
+      // A selection only in the hidden text goes.
+      selection.setBaseAndExtent(ef, 0, ef, 2);
+      document.dispatchEvent(new Event("selectionchange"));
+      expect(selection.isCollapsed || selection.rangeCount === 0).toBe(true);
+      // Outside VN view a selection is left alone.
+      await renderer.setPresentation?.({ fontSize: 16, viewMode: "continuous" });
+      selection.setBaseAndExtent(ab, 0, ef, 2);
+      document.dispatchEvent(new Event("selectionchange"));
+      expect(selection.toString()).toBe("abcdef");
+      renderer.dispose();
+    });
+
     it("jumps in VN view to a section's first group past the blank space before it", async () => {
       // As authored XHTML often is, the section's markup opens with a line break.
       const book = chapterBook([{ label: "Two", href: "Text/s1.xhtml" }], "vertical", [
