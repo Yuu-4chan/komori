@@ -1285,8 +1285,12 @@
   font-size: 16px;
 }
 /* A common word's stars, beside the headword. */
+/* Centered on the headword's own line rather than sitting on its baseline. */
 .lookup-entry__stars {
+  height: var(--lookup-headword-line);
+  align-self: flex-end;
   display: inline-flex;
+  align-items: center;
   gap: 3px;
   color: color-mix(in srgb, #d49b00 72%, var(--text-primary));
   font-size: 14px;

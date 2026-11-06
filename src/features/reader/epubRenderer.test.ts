@@ -11677,6 +11677,32 @@ describe("EPUB.js renderer adapter", () => {
       }
     });
 
+    it("looks up nothing in a frame its view squeezes away, as a chapter shown alone does its neighbours", async () => {
+      const view = await mountSelectable("<p>本を読む</p>");
+      const body = document.body;
+      const clipped = body.getBoundingClientRect;
+      try {
+        const node = view.contentDocument.querySelector("p")!.firstChild!;
+        pointAt(view, node, 2);
+        // The frame keeps its whole size, but the view holding it shows none of it.
+        body.style.overflow = "hidden";
+        body.getBoundingClientRect = () => domRect({ left: 40, top: 30, right: 40, bottom: 430 });
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(false);
+        expect(view.selected).not.toHaveBeenCalled();
+        // Shown again, its word is looked up.
+        body.getBoundingClientRect = () => domRect({ left: 40, top: 30, right: 1540, bottom: 430 });
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(true);
+        view.iframe.style.visibility = "hidden";
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(false);
+        expect(view.selected).toHaveBeenCalledTimes(1);
+      } finally {
+        body.style.overflow = "";
+        body.getBoundingClientRect = clipped;
+        view.renderer.dispose();
+        view.iframe.remove();
+      }
+    });
+
     it("starts at the touched character when the nearest caret is after it, including supplementary characters", async () => {
       const view = await mountSelectable('<p style="writing-mode: vertical-rl">本𠮷読む</p>');
       try {

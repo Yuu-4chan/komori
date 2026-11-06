@@ -5351,9 +5351,11 @@ class EpubRenderer implements ReaderRenderer {
     if (page && (x < page.left || x >= page.right || y < page.top || y >= page.bottom))
       return false;
     for (const [document, watch] of this.selectionWatches) {
-      const frame = document.defaultView?.frameElement?.getBoundingClientRect();
+      const element = document.defaultView?.frameElement;
+      const frame = element?.getBoundingClientRect();
       if (!frame || x < frame.left || x >= frame.right || y < frame.top || y >= frame.bottom)
         continue;
+      if (!shownAt(element!, x, y)) continue;
       if (watch.scanAt(x - frame.left, y - frame.top)) return true;
     }
     return false;
@@ -8010,4 +8012,26 @@ async function firstDisplayableSection(book: Book, signal: AbortSignal): Promise
     }
   }
   return null;
+}
+
+/** Overflow values that clip what runs past an element's box. */
+const clips = new Set(["hidden", "clip", "auto", "scroll"]);
+
+/**
+ * Whether a book frame is shown at a point of the app's window: not hidden, and inside every
+ * ancestor that clips it. A chapter shown alone squeezes its neighbours' views to no width, and
+ * their frames still report their whole size, holding text under the page that cannot be seen.
+ */
+function shownAt(frame: Element, x: number, y: number): boolean {
+  const view = frame.ownerDocument.defaultView;
+  if (!view || view.getComputedStyle(frame).visibility !== "visible") return false;
+  for (let element = frame.parentElement; element; element = element.parentElement) {
+    const style = view.getComputedStyle(element);
+    if (style.display === "none") return false;
+    if (![style.overflow, style.overflowX, style.overflowY].some((value) => clips.has(value)))
+      continue;
+    const box = element.getBoundingClientRect();
+    if (x < box.left || x >= box.right || y < box.top || y >= box.bottom) return false;
+  }
+  return true;
 }
