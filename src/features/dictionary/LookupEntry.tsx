@@ -25,17 +25,15 @@ import {
 import { pitchMarks, pitchPatterns, readingMoras, type PitchPattern } from "./pitchAccent";
 import { GlossaryText, termGlossaries } from "./GlossaryText";
 
-// Frequency boxes and a dictionary's tags shown before "+N more", so a long list does not push
-// definitions away.
-const shownFrequencies = 6;
+// A dictionary's tags shown before "+N more", so a long list does not push definitions away.
 const shownTagCount = 4;
 
 /**
  * One headword in the Reader's lookup popup and on the Dictionary page, compact: the headword with
- * its reading (beside it, or above it as furigana) and the pitch drawn on the reading, then its
- * Voice, Dictionary and Anki actions as plain icons on the same row; a row of small frequency
- * boxes led by a common word's star; and each dictionary's numbered definitions under its name,
- * which folds them, with their tags beside it. An entry whose imported data cannot be rendered
+ * its reading (beside it, or above it as furigana) and a common word's stars, then its Voice,
+ * Dictionary and Anki actions as plain icons on the same row; a row of small frequency boxes; a
+ * Pitch row with each pattern drawn on the reading; and each dictionary's numbered definitions
+ * under its name, which folds them, with their tags beside it. An entry whose imported data cannot be rendered
  * shows a one-line failure in its place.
  */
 export function LookupEntry(props: Parameters<typeof LookupEntryContent>[0]) {
@@ -105,15 +103,12 @@ function LookupEntryContent({
   const reading = group.reading !== group.expression ? group.reading : null;
   const japanese = language === "ja";
   const above = japanese && readingPosition === "above" && reading !== null;
-  // The first pitch pattern is drawn on the reading; the others follow it as positions.
+  // Each pitch pattern is drawn on the reading in the Pitch row.
   const patterns = useMemo(
     () => (showPitch && japanese ? pitchPatterns(group.pitches, group.reading) : []),
     [showPitch, japanese, group.pitches, group.reading],
   );
-  const marks = pitchMarks(group.reading, patterns[0]);
-  // Kept here, so hiding the frequencies and showing them again keeps the list as it was.
-  const [allFrequencies, setAllFrequencies] = useState(false);
-  // A common word's star leads the frequencies; the other tags follow their dictionaries' names.
+  // A common word's stars follow the headword; the other tags follow their dictionaries' names.
   const popular = shownTags(group.terms.flatMap((term) => term.tags)).filter(
     (tag) => tag.category === "popular",
   );
@@ -128,16 +123,6 @@ function LookupEntryContent({
       ]);
     return [...byDictionary.values()];
   }, [group.terms]);
-  const facts =
-    popular.length > 0 || (showFrequency && group.frequencies.length > 0) ? (
-      <EntryFrequencies
-        expanded={allFrequencies}
-        frequencies={showFrequency ? group.frequencies : []}
-        popular={popular}
-        showDictionaryNames={showDictionaryNames}
-        onExpandedChange={setAllFrequencies}
-      />
-    ) : null;
   return (
     <article
       aria-label={reading ? `${group.expression} (${reading})` : group.expression}
@@ -150,22 +135,27 @@ function LookupEntryContent({
               {above ? (
                 <FuriganaHeadword
                   expression={group.expression}
-                  marks={marks}
                   reading={reading}
                   onSearchTerm={onSearchTerm}
                 />
-              ) : reading === null && patterns.length > 0 ? (
-                <PitchKana marks={marks} text={group.expression} />
               ) : (
                 <HeadwordKanji expression={group.expression} onSearchTerm={onSearchTerm} />
               )}
             </strong>
             {reading && !above ? (
               <span className="lookup-entry__reading" lang={language}>
-                <PitchKana marks={marks} text={reading} />
+                {reading}
               </span>
             ) : null}
-            <PitchNote patterns={patterns} reading={group.reading} />
+            {popular.length > 0 && (
+              <span className="lookup-entry__stars">
+                {popular.map(({ name, notes }) => (
+                  <span aria-description={notes || undefined} key={name} title={notes || undefined}>
+                    {name}
+                  </span>
+                ))}
+              </span>
+            )}
             {group.transcriptions.length > 0 && (
               <span className="lookup-entry__transcription">
                 {transcriptionText(language, group.transcriptions)}
@@ -215,7 +205,17 @@ function LookupEntryContent({
             {showAnkiAction && <AnkiAction sources={cardSources} />}
           </div>
         </div>
-        {facts}
+        {showFrequency && group.frequencies.length > 0 && (
+          <EntryFrequencies
+            frequencies={group.frequencies}
+            showDictionaryNames={showDictionaryNames}
+          />
+        )}
+        <EntryPitch
+          patterns={patterns}
+          reading={group.reading}
+          showDictionaryNames={showDictionaryNames}
+        />
       </header>
       {sources.map((terms) => (
         <EntrySource
@@ -244,26 +244,15 @@ function LookupEntryContent({
   );
 }
 
-/**
- * An entry's frequencies as small boxes, close together: a common word's star first, then each
- * frequency dictionary with its values, the ones past the first few behind "+N more" unless
- * `expanded`.
- */
+/** An entry's frequencies as small boxes, close together: each frequency dictionary with its values. */
 export function EntryFrequencies({
-  popular,
   frequencies,
   showDictionaryNames,
-  expanded,
-  onExpandedChange,
 }: {
-  popular: ShownTag[];
   frequencies: FrequencyMatch[];
   showDictionaryNames: boolean;
-  expanded: boolean;
-  onExpandedChange: (expanded: boolean) => void;
 }) {
   const { t } = useI18n();
-  const all = expanded;
   // A dictionary's values share its box, in the order the dictionaries first appear.
   const boxes: { key: string; title: string; values: string[] }[] = [];
   for (const frequency of frequencies) {
@@ -277,15 +266,9 @@ export function EntryFrequencies({
         values: [value],
       });
   }
-  const hidden = all ? 0 : Math.max(0, boxes.length - shownFrequencies);
   return (
     <ul aria-label={t("ankiContent.frequency")} className="lookup-entry__frequencies">
-      {popular.map(({ name, notes }) => (
-        <li className="lookup-entry__popular" key={name} title={notes || undefined}>
-          {name}
-        </li>
-      ))}
-      {boxes.slice(0, boxes.length - hidden).map((box, index) => (
+      {boxes.map((box, index) => (
         <li key={`${box.key}-${index}`} title={box.title}>
           <span className={showDictionaryNames ? undefined : "visually-hidden"}>{box.title}</span>
           {box.values.map((value, item) => (
@@ -293,85 +276,93 @@ export function EntryFrequencies({
           ))}
         </li>
       ))}
-      {boxes.length > shownFrequencies ? (
-        <li className="lookup-entry__more">
-          <button aria-expanded={all} onClick={() => onExpandedChange(!all)} type="button">
-            {all ? t("lookupEntry.fewer") : t("lookupEntry.more", { count: hidden })}
-          </button>
-        </li>
-      ) : null}
     </ul>
   );
 }
 
-/** Text whose characters carry their pitch marks, from `offset` in the reading's marks. */
-function PitchKana({
-  text,
-  marks,
-  offset = 0,
-}: {
-  text: string;
-  marks: (string | undefined)[];
-  offset?: number;
-}) {
-  const characters = Array.from(text);
-  if (!characters.some((_, index) => marks[offset + index])) return text;
-  return characters.map((character, index) => (
-    <span className={marks[offset + index]} key={index}>
+/** Text whose characters carry their pitch marks. */
+function PitchKana({ text, marks }: { text: string; marks: (string | undefined)[] }) {
+  return Array.from(text).map((character, index) => (
+    <span className={marks[index]} key={index}>
       {character}
     </span>
   ));
 }
 
 /**
- * The pitch drawn on the reading, said in words for screen readers with its tags, nasal and
- * devoiced morae and sources, which a tooltip also lists; any other pattern follows as its
- * position.
+ * The Pitch row: each pattern drawn on the reading, as accent dictionaries draw it, with its
+ * position, tags and sources (shown with the dictionary names, otherwise in its tooltip), and its
+ * nasal and devoiced morae said in words for screen readers.
  */
-function PitchNote({ patterns, reading }: { patterns: PitchPattern[]; reading: string }) {
+function EntryPitch({
+  patterns,
+  reading,
+  showDictionaryNames,
+}: {
+  patterns: PitchPattern[];
+  reading: string;
+  showDictionaryNames: boolean;
+}) {
   const { t } = useI18n();
+  const label = useId();
   if (patterns.length === 0) return null;
   const moras = readingMoras(reading) ?? [];
-  const marks = (label: MessageKey, numbers: number[]) =>
+  const marks = (key: MessageKey, numbers: number[]) =>
     numbers.length
-      ? t(label, {
+      ? t(key, {
           marks: numbers
             .map((mora) => t("dictionaryResults.mora", { kana: moras[mora - 1], mora }))
             .join(", "),
         })
       : null;
   return (
-    <span
-      className="lookup-entry__pitch"
-      title={patterns
-        .map(
-          (pattern) =>
-            `[${pattern.position}]${pattern.tags.length ? ` ${pattern.tags.join(", ")}` : ""} ${pattern.sources.map((source) => source.title).join(", ")}`,
-        )
-        .join("\n")}
-    >
-      <span className="visually-hidden">
-        {t("dictionaryResults.pitch")}:{" "}
-        {patterns
-          .map((pattern) =>
-            [
-              t("dictionaryResults.position", { position: pattern.position }),
-              pattern.tags.join(", "),
-              marks("dictionaryResults.nasal", pattern.nasal),
-              marks("dictionaryResults.devoiced", pattern.devoice),
-              pattern.sources.map((source) => source.title).join(", "),
-            ]
-              .filter(Boolean)
-              .join("; "),
-          )
-          .join(". ")}
+    <div className="lookup-entry__pitch">
+      <span className="lookup-entry__row-label" id={label}>
+        {t("dictionaryResults.pitch")}
       </span>
-      {patterns.slice(1).map((pattern, index) => (
-        <span aria-hidden="true" key={index}>
-          [{pattern.position}]
-        </span>
-      ))}
-    </span>
+      <ul aria-labelledby={label}>
+        {patterns.map((pattern, index) => {
+          const sources = pattern.sources.map((source) => source.title).join(", ");
+          const drawn = pitchMarks(reading, pattern);
+          // Said as one phrase; the drawn reading and the bracketed position are for the eye.
+          const spoken = [
+            t("dictionaryResults.position", { position: pattern.position }),
+            pattern.tags.join(", "),
+            marks("dictionaryResults.nasal", pattern.nasal),
+            marks("dictionaryResults.devoiced", pattern.devoice),
+            sources,
+          ]
+            .filter(Boolean)
+            .join("; ");
+          return (
+            <li
+              key={index}
+              title={`[${pattern.position}]${pattern.tags.length ? ` ${pattern.tags.join(", ")}` : ""} ${sources}`}
+            >
+              {drawn.length > 0 && (
+                <span aria-hidden="true" className="lookup-entry__pitch-reading" lang="ja">
+                  <PitchKana marks={drawn} text={reading} />
+                </span>
+              )}
+              <span aria-hidden="true" className="lookup-entry__pitch-position">
+                [{pattern.position}]
+              </span>
+              {pattern.tags.length > 0 && (
+                <span aria-hidden="true" className="lookup-entry__pitch-tags">
+                  {pattern.tags.join(", ")}
+                </span>
+              )}
+              {showDictionaryNames && (
+                <span aria-hidden="true" className="lookup-entry__pitch-sources">
+                  {sources}
+                </span>
+              )}
+              <span className="visually-hidden">{spoken}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
@@ -389,43 +380,33 @@ function senseGlossaries(term: TermMatch): unknown[] {
 
 /**
  * The headword with each kanji run's part of the reading spread evenly above that run, so each kana
- * sits over its kanji rather than bunched at the start; its kanji stay links. With pitch marks,
- * each kana of the reading, over a kanji run or in the headword, carries its own.
+ * sits over its kanji rather than bunched at the start; its kanji stay links.
  */
 function FuriganaHeadword({
   expression,
   reading,
-  marks = [],
   onSearchTerm,
 }: {
   expression: string;
   reading: string;
-  marks?: (string | undefined)[];
   onSearchTerm: (term: string) => void;
 }) {
-  let offset = 0;
-  return furiganaSegments(expression, reading).map((segment, index) => {
-    const from = offset;
-    offset += Array.from(segment.reading ?? segment.text).length;
-    return segment.reading ? (
+  return furiganaSegments(expression, reading).map((segment, index) =>
+    segment.reading ? (
       <ruby key={index}>
         <span className="lookup-entry__ruby-base">
           <HeadwordKanji expression={segment.text} onSearchTerm={onSearchTerm} />
         </span>
         <rt>
           {Array.from(segment.reading).map((kana, position) => (
-            <span className={marks[from + position]} key={position}>
-              {kana}
-            </span>
+            <span key={position}>{kana}</span>
           ))}
         </rt>
       </ruby>
-    ) : marks.length > 0 ? (
-      <PitchKana key={index} marks={marks} offset={from} text={segment.text} />
     ) : (
       <HeadwordKanji expression={segment.text} key={index} onSearchTerm={onSearchTerm} />
-    );
-  });
+    ),
+  );
 }
 
 /**

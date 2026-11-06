@@ -131,7 +131,7 @@ A lookup trigger (by default Shift scan, the Shift+Enter shortcut and a middle c
 word; mouse selection and hover can be turned on in Settings > Reader popup) opens a borderless floating sheet beside the text with the
 Dictionary's result entries, compact: headword (kept close to its definitions' size), reading
 (beside, or above as furigana spread over each kanji run) with the pitch accent drawn on
-it, small frequency boxes led by ★ for a common word, then each dictionary's name (which
+it, ★ beside it for a common word, every frequency in small boxes, a Pitch row with each pattern drawn on the reading, then each dictionary's name (which
 folds its definitions) with its tags in small italics and its numbered definitions.
 Headword kanji and dictionary links open child popups up to the saved level. Each entry
 has Voice (a recorded pronunciation from the word audio sources) and, left to right, Open in Dictionary, Open card in Anki (when a card
@@ -158,8 +158,8 @@ Microsoft JhengHei or Malgun Gothic when looking up Chinese or Korean.
 A search bar and a source rail listing only dictionaries with matches, in the Settings
 order. Lookup is exact, or the longest matching start (with deinflection chains named in
 the header and on each entry), followed by shorter matching starts. Single kanji show a
-kanji entry first. Pitch positions merge across agreeing sources, drawn on the reading with
-nasal and devoiced marks; the other positions, tags and sources follow in its note. Until an installed dictionary can supply definitions, this page and the Reader's
+kanji entry first. Pitch positions merge across agreeing sources, each drawn on the reading in the
+Pitch row with nasal and devoiced marks, then its position, tags and sources. Until an installed dictionary can supply definitions, this page and the Reader's
 lookup popup (and its Settings preview) offer Get dictionaries, linking to Settings; the
 Dictionary page says it has no dictionaries only in that offer.
 

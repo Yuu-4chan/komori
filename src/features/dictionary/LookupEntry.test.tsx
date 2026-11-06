@@ -181,7 +181,7 @@ describe("dictionary parts", () => {
     expect(screen.getByText("book")).toBeVisible();
   });
 
-  it("leads the frequencies with a common word's star, out of the dictionary's tags", () => {
+  it("puts a common word's star beside the headword, out of the dictionary's tags", () => {
     entry([
       {
         ...term(1, "Jitendex", "book", 1),
@@ -191,9 +191,10 @@ describe("dictionary parts", () => {
         ],
       },
     ]);
-    const frequencies = screen.getByRole("list", { name: "Frequency" });
-    expect(frequencies.firstElementChild).toHaveTextContent("⭐");
-    expect(frequencies.firstElementChild).toHaveClass("lookup-entry__popular");
+    const star = screen.getByText("⭐");
+    expect(star.closest(".lookup-entry__word")).not.toBeNull();
+    expect(star).toHaveAttribute("title", "common");
+    expect(screen.queryByRole("list", { name: "Frequency" })).toBeNull();
     const tags = screen
       .getByRole("region", { name: "Jitendex" })
       .querySelector(".lookup-source__tags")!;
@@ -267,7 +268,7 @@ describe("headword furigana", () => {
   });
 });
 
-describe("headword pitch", () => {
+describe("pitch row", () => {
   const pitched = (expression: string, reading: string, position: number) => ({
     ...good,
     expression,
@@ -284,7 +285,7 @@ describe("headword pitch", () => {
   const marks = (root: Element) =>
     [...root.children].map((span) => [span.textContent, span.className]);
 
-  it("draws the pitch on the reading beside the headword", () => {
+  it("draws each pattern on the reading in its own Pitch row, leaving the headword plain", () => {
     const { container } = render(
       <LookupEntry
         canPlayAudio={false}
@@ -297,17 +298,24 @@ describe("headword pitch", () => {
         start={null}
       />,
     );
-    expect(marks(container.querySelector(".lookup-entry__reading")!)).toEqual([
+    const row = screen.getByRole("list", { name: "Pitch" });
+    expect(row.closest(".lookup-entry__pitch")).toHaveTextContent(/^Pitch/);
+    expect(marks(row.querySelector(".lookup-entry__pitch-reading")!)).toEqual([
       ["あ", ""],
       ["つ", "pitch-kana--high pitch-kana--drop"],
       ["り", ""],
       ["ょ", ""],
       ["く", ""],
     ]);
-    expect(container.querySelector(".lookup-entry__pitch")).toHaveAttribute("title", "[2] Pitch");
+    expect(row.querySelector("li")).toHaveAttribute("title", "[2] Pitch");
+    expect(row.querySelector("li")).toHaveTextContent("[2]");
+    // Its source shows with the dictionary names.
+    expect(row.querySelector(".lookup-entry__pitch-sources")).toHaveTextContent("Pitch");
+    expect(container.querySelector(".lookup-entry__reading")).toHaveTextContent(/^あつりょく$/);
+    expect(container.querySelector(".lookup-entry__word [class^='pitch-kana']")).toBeNull();
   });
 
-  it("draws the pitch over the furigana and on the kana between its kanji", () => {
+  it("keeps the furigana plain, with the pitch on the whole reading in its row", () => {
     const { container } = render(
       <LookupEntry
         canPlayAudio={false}
@@ -322,19 +330,15 @@ describe("headword pitch", () => {
       />,
     );
     const expression = container.querySelector(".lookup-entry__expression")!;
-    expect(
-      [...expression.querySelectorAll("rt span, .lookup-entry__expression > span")].map((span) => [
-        span.textContent,
-        span.className,
-      ]),
-    ).toEqual([
+    expect(expression.querySelector("[class^='pitch-kana']")).toBeNull();
+    expect(expression).toHaveTextContent(/^読よみ込こむ$/);
+    expect(container.querySelector(".lookup-entry__reading")).toBeNull();
+    expect(marks(container.querySelector(".lookup-entry__pitch-reading")!)).toEqual([
       ["よ", ""],
       ["み", "pitch-kana--high"],
       ["こ", "pitch-kana--high pitch-kana--drop"],
+      ["む", ""],
     ]);
-    // Kana with no mark of their own stay plain text.
-    expect(expression).toHaveTextContent(/^読よみ込こむ$/);
-    expect(container.querySelector(".lookup-entry__reading")).toBeNull();
   });
 
   it("draws nothing when pitch is off", () => {

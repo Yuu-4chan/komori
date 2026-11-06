@@ -990,7 +990,6 @@ describe("Reader lookup popup", () => {
       const articles = within(popup).getAllByRole("article");
       const snapshots = articles.map((article) => {
         const ui = within(article);
-        fireEvent.click(ui.getByRole("button", { name: "+2 more" }));
         fireEvent.click(ui.getByRole("button", { name: "Collapse Jitendex definitions" }));
         return {
           pitch: article.querySelector(".lookup-entry__pitch")!.innerHTML,
@@ -1011,7 +1010,6 @@ describe("Reader lookup popup", () => {
           expect(ui.getByRole("list", { name: "Frequency" }).innerHTML).toBe(
             snapshots[index].frequency,
           );
-          expect(ui.getByRole("button", { name: "Show fewer" })).toBeInTheDocument();
           expect(ui.getByRole("button", { name: "Expand Jitendex definitions" })).toHaveAttribute(
             "aria-expanded",
             "false",
@@ -1101,8 +1099,8 @@ describe("Reader lookup popup", () => {
     const popup = screen.getByRole("dialog");
     await within(popup).findByText("reading books");
     const frequencies = within(popup).getByRole("list", { name: "Frequency" });
-    expect(within(frequencies).getAllByText(/^Rank/)).toHaveLength(6);
-    fireEvent.click(within(frequencies).getByRole("button", { name: "+2 more" }));
+    // Every frequency shows.
+    expect(within(frequencies).getAllByText(/^Rank/)).toHaveLength(8);
     const values = () =>
       within(frequencies)
         .getAllByText(/^Rank/)
@@ -1112,26 +1110,28 @@ describe("Reader lookup popup", () => {
     const originalPitch = pitch.innerHTML;
     // The first pattern is drawn on the reading: どくしょ is flat, high after its first mora.
     expect(
-      [...popup.querySelectorAll(".lookup-entry__reading .pitch-kana--high")].map(
+      [...pitch.querySelectorAll("li:first-child .pitch-kana--high")].map(
         (kana) => kana.textContent,
       ),
     ).toEqual(["く", "し", "ょ"]);
     fireEvent.click(within(popup).getByRole("button", { name: "Collapse Jitendex definitions" }));
     fireEvent.click(screen.getByRole("button", { name: "Toggle names" }));
     expect(values()).toEqual(originalValues);
-    expect(within(frequencies).getByRole("button", { name: "Show fewer" })).toBeInTheDocument();
     for (const source of within(frequencies).getAllByText(/^Frequency [01]$/)) {
       expect(source).toHaveClass("visually-hidden");
       expect(source.closest("li")).toHaveAttribute("title", source.textContent);
     }
-    expect(pitch).toHaveAttribute(
-      "title",
-      "[0] Pitch A, Pitch B, Pitch A\n[2] noun Pitch A, Pitch B, Pitch A",
-    );
-    const spoken = pitch.querySelector(".visually-hidden")!;
-    expect(spoken).not.toHaveAttribute("aria-hidden");
-    expect(spoken.textContent).toContain("Position 0");
-    expect(spoken.textContent).toMatch(/Position 2; noun; Nasal.*Devoiced.*; Pitch A, Pitch B/);
+    const patterns = [...pitch.querySelectorAll("li")];
+    expect(patterns.map((pattern) => pattern.title)).toEqual([
+      "[0] Pitch A, Pitch B, Pitch A",
+      "[2] noun Pitch A, Pitch B, Pitch A",
+    ]);
+    // The sources leave the row but stay in what a screen reader says.
+    expect(pitch.querySelector(".lookup-entry__pitch-sources")).toBeNull();
+    const spoken = patterns.map((pattern) => pattern.querySelector(".visually-hidden")!);
+    for (const phrase of spoken) expect(phrase).not.toHaveAttribute("aria-hidden");
+    expect(spoken[0].textContent).toBe("Position 0; Pitch A, Pitch B, Pitch A");
+    expect(spoken[1].textContent).toMatch(/^Position 2; noun; Nasal.*Devoiced.*; Pitch A, Pitch B/);
     expect(pitch).toHaveTextContent("[2]");
     expect(
       within(popup).getByRole("button", { name: "Expand Jitendex definitions" }),

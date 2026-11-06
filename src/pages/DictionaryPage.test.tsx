@@ -181,14 +181,26 @@ async function sourceTags(user: ReturnType<typeof userEvent.setup>, source: HTML
   return [...source.querySelectorAll(".lookup-source__tags > span")];
 }
 
-// The pitch note beside a headword's reading.
+// The Pitch row's patterns as one note: their tooltips line by line, and what a screen reader says.
 function pitchNote(card: HTMLElement) {
-  return card.querySelector<HTMLElement>(".lookup-entry__pitch");
+  const items = [...card.querySelectorAll<HTMLElement>(".lookup-entry__pitch li")];
+  if (items.length === 0) return null;
+  const note = document.createElement("span");
+  note.title = items.map((item) => item.title).join("\n");
+  note.textContent = `Pitch: ${items.map((item) => item.querySelector(".visually-hidden")!.textContent).join(". ")}`;
+  return note;
 }
 
-// The kana of a headword's reading that the pitch draws high.
+// The first pitch pattern's drawn reading in the Pitch row.
+function firstPitch(card: HTMLElement) {
+  return card.querySelector(".lookup-entry__pitch li:first-child .lookup-entry__pitch-reading");
+}
+
+// The kana the first pitch pattern draws high.
 function highKana(card: HTMLElement) {
-  return [...card.querySelectorAll(".pitch-kana--high")].map((kana) => kana.textContent);
+  return [...(firstPitch(card)?.querySelectorAll(".pitch-kana--high") ?? [])].map(
+    (kana) => kana.textContent,
+  );
 }
 
 describe("Dictionary page", () => {
@@ -254,10 +266,16 @@ describe("Dictionary page", () => {
     expect(within(frequencies).getByText("Sample frequency")).not.toHaveClass("visually-hidden");
     expect(within(frequencies).getByText("7")).toBeInTheDocument();
     const pitch = pitchNote(card)!;
+    const row = within(card).getByRole("list", { name: "Pitch" });
+    // The Pitch row follows the frequencies, before the definitions.
+    expect(frequencies.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
     expect(
-      pitch.compareDocumentPosition(within(card).getByText("to read")) &
+      row.compareDocumentPosition(within(card).getByText("to read")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(row.querySelector(".lookup-entry__pitch-sources")).toHaveTextContent("Pitch source");
     expect(pitch).toHaveAttribute("title", "[0] Pitch source");
     expect(pitch).toHaveTextContent("Position 0; Pitch source");
     expect(highKana(card)).toEqual(["む"]);
@@ -437,7 +455,7 @@ describe("Dictionary page", () => {
     expect(tags.map((tag) => tag.textContent)).toEqual(["v1"]);
   });
 
-  it("leads the frequencies with a common word's star instead of listing it as a tag", async () => {
+  it("puts a common word's star beside the headword instead of listing it as a tag", async () => {
     const definition = (category: string, notes = "") => ({ category, order: 0, notes, score: 0 });
     lookupMock.mockImplementation(
       exact([
@@ -467,12 +485,10 @@ describe("Dictionary page", () => {
     await user.type(screen.getByRole("textbox", { name: "Dictionary search" }), "読む");
     await user.click(screen.getByRole("button", { name: /^Search$/ }));
     const card = await screen.findByRole("article");
-    const frequencies = within(card).getByRole("list", { name: "Frequency" });
-    const star = within(frequencies).getAllByRole("listitem")[0];
-    expect(star).toHaveTextContent(/^⭐$/);
-    expect(star).toHaveClass("lookup-entry__popular");
-    expect(star).toHaveAttribute("title", "common word");
-    expect(within(frequencies).getAllByText("⭐")).toHaveLength(1);
+    const stars = card.querySelector(".lookup-entry__word .lookup-entry__stars")!;
+    expect(stars).toHaveTextContent(/^⭐$/);
+    expect(within(card).getByText("⭐")).toHaveAttribute("title", "common word");
+    expect(within(card).getByRole("list", { name: "Frequency" })).not.toHaveTextContent("⭐");
     const tags = await sourceTags(user, within(card).getByRole("region", { name: "Jitendex" }));
     expect(tags.map((tag) => tag.textContent)).toEqual(["v5", "arch"]);
     // Tags are plain italic text; their categories no longer color them.
@@ -655,19 +671,17 @@ describe("Dictionary page", () => {
     const card = await screen.findByRole("article");
     const list = within(card).getByRole("list", { name: "Frequency" });
     const rows = () =>
-      [...list.querySelectorAll("li:not(.lookup-entry__more)")].map((row) => [
+      [...list.querySelectorAll("li")].map((row) => [
         row.querySelector("span")!.textContent,
         ...[...row.querySelectorAll("strong")].map((value) => value.textContent),
       ]);
-    // A dictionary's values share its box. Six boxes show at first; the rest follow on request,
-    // still in returned order.
+    // A dictionary's values share its box. Every box shows, in returned order.
     const boxes = [
       ["Samplev2㋕", "312", "19896㋕"],
       ...frequencies.slice(2).map(({ title, value }) => [title, value]),
     ];
-    expect(rows()).toEqual(boxes.slice(0, 6));
-    await user.click(within(list).getByRole("button", { name: "+1 more" }));
     expect(rows()).toEqual(boxes);
+    expect(within(list).queryByRole("button")).toBeNull();
     expect(list.querySelectorAll("li")[4]).toHaveAttribute(
       "title",
       "A very long imported frequency title",
@@ -851,15 +865,24 @@ describe("Dictionary page", () => {
     const pitch = pitchNote(card)!;
     // The first pattern is drawn on the reading: よむ flat, high from its second mora.
     expect(highKana(card)).toEqual(["む"]);
-    expect(card.querySelector(".pitch-kana--drop")).toBeNull();
+    expect(firstPitch(card)!.querySelector(".pitch-kana--drop")).toBeNull();
     expect(pitch).toHaveAttribute(
       "title",
       "[0] Pitch source A\n[2] Pitch source A\n[1] Pitch source B",
     );
-    // The other patterns follow as their positions.
+    // Each pattern is drawn on the reading with its position, in returned order.
+    const row = within(card).getByRole("list", { name: "Pitch" });
     expect(
-      [...pitch.querySelectorAll("[aria-hidden='true']")].map((item) => item.textContent),
-    ).toEqual(["[2]", "[1]"]);
+      [...row.querySelectorAll("li")].map((item) => [
+        [...item.querySelectorAll(".pitch-kana--high")].map((kana) => kana.textContent).join(""),
+        item.querySelector(".lookup-entry__pitch-position")!.textContent,
+      ]),
+    ).toEqual([
+      ["む", "[0]"],
+      ["む", "[2]"],
+      ["よ", "[1]"],
+    ]);
+    expect(row.querySelector("li:nth-child(2) .pitch-kana--drop")).toHaveTextContent("む");
     expect(pitch).not.toHaveTextContent("Wrong reading");
     expect(pitch).not.toHaveTextContent("Unsupported");
   });
@@ -946,7 +969,7 @@ describe("Dictionary page", () => {
     const cards = await screen.findAllByRole("article");
     // きょう has two morae: position 2 is high on う and falls after it.
     expect(highKana(cards[0])).toEqual(["う"]);
-    expect(cards[0].querySelector(".pitch-kana--drop")).toHaveTextContent("う");
+    expect(firstPitch(cards[0])!.querySelector(".pitch-kana--drop")).toHaveTextContent("う");
     expect(pitchNote(cards[0])).toHaveAttribute("title", "[2] Pitch source\n[3] Pitch source");
 
     // A reading that is not kana keeps its text without marks.
@@ -1017,7 +1040,7 @@ describe("Dictionary page", () => {
       "[1] Marked A, Marked B\n[1] Unmarked\n[1] Nasal only",
     );
     // きがく falls after its first mora; き is devoiced and が nasal.
-    const reading = [...cards[0].querySelectorAll(".lookup-entry__reading > span")];
+    const reading = [...firstPitch(cards[0])!.querySelectorAll(":scope > span")];
     expect(reading.map((kana) => [kana.textContent, kana.getAttribute("class")])).toEqual([
       ["き", "pitch-kana--high pitch-kana--drop pitch-kana--devoiced"],
       ["が", "pitch-kana--nasal"],

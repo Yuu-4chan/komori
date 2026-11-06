@@ -1,5 +1,5 @@
 import { CaretDownIcon } from "@phosphor-icons/react";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId } from "react";
 
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
 import type { FrequencyMatch, KanjiMatch, TermTag } from "./dictionaryApi";
@@ -27,7 +27,6 @@ export function KanjiCard({
   actions?: ReactNode;
 }) {
   const { t } = useI18n();
-  const [allFrequencies, setAllFrequencies] = useState(false);
   const readings = [
     [t("dictionaryResults.on"), kanjiReadings(entries.map((entry) => entry.onyomi))],
     [t("dictionaryResults.kun"), kanjiReadings(entries.map((entry) => entry.kunyomi))],
@@ -58,13 +57,7 @@ export function KanjiCard({
           </dl>
         )}
         {showFrequencies && frequencies.length > 0 && (
-          <EntryFrequencies
-            expanded={allFrequencies}
-            frequencies={frequencies}
-            popular={[]}
-            showDictionaryNames={showDictionaryNames}
-            onExpandedChange={setAllFrequencies}
-          />
+          <EntryFrequencies frequencies={frequencies} showDictionaryNames={showDictionaryNames} />
         )}
       </header>
       {entries.map((entry, index) => (

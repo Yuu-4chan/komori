@@ -331,6 +331,27 @@ describe("Library page", () => {
     fireEvent.keyDown(document.body, { key, ctrlKey: true });
     expect(screen.getByText("Shortcut destination")).toBeInTheDocument();
   });
+  it.each([
+    ["/dictionary", true],
+    ["/statistics", false],
+  ])("middle-click autoscroll on %s: %s", (path, scrolls) => {
+    listMock.mockResolvedValue([catalogBook]);
+    renderPage(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path={path} element={<h1>Page</h1>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+    screen
+      .getByRole("heading", { name: "Page" })
+      .dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, button: 1 }));
+    expect(!!document.querySelector(".autoscroll-marker")).toBe(scrolls);
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(document.querySelector(".autoscroll-marker")).toBeNull();
+  });
   it("puts the top bar first in Tab order, before the page and the dock", async () => {
     listMock.mockResolvedValue([catalogBook]);
     renderPage(

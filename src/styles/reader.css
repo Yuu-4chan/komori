@@ -1279,48 +1279,21 @@
   line-height: 1;
   white-space: nowrap;
 }
-.lookup-entry__expression rt:has(.pitch-kana--high, .pitch-kana--drop) {
-  justify-content: center;
-}
 .lookup-entry__reading {
   color: var(--text-muted);
   font-family: var(--popup-font, var(--font-lookup));
   font-size: 16px;
 }
-/* The pitch on the reading, as accent dictionaries draw it: a line over each high mora and a
-   step down after the mora where it falls; a devoiced mora is ringed, a nasal one marked. */
-.pitch-kana--high,
-.pitch-kana--drop {
-  padding-top: 2px;
-  border-top: 1.5px solid var(--accent-ink);
-}
-.pitch-kana--drop {
-  padding-right: 1px;
-  border-right: 1.5px solid var(--accent-ink);
-}
-.lookup-entry__expression .pitch-kana--high,
-.lookup-entry__expression .pitch-kana--drop {
-  padding-top: 0;
-}
-.lookup-entry__expression > .pitch-kana--high,
-.lookup-entry__expression > .pitch-kana--drop {
-  border-width: 2px;
-}
-.pitch-kana--devoiced {
-  border-radius: 50%;
-  outline: 1px dashed var(--text-muted);
-  outline-offset: -1px;
-}
-.pitch-kana--nasal::after {
-  content: "°";
-  color: var(--accent-ink);
-}
-.lookup-entry__pitch {
+/* A common word's stars, beside the headword. */
+.lookup-entry__stars {
   display: inline-flex;
-  gap: 6px;
-  color: var(--text-muted);
-  font-size: 12.5px;
-  font-variant-numeric: tabular-nums;
+  gap: 3px;
+  color: color-mix(in srgb, #d49b00 72%, var(--text-primary));
+  font-size: 14px;
+  font-weight: 700;
+}
+.lookup-entry__stars [title] {
+  cursor: help;
 }
 .lookup-entry__note {
   max-width: 100%;
@@ -1402,20 +1375,6 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
-.lookup-entry__frequencies .lookup-entry__popular {
-  color: color-mix(in srgb, #d49b00 72%, var(--text-primary));
-  font-weight: 700;
-}
-.lookup-entry__frequencies .lookup-entry__popular[title] {
-  cursor: help;
-}
-.lookup-entry__frequencies .lookup-entry__more {
-  padding: 0;
-  background: transparent;
-  border-style: dashed;
-  border-color: var(--border-medium);
-}
-.lookup-entry__more button,
 .lookup-source__more {
   padding: 0 6px;
   color: var(--accent-ink);
@@ -1426,9 +1385,71 @@
   font-weight: 650;
   cursor: pointer;
 }
-.lookup-entry__more button:hover,
 .lookup-source__more:hover {
   background: var(--accent-faint);
+}
+
+/* The Pitch row: each pattern drawn on the reading, as accent dictionaries draw it, a line over
+   each high mora and a step down after the mora where it falls (a devoiced mora ringed, a nasal
+   one marked), then its position, tags and sources. */
+.lookup-entry__pitch {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.lookup-entry__row-label,
+.lookup-entry__kanji-readings dt {
+  flex: none;
+  color: var(--accent-ink);
+  font-family: var(--font-interface);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.lookup-entry__pitch ul {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  list-style: none;
+}
+.lookup-entry__pitch li {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.lookup-entry__pitch-reading {
+  padding-top: 2px;
+  color: var(--text-secondary);
+  font-family: var(--popup-font, var(--font-lookup));
+  font-size: 15px;
+}
+.lookup-entry__pitch-position {
+  font-variant-numeric: tabular-nums;
+}
+.lookup-entry__pitch-tags {
+  font-style: italic;
+  font-synthesis-style: auto;
+}
+.pitch-kana--high,
+.pitch-kana--drop {
+  border-top: 1.5px solid var(--accent-ink);
+}
+.pitch-kana--drop {
+  padding-right: 1px;
+  border-right: 1.5px solid var(--accent-ink);
+}
+.pitch-kana--devoiced {
+  border-radius: 50%;
+  outline: 1px dashed var(--text-muted);
+  outline-offset: -1px;
+}
+.pitch-kana--nasal::after {
+  content: "°";
+  color: var(--accent-ink);
 }
 
 /* A kanji's On and Kun readings, on one line under the character. */
@@ -1445,12 +1466,6 @@
   display: flex;
   align-items: baseline;
   gap: 5px;
-}
-.lookup-entry__kanji-readings dt {
-  color: var(--accent-ink);
-  font-family: var(--font-interface);
-  font-size: 11.5px;
-  font-weight: 700;
 }
 .lookup-entry__kanji-readings dd {
   margin: 0;
