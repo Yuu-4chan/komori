@@ -58,6 +58,21 @@ describe("Settings on the phone", () => {
     expect(document.querySelector(".reader-lookup")).toBeNull();
   });
 
+  it("shows lookups in a sheet or a popup sized here, and looks up a tapped word by choice", async () => {
+    settings("popup");
+    const tapLookup = screen.getByRole("button", { name: "Tap a word to look it up" });
+    expect(tapLookup.getAttribute("aria-pressed")).toBe("true");
+    await userEvent.click(tapLookup);
+    expect(tapLookup.getAttribute("aria-pressed")).toBe("false");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Show lookups in" }),
+      "popup",
+    );
+    expect(screen.getByText("Popup width")).toBeTruthy();
+    expect(screen.getByText("Popup height")).toBeTruthy();
+    expect(screen.getByText("Rounded corners")).toBeTruthy();
+  });
+
   it("shows the dictionaries, their language and word audio", () => {
     settings("dictionary");
     expect(screen.getByRole("combobox", { name: "Lookup language" })).toBeTruthy();

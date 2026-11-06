@@ -13,6 +13,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import {
+  Fragment,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -22,16 +23,12 @@ import {
   type RefObject,
 } from "react";
 
-import { SegmentedControl } from "../components/ui/SegmentedControl";
-import { Stepper } from "../components/ui/Stepper";
+import { ToggleSetting } from "../components/ui/ToggleSetting";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
 import {
-  readerFontSize,
-  readerLineHeight,
-  readerSideMargin,
-  type ReaderViewMode,
-  type ReaderWritingMode,
-} from "../features/reader/presentation";
+  ReaderAppearancePanel,
+  type ReaderAppearancePanelProps,
+} from "../features/reader/ReaderAppearancePanel";
 import {
   ReaderBookmarksPanel,
   type ReaderBookmarksPanelProps,
@@ -63,6 +60,7 @@ import type {
 } from "../features/reader/renderer";
 import type { useBookmarks } from "../features/reader/useBookmarks";
 import type { SessionState } from "../features/reader/useReadingSession";
+import { formatReadingSpeed, type ReadingSpeed } from "../features/statistics/readingSession";
 import { i18n, useI18n } from "../i18n/i18n";
 import { ContinueFromDialog, useReaderSync } from "./ContinueFrom";
 import "./mobileReader.css";
@@ -84,6 +82,8 @@ export type SelectionAction = "note" | "highlight" | "copy" | "lookUp";
 
 export interface MobileReaderProps {
   identity: ReaderIdentity;
+  /** The PC's Appearance panel, shown in the Appearance sheet for touch. */
+  appearance: ReaderAppearancePanelProps;
   /** The book is shown and laid out. */
   ready: boolean;
   turning: boolean;
@@ -92,6 +92,8 @@ export interface MobileReaderProps {
   contents: ReaderContentsEntry[];
   currentEntryId?: string | null;
   session: { readingMs: () => number; state: SessionState };
+  /** The session's reading speed when the footer shows it and a minute was read. */
+  speed: ReadingSpeed | null;
   bookmarks: ReturnType<typeof useBookmarks>;
   captureBookmark: () => Promise<ReaderBookmarkPlace | null>;
   tools: MobileReaderTools;
@@ -106,8 +108,20 @@ export interface MobileReaderProps {
   onTurn: (direction: "advance" | "retreat") => void;
   /** Looks up the word at a tapped point of the screen; false when no word is there. */
   onLookUp: (x: number, y: number) => boolean;
+  /**
+   * The lookup over the book: whether one shows, when a press last closed it (on the
+   * `performance.now()` clock), and Back, which closes the deepest.
+   */
+  lookup: { open: boolean; closedAt: () => number; back: () => void };
   /** A finger is on a continuously displayed book, which the WebView scrolls: reading on. */
   onScroll: () => void;
+  /** Whether a chapter shown alone is at its edge, where reading on turns the chapter. */
+  onChapterEdge: (direction: "advance" | "retreat") => boolean;
+  /**
+   * In VN view, shows the rest of the group's text, or reads on once it all shows when
+   * `advance`; false outside VN view or with nothing to do.
+   */
+  onReadOn: (advance: boolean) => boolean;
   onGoToEntry: (id: string) => void;
   onGoToOffset: (offset: number, settled: (succeeded: boolean) => void) => void;
   /** Shows a saved reading position, such as the PC's. */
@@ -122,21 +136,8 @@ const tapTime = 500;
 // The left and right parts of the page that turn it, as a fraction of its width.
 const sideZone = 0.3;
 const swipeDistance = 40;
-
-const viewModes: {
-  value: ReaderViewMode;
-  label: "appearancePanel.paginated" | "appearancePanel.continuous";
-}[] = [
-  { value: "paginated", label: "appearancePanel.paginated" },
-  { value: "continuous", label: "appearancePanel.continuous" },
-];
-const writingModes: {
-  value: ReaderWritingMode;
-  label: "appearancePanel.horizontal" | "appearancePanel.vertical";
-}[] = [
-  { value: "horizontal", label: "appearancePanel.horizontal" },
-  { value: "vertical", label: "appearancePanel.vertical" },
-];
+// A press closes the lookup just before its touch starts: within this many milliseconds.
+const closingPress = 300;
 
 /**
  * The Reader by touch: the side parts of the page turn it, a swipe turns it in paginated view,
@@ -144,6 +145,7 @@ const writingModes: {
  */
 export function MobileReader({
   identity,
+  appearance,
   ready,
   turning,
   progress,
@@ -151,6 +153,7 @@ export function MobileReader({
   contents,
   currentEntryId,
   session,
+  speed,
   bookmarks,
   captureBookmark,
   tools,
@@ -161,7 +164,10 @@ export function MobileReader({
   viewportRef,
   onTurn,
   onLookUp,
+  lookup,
   onScroll,
+  onChapterEdge,
+  onReadOn,
   onGoToEntry,
   onGoToOffset,
   onGoToPosition,
@@ -189,14 +195,71 @@ export function MobileReader({
   // The bars show with the controls; reading, the book has the whole screen.
   useEffect(() => showSystemBars(shown), [shown]);
   useEffect(() => () => showSystemBars(true), []);
-  const { readerTheme, readerCustomThemes } = useAppearance();
+  const {
+    readerTheme,
+    readerCustomThemes,
+    readerLookupDisplay,
+    readerTapLookup,
+    readerTouchPageTurns,
+    readerViewMode,
+    readerShowReadingPosition,
+    readerShowPercentage,
+    readerShowChapterPosition,
+    readerShowChapterPercentage,
+    readerShowClock,
+    readerShowReadingTime,
+  } = useAppearance();
+  // The footer's parts, as the PC's footer chooses them, in its order.
+  const chapterProgress = progress?.chapter?.total ? progress.chapter : null;
+  const footer: ReactNode[] = progress?.total
+    ? [
+        readerShowReadingPosition && (
+          <BookPosition current={progress.current} total={progress.total} unit={progress.unit} />
+        ),
+        readerShowPercentage && `${percent(progress.current, progress.total)}%`,
+        chapterProgress && readerShowChapterPosition && (
+          <BookPosition
+            current={chapterProgress.current}
+            total={chapterProgress.total}
+            unit={progress.unit}
+          />
+        ),
+        chapterProgress &&
+          readerShowChapterPercentage &&
+          `${t("readerFooter.chapterPrefix")} ${percent(chapterProgress.current, chapterProgress.total)}%`,
+        speed && formatReadingSpeed(speed),
+      ].filter(Boolean)
+    : [];
   const lightPage = isLightTheme(resolveReaderTheme(readerTheme, readerCustomThemes));
   useEffect(() => systemBarIcons(lightPage), [lightPage]);
+  // The sheet answers Back itself; the popup closes from here.
+  useBackCloser(lookup.open && readerLookupDisplay === "popup", lookup.back);
 
-  const latest = useRef({ ready, pageTurns, onTurn, onLookUp, onScroll });
-  latest.current = { ready, pageTurns, onTurn, onLookUp, onScroll };
+  const current = {
+    ready,
+    pageTurns,
+    onTurn,
+    onLookUp,
+    onScroll,
+    onChapterEdge,
+    onReadOn,
+    lookupClosedAt: lookup.closedAt,
+    tapLookup: readerTapLookup,
+    touchTurns: readerTouchPageTurns,
+    chapterView: readerViewMode === "semi-continuous",
+  };
+  const latest = useRef(current);
+  latest.current = current;
   useEffect(() => {
-    let start: { x: number; y: number; at: number } | null = null;
+    // `now` is on this window's clock: a book page's own events count from its frame's start.
+    let start: {
+      x: number;
+      y: number;
+      at: number;
+      now: number;
+      /** Where a chapter shown alone was at its edge when the touch began. */
+      edges?: { advance: boolean; retreat: boolean };
+    } | null = null;
     const touched = (event: TouchEvent) => {
       const touch = event.changedTouches[0];
       if (!touch) return;
@@ -204,13 +267,34 @@ export function MobileReader({
       if (event.type === "touchstart") {
         // A long press here selects the book's text, which shows Komori's toolbar.
         ownBookSelection((event.target as Node | null)?.ownerDocument !== document);
-        start = event.touches.length === 1 ? { ...point, at: event.timeStamp } : null;
-        if (latest.current.pageTurns.scrollAxis) latest.current.onScroll();
+        const { pageTurns, chapterView, onChapterEdge, onScroll } = latest.current;
+        start =
+          event.touches.length === 1
+            ? {
+                ...point,
+                at: event.timeStamp,
+                now: performance.now(),
+                edges:
+                  chapterView && pageTurns.scrollAxis
+                    ? { advance: onChapterEdge("advance"), retreat: onChapterEdge("retreat") }
+                    : undefined,
+              }
+            : null;
+        if (pageTurns.scrollAxis) onScroll();
         return;
       }
       const began = start;
       start = null;
-      const { ready, pageTurns, onTurn, onLookUp } = latest.current;
+      const {
+        ready,
+        pageTurns,
+        onTurn,
+        onLookUp,
+        onReadOn,
+        lookupClosedAt,
+        tapLookup,
+        touchTurns,
+      } = latest.current;
       if (event.type !== "touchend" || !began || event.touches.length || !ready) return;
       const dx = point.x - began.x;
       const dy = point.y - began.y;
@@ -223,17 +307,44 @@ export function MobileReader({
         if (owner.getSelection()?.isCollapsed === false) return;
         // The tap's own click would otherwise land on the controls it shows, and hide them.
         if (event.cancelable) event.preventDefault();
-        // A tap on a word looks it up; one on blank space turns the page or shows the controls.
-        if (onLookUp(point.x, point.y)) return;
+        // A tap on a word looks it up; one on blank space turns the page or shows the controls,
+        // unless it closed the lookup by the word, as the press it began with does. In VN
+        // view either only shows the rest of the text, as a click does on the PC.
+        if (tapLookup && onLookUp(point.x, point.y)) {
+          onReadOn(false);
+          return;
+        }
+        if (lookupClosedAt() >= began.now - closingPress) {
+          onReadOn(false);
+          return;
+        }
         const across = point.x / window.innerWidth;
-        if (across < sideZone) onTurn(leftAdvances ? "advance" : "retreat");
+        const back = leftAdvances ? across > 1 - sideZone : across < sideZone;
+        if (!touchTurns) setShown(true);
+        // VN view reads on from anywhere but the side that turns back; the footer and the
+        // clock show the controls.
+        else if (!back && onReadOn(true)) return;
+        else if (across < sideZone) onTurn(leftAdvances ? "advance" : "retreat");
         else if (across > 1 - sideZone) onTurn(leftAdvances ? "retreat" : "advance");
         else setShown(true);
         return;
       }
-      // A continuous book scrolls under the finger instead.
-      if (pageTurns.scrollAxis || Math.abs(dx) < swipeDistance || Math.abs(dx) < Math.abs(dy) * 1.5)
+      if (!touchTurns) return;
+      // A continuous book scrolls under the finger instead; a chapter shown alone turns to
+      // its neighbour when the finger reads on from the chapter's edge.
+      if (pageTurns.scrollAxis) {
+        const vertical = pageTurns.scrollAxis === "vertical";
+        const along = vertical ? dy : dx;
+        const across = vertical ? dx : dy;
+        if (!began.edges || Math.abs(along) < swipeDistance) return;
+        if (Math.abs(along) < Math.abs(across) * 1.5) return;
+        const direction = (vertical ? along < 0 : leftAdvances === along > 0)
+          ? "advance"
+          : "retreat";
+        if (began.edges[direction]) onTurn(direction);
         return;
+      }
+      if (Math.abs(dx) < swipeDistance || Math.abs(dx) < Math.abs(dy) * 1.5) return;
       onTurn(leftAdvances === dx > 0 ? "advance" : "retreat");
     };
     touchRef.current = touched;
@@ -365,7 +476,7 @@ export function MobileReader({
 
   return (
     <>
-      {ready && (
+      {ready && (readerShowClock || readerShowReadingTime) && (
         <button
           aria-label={t("mobileReader.showControls")}
           className="mobile-reader__status"
@@ -373,25 +484,28 @@ export function MobileReader({
           type="button"
         >
           <ReaderReadingStatus
-            clock
-            readingTime
+            clock={readerShowClock}
+            readingTime={readerShowReadingTime}
             readingMs={session.readingMs}
             session={session.state}
           />
         </button>
       )}
-      {ready && progress?.total ? (
+      {ready && footer.length ? (
         <button
           aria-label={t("mobileReader.showControls")}
           className="mobile-reader__footer"
           onClick={() => setShown(true)}
           type="button"
         >
-          {/* One run of text, so the flex button keeps the spaces around the dot. */}
+          {/* One run of text, so the flex button keeps the spaces around the dots. */}
           <span>
-            <BookPosition current={progress.current} total={progress.total} unit={progress.unit} />
-            {" · "}
-            {percent(progress.current, progress.total)}%
+            {footer.map((part, index) => (
+              <Fragment key={index}>
+                {index > 0 && " · "}
+                {part}
+              </Fragment>
+            ))}
           </span>
         </button>
       ) : null}
@@ -498,7 +612,11 @@ export function MobileReader({
         progress={progress}
         title={title}
       />
-      <AppearanceSheet onClose={() => setAppearanceOpen(false)} open={appearanceOpen} />
+      <AppearanceSheet
+        onClose={() => setAppearanceOpen(false)}
+        open={appearanceOpen}
+        panel={appearance}
+      />
       <ContinueFromDialog
         chapterAt={(offset) => chapterAt(entries, offset)?.label}
         conflict={ready ? sync.conflict : null}
@@ -881,7 +999,15 @@ function SelectionToolbar({
   );
 }
 
-function AppearanceSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+function AppearanceSheet({
+  open,
+  onClose,
+  panel,
+}: {
+  open: boolean;
+  onClose: () => void;
+  panel: ReaderAppearancePanelProps;
+}) {
   const { t } = useI18n();
   const appearance = useAppearance();
   return (
@@ -922,47 +1048,24 @@ function AppearanceSheet({ open, onClose }: { open: boolean; onClose: () => void
           </button>
         ))}
       </div>
-      <div className="mobile-group mobile-reader-appearance__rows">
-        <Stepper
-          label={t("appearancePanel.fontSize")}
-          max={readerFontSize.max}
-          min={readerFontSize.min}
-          onChange={appearance.setReaderFontSize}
-          step={readerFontSize.step}
-          unit={t("unit.px")}
-          value={appearance.readerFontSize}
-        />
-        <Stepper
-          format={(value) => value.toFixed(2)}
-          label={t("appearancePanel.lineHeight")}
-          max={readerLineHeight.max}
-          min={readerLineHeight.min}
-          onChange={appearance.setReaderLineHeight}
-          step={readerLineHeight.step}
-          value={appearance.readerLineHeight}
-        />
-        <Stepper
-          label={t("appearancePanel.pageMargin")}
-          max={readerSideMargin.max}
-          min={readerSideMargin.min}
-          onChange={appearance.setReaderPageMargin}
-          step={readerSideMargin.step}
-          unit={t("unit.px")}
-          value={appearance.readerPageMargin}
-        />
-      </div>
-      <SegmentedControl
-        label={t("appearancePanel.writingMode")}
-        onChange={appearance.setReaderWritingMode}
-        options={writingModes.map((mode) => ({ value: mode.value, label: t(mode.label) }))}
-        value={appearance.readerWritingMode}
-      />
-      <SegmentedControl
-        label={t("appearancePanel.viewMode")}
-        onChange={appearance.setReaderViewMode}
-        options={viewModes.map((mode) => ({ value: mode.value, label: t(mode.label) }))}
-        value={appearance.readerViewMode}
-      />
+      <ReaderAppearancePanel {...panel} touch />
+      <section className="reader-appearance-card" aria-labelledby="mobile-reader-touch">
+        <h3 className="reader-appearance-card__title" id="mobile-reader-touch">
+          {t("appearancePanel.touch")}
+        </h3>
+        <div className="reader-appearance-rows">
+          <ToggleSetting
+            label={t("popupSettings.tapLookup")}
+            checked={appearance.readerTapLookup}
+            onChange={appearance.setReaderTapLookup}
+          />
+          <ToggleSetting
+            label={t("appearancePanel.touchTurns")}
+            checked={appearance.readerTouchPageTurns}
+            onChange={appearance.setReaderTouchPageTurns}
+          />
+        </div>
+      </section>
     </MobileSheet>
   );
 }

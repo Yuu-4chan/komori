@@ -204,11 +204,13 @@ interface EpubManager {
   layout: {
     height: number;
     delta?: number;
-    /** One page's width without its gap. */
+    /** A column's width: a page's without its gap two pages across, the whole page's on one. */
     columnWidth?: number;
+    /** The space between pages, which one page across is its two margins. */
+    gap?: number;
     /** Pages in a spread: 2 when a double layout has room for two, else 1. */
     divisor?: number;
-    /** One page's width, a column and its gap. */
+    /** One page's width, its margins included. */
     pageWidth?: number;
     _spread?: boolean;
     _minSpreadWidth?: number;
@@ -353,6 +355,16 @@ interface EpubView {
   offset?(): { left: number; top: number };
   /** Where a CFI or fragment lies in the view's section. */
   locationOf?(target: string): { left: number; top: number };
+}
+
+/**
+ * The width inside a paginated page's margins, which images fit in. Two pages across,
+ * EPUB.js's columnWidth excludes the gap; one page across it is the whole page.
+ */
+export function pageInnerWidth(layout: EpubManager["layout"]): number | undefined {
+  if (layout.pageWidth !== undefined && layout.gap !== undefined)
+    return Math.max(1, layout.pageWidth - layout.gap);
+  return layout.columnWidth;
 }
 
 /** EPUB.js's layout, which formats each section for the view manager. */
@@ -2169,8 +2181,10 @@ class EpubRenderer implements ReaderRenderer {
       this.continuous && !this.fixedLayout ? area?.clientWidth : undefined,
       this.continuous && !this.fixedLayout ? area?.clientHeight : undefined,
     );
-    // EPUB.js's horizontal columnWidth already excludes the gap. Its adjustImages()
-    // subtracts body padding (the same gap) again, collapsing large-margin images.
+    // The width inside a page's margins. Two pages across, EPUB.js's columnWidth already
+    // excludes the gap and its adjustImages() subtracts body padding (the same gap) again,
+    // collapsing large-margin images; one page across, columnWidth is the whole page, the
+    // margins included. A page is pageWidth wide either way, the gap its two margins.
     // Correct this width limit; fixed pages keep EPUB.js's sizing.
     const manager = this.manager();
     const width =
@@ -2178,7 +2192,7 @@ class EpubRenderer implements ReaderRenderer {
       !this.fixedLayout &&
       manager?.settings?.axis === "horizontal" &&
       this.presentation.sideMargin !== undefined
-        ? manager.layout.columnWidth
+        ? pageInnerWidth(manager.layout)
         : undefined;
     if (!this.fixedLayout) {
       const horizontal = !document.documentElement.style.writingMode.startsWith("vertical");
@@ -3771,6 +3785,12 @@ class EpubRenderer implements ReaderRenderer {
     if (distance && this.atChapterEdge(distance > 0 ? "advance" : "retreat")) return false;
     this.scrollReading(distance);
     return true;
+  }
+
+  chapterEdge(direction: "advance" | "retreat"): boolean {
+    if (!this.continuous || !this.ready || this.disposed) return false;
+    if (this.turnPending || this.layoutPending) return false;
+    return this.atChapterEdge(direction);
   }
 
   /** Scroll a continuous book by a distance along its reading order. */
@@ -6010,8 +6030,12 @@ function pagePoint(
  * area, the offset moves to the first displayed character (or just past the last). A
  * page start whose node has characters from it rendered outside the reading area and
  * none inside is undefined.
+ *
+ * A node's characters before the reading area lie on one side of it and those after it
+ * on the other, so the first (or last) displayed one is found by halving: a long
+ * paragraph without spaces would otherwise be measured a character at a time.
  */
-function displayedTextOffset(
+export function displayedTextOffset(
   host: HTMLElement,
   document: Document,
   node: Node,
@@ -6024,32 +6048,77 @@ function displayedTextOffset(
   const origin = frame.getBoundingClientRect();
   const area = host.getBoundingClientRect();
   const probe = document.createRange();
-  // Whether the character at an index is rendered, and if so, within the reading area.
-  const place = (index: number, length: number) => {
+  const length = (index: number) => ((text.codePointAt(index) ?? 0) > 0xffff ? 2 : 1);
+  // The character holding an index, at the start of a surrogate pair.
+  const character = (index: number) =>
+    index > 0 && (text.codePointAt(index - 1) ?? 0) > 0xffff ? index - 1 : index;
+  // Whether the character at an index is rendered, and if so, within the reading area or
+  // on which side of it along each axis.
+  const place = (index: number): "hidden" | "inside" | { x: number; y: number } => {
     probe.setStart(node, index);
-    probe.setEnd(node, index + length);
+    probe.setEnd(node, index + length(index));
     const box = probe.getClientRects?.()[0];
     if (!box?.width && !box?.height) return "hidden";
-    return withinArea(origin, area, box) ? "inside" : "outside";
+    if (withinArea(origin, area, box)) return "inside";
+    const top = origin.top + box.top;
+    const left = origin.left + box.left;
+    return {
+      x: left + box.width <= area.left ? -1 : left >= area.right ? 1 : 0,
+      y: top + box.height <= area.top ? -1 : top >= area.bottom ? 1 : 0,
+    };
   };
-  let outside = false;
+  const beside = (found: ReturnType<typeof place>, side: { x: number; y: number }) =>
+    typeof found === "object" &&
+    ((!!side.x && found.x === side.x) || (!!side.y && found.y === side.y));
+  // The first rendered character from an index before a limit, if any.
+  const rendered = (from: number, limit: number) => {
+    for (let index = from; index < limit; index += length(index)) {
+      const found = place(index);
+      if (found !== "hidden") return { index, found };
+    }
+    return undefined;
+  };
   if (edge === "start") {
-    for (let index = offset; index < text.length;) {
-      const length = (text.codePointAt(index) ?? 0) > 0xffff ? 2 : 1;
-      const found = place(index, length);
-      if (found === "inside") return outside ? index : offset;
-      if (found === "outside") outside = true;
-      index += length;
+    const first = rendered(offset, text.length);
+    if (!first || first.found === "inside") return offset;
+    const side = first.found;
+    // Every rendered character before `low` lies on the earlier side; the first one
+    // from `low` that does not is at or before `high`.
+    let low = first.index + length(first.index);
+    let high = text.length;
+    while (low < high) {
+      const middle = Math.max(low, character(Math.floor((low + high) / 2)));
+      const next = rendered(middle, high);
+      if (!next) high = middle;
+      else if (beside(next.found, side)) low = next.index + length(next.index);
+      else high = next.index;
     }
-    if (outside) return undefined;
-  } else {
-    for (let index = offset; index > 0;) {
-      const length = index > 1 && (text.codePointAt(index - 2) ?? 0) > 0xffff ? 2 : 1;
-      index -= length;
-      const found = place(index, length);
-      if (found === "inside") return outside ? index + length : offset;
-      if (found === "outside") outside = true;
-    }
+    const shown = rendered(low, text.length);
+    return shown?.found === "inside" ? shown.index : undefined;
+  }
+  let last: { index: number; found: Exclude<ReturnType<typeof place>, "hidden"> } | undefined;
+  for (let index = offset; index > 0 && !last;) {
+    index = character(index - 1);
+    const found = place(index);
+    if (found !== "hidden") last = { index, found };
+  }
+  if (!last || last.found === "inside") return offset;
+  const side = last.found;
+  // The smallest index from which every rendered character before the last one lies on
+  // the later side.
+  let low = 0;
+  let high = last.index;
+  while (low < high) {
+    const middle = Math.max(low, character(Math.floor((low + high) / 2)));
+    const next = rendered(middle, high);
+    if (!next || beside(next.found, side)) high = middle;
+    else low = next.index + length(next.index);
+  }
+  for (let index = low; index > 0;) {
+    index = character(index - 1);
+    const found = place(index);
+    if (found === "hidden") continue;
+    return found === "inside" ? index + length(index) : offset;
   }
   return offset;
 }

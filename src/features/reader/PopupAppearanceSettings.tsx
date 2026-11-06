@@ -46,7 +46,10 @@ export function PopupAppearanceSettings() {
     readerPopupStyle,
     readerTheme,
     readerCustomThemes,
+    readerLookupDisplay,
   } = useAppearance();
+  // Lookups float by the word on the PC, and on the phone when Popup is chosen over the sheet.
+  const floating = !isAndroid || readerLookupDisplay === "popup";
   const page = resolveReaderTheme(readerTheme, readerCustomThemes);
   const dictionaryStyle = readerPopupStyle === "dictionary";
   const { t } = useI18n();
@@ -114,8 +117,8 @@ export function PopupAppearanceSettings() {
         </div>
       )}
       <div className="settings-list">
-        {/* The phone's lookups open in a sheet of its own size and shape. */}
-        {!isAndroid && (
+        {/* The phone's sheet has a size and shape of its own; its popup takes these. */}
+        {floating && (
           <>
             <div className="settings-field">
               <Stepper
@@ -165,7 +168,7 @@ export function PopupAppearanceSettings() {
             onChange={setReaderPopupLineHeight}
           />
         </div>
-        {!isAndroid && (
+        {floating && (
           <div className="settings-field">
             <Stepper
               label={t("popupSettings.radius")}

@@ -6,7 +6,7 @@ import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prepareReaderContent } from "./contentApi";
-import { epubRendererFactory } from "./epubRenderer";
+import { displayedTextOffset, epubRendererFactory } from "./epubRenderer";
 import { EpubResourceLimit, InvalidEpubDocument } from "./epubTolerance";
 import { NativeZip } from "./nativeArchive";
 import { svgPageDocument } from "./svgPage";
@@ -3829,6 +3829,34 @@ describe("EPUB.js renderer adapter", () => {
     rendition.manager.settings.axis = "vertical";
     await renderer.setPresentation!({ fontSize: 16, writingMode: "vertical", sideMargin: 400 });
     expect(item.document.querySelector("style[data-komori-page-image-width]")).toBeNull();
+    renderer.dispose();
+  });
+
+  it.each([
+    ["one page across, whose column is the whole page", 1, 412, 412, 332],
+    ["two pages across, whose column excludes the gap", 2, 584, 664, 584],
+  ])("fits images inside the margins %s", async (_case, divisor, columnWidth, pageWidth, inner) => {
+    const item = section("one.xhtml", "", true, '<p>Text</p><img src="wide.png"/>');
+    const { book, rendition } = mockBook([item]);
+    Object.assign(rendition.manager.layout, { columnWidth, pageWidth, gap: 80, divisor });
+    rendition.display.mockImplementation(async () => {
+      for (const [hook] of book.spine.hooks.content.register.mock.calls)
+        await (hook as (document: Document) => unknown)(item.document);
+    });
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 16, writingMode: "horizontal", sideMargin: 40 },
+    );
+    expect(
+      item.document.querySelector("style[data-komori-page-image-width]")?.textContent,
+    ).toContain(`max-width: ${inner}px !important`);
     renderer.dispose();
   });
 
@@ -11870,5 +11898,114 @@ describe("EPUB.js renderer adapter", () => {
       view.renderer.dispose();
       view.iframe.remove();
     });
+  });
+});
+
+describe("the displayed text offset of a page edge", () => {
+  // Pages of 40 characters, 20 px each; every 13th character (a collapsed space) has no box.
+  type Layout = "pages" | "pages-rtl" | "scroll";
+  function frameText(text: string, layout: Layout) {
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    const frameDocument = iframe.contentDocument!;
+    frameDocument.body.textContent = text;
+    vi.spyOn(iframe, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 0,
+      height: 0,
+      right: 0,
+      bottom: 0,
+    } as DOMRect);
+    const view = frameDocument.defaultView as unknown as { Range: typeof Range };
+    const probes = { count: 0 };
+    Object.defineProperty(view.Range.prototype, "getClientRects", {
+      configurable: true,
+      value(this: Range) {
+        probes.count++;
+        const index = this.startOffset;
+        if (index % 13 === 12) return [{ top: 0, left: 0, width: 0, height: 0 }];
+        const page = Math.floor(index / 40);
+        const along = (index % 40) * 0.4;
+        if (layout === "scroll")
+          return [{ top: page * 500 + along, left: 5, width: 0.4, height: 10 }];
+        const left = layout === "pages" ? page * 500 + along : -page * 500 + along;
+        return [{ top: 10, left, width: 0.4, height: 10 }];
+      },
+    });
+    const node = frameDocument.body.firstChild!;
+    const host = (page: number) => {
+      const element = document.createElement("div");
+      const start = layout === "pages-rtl" ? -page * 500 : page * 500;
+      vi.spyOn(element, "getBoundingClientRect").mockReturnValue(
+        (layout === "scroll"
+          ? { top: start, bottom: start + 500, left: 0, right: 500, width: 500, height: 500 }
+          : {
+              top: 0,
+              bottom: 500,
+              left: start,
+              right: start + 500,
+              width: 500,
+              height: 500,
+            }) as DOMRect,
+      );
+      return element;
+    };
+    return { frameDocument, node, host, probes, remove: () => iframe.remove() };
+  }
+
+  // The former character-by-character walk, which the halving search must match.
+  function walked(text: string, page: number, offset: number, edge: "start" | "end") {
+    const box = (index: number) =>
+      index % 13 === 12 ? "hidden" : Math.floor(index / 40) === page ? "inside" : "outside";
+    let outside = false;
+    if (edge === "start") {
+      for (let index = offset; index < text.length; index++) {
+        const found = box(index);
+        if (found === "inside") return outside ? index : offset;
+        if (found === "outside") outside = true;
+      }
+      return outside ? undefined : offset;
+    }
+    for (let index = offset; index > 0;) {
+      index--;
+      const found = box(index);
+      if (found === "inside") return outside ? index + 1 : offset;
+      if (found === "outside") outside = true;
+    }
+    return offset;
+  }
+
+  it.each(["pages", "pages-rtl", "scroll"] as const)(
+    "finds the first and last displayed characters as a character walk does (%s)",
+    (layout) => {
+      const text = "あ".repeat(400);
+      const frame = frameText(text, layout);
+      for (const page of [0, 1, 4, 9])
+        for (const offset of [0, 1, 39, 40, 41, 77, 120, 200, 399, 400])
+          for (const edge of ["start", "end"] as const)
+            expect([
+              page,
+              offset,
+              edge,
+              displayedTextOffset(frame.host(page), frame.frameDocument, frame.node, offset, edge),
+            ]).toEqual([page, offset, edge, walked(text, page, offset, edge)]);
+      frame.remove();
+    },
+  );
+
+  it("measures a long paragraph's page edge in a few probes", () => {
+    const text = "あ".repeat(20_000);
+    const frame = frameText(text, "pages");
+    expect(displayedTextOffset(frame.host(300), frame.frameDocument, frame.node, 0, "start")).toBe(
+      12_000,
+    );
+    expect(frame.probes.count).toBeLessThan(60);
+    frame.probes.count = 0;
+    expect(
+      displayedTextOffset(frame.host(300), frame.frameDocument, frame.node, 20_000, "end"),
+    ).toBe(12_040);
+    expect(frame.probes.count).toBeLessThan(60);
+    frame.remove();
   });
 });

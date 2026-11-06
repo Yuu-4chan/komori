@@ -816,6 +816,13 @@ export function useReaderRenderer(
     return active.renderer.scrollBy(distance) !== false ? "scrolled" : "edge";
   }
 
+  /** Whether a chapter shown alone is at its edge in a direction; see the renderer's. */
+  function chapterEdge(direction: "advance" | "retreat"): boolean {
+    const active = activeRef.current;
+    if (!active?.ready || active.factory !== factory || active.navigationPending) return false;
+    return active.renderer.chapterEdge?.(direction) ?? false;
+  }
+
   /**
    * The browser scrolls a continuously displayed book itself, as a sideways or Shift wheel
    * does across a vertical book's lines: that is reading on, like `scrollWithin`.
@@ -868,6 +875,7 @@ export function useReaderRenderer(
     turnPage,
     scrollBy,
     scrollWithin,
+    chapterEdge,
     scrolledNatively,
     scrollTrack,
     contents: visible.contents,

@@ -49,6 +49,11 @@ export interface ReaderRenderer {
    */
   scrollBy?(distance: number): boolean;
   /**
+   * Whether a book scrolling one chapter at a time is at the end (or start) of its chapter
+   * with another chapter after (or before) it, where reading on turns to that chapter.
+   */
+  chapterEdge?(direction: "advance" | "retreat"): boolean;
+  /**
    * A continuously displayed book's scroll position along its reading order, for the
    * Reader's own scrollbar at the window's edge. Null while the book turns pages.
    */

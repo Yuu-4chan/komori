@@ -72,6 +72,7 @@ import type { ReadingSpeed } from "../statistics/readingSession";
 import type { ReaderFooterPreferences } from "./footerPreferences";
 import { ReaderScrollbar } from "./ReaderScrollbar";
 import { flattenContents, ReaderSidebar, type ReaderSidebarView } from "./ReaderSidebar";
+import type { ReaderAppearancePanelProps } from "./ReaderAppearancePanel";
 import { ReaderViewport } from "./ReaderViewport";
 import { ReaderBackgroundSurface } from "./ReaderBackground";
 import { ReaderImageViewer, type ImageViewerSession } from "./ReaderImageViewer";
@@ -123,8 +124,8 @@ const MobileReader =
         import("../../mobile/MobileReader").then((module) => ({ default: module.MobileReader })),
       )
     : null;
-// There, a lookup opens in a sheet from the edge of the screen.
-const MobileLookupSheet =
+// There, a lookup opens in a sheet from the edge of the screen, or in the popup by the word.
+const LazyLookupSheet =
   import.meta.env.TAURI_ENV_PLATFORM === "android"
     ? lazy(() =>
         import("../../mobile/MobileLookupSheet").then((module) => ({
@@ -317,6 +318,8 @@ export function ReaderShell({
   const definitionSources = useDefinitionSources(true, lookupLanguage);
   const lookup = lookups[0] ?? null;
   const lookupOpen = useRef(false);
+  // When a press last closed the lookup, so the phone's tap that did reads on no further.
+  const lookupPressClosedAt = useRef(Number.NEGATIVE_INFINITY);
   lookupOpen.current = lookup !== null;
   const lookupIds = useRef(0);
   const popupRef = useRef<HTMLElement>(null);
@@ -522,8 +525,10 @@ export function ReaderShell({
       const pointer = () => {
         clearEscape();
         closingLookup = lookupOpen.current;
-        if (lookupOpen.current && triggersRef.current.readerPopupCloseBehavior !== "persistent")
+        if (lookupOpen.current && triggersRef.current.readerPopupCloseBehavior !== "persistent") {
+          lookupPressClosedAt.current = performance.now();
           closeLookup();
+        }
       };
       // A plain click on a saved passage offers to open it in Notes or delete it.
       const noteClick = (event: MouseEvent) => {
@@ -638,6 +643,7 @@ export function ReaderShell({
     turnPage,
     scrollBy,
     scrollWithin,
+    chapterEdge,
     scrolledNatively,
     scrollTrack,
     contents,
@@ -1548,8 +1554,10 @@ export function ReaderShell({
       if (
         triggersRef.current.readerPopupCloseBehavior !== "persistent" &&
         !insidePopup(event.target)
-      )
+      ) {
+        lookupPressClosedAt.current = performance.now();
         closeLookup();
+      }
     };
     document.addEventListener("pointerdown", outside, true);
     return () => document.removeEventListener("pointerdown", outside, true);
@@ -1574,8 +1582,9 @@ export function ReaderShell({
     return () => media.removeEventListener("change", closeOnCompact);
   }, []);
 
-  // The lookup popups, deepest last; the phone shows the deepest in its sheet and keeps the
-  // others under it for Back.
+  // The lookup popups, deepest last; the phone's sheet shows the deepest and keeps the others
+  // under it for Back.
+  const MobileLookupSheet = appearance.readerLookupDisplay === "sheet" ? LazyLookupSheet : null;
   const lookupPopups = lookups.map((shown, depth) => (
     <ReaderLookupPopup
       key={shown.id}
@@ -1712,6 +1721,65 @@ export function ReaderShell({
     },
   };
 
+  // The Appearance panel, in the sidebar on the PC and in the Reader's sheet on the phone.
+  const appearancePanel: ReaderAppearancePanelProps = {
+    footer: appearance,
+    onFooterChange: appearance.setReaderFooter,
+    fontSize: readerFontSize,
+    onFontSizeChange: setReaderFontSize,
+    lineHeight: readerLineHeight,
+    onLineHeightChange: setReaderLineHeight,
+    letterSpacing: readerLetterSpacing,
+    onLetterSpacingChange: setReaderLetterSpacing,
+    wordSpacing: readerWordSpacing,
+    onWordSpacingChange: setReaderWordSpacing,
+    paragraphIndent: readerParagraphIndent,
+    onParagraphIndentChange: setReaderParagraphIndent,
+    paragraphMargin: readerParagraphMargin,
+    onParagraphMarginChange: setReaderParagraphMargin,
+    pageMargin: readerPageMargin,
+    onPageMarginChange: setReaderPageMargin,
+    maxWidth: readerMaxWidth,
+    onMaxWidthChange: setReaderMaxWidth,
+    monitor,
+    pageLayout: readerPageLayout,
+    onPageLayoutChange: setReaderPageLayout,
+    maxHeight: readerMaxHeight,
+    onMaxHeightChange: changeMaxHeight,
+    writingMode: readerWritingMode,
+    onWritingModeChange: setReaderWritingMode,
+    textOrientation: readerTextOrientation,
+    onTextOrientationChange: setReaderTextOrientation,
+    textJustification: readerTextJustification,
+    onTextJustificationChange: setReaderTextJustification,
+    prettyTextWrap: readerPrettyTextWrap,
+    onPrettyTextWrapChange: setReaderPrettyTextWrap,
+    hideFurigana: readerHideFurigana,
+    onHideFuriganaChange: setReaderHideFurigana,
+    furiganaStyle: readerFuriganaStyle,
+    onFuriganaStyleChange: setReaderFuriganaStyle,
+    blurImage: readerBlurImage,
+    onBlurImageChange: setReaderBlurImage,
+    blurMode: readerBlurMode,
+    onBlurModeChange: setReaderBlurMode,
+    imageBlurBoundary: status === "ready" ? imageBlurBoundary : undefined,
+    vnNotice: pageTurns.vnNotice,
+    asianFont,
+    onAsianFontChange: (font: ReaderFontChoice) =>
+      fontLanguage
+        ? appearance.setReaderAsianFontForLanguage(fontLanguage, font)
+        : appearance.setReaderAsianFont(font),
+    viewMode: readerViewMode,
+    onViewModeChange: setReaderViewMode,
+    wheelStep: readerWheelStep,
+    onWheelStepChange: setReaderWheelStep,
+    theme: readerTheme,
+    customThemes: readerCustomThemes,
+    onThemeChange: setReaderTheme,
+    onCreateCustomTheme: createReaderCustomTheme,
+    onCustomThemeChange: updateReaderCustomTheme,
+    onDeleteCustomTheme: deleteReaderCustomTheme,
+  };
   return (
     <div
       ref={shellRef}
@@ -1828,64 +1896,7 @@ export function ReaderShell({
             if (event.relatedTarget && !pointerOverSidebar.current && !sidebarPinned)
               setSidebarShown(false);
           }}
-          appearance={{
-            footer: appearance,
-            onFooterChange: appearance.setReaderFooter,
-            fontSize: readerFontSize,
-            onFontSizeChange: setReaderFontSize,
-            lineHeight: readerLineHeight,
-            onLineHeightChange: setReaderLineHeight,
-            letterSpacing: readerLetterSpacing,
-            onLetterSpacingChange: setReaderLetterSpacing,
-            wordSpacing: readerWordSpacing,
-            onWordSpacingChange: setReaderWordSpacing,
-            paragraphIndent: readerParagraphIndent,
-            onParagraphIndentChange: setReaderParagraphIndent,
-            paragraphMargin: readerParagraphMargin,
-            onParagraphMarginChange: setReaderParagraphMargin,
-            pageMargin: readerPageMargin,
-            onPageMarginChange: setReaderPageMargin,
-            maxWidth: readerMaxWidth,
-            onMaxWidthChange: setReaderMaxWidth,
-            monitor,
-            pageLayout: readerPageLayout,
-            onPageLayoutChange: setReaderPageLayout,
-            maxHeight: readerMaxHeight,
-            onMaxHeightChange: changeMaxHeight,
-            writingMode: readerWritingMode,
-            onWritingModeChange: setReaderWritingMode,
-            textOrientation: readerTextOrientation,
-            onTextOrientationChange: setReaderTextOrientation,
-            textJustification: readerTextJustification,
-            onTextJustificationChange: setReaderTextJustification,
-            prettyTextWrap: readerPrettyTextWrap,
-            onPrettyTextWrapChange: setReaderPrettyTextWrap,
-            hideFurigana: readerHideFurigana,
-            onHideFuriganaChange: setReaderHideFurigana,
-            furiganaStyle: readerFuriganaStyle,
-            onFuriganaStyleChange: setReaderFuriganaStyle,
-            blurImage: readerBlurImage,
-            onBlurImageChange: setReaderBlurImage,
-            blurMode: readerBlurMode,
-            onBlurModeChange: setReaderBlurMode,
-            imageBlurBoundary: status === "ready" ? imageBlurBoundary : undefined,
-            vnNotice: pageTurns.vnNotice,
-            asianFont,
-            onAsianFontChange: (font: ReaderFontChoice) =>
-              fontLanguage
-                ? appearance.setReaderAsianFontForLanguage(fontLanguage, font)
-                : appearance.setReaderAsianFont(font),
-            viewMode: readerViewMode,
-            onViewModeChange: setReaderViewMode,
-            wheelStep: readerWheelStep,
-            onWheelStepChange: setReaderWheelStep,
-            theme: readerTheme,
-            customThemes: readerCustomThemes,
-            onThemeChange: setReaderTheme,
-            onCreateCustomTheme: createReaderCustomTheme,
-            onCustomThemeChange: updateReaderCustomTheme,
-            onDeleteCustomTheme: deleteReaderCustomTheme,
-          }}
+          appearance={appearancePanel}
         />
       )}
       <div
@@ -1916,6 +1927,7 @@ export function ReaderShell({
           <Suspense fallback={null}>
             <MobileReader
               identity={identity}
+              appearance={appearancePanel}
               ready={status === "ready" && !reflowing}
               turning={turning}
               progress={status === "ready" ? progress : null}
@@ -1923,6 +1935,7 @@ export function ReaderShell({
               contents={contents}
               currentEntryId={currentEntryId}
               session={session}
+              speed={speed}
               bookmarks={bookmarks}
               captureBookmark={captureBookmark}
               tools={{
@@ -1968,7 +1981,14 @@ export function ReaderShell({
                 turnPage(direction);
               }}
               onLookUp={(x, y) => triggersRef.current.readerPopupEnabled && lookupAt(x, y)}
+              lookup={{
+                open: !!lookup,
+                closedAt: () => lookupPressClosedAt.current,
+                back: () => (lookups.length > 1 ? closeDeepestLookup() : closeLookup()),
+              }}
               onScroll={scrolledNatively}
+              onChapterEdge={chapterEdge}
+              onReadOn={(advance) => vnStep.current?.(advance) ?? false}
               onGoToEntry={(id) => {
                 closeLookup();
                 void jumpRemembering((settled) => goToContentsEntry(id, settled));

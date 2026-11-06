@@ -911,9 +911,42 @@ fn fetch(path: &str, limit: usize, progress: &dyn Fn(usize)) -> Result<Vec<u8>, 
         Ok(result)
     }
 }
+/// Elsewhere, as on the phone, the same fixed host, limits, timeouts and no redirects through
+/// Komori's HTTP client.
 #[cfg(not(windows))]
-fn fetch(_: &str, _: usize, _: &dyn Fn(usize)) -> Result<Vec<u8>, String> {
-    Err("Font downloads require Windows.".into())
+fn fetch(path: &str, limit: usize, progress: &dyn Fn(usize)) -> Result<Vec<u8>, String> {
+    use reqwest::{redirect::Policy, StatusCode};
+    use std::time::{Duration, Instant};
+    let error = || "Could not download font. Check your connection and retry.".to_string();
+    let client = crate::http::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .read_timeout(Duration::from_secs(15))
+        .redirect(Policy::none())
+        .build()
+        .map_err(|_| error())?;
+    let started = Instant::now();
+    tauri::async_runtime::block_on(async {
+        let mut response = client
+            .get(format!("https://raw.githubusercontent.com{path}"))
+            .send()
+            .await
+            .map_err(|_| error())?;
+        if response.status() != StatusCode::OK {
+            return Err(error());
+        }
+        let mut result = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(|_| error())? {
+            if started.elapsed().as_secs() > 90 {
+                return Err(error());
+            }
+            if result.len() + chunk.len() > limit {
+                return Err("Font download exceeded its size limit.".into());
+            }
+            result.extend_from_slice(&chunk);
+            progress(result.len());
+        }
+        Ok(result)
+    })
 }
 
 pub(crate) fn serve_font(

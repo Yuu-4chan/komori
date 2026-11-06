@@ -1,3 +1,4 @@
+import { isAndroid } from "../../app/platform";
 import { i18n, type MessageKey } from "../../i18n/i18n";
 import { readerSerifFonts, readerSansFonts, readerInterFace } from "./fontFamilies";
 import catalog from "./googleFontCatalog.json";
@@ -77,9 +78,13 @@ export interface SystemFontFace {
   weight: number;
   style: "normal" | "italic";
 }
-/** Noto Sans JP comes with Komori, and Georgia with Windows. */
+/** Presets that come with Windows, which a phone does not have. */
+const windowsPresets = ["georgia", "segoe-ui", "yu-mincho", "yu-gothic"];
+/** Noto Sans JP comes with Komori, Georgia with Windows, and a phone has its system serif. */
 export const defaultAsianFont: ReaderFontChoice = { source: "google", id: "noto-sans-jp" };
-export const defaultWesternFont: ReaderFontChoice = { source: "preset", id: "georgia" };
+export const defaultWesternFont: ReaderFontChoice = isAndroid
+  ? { source: "preset", id: "serif" }
+  : { source: "preset", id: "georgia" };
 /** The lookup popup's text is in Zen Old Mincho, which comes with Komori, until another is chosen. */
 export const defaultPopupFont: ReaderFontChoice = { source: "google", id: "zen-old-mincho" };
 /** Windows' own fonts for scripts Komori's Japanese fonts only partly cover. */
@@ -144,6 +149,9 @@ export function isReaderFontChoice(value: unknown): value is ReaderFontChoice {
   return c.source === "google" && googleFonts.some((f) => f.id === c.id);
 }
 export function normalizeFontChoice(value: unknown, legacy: unknown): ReaderFontChoice | undefined {
+  // A phone saved Windows' Georgia as its default once; it reads as the phone's default.
+  if (isAndroid && isReaderFontChoice(value) && value.source === "preset")
+    return windowsPresets.includes(value.id) ? undefined : value;
   if (value !== undefined) return isReaderFontChoice(value) ? value : undefined;
   return presetFonts.some((f) => f.value === legacy)
     ? { source: "preset", id: legacy as string }

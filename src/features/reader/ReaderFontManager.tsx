@@ -7,6 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { isAndroid } from "../../app/platform";
 import { DialogCaption } from "../../components/layout/WindowControls";
 import { useBackdropDismiss } from "../../components/ui/backdropDismiss";
 import { Button } from "../../components/ui/Button";
@@ -89,14 +90,17 @@ export function ReaderFontManager({
         </div>
         <div className="font-manager__toolbar">
           <TextField label={t("fonts.search")} value={query} onChange={setQuery} />
-          <Button
-            tone="secondary"
-            icon={<UploadSimpleIcon aria-hidden="true" />}
-            disabled={!!pending}
-            onClick={() => void importReaderFonts()}
-          >
-            {t("fonts.import")}
-          </Button>
+          {/* Android has no picker for font files by path. */}
+          {!isAndroid && (
+            <Button
+              tone="secondary"
+              icon={<UploadSimpleIcon aria-hidden="true" />}
+              disabled={!!pending}
+              onClick={() => void importReaderFonts()}
+            >
+              {t("fonts.import")}
+            </Button>
+          )}
         </div>
         {pending && (
           <p role="status">

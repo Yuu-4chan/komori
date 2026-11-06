@@ -19,6 +19,7 @@ import {
   shortcutPresets,
 } from "./lookupTriggers";
 import { useAppearance } from "../appearance/AppearanceProvider";
+import { readerLookupDisplays } from "../appearance/appearancePreferences";
 import { useI18n } from "../../i18n/i18n";
 
 /**
@@ -51,6 +52,10 @@ export function ReaderPopupSettings({
     readerPopupStyle,
     setReaderPopupStyle,
     lookupLanguage,
+    readerLookupDisplay,
+    setReaderLookupDisplay,
+    readerTapLookup,
+    setReaderTapLookup,
   } = useAppearance();
   // The dictionary style shows none of the voice, pitch, frequency or Anki its switches add.
   const dictionaryStyle = readerPopupStyle === "dictionary";
@@ -73,6 +78,26 @@ export function ReaderPopupSettings({
             checked={readerPopupEnabled}
             onChange={setReaderPopupEnabled}
           />
+          {isAndroid && (
+            <>
+              <ToggleSetting
+                label={t("popupSettings.tapLookup")}
+                checked={readerTapLookup}
+                onChange={setReaderTapLookup}
+              />
+              <div className="settings-field">
+                <Select
+                  label={t("popupSettings.display")}
+                  value={readerLookupDisplay}
+                  options={readerLookupDisplays.map((display) => ({
+                    value: display,
+                    label: t(`popupSettings.display.${display}`),
+                  }))}
+                  onChange={setReaderLookupDisplay}
+                />
+              </div>
+            </>
+          )}
           <div className="settings-field">
             <Select
               label={t("popupSettings.style")}

@@ -96,6 +96,11 @@ export interface ReaderAppearancePanelProps extends ReaderThemeSectionProps {
   /** How far one mouse wheel step scrolls a continuous book, in pixels. */
   wheelStep: number;
   onWheelStepChange: (wheelStep: number) => void;
+  /**
+   * In the phone's Appearance sheet: no heading, theme or background (the sheet shows its own
+   * themes), none of the rows for a window, a wheel or pages across, and no hints.
+   */
+  touch?: boolean;
 }
 
 const viewModeOptions: { value: ReaderViewMode; label: MessageKey }[] = [
@@ -168,6 +173,7 @@ export function ReaderAppearancePanel({
   onViewModeChange,
   wheelStep,
   onWheelStepChange,
+  touch = false,
   ...theme
 }: ReaderAppearancePanelProps) {
   const {
@@ -183,9 +189,16 @@ export function ReaderAppearancePanel({
     options.map((option) => ({ value: option.value, label: t(option.label) }));
   return (
     <div className="reader-appearance-panel">
-      <ReaderPanelHeading eyebrow={t("appearancePanel.eyebrow")} title={t("sidebar.appearance")} />
-      <ReaderThemeSection {...theme} />
-      <ReaderBackgroundControls />
+      {!touch && (
+        <>
+          <ReaderPanelHeading
+            eyebrow={t("appearancePanel.eyebrow")}
+            title={t("sidebar.appearance")}
+          />
+          <ReaderThemeSection {...theme} />
+          <ReaderBackgroundControls />
+        </>
+      )}
       <section className="reader-appearance-card" aria-labelledby="reader-appearance-typography">
         <h3 className="reader-appearance-card__title" id="reader-appearance-typography">
           {t("appearancePanel.typography")}
@@ -258,7 +271,7 @@ export function ReaderAppearancePanel({
             options={translated(writingModeOptions)}
             onChange={onWritingModeChange}
           />
-          {viewMode === "paginated" && writingMode !== "vertical" && (
+          {!touch && viewMode === "paginated" && writingMode !== "vertical" && (
             <ChoiceField
               label={t("appearancePanel.pages")}
               value={pageLayout}
@@ -297,25 +310,33 @@ export function ReaderAppearancePanel({
             unit={t("unit.px")}
             onChange={onPageMarginChange}
           />
-          <Stepper
-            label={t("appearancePanel.maxWidth")}
-            value={maxWidth}
-            min={readerMaxWidth.min}
-            max={monitor ? Math.max(100, Math.ceil(monitor.width / 10) * 10) : readerMaxWidth.max}
-            step={readerMaxWidth.step}
-            unit={t("unit.px")}
-            onChange={onMaxWidthChange}
-          />
-          <Stepper
-            label={t("appearancePanel.maxHeight")}
-            value={maxHeight}
-            min={readerMaxHeight.min}
-            max={monitor ? Math.max(100, Math.ceil(monitor.height / 10) * 10) : readerMaxHeight.max}
-            step={readerMaxHeight.step}
-            unit={t("unit.px")}
-            onChange={onMaxHeightChange}
-          />
-          {(viewMode === "continuous" || viewMode === "semi-continuous") && (
+          {!touch && (
+            <>
+              <Stepper
+                label={t("appearancePanel.maxWidth")}
+                value={maxWidth}
+                min={readerMaxWidth.min}
+                max={
+                  monitor ? Math.max(100, Math.ceil(monitor.width / 10) * 10) : readerMaxWidth.max
+                }
+                step={readerMaxWidth.step}
+                unit={t("unit.px")}
+                onChange={onMaxWidthChange}
+              />
+              <Stepper
+                label={t("appearancePanel.maxHeight")}
+                value={maxHeight}
+                min={readerMaxHeight.min}
+                max={
+                  monitor ? Math.max(100, Math.ceil(monitor.height / 10) * 10) : readerMaxHeight.max
+                }
+                step={readerMaxHeight.step}
+                unit={t("unit.px")}
+                onChange={onMaxHeightChange}
+              />
+            </>
+          )}
+          {!touch && (viewMode === "continuous" || viewMode === "semi-continuous") && (
             <Stepper
               label={t("appearancePanel.wheelStep")}
               value={wheelStep}
@@ -343,7 +364,7 @@ export function ReaderAppearancePanel({
               />
             </>
           )}
-          {(viewMode === "paginated" || viewMode === "semi-continuous") && (
+          {!touch && (viewMode === "paginated" || viewMode === "semi-continuous") && (
             <Stepper
               label={t("appearancePanel.chapterThreshold")}
               value={readerChapterWheelThreshold}
@@ -355,7 +376,7 @@ export function ReaderAppearancePanel({
             />
           )}
         </div>
-        {viewMode === "vn" && vnNotice && (
+        {!touch && viewMode === "vn" && vnNotice && (
           <>
             <p className="reader-appearance-card__hint" role="status">
               {t(
@@ -416,7 +437,8 @@ export function ReaderAppearancePanel({
             />
           )}
         </div>
-        {prettyTextWrap &&
+        {!touch &&
+          prettyTextWrap &&
           typeof CSS !== "undefined" &&
           CSS.supports &&
           !CSS.supports("text-wrap", "pretty") && (
@@ -447,7 +469,8 @@ export function ReaderAppearancePanel({
             />
           )}
         </div>
-        {blurImage &&
+        {!touch &&
+          blurImage &&
           imageBlurBoundary &&
           (imageBlurBoundary === "fixed-layout" ? (
             <p className="reader-appearance-card__hint" role="status">

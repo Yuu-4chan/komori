@@ -502,22 +502,6 @@ li:only-child > .mobile-chapter .mobile-chapter__dot::before {
   white-space: nowrap;
 }
 
-.mobile-reader-appearance__rows {
-  padding: 0.25rem 0.875rem;
-}
-
-.mobile-reader-appearance__rows .stepper-field {
-  min-height: 3.5rem;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.mobile-reader-appearance__rows .stepper-field + .stepper-field {
-  border-top: 1px solid var(--border-soft);
-}
-
 .mobile-reader-appearance .segmented-control {
   width: 100%;
   grid-auto-columns: minmax(0, 1fr);

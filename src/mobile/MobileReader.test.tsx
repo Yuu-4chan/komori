@@ -2,7 +2,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
+import { AppearanceProvider, useAppearance } from "../features/appearance/AppearanceProvider";
+import type { ReaderAppearancePanelProps } from "../features/reader/ReaderAppearancePanel";
+import type { AppearancePreferences } from "../features/appearance/appearancePreferences";
 import type {
   ReaderBookmarkPlace,
   ReaderBookProgress,
@@ -10,6 +12,7 @@ import type {
 } from "../features/reader/renderer";
 import type { useBookmarks } from "../features/reader/useBookmarks";
 import type { useNotes } from "../features/reader/useNotes";
+import type { ReadingSpeed } from "../features/statistics/readingSession";
 import type { MobileReaderTools } from "./MobileReader";
 
 const invoke = vi.hoisted(() =>
@@ -18,6 +21,64 @@ const invoke = vi.hoisted(() =>
 vi.mock("@tauri-apps/api/core", () => ({ invoke, isTauri: () => false }));
 
 const { MobileReader } = await import("./MobileReader");
+
+/** The Appearance panel's props from the saved preferences, as the Reader passes them. */
+function usePanel(): ReaderAppearancePanelProps {
+  const a = useAppearance();
+  return {
+    footer: a,
+    onFooterChange: a.setReaderFooter,
+    fontSize: a.readerFontSize,
+    onFontSizeChange: a.setReaderFontSize,
+    lineHeight: a.readerLineHeight,
+    onLineHeightChange: a.setReaderLineHeight,
+    letterSpacing: a.readerLetterSpacing,
+    onLetterSpacingChange: a.setReaderLetterSpacing,
+    wordSpacing: a.readerWordSpacing,
+    onWordSpacingChange: a.setReaderWordSpacing,
+    paragraphIndent: a.readerParagraphIndent,
+    onParagraphIndentChange: a.setReaderParagraphIndent,
+    paragraphMargin: a.readerParagraphMargin,
+    onParagraphMarginChange: a.setReaderParagraphMargin,
+    pageMargin: a.readerPageMargin,
+    onPageMarginChange: a.setReaderPageMargin,
+    maxWidth: a.readerMaxWidth,
+    onMaxWidthChange: a.setReaderMaxWidth,
+    monitor: null,
+    pageLayout: a.readerPageLayout,
+    onPageLayoutChange: a.setReaderPageLayout,
+    maxHeight: a.readerMaxHeight,
+    onMaxHeightChange: a.setReaderMaxHeight,
+    writingMode: a.readerWritingMode,
+    onWritingModeChange: a.setReaderWritingMode,
+    textOrientation: a.readerTextOrientation,
+    onTextOrientationChange: a.setReaderTextOrientation,
+    textJustification: a.readerTextJustification,
+    onTextJustificationChange: a.setReaderTextJustification,
+    prettyTextWrap: a.readerPrettyTextWrap,
+    onPrettyTextWrapChange: a.setReaderPrettyTextWrap,
+    hideFurigana: a.readerHideFurigana,
+    onHideFuriganaChange: a.setReaderHideFurigana,
+    blurImage: a.readerBlurImage,
+    onBlurImageChange: a.setReaderBlurImage,
+    blurMode: a.readerBlurMode,
+    onBlurModeChange: a.setReaderBlurMode,
+    viewMode: a.readerViewMode,
+    onViewModeChange: a.setReaderViewMode,
+    wheelStep: a.readerWheelStep,
+    onWheelStepChange: a.setReaderWheelStep,
+    theme: a.readerTheme,
+    customThemes: a.readerCustomThemes,
+    onThemeChange: a.setReaderTheme,
+    onCreateCustomTheme: a.createReaderCustomTheme,
+    onCustomThemeChange: a.updateReaderCustomTheme,
+    onDeleteCustomTheme: a.deleteReaderCustomTheme,
+  };
+}
+
+function PhoneReader(props: Omit<Parameters<typeof MobileReader>[0], "appearance">) {
+  return <MobileReader {...props} appearance={usePanel()} />;
+}
 
 const place: ReaderBookmarkPlace = {
   locator: { spineIndex: 2, sectionKey: "s", contentKey: "c", progress: 0.25 },
@@ -56,13 +117,26 @@ const contents = [
 function reader({
   pageTurns = { canAdvance: true, canRetreat: true, forwardArrow: "ArrowRight" },
   bookmarked = false,
-}: { pageTurns?: ReaderPageTurnAvailability; bookmarked?: boolean } = {}) {
+  preferences,
+  lookupClosedAt = Number.NEGATIVE_INFINITY,
+  speed = null,
+}: {
+  pageTurns?: ReaderPageTurnAvailability;
+  bookmarked?: boolean;
+  /** Saved preferences; the defaults without them. */
+  preferences?: Partial<AppearancePreferences>;
+  /** When a press last closed a lookup. */
+  lookupClosedAt?: number;
+  speed?: ReadingSpeed | null;
+} = {}) {
   const viewport = document.createElement("div");
   document.body.append(viewport);
   const props = {
     onTurn: vi.fn(),
     onLookUp: vi.fn((_x: number, _y: number): boolean => false),
     onScroll: vi.fn(),
+    onChapterEdge: vi.fn((_direction: "advance" | "retreat"): boolean => false),
+    onReadOn: vi.fn((_advance: boolean): boolean => false),
     onGoToEntry: vi.fn(),
     onGoToOffset: vi.fn((_offset: number, settled: (succeeded: boolean) => void) => settled(true)),
     onGoToPosition: vi.fn(),
@@ -133,11 +207,14 @@ function reader({
   } as unknown as MobileReaderTools;
   const touchRef = { current: (_event: TouchEvent) => {} };
   const selectionRef = { current: (_document: Document) => {} };
+  const lookup = { open: false, closedAt: () => lookupClosedAt, back: vi.fn() };
+  const store = preferences ? { load: async () => preferences, save: vi.fn(async () => {}) } : null;
   render(
-    <AppearanceProvider store={null}>
-      <MobileReader
+    <AppearanceProvider store={store}>
+      <PhoneReader
         {...props}
         contents={contents}
+        lookup={lookup}
         currentEntryId="two"
         identity={{
           status: "book",
@@ -158,6 +235,7 @@ function reader({
         ready
         selectionRef={selectionRef}
         session={{ readingMs: () => 0, state: "counting" }}
+        speed={speed}
         tools={tools}
         touchRef={touchRef}
         turning={false}
@@ -165,7 +243,12 @@ function reader({
       />
     </AppearanceProvider>,
   );
-  return { ...props, viewport, touchRef, selectionRef, tools };
+  return { ...props, viewport, touchRef, selectionRef, tools, lookup };
+}
+
+/** Waits for saved preferences to apply and the Reader to show. */
+async function shown() {
+  await waitFor(() => expect(document.querySelector(".mobile-reader__footer")).not.toBeNull());
 }
 
 /** A book page whose selection is `text`, shown at the given place. */
@@ -193,6 +276,17 @@ function tap(target: HTMLElement, x: number, y = 400) {
   });
   // False when the Reader cancels the tap's click.
   return fireEvent.touchEnd(target, { touches: [], changedTouches: [{ clientX: x, clientY: y }] });
+}
+
+function drag(target: HTMLElement, from: { x: number; y: number }, to: { x: number; y: number }) {
+  fireEvent.touchStart(target, {
+    touches: [{ clientX: from.x, clientY: from.y }],
+    changedTouches: [{ clientX: from.x, clientY: from.y }],
+  });
+  fireEvent.touchEnd(target, {
+    touches: [],
+    changedTouches: [{ clientX: to.x, clientY: to.y }],
+  });
 }
 
 function swipe(target: HTMLElement, from: number, to: number) {
@@ -267,6 +361,85 @@ describe("the Reader by touch", () => {
     expect(onTurn).toHaveBeenCalledWith("advance");
   });
 
+  it("leaves a tapped word alone with tap lookup off", async () => {
+    const { viewport, onTurn, onLookUp } = reader({ preferences: { readerTapLookup: false } });
+    await shown();
+    onLookUp.mockReturnValue(true);
+    tap(viewport, 950, 300);
+    expect(onLookUp).not.toHaveBeenCalled();
+    expect(onTurn).toHaveBeenCalledWith("advance");
+  });
+
+  it("shows the controls from the sides, and turns by no swipe, with page turns off", async () => {
+    const { viewport, onTurn } = reader({ preferences: { readerTouchPageTurns: false } });
+    await shown();
+    swipe(viewport, 700, 400);
+    tap(viewport, 950);
+    expect(onTurn).not.toHaveBeenCalled();
+    expect(await screen.findByRole("banner")).toBeInTheDocument();
+  });
+
+  it("does not turn the page on the tap that closed a lookup", () => {
+    const { viewport, onTurn } = reader({ lookupClosedAt: Number.POSITIVE_INFINITY });
+    tap(viewport, 950);
+    expect(onTurn).not.toHaveBeenCalled();
+  });
+
+  it("turns a chapter shown alone by a swipe that reads on from its edge", async () => {
+    const vertical: ReaderPageTurnAvailability = {
+      canAdvance: true,
+      canRetreat: true,
+      forwardArrow: "ArrowRight",
+      scrollAxis: "vertical",
+    };
+    const semi = reader({
+      pageTurns: vertical,
+      preferences: { readerViewMode: "semi-continuous" },
+    });
+    await shown();
+    semi.onChapterEdge.mockImplementation((direction) => direction === "advance");
+    drag(semi.viewport, { x: 500, y: 600 }, { x: 505, y: 300 });
+    expect(semi.onTurn.mock.calls).toEqual([["advance"]]);
+    // Back from a chapter's start only when it is at its start.
+    drag(semi.viewport, { x: 500, y: 300 }, { x: 505, y: 600 });
+    expect(semi.onTurn).toHaveBeenCalledTimes(1);
+    // Mid-chapter, the WebView scrolls it.
+    semi.onChapterEdge.mockReturnValue(false);
+    drag(semi.viewport, { x: 500, y: 600 }, { x: 505, y: 300 });
+    expect(semi.onTurn).toHaveBeenCalledTimes(1);
+    cleanup();
+    document.body.replaceChildren();
+
+    const continuous = reader({ pageTurns: vertical });
+    continuous.onChapterEdge.mockReturnValue(true);
+    drag(continuous.viewport, { x: 500, y: 600 }, { x: 505, y: 300 });
+    expect(continuous.onTurn).not.toHaveBeenCalled();
+  });
+
+  it("reads a VN book on by a tap, and only shows its text from a lookup", async () => {
+    const { viewport, onTurn, onLookUp, onReadOn } = reader({
+      pageTurns: {
+        canAdvance: true,
+        canRetreat: true,
+        forwardArrow: "ArrowRight",
+        scrollAxis: "vertical",
+      },
+      preferences: { readerViewMode: "vn" },
+    });
+    await shown();
+    onReadOn.mockReturnValue(true);
+    tap(viewport, 500);
+    tap(viewport, 950);
+    expect(onReadOn.mock.calls).toEqual([[true], [true]]);
+    expect(onTurn).not.toHaveBeenCalled();
+    expect(screen.queryByRole("banner")).toBeNull();
+    tap(viewport, 100);
+    expect(onTurn).toHaveBeenCalledWith("retreat");
+    onLookUp.mockReturnValueOnce(true);
+    tap(viewport, 500);
+    expect(onReadOn).toHaveBeenLastCalledWith(false);
+  });
+
   it("takes touches from the book's own pages through the Reader", () => {
     const { touchRef, onTurn } = reader();
     const page = document.createElement("p");
@@ -285,6 +458,25 @@ describe("the Reader by touch", () => {
       touchRef.current(end);
     });
     expect(onTurn).toHaveBeenCalledWith("advance");
+  });
+
+  it("shows in its footer and status what the footer choices show", async () => {
+    reader({
+      preferences: {
+        readerShowPercentage: false,
+        readerShowChapterPosition: true,
+        readerShowChapterPercentage: true,
+        readerShowClock: false,
+        readerShowReadingTime: false,
+      },
+      speed: { perHour: 12_000, unit: "characters" },
+    });
+    await shown();
+    const [footer, ...others] = screen.getAllByRole("button", { name: "Show reader controls" });
+    expect(others).toEqual([]);
+    expect(footer!.textContent).toBe(
+      "3,500 / 10,000 Ch. · 500 / 2,000 Ch. · Chapter 25% · 12,000 Ch./h",
+    );
   });
 
   it("shows the controls from the center, the clock or the footer, with the bars", async () => {
@@ -522,5 +714,33 @@ describe("the Reader by touch", () => {
     );
     // The bars show over the night page with light icons.
     expect(invoke).toHaveBeenLastCalledWith("system_bar_icons", { dark: false });
+  });
+
+  it("offers the PC's view modes and options in its sheet, without a window's", async () => {
+    const { viewport, onTurn, onLookUp } = reader();
+    tap(viewport, 500);
+    await userEvent.click(await screen.findByRole("button", { name: "Appearance" }));
+    const sheet = screen.getByRole("dialog", { name: "Appearance" });
+    const modes = within(sheet).getByRole("group", { name: "View mode" });
+    expect(
+      within(modes)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Continuous", "Semi-continuous", "Paginated", "VN"]);
+    expect(within(sheet).getByRole("group", { name: "Letter spacing" })).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Hide furigana" })).toBeInTheDocument();
+    for (const name of ["Maximum text width", "Reader max height", "Wheel step", "Pages"])
+      expect(within(sheet).queryByRole("group", { name })).toBeNull();
+    expect(within(sheet).queryByText("Background image")).toBeNull();
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "Tap a word to look it up" }));
+    await userEvent.click(
+      within(sheet).getByRole("button", { name: "Tap or swipe to turn pages" }),
+    );
+    await userEvent.click(within(sheet).getByRole("button", { name: "Close" }));
+    onLookUp.mockClear().mockReturnValue(true);
+    tap(viewport, 950);
+    expect(onLookUp).not.toHaveBeenCalled();
+    expect(onTurn).not.toHaveBeenCalled();
   });
 });
