@@ -841,12 +841,11 @@ describe("Reader shell", () => {
     viewport.focus();
     fireEvent.keyDown(viewport, { key: " " });
     expect(revealVnText).toHaveBeenCalledTimes(3);
-    fireEvent.click(screen.getByRole("button", { name: "Show all text" }));
-    expect(revealVnText).toHaveBeenCalledTimes(4);
+    // There is no Show all text button: a click, Space or the volume keys show the rest.
+    expect(screen.queryByRole("button", { name: "Show all text" })).not.toBeInTheDocument();
     expect(advancePage).not.toHaveBeenCalled();
     // Once all text shows, a click or Space reads on; a link only follows itself.
     act(() => changed(turns(false)));
-    expect(screen.queryByRole("button", { name: "Show all text" })).not.toBeInTheDocument();
     fireEvent.click(book.querySelector("a")!);
     expect(advancePage).not.toHaveBeenCalled();
     fireEvent.click(text);
@@ -856,7 +855,7 @@ describe("Reader shell", () => {
     // A held Space does not race through the book.
     fireEvent.keyDown(viewport, { key: " ", repeat: true });
     expect(advancePage).toHaveBeenCalledTimes(2);
-    expect(revealVnText).toHaveBeenCalledTimes(4);
+    expect(revealVnText).toHaveBeenCalledTimes(3);
     frame.remove();
   });
 

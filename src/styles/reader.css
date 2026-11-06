@@ -1089,20 +1089,6 @@
   animation: reader-layout-status-in 150ms ease-out 300ms both;
 }
 
-.reader-vn-reveal {
-  position: absolute;
-  z-index: 2;
-  right: 20px;
-  bottom: 18px;
-  padding: 6px 12px;
-  border: 1px solid color-mix(in srgb, var(--reader-ink) 16%, transparent);
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--reader-page) 92%, transparent);
-  color: var(--reader-footer-text);
-  font-size: 12px;
-  cursor: pointer;
-}
-
 .reader-view-choice .segmented-control {
   grid-auto-flow: row;
   grid-template-columns: repeat(2, minmax(0, 1fr));

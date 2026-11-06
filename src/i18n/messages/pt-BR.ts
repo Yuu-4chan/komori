@@ -1478,7 +1478,6 @@ export const ptBR: MessageCatalog = {
     "Selecione de 1 a 4.096 caracteres no livro, espere ele se estabilizar e tente novamente.",
   "reader.skip": "Pular para a área de leitura",
   "reader.title": "Leitor do Komori",
-  "reader.showAllText": "Mostrar todo o texto",
   "reader.noBookmarkYet": "Ainda não há marcadores neste livro.",
   "reader.returnPoint": "Lugar anterior",
   "reader.returnTo": "Voltar para {percent}%",

@@ -29,7 +29,8 @@ toggle, Appearance (theme, font size, line height, page margin, writing and view
 chapter with a position slider, and the Chapters sheet. The status and navigation bars hide
 while reading. A tap on a word looks it up in the PC's popup, below a word high on the
 screen and above one low on it, tap a word in it for the next lookup, and Back closes the
-deepest one. Reopening Komori after
+deepest one. A long press selects text for Komori's toolbar (note, highlight, copy, look up,
+search); on a highlight or note it offers Delete instead of Highlight. Reopening Komori after
 Android ends it opens the last book where it was. Dictionary searches from the keyboard, its
 sources a row of chips. Statistics is the PC page in two columns. Settings has General
 (language, application theme), Reader popup (appearance and scanning), Dictionary (ZIPs
@@ -103,7 +104,7 @@ back. The search stays in the top bar even in an empty Library.
 - **Scrollbar.** A continuous book's scrollbar runs along the window's right edge, or
   its bottom edge for vertical text, however narrow the text column.
 - **VN.** Centered groups of the chosen number of paragraphs; images alone and at once.
-  Show all text, a click in the book or Space finishes the reveal, then reads on.
+  A click in the book or Space finishes the reveal, then reads on.
 - **Footer.** Book and chapter position and percentage in a lower pill with reading speed;
   clock and session reading time in an upper pill; both center over the available
   reading area, including while the sidebar is pinned. Empty pills disappear.

@@ -1493,7 +1493,6 @@ export const de: MessageCatalog = {
     "Markiere 1–4096 Zeichen im Buch, warte, bis die Auswahl feststeht, und versuche es erneut.",
   "reader.skip": "Zum Lesebereich springen",
   "reader.title": "Komori-Leseansicht",
-  "reader.showAllText": "Gesamten Text anzeigen",
   "reader.noBookmarkYet": "Noch keine Lesezeichen in diesem Buch.",
   "reader.returnPoint": "Vorherige Stelle",
   "reader.returnTo": "Zurück zu {percent} %",

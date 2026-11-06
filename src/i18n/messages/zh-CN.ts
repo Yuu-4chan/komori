@@ -1314,7 +1314,6 @@ export const zhCN: MessageCatalog = {
   "reader.noteSelection": "请在书中选择1–4,096个字，待其稳定后重试。",
   "reader.skip": "跳到阅读区域",
   "reader.title": "Komori阅读器",
-  "reader.showAllText": "显示全部文字",
   "reader.noBookmarkYet": "本书还没有书签。",
   "reader.returnPoint": "先前位置",
   "reader.returnTo": "返回{percent}%",

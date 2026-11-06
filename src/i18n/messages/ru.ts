@@ -1572,7 +1572,6 @@ export const ru: MessageCatalog = {
     "Выделите в книге от 1 до 4096 символов, дождитесь, пока выделение устоится, и попробуйте снова.",
   "reader.skip": "Перейти к области чтения",
   "reader.title": "Komori — режим чтения",
-  "reader.showAllText": "Показать весь текст",
   "reader.noBookmarkYet": "В этой книге пока нет закладок.",
   "reader.returnPoint": "Предыдущее место",
   "reader.returnTo": "Вернуться к {percent}%",

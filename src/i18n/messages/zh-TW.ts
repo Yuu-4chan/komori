@@ -1314,7 +1314,6 @@ export const zhTW: MessageCatalog = {
   "reader.noteSelection": "請在書中選擇1–4,096個字，待其穩定後重試。",
   "reader.skip": "跳到閱讀區域",
   "reader.title": "Komori閱讀器",
-  "reader.showAllText": "顯示全部文字",
   "reader.noBookmarkYet": "本書還沒有書籤。",
   "reader.returnPoint": "先前位置",
   "reader.returnTo": "返回{percent}%",

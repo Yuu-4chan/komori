@@ -1549,7 +1549,6 @@ export const fr: MessageCatalog = {
     "Sélectionnez de 1 à 4 096 caractères dans le livre, attendez que la sélection se stabilise, puis réessayez.",
   "reader.skip": "Aller à la zone de lecture",
   "reader.title": "Lecteur Komori",
-  "reader.showAllText": "Afficher tout le texte",
   "reader.noBookmarkYet": "Aucun signet dans ce livre pour l’instant.",
   "reader.returnPoint": "Position précédente",
   "reader.returnTo": "Revenir à {percent} %",

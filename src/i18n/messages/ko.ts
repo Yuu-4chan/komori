@@ -1383,7 +1383,6 @@ export const ko: MessageCatalog = {
   "reader.noteSelection": "책에서 1–4,096자를 선택하고 안정될 때까지 기다린 뒤 다시 시도하세요.",
   "reader.skip": "읽기 영역으로 건너뛰기",
   "reader.title": "Komori 뷰어",
-  "reader.showAllText": "모든 글 표시",
   "reader.noBookmarkYet": "이 책에는 아직 책갈피가 없습니다.",
   "reader.returnPoint": "이전 위치",
   "reader.returnTo": "{percent}%로 돌아가기",

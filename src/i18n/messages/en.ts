@@ -1509,7 +1509,6 @@ export const en = {
     "Select 1–4,096 characters in the book, wait for it to settle, and try again.",
   "reader.skip": "Skip to reading area",
   "reader.title": "Komori Reader",
-  "reader.showAllText": "Show all text",
   "reader.noBookmarkYet": "No bookmarks in this book yet.",
   "reader.returnPoint": "Previous place",
   "reader.returnTo": "Back to {percent}%",

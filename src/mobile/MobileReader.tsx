@@ -11,6 +11,7 @@ import {
   PlusIcon,
   TextAaIcon,
   TranslateIcon,
+  TrashIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -38,6 +39,7 @@ import {
   ReaderImagesPanel,
   type ReaderImagesPanelProps,
 } from "../features/reader/ReaderImagesPanel";
+import { noteAtPoint } from "../features/reader/noteHighlights";
 import { ReaderNotesPanel, type ReaderNotesPanelProps } from "../features/reader/ReaderNotesPanel";
 import { ReaderReadingStatus } from "../features/reader/ReaderReadingStatus";
 import {
@@ -87,7 +89,7 @@ export interface MobileReaderTools {
 type Tool = keyof MobileReaderTools;
 
 /** What the selection toolbar asks the Reader to do with the book's selected text. */
-export type SelectionAction = "note" | "highlight" | "copy" | "lookUp";
+export type SelectionAction = "note" | "highlight" | "copy" | "lookUp" | "delete";
 
 export interface MobileReaderProps {
   identity: ReaderIdentity;
@@ -108,7 +110,8 @@ export interface MobileReaderProps {
   tools: MobileReaderTools;
   /** Told of every selection change in the book's pages, with the page's document. */
   selectionRef: MutableRefObject<(document: Document) => void>;
-  onSelectionAction: (action: SelectionAction, document: Document) => void;
+  /** `note` is the saved passage under the selection, which `delete` removes. */
+  onSelectionAction: (action: SelectionAction, document: Document, note?: string) => void;
   /** The image viewer over the Reader: whether it shows, its jumps to a page, and closing it. */
   image: { viewing: boolean; jumps: number; close: () => void };
   /** Receives every touch in the book's pages; the Reader hands it the book's documents. */
@@ -143,7 +146,7 @@ export interface MobileReaderProps {
 const tapSlop = 10;
 const tapTime = 500;
 // The left and right parts of the page that turn it, as a fraction of its width.
-const sideZone = 0.3;
+const sideZone = 0.2;
 const swipeDistance = 40;
 // A press closes the lookup just before its touch starts: within this many milliseconds.
 const closingPress = 300;
@@ -319,22 +322,23 @@ export function MobileReader({
         if (owner.getSelection()?.isCollapsed === false) return;
         // The tap's own click would otherwise land on the controls it shows, and hide them.
         if (event.cancelable) event.preventDefault();
+        const across = point.x / window.innerWidth;
+        const turns = touchTurns && tapTurns;
+        const back = turns && (leftAdvances ? across > 1 - sideZone : across < sideZone);
+        const forward = turns && (leftAdvances ? across < sideZone : across > 1 - sideZone);
         // While VN view's text still appears, a tap only shows the rest of it, as a click does
-        // on the PC: the words not shown yet are blank page. Otherwise a tap on a word looks
-        // it up; one on blank space turns the page or shows the controls, unless it closed
-        // the lookup by the word, as the press it began with does.
-        if (onReadOn(false)) return;
+        // on the PC: the words not shown yet are blank page. The side that turns back still
+        // turns back. Otherwise a tap on a word looks it up; one on blank space turns the
+        // page from a side or shows the controls from the middle, unless it closed the lookup
+        // by the word, as the press it began with does.
+        if (!back && onReadOn(false)) return;
         if (tapLookup && onLookUp(point.x, point.y)) return;
         if (lookupClosedAt() >= began.now - closingPress) return;
-        const across = point.x / window.innerWidth;
-        const back = leftAdvances ? across > 1 - sideZone : across < sideZone;
-        if (!touchTurns || !tapTurns) setShown(true);
-        // VN view reads on from anywhere but the side that turns back; the footer and the
-        // clock show the controls.
-        else if (!back && onReadOn(true)) return;
-        else if (across < sideZone) onTurn(leftAdvances ? "advance" : "retreat");
-        else if (across > 1 - sideZone) onTurn(leftAdvances ? "retreat" : "advance");
-        else setShown(true);
+        if (back) onTurn("retreat");
+        // VN view reads on, first showing the rest of the group.
+        else if (forward) {
+          if (!onReadOn(true)) onTurn("advance");
+        } else setShown(true);
         return;
       }
       if (!touchTurns) return;
@@ -399,7 +403,7 @@ export function MobileReader({
     if (!selected) return;
     setSelected(null);
     if (action !== "search") {
-      onSelectionAction(action, selected.document);
+      onSelectionAction(action, selected.document, selected.note);
       return;
     }
     selected.document.getSelection()?.removeAllRanges();
@@ -659,7 +663,7 @@ export function MobileReader({
         title={title}
       />
       {selected && ready && !turning && !shown && !tool && !chaptersOpen && !appearanceOpen ? (
-        <SelectionToolbar onAct={act} rect={selected.rect} />
+        <SelectionToolbar onAct={act} rect={selected.rect} saved={!!selected.note} />
       ) : null}
       <ToolSheet
         hidden={image.viewing}
@@ -933,6 +937,8 @@ interface SelectedText {
   text: string;
   /** Where the selection shows on the screen. */
   rect: { top: number; right: number; bottom: number; left: number };
+  /** The saved passage the selection starts on, as a long press on a highlight selects. */
+  note?: string;
 }
 
 /** A book page's selected text and where it shows, or null when nothing is selected. */
@@ -941,14 +947,20 @@ function selectedText(document: Document): SelectedText | null {
   if (!selection || selection.isCollapsed || !selection.rangeCount) return null;
   const text = selection.toString();
   if (!text.trim()) return null;
-  const box = selection.getRangeAt(0).getBoundingClientRect();
+  const range = selection.getRangeAt(0);
+  const box = range.getBoundingClientRect();
   const frame = document.defaultView?.frameElement?.getBoundingClientRect();
   const x = frame?.left ?? 0;
   const y = frame?.top ?? 0;
+  const first = range.getClientRects?.()[0];
+  const note = first
+    ? noteAtPoint(document, (first.left + first.right) / 2, (first.top + first.bottom) / 2)
+    : null;
   return {
     document,
     text,
     rect: { top: box.top + y, right: box.right + x, bottom: box.bottom + y, left: box.left + x },
+    ...(note && { note }),
   };
 }
 
@@ -960,12 +972,17 @@ const toolbarGap = 12;
 const handleRoom = 32;
 const screenGutter = 8;
 
-/** Note, Highlight, Copy, Look up and Search beside the book's selection, above it where there is room. */
+/**
+ * Note, Highlight, Copy, Look up and Search beside the book's selection, above it where there
+ * is room. On a saved passage, Delete removes it in place of Highlight.
+ */
 function SelectionToolbar({
   rect,
+  saved,
   onAct,
 }: {
   rect: SelectedText["rect"];
+  saved: boolean;
   onAct: (action: SelectionAction | "search") => void;
 }) {
   const { t } = useI18n();
@@ -1004,7 +1021,9 @@ function SelectionToolbar({
   );
   const actions = [
     { action: "note", label: t("textMenu.note"), icon: NotePencilIcon },
-    { action: "highlight", label: t("textMenu.highlight"), icon: HighlighterIcon },
+    saved
+      ? ({ action: "delete", label: t("noteMenu.delete"), icon: TrashIcon } as const)
+      : ({ action: "highlight", label: t("textMenu.highlight"), icon: HighlighterIcon } as const),
     { action: "copy", label: t("textMenu.copy"), icon: CopyIcon },
     { action: "lookUp", label: t("textMenu.lookUp"), icon: TranslateIcon },
     { action: "search", label: t("sidebar.search"), icon: MagnifyingGlassIcon },

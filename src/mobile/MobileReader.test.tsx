@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppearanceProvider, useAppearance } from "../features/appearance/AppearanceProvider";
 import type { ReaderAppearancePanelProps } from "../features/reader/ReaderAppearancePanel";
 import type { AppearancePreferences } from "../features/appearance/appearancePreferences";
+import { NOTE_MARKS } from "../features/reader/noteHighlights";
 import type {
   ReaderBookmarkPlace,
   ReaderBookProgress,
@@ -252,15 +253,30 @@ async function shown() {
 }
 
 /** A book page whose selection is `text`, shown at the given place. */
-function selectingPage(text: string) {
+function selectingPage(text: string, note?: string) {
   let selected = text;
+  // A saved passage's mark under the selection, as the Reader paints it.
+  const root = document.createElement("html");
+  if (note) {
+    const layer = document.createElement("div");
+    layer.setAttribute(NOTE_MARKS, "");
+    const mark = document.createElement("div");
+    mark.setAttribute("data-note-id", note);
+    mark.getBoundingClientRect = () => new DOMRect(90, 290, 60, 44);
+    layer.append(mark);
+    root.append(layer);
+  }
   const page = {
     defaultView: null,
+    documentElement: root,
     getSelection: () => ({
       isCollapsed: !selected,
       rangeCount: selected ? 1 : 0,
       toString: () => selected,
-      getRangeAt: () => ({ getBoundingClientRect: () => new DOMRect(100, 300, 40, 24) }),
+      getRangeAt: () => ({
+        getBoundingClientRect: () => new DOMRect(100, 300, 40, 24),
+        getClientRects: () => [new DOMRect(100, 300, 40, 24)],
+      }),
       removeAllRanges: () => {
         selected = "";
       },
@@ -416,7 +432,7 @@ describe("the Reader by touch", () => {
     expect(continuous.onTurn).not.toHaveBeenCalled();
   });
 
-  it("reads a VN book on by a tap, and only shows the rest of its text while it appears", async () => {
+  it("reads a VN book on from its forward side, back from the other, and only shows the rest of its text while it appears", async () => {
     const { viewport, onTurn, onLookUp, onReadOn } = reader({
       pageTurns: {
         canAdvance: true,
@@ -433,16 +449,18 @@ describe("the Reader by touch", () => {
       revealing = false;
       return true;
     });
-    tap(viewport, 500);
+    // The right fifth reads on.
     tap(viewport, 950);
-    expect(onReadOn.mock.calls).toEqual([[false], [true], [false], [true]]);
+    expect(onReadOn.mock.calls).toEqual([[false], [true]]);
     expect(onTurn).not.toHaveBeenCalled();
     expect(screen.queryByRole("banner")).toBeNull();
-    tap(viewport, 100);
-    expect(onTurn).toHaveBeenCalledWith("retreat");
-    // While the text appears, a tap on a word, shown or not yet, only shows the rest.
+    // The left fifth turns back, even while the text still appears.
     revealing = true;
     onReadOn.mockClear();
+    tap(viewport, 100);
+    expect(onTurn).toHaveBeenCalledWith("retreat");
+    expect(onReadOn).not.toHaveBeenCalled();
+    // While the text appears, a tap on a word, shown or not yet, only shows the rest.
     onLookUp.mockClear().mockReturnValue(true);
     tap(viewport, 500);
     expect(onReadOn.mock.calls).toEqual([[false]]);
@@ -451,6 +469,12 @@ describe("the Reader by touch", () => {
     tap(viewport, 500);
     expect(onLookUp).toHaveBeenCalledTimes(1);
     expect(onReadOn.mock.calls).toEqual([[false], [false]]);
+    // Blank space in the middle shows the controls.
+    onLookUp.mockReturnValue(false);
+    tap(viewport, 500);
+    expect(onReadOn.mock.calls).toEqual([[false], [false], [false]]);
+    expect(onTurn).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("banner")).toBeInTheDocument();
   });
 
   it("shows the controls from a tap anywhere on a continuous book, whole or a chapter alone", async () => {
@@ -678,12 +702,12 @@ describe("the Reader by touch", () => {
         .map((button) => button.getAttribute("aria-label")),
     ).toEqual(["Add note", "Highlight", "Copy", "Look up", "Search"]);
     await userEvent.click(within(toolbar).getByRole("button", { name: "Highlight" }));
-    expect(onSelectionAction).toHaveBeenCalledWith("highlight", page);
+    expect(onSelectionAction).toHaveBeenCalledWith("highlight", page, undefined);
 
     act(() => selectionRef.current(page));
     const again = await screen.findByRole("toolbar", { name: "Text" });
     await userEvent.click(within(again).getByRole("button", { name: "Copy" }));
-    expect(onSelectionAction).toHaveBeenCalledWith("copy", page);
+    expect(onSelectionAction).toHaveBeenCalledWith("copy", page, undefined);
     expect(screen.queryByRole("toolbar")).toBeNull();
 
     act(() => selectionRef.current(page));
@@ -692,6 +716,20 @@ describe("the Reader by touch", () => {
     clear();
     act(() => selectionRef.current(page));
     await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
+  });
+
+  it("offers Delete in place of Highlight on a saved passage a long press selects", async () => {
+    const { selectionRef, onSelectionAction } = reader();
+    const { page } = selectingPage("羅生門", "note-1");
+    act(() => selectionRef.current(page));
+    const toolbar = await screen.findByRole("toolbar", { name: "Text" });
+    expect(
+      within(toolbar)
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Add note", "Delete", "Copy", "Look up", "Search"]);
+    await userEvent.click(within(toolbar).getByRole("button", { name: "Delete" }));
+    expect(onSelectionAction).toHaveBeenCalledWith("delete", page, "note-1");
   });
 
   it("searches the book for the selected text", async () => {

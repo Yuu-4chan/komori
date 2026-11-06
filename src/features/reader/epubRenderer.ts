@@ -624,7 +624,7 @@ class EpubRenderer implements ReaderRenderer {
       this.presentation.vnTextSpeed,
       this.host.ownerDocument,
     );
-    // The Reader's Show all text, click and Space follow the reveal at once.
+    // The Reader's click and Space follow the reveal at once.
     if (this.vnReveal.revealing !== revealing) void this.refreshPageTurns();
   }
   /** The blocks VN view shows, as the reveal last started on them. */

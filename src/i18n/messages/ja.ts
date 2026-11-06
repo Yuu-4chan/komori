@@ -1395,7 +1395,6 @@ export const ja: MessageCatalog = {
     "本の中で1～4,096文字を選択し、落ち着くのを待ってからもう一度お試しください。",
   "reader.skip": "読書エリアへ移動",
   "reader.title": "Komori読書画面",
-  "reader.showAllText": "すべての文を表示",
   "reader.noBookmarkYet": "この本にはまだブックマークがありません。",
   "reader.returnPoint": "前の場所",
   "reader.returnTo": "{percent}%に戻る",

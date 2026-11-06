@@ -1937,8 +1937,16 @@ export function ReaderShell({
                 notes: notesPanel,
               }}
               selectionRef={selectionRef}
-              onSelectionAction={(action, contentDocument) => {
+              onSelectionAction={(action, contentDocument, note) => {
                 const clear = () => contentDocument.getSelection()?.removeAllRanges();
+                if (action === "delete") {
+                  clear();
+                  if (note)
+                    void notes.remove(note).then((removed) => {
+                      if (removed) showFeedback(i18n().t("notes.removed"));
+                    });
+                  return;
+                }
                 if (action === "note" || action === "highlight") {
                   void createSelectedNote(action).finally(clear);
                   return;
@@ -2001,11 +2009,6 @@ export function ReaderShell({
               onFeedback={showFeedback}
             />
           </Suspense>
-        )}
-        {status === "ready" && pageTurns.vnRevealing && (
-          <button type="button" className="reader-vn-reveal" onClick={revealVnText}>
-            {t("reader.showAllText")}
-          </button>
         )}
         {status === "ready" && reflowing && (
           <p className="reader-layout-status" role="status">
