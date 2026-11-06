@@ -19,7 +19,6 @@ import {
   shortcutPresets,
 } from "./lookupTriggers";
 import { useAppearance } from "../appearance/AppearanceProvider";
-import { readerLookupDisplays } from "../appearance/appearancePreferences";
 import { useI18n } from "../../i18n/i18n";
 
 /**
@@ -52,8 +51,6 @@ export function ReaderPopupSettings({
     readerPopupStyle,
     setReaderPopupStyle,
     lookupLanguage,
-    readerLookupDisplay,
-    setReaderLookupDisplay,
     readerTapLookup,
     setReaderTapLookup,
   } = useAppearance();
@@ -79,24 +76,11 @@ export function ReaderPopupSettings({
             onChange={setReaderPopupEnabled}
           />
           {isAndroid && (
-            <>
-              <ToggleSetting
-                label={t("popupSettings.tapLookup")}
-                checked={readerTapLookup}
-                onChange={setReaderTapLookup}
-              />
-              <div className="settings-field">
-                <Select
-                  label={t("popupSettings.display")}
-                  value={readerLookupDisplay}
-                  options={readerLookupDisplays.map((display) => ({
-                    value: display,
-                    label: t(`popupSettings.display.${display}`),
-                  }))}
-                  onChange={setReaderLookupDisplay}
-                />
-              </div>
-            </>
+            <ToggleSetting
+              label={t("popupSettings.tapLookup")}
+              checked={readerTapLookup}
+              onChange={setReaderTapLookup}
+            />
           )}
           <div className="settings-field">
             <Select

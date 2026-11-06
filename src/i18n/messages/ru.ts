@@ -793,9 +793,6 @@ export const ru: MessageCatalog = {
   "popupSettings.enable": "Включить всплывающее окно",
   "popupSettings.enableHint": "Искать слова во время чтения.",
   "popupSettings.tapLookup": "Искать слово касанием",
-  "popupSettings.display": "Показывать поиск в",
-  "popupSettings.display.sheet": "Панели",
-  "popupSettings.display.popup": "Всплывающем окне",
   "popupSettings.names": "Показывать названия словарей",
   "popupSettings.namesHint":
     "Добавлять источник перед значениями частотности и ударения, например Jiten | 120029.",
@@ -1683,6 +1680,7 @@ export const ru: MessageCatalog = {
   "appearancePanel.textBehavior": "Поведение текста",
   "appearancePanel.touch": "Касание",
   "appearancePanel.touchTurns": "Листать касанием или свайпом",
+  "appearancePanel.volumeTurns": "Листать кнопками громкости",
   "appearancePanel.justification": "Выравнивание по ширине",
   "appearancePanel.prettyWrap": "Аккуратный перенос строк",
   "appearancePanel.hideFurigana": "Скрывать фуригану",

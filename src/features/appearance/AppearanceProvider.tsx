@@ -113,8 +113,6 @@ import {
   isAccentColor,
   isAppTheme,
   type AppearancePreferences,
-  isReaderLookupDisplay,
-  type ReaderLookupDisplay,
   type AppearancePreferencesStore,
   type AppTheme,
 } from "./appearancePreferences";
@@ -181,12 +179,12 @@ interface AppearanceContextValue
   readerPopupEnabled: boolean;
   setReaderPopupEnabled: (enabled: boolean) => void;
   /** The phone: where a lookup shows, a tap on a word looks it up, and touch turns pages. */
-  readerLookupDisplay: ReaderLookupDisplay;
-  setReaderLookupDisplay: (display: ReaderLookupDisplay) => void;
   readerTapLookup: boolean;
   setReaderTapLookup: (enabled: boolean) => void;
   readerTouchPageTurns: boolean;
   setReaderTouchPageTurns: (enabled: boolean) => void;
+  readerVolumePageTurns: boolean;
+  setReaderVolumePageTurns: (enabled: boolean) => void;
   readerPopupCustomPalette: ReaderPopupPalette;
   setReaderPopupCustomPalette: (palette: ReaderPopupPalette) => void;
   readerPopupRadius: number;
@@ -464,9 +462,9 @@ export function AppearanceProvider({
     readerPopupShowDictionaryNames,
     readerPopupEnabled,
     readerPopupMouseSelection,
-    readerLookupDisplay,
     readerTapLookup,
     readerTouchPageTurns,
+    readerVolumePageTurns,
     readerPopupCustomPalette,
     readerPopupRadius,
     readerPopupFontSize,
@@ -616,10 +614,6 @@ export function AppearanceProvider({
       setReaderPopupEnabled: (enabled: boolean) => {
         if (typeof enabled === "boolean") update({ readerPopupEnabled: enabled });
       },
-      readerLookupDisplay,
-      setReaderLookupDisplay: (display: ReaderLookupDisplay) => {
-        if (isReaderLookupDisplay(display)) update({ readerLookupDisplay: display });
-      },
       readerTapLookup,
       setReaderTapLookup: (enabled: boolean) => {
         if (typeof enabled === "boolean") update({ readerTapLookup: enabled });
@@ -627,6 +621,10 @@ export function AppearanceProvider({
       readerTouchPageTurns,
       setReaderTouchPageTurns: (enabled: boolean) => {
         if (typeof enabled === "boolean") update({ readerTouchPageTurns: enabled });
+      },
+      readerVolumePageTurns,
+      setReaderVolumePageTurns: (enabled: boolean) => {
+        if (typeof enabled === "boolean") update({ readerVolumePageTurns: enabled });
       },
       readerPopupCustomPalette,
       setReaderPopupCustomPalette: (palette: ReaderPopupPalette) => {
@@ -924,9 +922,9 @@ export function AppearanceProvider({
       readerPopupShowFrequency,
       readerPopupEnabled,
       readerPopupMouseSelection,
-      readerLookupDisplay,
       readerTapLookup,
       readerTouchPageTurns,
+      readerVolumePageTurns,
       readerPopupCustomPalette,
       readerPopupRadius,
       readerPopupFontSize,

@@ -764,9 +764,6 @@ export const en = {
   "popupSettings.enable": "Enable reader popup",
   "popupSettings.enableHint": "Look up words while reading.",
   "popupSettings.tapLookup": "Tap a word to look it up",
-  "popupSettings.display": "Show lookups in",
-  "popupSettings.display.sheet": "Sheet",
-  "popupSettings.display.popup": "Popup",
   "popupSettings.names": "Show dictionary names",
   "popupSettings.namesHint":
     "Prefix frequency and pitch values with their source, for example Jiten | 120029.",
@@ -1624,6 +1621,7 @@ export const en = {
   "appearancePanel.textBehavior": "Text behavior",
   "appearancePanel.touch": "Touch",
   "appearancePanel.touchTurns": "Tap or swipe to turn pages",
+  "appearancePanel.volumeTurns": "Volume keys turn pages",
   "appearancePanel.justification": "Text justification",
   "appearancePanel.prettyWrap": "Pretty text wrap",
   "appearancePanel.hideFurigana": "Hide furigana",

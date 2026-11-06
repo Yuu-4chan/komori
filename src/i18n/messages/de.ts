@@ -758,9 +758,6 @@ export const de: MessageCatalog = {
   "popupSettings.enable": "Leser-Popup aktivieren",
   "popupSettings.enableHint": "Wörter beim Lesen nachschlagen.",
   "popupSettings.tapLookup": "Wort antippen zum Nachschlagen",
-  "popupSettings.display": "Nachschlagen anzeigen in",
-  "popupSettings.display.sheet": "Blatt",
-  "popupSettings.display.popup": "Popup",
   "popupSettings.names": "Wörterbuchnamen anzeigen",
   "popupSettings.namesHint":
     "Häufigkeits- und Akzentwerten ihre Quelle voranstellen, zum Beispiel Jiten | 120029.",
@@ -1604,6 +1601,7 @@ export const de: MessageCatalog = {
   "appearancePanel.textBehavior": "Textverhalten",
   "appearancePanel.touch": "Berührung",
   "appearancePanel.touchTurns": "Tippen oder wischen zum Blättern",
+  "appearancePanel.volumeTurns": "Mit den Lautstärketasten blättern",
   "appearancePanel.justification": "Blocksatz",
   "appearancePanel.prettyWrap": "Schöner Zeilenumbruch",
   "appearancePanel.hideFurigana": "Furigana ausblenden",

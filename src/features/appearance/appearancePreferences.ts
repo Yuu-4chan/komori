@@ -160,11 +160,6 @@ import {
   type LookupTriggerPreferences,
 } from "../reader/lookupTriggers";
 
-export const readerLookupDisplays = ["sheet", "popup"] as const;
-export type ReaderLookupDisplay = (typeof readerLookupDisplays)[number];
-export const isReaderLookupDisplay = (value: unknown): value is ReaderLookupDisplay =>
-  readerLookupDisplays.includes(value as ReaderLookupDisplay);
-
 export interface AppearancePreferences
   extends LookupTriggerPreferences, ReaderFooterPreferences, StatisticsPreferences {
   readerPopupPitchSources: SourceSelection;
@@ -172,12 +167,12 @@ export interface AppearancePreferences
   readerPopupDefinitionSources: SourceSelection;
   readerPopupEnabled: boolean;
   readerPopupMouseSelection: boolean;
-  /** The phone: where a lookup shows, its sheet or the popup by the word. */
-  readerLookupDisplay: ReaderLookupDisplay;
   /** The phone: a tap on a word looks it up (a long press still offers Look up). */
   readerTapLookup: boolean;
   /** The phone: taps on the page's sides and swipes turn pages. */
   readerTouchPageTurns: boolean;
+  /** The phone: the volume keys turn pages, and in VN view read on. */
+  readerVolumePageTurns: boolean;
   readerPopupAnkiAction: boolean;
   readerPopupVoiceAction: boolean;
   readerPopupShowDictionaryNames: boolean;
@@ -305,9 +300,9 @@ export const defaultAppearance: AppearancePreferences = {
   readerPopupDefinitionSources: allSources,
   readerPopupEnabled: true,
   readerPopupMouseSelection: defaultLookupTriggers.readerPopupMouseSelection,
-  readerLookupDisplay: "sheet",
   readerTapLookup: true,
   readerTouchPageTurns: true,
+  readerVolumePageTurns: false,
   readerPopupAnkiAction: true,
   readerPopupVoiceAction: true,
   readerPopupShowDictionaryNames: true,
@@ -408,9 +403,9 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
   const {
     readerPopupEnabled,
     readerPopupMouseSelection,
-    readerLookupDisplay,
     readerTapLookup,
     readerTouchPageTurns,
+    readerVolumePageTurns,
     readerPopupAnkiAction,
     readerPopupVoiceAction,
     readerPopupShowDictionaryNames,
@@ -523,9 +518,9 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     }),
     ...(typeof readerPopupEnabled === "boolean" && { readerPopupEnabled }),
     ...(typeof readerPopupMouseSelection === "boolean" && { readerPopupMouseSelection }),
-    ...(isReaderLookupDisplay(readerLookupDisplay) && { readerLookupDisplay }),
     ...(typeof readerTapLookup === "boolean" && { readerTapLookup }),
     ...(typeof readerTouchPageTurns === "boolean" && { readerTouchPageTurns }),
+    ...(typeof readerVolumePageTurns === "boolean" && { readerVolumePageTurns }),
     ...(typeof readerPopupAnkiAction === "boolean" && { readerPopupAnkiAction }),
     ...(typeof readerPopupVoiceAction === "boolean" && { readerPopupVoiceAction }),
     ...(typeof readerPopupShowDictionaryNames === "boolean" && { readerPopupShowDictionaryNames }),

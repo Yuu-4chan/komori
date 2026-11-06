@@ -632,6 +632,8 @@ class EpubRenderer implements ReaderRenderer {
   /** Sections collapsed outside the shown chapter, and how much of each is clipped before it. */
   private collapsedViews = new WeakSet<Element>();
   private clippedStarts = new WeakMap<Element, number>();
+  /** Section views kept from scrolling themselves while a chapter view clips them. */
+  private pinnedViews = new WeakSet<Element>();
   /** Each section's shown extent along the reading order as last measured. */
   private sectionExtents = new WeakMap<Element, number>();
   /** The views a continuous book lays out again, which fit their text once all are sized. */
@@ -4410,6 +4412,21 @@ class EpubRenderer implements ReaderRenderer {
     }
     if (clip === "collapsed") this.collapsedViews.add(element);
     else this.collapsedViews.delete(element);
+    // A section's view never scrolls itself, but a selection handle dragged past its clip
+    // scrolls it, bringing text outside the chapter or VN group into view and selecting it.
+    if (clip && !this.pinnedViews.has(element)) {
+      this.pinnedViews.add(element);
+      element.addEventListener(
+        "scroll",
+        () => {
+          const clipped = CHAPTER_CLIP_PROPERTIES.some((property) =>
+            element.style.getPropertyValue(property),
+          );
+          if (clipped && (element.scrollLeft || element.scrollTop)) element.scrollTo(0, 0);
+        },
+        { passive: true },
+      );
+    }
     if (clip && clip !== "collapsed" && clip.from > 0) this.clippedStarts.set(element, clip.from);
     else this.clippedStarts.delete(element);
   }
@@ -8018,20 +8035,41 @@ async function firstDisplayableSection(book: Book, signal: AbortSignal): Promise
 const clips = new Set(["hidden", "clip", "auto", "scroll"]);
 
 /**
- * Whether a book frame is shown at a point of the app's window: not hidden, and inside every
- * ancestor that clips it. A chapter shown alone squeezes its neighbours' views to no width, and
- * their frames still report their whole size, holding text under the page that cannot be seen.
+ * Whether a book frame is shown at a point of the app's window: not hidden, inside every
+ * ancestor that clips it, and inside the inset clip path a VN group's view hides the text
+ * before the group with. A chapter shown alone squeezes its neighbours' views to no width,
+ * and their frames still report their whole size, holding text under the page that cannot be
+ * seen.
  */
 function shownAt(frame: Element, x: number, y: number): boolean {
   const view = frame.ownerDocument.defaultView;
   if (!view || view.getComputedStyle(frame).visibility !== "visible") return false;
-  for (let element = frame.parentElement; element; element = element.parentElement) {
+  for (let element: Element | null = frame; element; element = element.parentElement) {
     const style = view.getComputedStyle(element);
     if (style.display === "none") return false;
+    const box = element.getBoundingClientRect();
+    const inset = insetClip(style.clipPath);
+    if (
+      inset &&
+      (x < box.left + inset[3] ||
+        x >= box.right - inset[1] ||
+        y < box.top + inset[0] ||
+        y >= box.bottom - inset[2])
+    )
+      return false;
+    if (element === frame) continue;
     if (![style.overflow, style.overflowX, style.overflowY].some((value) => clips.has(value)))
       continue;
-    const box = element.getBoundingClientRect();
     if (x < box.left || x >= box.right || y < box.top || y >= box.bottom) return false;
   }
   return true;
+}
+
+/** An `inset()` clip path's top, right, bottom and left in pixels; null for any other. */
+function insetClip(clipPath: string | undefined): [number, number, number, number] | null {
+  const values = /^inset\(([^)]*)\)$/.exec(clipPath?.trim() ?? "")?.[1].split(/\s+/);
+  if (!values?.length || values.length > 4 || values.some((value) => !/^-?[\d.]+px$/.test(value)))
+    return null;
+  const [top, right = top, bottom = top, left = right] = values.map(parseFloat);
+  return [top, right, bottom, left];
 }

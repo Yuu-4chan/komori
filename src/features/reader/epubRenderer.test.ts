@@ -4147,6 +4147,15 @@ describe("EPUB.js renderer adapter", () => {
       expect(book.views[0].element.style.getPropertyValue("clip-path")).toBe(
         "inset(40px 0px 0px 0px)",
       );
+      // A selection handle dragged past the group scrolls its view, which goes back at once.
+      const view = book.views[0].element;
+      view.scrollTo = vi.fn((_x: number, _y: number) => {
+        view.scrollTop = 0;
+      }) as unknown as typeof view.scrollTo;
+      view.scrollTop = 120;
+      view.dispatchEvent(new Event("scroll"));
+      expect(view.scrollTo).toHaveBeenCalledWith(0, 0);
+      expect(view.scrollTop).toBe(0);
       expect(book.book.renderTo).toHaveBeenCalledTimes(1);
       renderer.dispose();
     });
@@ -11697,6 +11706,29 @@ describe("EPUB.js renderer adapter", () => {
         expect(view.selected).toHaveBeenCalledTimes(1);
       } finally {
         body.style.overflow = "";
+        body.getBoundingClientRect = clipped;
+        view.renderer.dispose();
+        view.iframe.remove();
+      }
+    });
+
+    it("looks up nothing under the clip path that hides the text before a VN group", async () => {
+      const view = await mountSelectable("<p>本を読む</p>");
+      const body = document.body;
+      const clipped = body.getBoundingClientRect;
+      try {
+        const node = view.contentDocument.querySelector("p")!.firstChild!;
+        pointAt(view, node, 2);
+        body.getBoundingClientRect = () => domRect({ left: 40, top: 30, right: 1540, bottom: 430 });
+        // The part above y 50 shows the blank page, not the text the view still holds there.
+        body.style.setProperty("clip-path", "inset(20px 0px 0px 0px)");
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(false);
+        expect(view.selected).not.toHaveBeenCalled();
+        body.style.setProperty("clip-path", "inset(10px 0px 0px)");
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(true);
+        expect(view.selected).toHaveBeenCalledTimes(1);
+      } finally {
+        body.style.removeProperty("clip-path");
         body.getBoundingClientRect = clipped;
         view.renderer.dispose();
         view.iframe.remove();

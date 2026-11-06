@@ -786,9 +786,6 @@ export const es: MessageCatalog = {
   "popupSettings.enable": "Activar la ventana emergente del lector",
   "popupSettings.enableHint": "Busca palabras mientras lees.",
   "popupSettings.tapLookup": "Tocar una palabra para buscarla",
-  "popupSettings.display": "Mostrar búsquedas en",
-  "popupSettings.display.sheet": "Hoja",
-  "popupSettings.display.popup": "Ventana emergente",
   "popupSettings.names": "Mostrar los nombres de los diccionarios",
   "popupSettings.namesHint":
     "Anteponer a los valores de frecuencia y acento su fuente, por ejemplo Jiten | 120029.",
@@ -1653,6 +1650,7 @@ export const es: MessageCatalog = {
   "appearancePanel.textBehavior": "Comportamiento del texto",
   "appearancePanel.touch": "Táctil",
   "appearancePanel.touchTurns": "Tocar o deslizar para pasar página",
+  "appearancePanel.volumeTurns": "Pasar página con los botones de volumen",
   "appearancePanel.justification": "Justificación del texto",
   "appearancePanel.prettyWrap": "Ajuste de línea cuidado",
   "appearancePanel.hideFurigana": "Ocultar furigana",

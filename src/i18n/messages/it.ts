@@ -780,9 +780,6 @@ export const it: MessageCatalog = {
   "popupSettings.enable": "Attiva il popup del lettore",
   "popupSettings.enableHint": "Cerca parole mentre leggi.",
   "popupSettings.tapLookup": "Tocca una parola per cercarla",
-  "popupSettings.display": "Mostra le ricerche in",
-  "popupSettings.display.sheet": "Foglio",
-  "popupSettings.display.popup": "Popup",
   "popupSettings.names": "Mostra i nomi dei dizionari",
   "popupSettings.namesHint":
     "Anteponi ai valori di frequenza e accento la loro fonte, per esempio Jiten | 120029.",
@@ -1649,6 +1646,7 @@ export const it: MessageCatalog = {
   "appearancePanel.textBehavior": "Comportamento del testo",
   "appearancePanel.touch": "Tocco",
   "appearancePanel.touchTurns": "Tocca o scorri per girare pagina",
+  "appearancePanel.volumeTurns": "Gira pagina con i tasti del volume",
   "appearancePanel.justification": "Giustificazione del testo",
   "appearancePanel.prettyWrap": "A capo curato",
   "appearancePanel.hideFurigana": "Nascondi furigana",

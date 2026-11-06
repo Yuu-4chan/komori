@@ -93,6 +93,22 @@ export function ownBookSelection(own: boolean) {
   void invoke("book_selection", { own }).catch(() => {});
 }
 
+/** A volume key: Android asks the page about each press before it changes the volume. */
+export type VolumeKey = "up" | "down";
+
+/**
+ * While registered, `take` answers each volume key press: true takes it, and false lets it
+ * change the volume. Android's activity calls `window.komoriVolumeKey` as the key goes down.
+ */
+export function onVolumeKey(take: (key: VolumeKey) => boolean): () => void {
+  const page = window as Window & { komoriVolumeKey?: (key: unknown) => boolean };
+  const answer = (key: unknown) => (key === "up" || key === "down") && take(key);
+  page.komoriVolumeKey = answer;
+  return () => {
+    if (page.komoriVolumeKey === answer) delete page.komoriVolumeKey;
+  };
+}
+
 const closers: (() => void)[] = [];
 
 /**

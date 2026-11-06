@@ -28,6 +28,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { copyText, guardDocument } from "../../app/nativeSurfaces";
+import { isAndroid } from "../../app/platform";
 import { AutoscrollController } from "../../app/autoscroll";
 import { WindowControls } from "../../components/layout/WindowControls";
 import type { StepperSource } from "../../components/ui/Stepper";
@@ -122,15 +123,6 @@ const MobileReader =
   import.meta.env.TAURI_ENV_PLATFORM === "android"
     ? lazy(() =>
         import("../../mobile/MobileReader").then((module) => ({ default: module.MobileReader })),
-      )
-    : null;
-// There, a lookup opens in a sheet from the edge of the screen, or in the popup by the word.
-const LazyLookupSheet =
-  import.meta.env.TAURI_ENV_PLATFORM === "android"
-    ? lazy(() =>
-        import("../../mobile/MobileLookupSheet").then((module) => ({
-          default: module.MobileLookupSheet,
-        })),
       )
     : null;
 
@@ -324,7 +316,7 @@ export function ReaderShell({
   const lookupIds = useRef(0);
   const popupRef = useRef<HTMLElement>(null);
   const insidePopup = (target: EventTarget | null) =>
-    !!(target as Element | null)?.closest?.(".reader-lookup, .mobile-lookup");
+    !!(target as Element | null)?.closest?.(".reader-lookup");
   // In VN, finishes the text reveal in progress, or reads on once all text shows (true
   // when it did either); undefined outside VN.
   const vnStep = useRef<((advance: boolean) => boolean) | undefined>(undefined);
@@ -395,7 +387,10 @@ export function ReaderShell({
         !lookupTextAllowed(triggersRef.current, query)
       )
         return;
-      const shown = placeLookupPopup(selection.rect, area, selection.writingMode, {
+      // On the phone the popup shows above or below the word, as across horizontal text: the
+      // narrow screen leaves no room beside a vertical line.
+      const flow = isAndroid ? "horizontal" : selection.writingMode;
+      const shown = placeLookupPopup(selection.rect, area, flow, {
         width: readerPopupWidth,
         height: readerPopupHeight,
       });
@@ -423,7 +418,7 @@ export function ReaderShell({
             top: shown.top - origin.top,
             width: shown.right - shown.left,
             height: shown.bottom - shown.top,
-            above: selection.writingMode === "horizontal" && shown.bottom <= selection.rect.top,
+            above: flow === "horizontal" && shown.bottom <= selection.rect.top,
           },
         },
       ]);
@@ -1582,9 +1577,7 @@ export function ReaderShell({
     return () => media.removeEventListener("change", closeOnCompact);
   }, []);
 
-  // The lookup popups, deepest last; the phone's sheet shows the deepest and keeps the others
-  // under it for Back.
-  const MobileLookupSheet = appearance.readerLookupDisplay === "sheet" ? LazyLookupSheet : null;
+  // The lookup popups, deepest last.
   const lookupPopups = lookups.map((shown, depth) => (
     <ReaderLookupPopup
       key={shown.id}
@@ -1599,8 +1592,7 @@ export function ReaderShell({
           current.length > depth + 1 ? current.slice(0, depth + 1) : current,
         )
       }
-      placement={MobileLookupSheet ? undefined : shown.placement}
-      hidden={!!MobileLookupSheet && depth < lookups.length - 1}
+      placement={shown.placement}
       definitionSources={definitionSources}
       query={shown.query}
       readerContext={{
@@ -2060,29 +2052,7 @@ export function ReaderShell({
         <p className="reader-floating-feedback" role="status" aria-live="polite">
           {escapeWarning ? t("reader.escapeAgain") : feedback}
         </p>
-        {MobileLookupSheet
-          ? lookup && (
-              <Suspense fallback={null}>
-                <MobileLookupSheet
-                  key={lookup.id}
-                  label={t("popup.label", { query: lookups.at(-1)?.query ?? lookup.query })}
-                  rect={lookup.rect}
-                  onBack={() => (lookups.length > 1 ? closeDeepestLookup() : closeLookup())}
-                  onClose={closeLookup}
-                  onTapBeside={(x, y) => {
-                    // Another word beside the sheet is looked up at once, as in the popup.
-                    const tapped =
-                      appearance.readerTapLookup &&
-                      triggersRef.current.readerPopupEnabled &&
-                      lookupAt(x, y);
-                    if (!tapped) closeLookup();
-                  }}
-                >
-                  {lookupPopups}
-                </MobileLookupSheet>
-              </Suspense>
-            )
-          : lookupPopups}
+        {lookupPopups}
       </div>
       {noteDraft && noteDraft.store === noteStore && (
         <NoteEditor

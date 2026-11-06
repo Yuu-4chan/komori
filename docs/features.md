@@ -21,14 +21,15 @@ brand and the gear to Settings, a floating dock (Dictionary, Library, Statistics
 gesture bar, and Back closing an open sheet before it leaves the page. The Library shows the
 count of books, search, Add books (the system document picker, several EPUBs at once), the
 book to continue and a grid of covers with progress; books stay where they are, and a moved
-or deleted one offers Relink and Remove. The Reader is read by touch: tap the sides to turn
-a page (in the book's page progression), swipe in paginated view, scroll in continuous view,
-and tap the middle, the clock or the footer for the controls: Back, the title, a bookmark
+or deleted one offers Relink and Remove. The Reader is read by touch: in paginated and VN
+views tap the sides to turn a page (in the book's page progression), swipe in paginated view,
+scroll in continuous views, where a tap anywhere shows the controls, optionally turn pages with
+the volume keys, and tap the middle, the clock or the footer for the controls: Back, the title, a bookmark
 toggle, Appearance (theme, font size, line height, page margin, writing and view mode), the
 chapter with a position slider, and the Chapters sheet. The status and navigation bars hide
-while reading. A tap on a word looks it up in a sheet from the bottom of the screen (from the
-top for a word down there): drag its handle up for the whole screen or down to close it, tap
-a word in it for the next lookup, and Back returns to the one before. Reopening Komori after
+while reading. A tap on a word looks it up in the PC's popup, below a word high on the
+screen and above one low on it, tap a word in it for the next lookup, and Back closes the
+deepest one. Reopening Komori after
 Android ends it opens the last book where it was. Dictionary searches from the keyboard, its
 sources a row of chips. Statistics is the PC page in two columns. Settings has General
 (language, application theme), Reader popup (appearance and scanning), Dictionary (ZIPs

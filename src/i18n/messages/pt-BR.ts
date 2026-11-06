@@ -751,9 +751,6 @@ export const ptBR: MessageCatalog = {
   "popupSettings.enable": "Ativar o pop-up do leitor",
   "popupSettings.enableHint": "Consulte palavras enquanto lê.",
   "popupSettings.tapLookup": "Tocar uma palavra para consultá-la",
-  "popupSettings.display": "Mostrar consultas em",
-  "popupSettings.display.sheet": "Folha",
-  "popupSettings.display.popup": "Pop-up",
   "popupSettings.names": "Mostrar nomes dos dicionários",
   "popupSettings.namesHint":
     "Mostra a fonte antes dos valores de frequência e acento, por exemplo Jiten | 120029.",
@@ -1589,6 +1586,7 @@ export const ptBR: MessageCatalog = {
   "appearancePanel.textBehavior": "Comportamento do texto",
   "appearancePanel.touch": "Toque",
   "appearancePanel.touchTurns": "Tocar ou deslizar para virar páginas",
+  "appearancePanel.volumeTurns": "Virar páginas com os botões de volume",
   "appearancePanel.justification": "Texto justificado",
   "appearancePanel.prettyWrap": "Quebra de linha refinada",
   "appearancePanel.hideFurigana": "Ocultar furigana",

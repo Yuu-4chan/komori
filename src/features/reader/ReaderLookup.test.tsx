@@ -39,6 +39,14 @@ vi.mock("../anki/ankiApi", async (original) => ({
   noteStatus: vi.fn(async () => ({ status: "missing" })),
 }));
 
+// Komori runs as the desktop app unless a test says it is on the phone.
+const platform = vi.hoisted(() => ({ android: false }));
+vi.mock("../../app/platform", () => ({
+  get isAndroid() {
+    return platform.android;
+  },
+}));
+
 // The desktop app's window controls, for tests that run as the desktop app.
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
@@ -1464,6 +1472,40 @@ describe("Reader lookup popup", () => {
       writingMode: "vertical-rl",
     });
     expect(popupStyle()).toEqual({ left: "140px", top: "352px", width: "480px", height: "440px" });
+  });
+
+  it("shows above or below a vertical selection on the phone, never beside it", async () => {
+    platform.android = true;
+    try {
+      const reader = await openReader();
+      // High on the page: below the word.
+      reader.select({
+        text: "読む",
+        rect: { left: 500, top: 50, right: 530, bottom: 300 },
+        writingMode: "vertical-rl",
+      });
+      expect(popupStyle()).toEqual({
+        left: "500px",
+        top: "310px",
+        width: "480px",
+        height: "440px",
+      });
+      // Low on the page: above it, keeping its bottom edge by the word.
+      reader.select({
+        text: "読む",
+        rect: { left: 100, top: 600, right: 130, bottom: 790 },
+        writingMode: "vertical-rl",
+      });
+      expect(popupStyle()).toEqual({
+        left: "100px",
+        top: "150px",
+        width: "480px",
+        height: "440px",
+      });
+      expect(screen.getByRole("dialog", { name: /^Lookup: / }).style.top).toBe("");
+    } finally {
+      platform.android = false;
+    }
   });
 
   it("shrinks into a small reading area and is placed relative to the area beside a pinned sidebar", async () => {

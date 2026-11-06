@@ -36,8 +36,6 @@ const POPUP_CLOSE_BEHAVIORS: [&str; 3] = ["escape-outside", "outside", "persiste
 const POPUP_READING_POSITIONS: [&str; 2] = ["beside", "above"];
 /// The full lookup popup, or the experimental compact dictionary of headwords and definitions.
 const POPUP_STYLES: [&str; 2] = ["standard", "dictionary"];
-/// Where the phone shows a lookup: its sheet, or the popup by the word.
-const LOOKUP_DISPLAYS: [&str; 2] = ["sheet", "popup"];
 /// Hover/scan delay (0 scans at once), scanned characters, results, and child popup levels.
 const POPUP_HOVER_DELAYS: std::ops::RangeInclusive<i64> = 0..=1200;
 const POPUP_SCAN_LENGTHS: std::ops::RangeInclusive<i64> = 1..=64;
@@ -313,14 +311,14 @@ pub struct AppearancePreferences {
     reader_popup_enabled: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_mouse_selection: Option<bool>,
-    /// The phone: where a lookup shows, a tap on a word looks it up, and taps and swipes turn
-    /// pages.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    reader_lookup_display: Option<String>,
+    /// The phone: a tap on a word looks it up, taps and swipes turn pages, and so do the
+    /// volume keys.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_tap_lookup: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_touch_page_turns: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_volume_page_turns: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_anki_action: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -659,10 +657,6 @@ impl AppearancePreferences {
                 .as_deref()
                 .is_none_or(|value| POPUP_STYLES.contains(&value))
             && self
-                .reader_lookup_display
-                .as_deref()
-                .is_none_or(|value| LOOKUP_DISPLAYS.contains(&value))
-            && self
                 .reader_popup_font
                 .as_ref()
                 .is_none_or(FontChoice::valid)
@@ -884,9 +878,9 @@ impl AppearancePreferences {
             reader_popup_font: FontChoice::from_stored(value.get("readerPopupFont"), None),
             reader_popup_enabled: flag("readerPopupEnabled"),
             reader_popup_mouse_selection: flag("readerPopupMouseSelection"),
-            reader_lookup_display: choice("readerLookupDisplay", &LOOKUP_DISPLAYS),
             reader_tap_lookup: flag("readerTapLookup"),
             reader_touch_page_turns: flag("readerTouchPageTurns"),
+            reader_volume_page_turns: flag("readerVolumePageTurns"),
             reader_popup_anki_action: flag("readerPopupAnkiAction"),
             reader_popup_voice_action: flag("readerPopupVoiceAction"),
             reader_popup_show_dictionary_names: flag("readerPopupShowDictionaryNames"),
@@ -1649,9 +1643,9 @@ mod tests {
             reader_popup_font: None,
             reader_popup_enabled: None,
             reader_popup_mouse_selection: None,
-            reader_lookup_display: None,
             reader_tap_lookup: None,
             reader_touch_page_turns: None,
+            reader_volume_page_turns: None,
             reader_popup_anki_action: None,
             reader_popup_voice_action: None,
             reader_popup_show_dictionary_names: None,
@@ -2330,45 +2324,44 @@ mod tests {
     }
 
     #[test]
-    fn phone_touch_and_lookup_display_persist_and_refuse_other_values() {
+    fn phone_touch_and_volume_turns_persist_and_refuse_other_values() {
         let directory = tempdir().unwrap();
         let database = directory.path().join("library.sqlite3");
         let mut saved = preferences("dark", "#2f8f83", 200, 20);
-        for (display, enabled) in [("popup", false), ("sheet", true)] {
-            saved.reader_lookup_display = Some(display.into());
+        for enabled in [false, true] {
             saved.reader_tap_lookup = Some(enabled);
             saved.reader_touch_page_turns = Some(!enabled);
+            saved.reader_volume_page_turns = Some(enabled);
             assert!(save(&database, &saved).unwrap());
             assert_eq!(load(&database).unwrap(), saved);
             let stored = serde_json::to_value(&saved).unwrap();
-            assert_eq!(stored["readerLookupDisplay"], display);
             assert_eq!(stored["readerTapLookup"], enabled);
             assert_eq!(stored["readerTouchPageTurns"], !enabled);
+            assert_eq!(stored["readerVolumePageTurns"], enabled);
         }
-        let mut wrong = saved.clone();
-        wrong.reader_lookup_display = Some("floating".into());
-        assert!(!save(&database, &wrong).unwrap());
-        assert_eq!(load(&database).unwrap(), saved);
         for (key, invalid) in [
-            ("readerLookupDisplay", serde_json::json!("Popup")),
-            ("readerLookupDisplay", serde_json::json!(1)),
             ("readerTapLookup", serde_json::json!("true")),
             ("readerTouchPageTurns", serde_json::json!(0)),
+            ("readerVolumePageTurns", serde_json::json!("on")),
         ] {
             let mut value = serde_json::to_value(&saved).unwrap();
             value[key] = invalid;
             let kept = AppearancePreferences::from_stored(&value);
             match key {
-                "readerLookupDisplay" => assert_eq!(kept.reader_lookup_display, None),
                 "readerTapLookup" => assert_eq!(kept.reader_tap_lookup, None),
-                _ => assert_eq!(kept.reader_touch_page_turns, None),
+                "readerTouchPageTurns" => assert_eq!(kept.reader_touch_page_turns, None),
+                _ => assert_eq!(kept.reader_volume_page_turns, None),
             }
             assert_eq!(kept.theme, saved.theme);
         }
+        // The phone's lookup sheet is gone: a choice of it saved before is dropped.
+        let mut value = serde_json::to_value(&saved).unwrap();
+        value["readerLookupDisplay"] = serde_json::json!("sheet");
+        assert_eq!(AppearancePreferences::from_stored(&value), saved);
         let legacy = AppearancePreferences::from_stored(&serde_json::json!({}));
-        assert_eq!(legacy.reader_lookup_display, None);
         assert_eq!(legacy.reader_tap_lookup, None);
         assert_eq!(legacy.reader_touch_page_turns, None);
+        assert_eq!(legacy.reader_volume_page_turns, None);
     }
 
     #[test]

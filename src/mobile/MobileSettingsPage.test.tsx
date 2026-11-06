@@ -50,27 +50,21 @@ describe("Settings on the phone", () => {
     expect(screen.getByText("Scan length")).toBeTruthy();
     expect(screen.getByText("Font size")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Lookup triggers" })).toBeNull();
-    expect(screen.queryByText("Popup width")).toBeNull();
-    expect(screen.queryByText("Popup height")).toBeNull();
-    expect(screen.queryByText("Rounded corners")).toBeNull();
+    expect(screen.getByText("Popup width")).toBeTruthy();
+    expect(screen.getByText("Popup height")).toBeTruthy();
+    expect(screen.getByText("Rounded corners")).toBeTruthy();
     expect(screen.getByText("Add to Anki action")).toBeTruthy();
     // The phone has no preview popup.
     expect(document.querySelector(".reader-lookup")).toBeNull();
   });
 
-  it("shows lookups in a sheet or a popup sized here, and looks up a tapped word by choice", async () => {
+  it("looks up a tapped word by choice", async () => {
     settings("popup");
     const tapLookup = screen.getByRole("button", { name: "Tap a word to look it up" });
     expect(tapLookup.getAttribute("aria-pressed")).toBe("true");
     await userEvent.click(tapLookup);
     expect(tapLookup.getAttribute("aria-pressed")).toBe("false");
-    await userEvent.selectOptions(
-      screen.getByRole("combobox", { name: "Show lookups in" }),
-      "popup",
-    );
-    expect(screen.getByText("Popup width")).toBeTruthy();
-    expect(screen.getByText("Popup height")).toBeTruthy();
-    expect(screen.getByText("Rounded corners")).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "Show lookups in" })).toBeNull();
   });
 
   it("shows the dictionaries, their language and word audio", () => {

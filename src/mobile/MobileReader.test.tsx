@@ -416,7 +416,7 @@ describe("the Reader by touch", () => {
     expect(continuous.onTurn).not.toHaveBeenCalled();
   });
 
-  it("reads a VN book on by a tap, and only shows its text from a lookup", async () => {
+  it("reads a VN book on by a tap, and only shows the rest of its text while it appears", async () => {
     const { viewport, onTurn, onLookUp, onReadOn } = reader({
       pageTurns: {
         canAdvance: true,
@@ -427,17 +427,88 @@ describe("the Reader by touch", () => {
       preferences: { readerViewMode: "vn" },
     });
     await shown();
-    onReadOn.mockReturnValue(true);
+    let revealing = false;
+    onReadOn.mockImplementation((advance) => {
+      if (!revealing) return advance;
+      revealing = false;
+      return true;
+    });
     tap(viewport, 500);
     tap(viewport, 950);
-    expect(onReadOn.mock.calls).toEqual([[true], [true]]);
+    expect(onReadOn.mock.calls).toEqual([[false], [true], [false], [true]]);
     expect(onTurn).not.toHaveBeenCalled();
     expect(screen.queryByRole("banner")).toBeNull();
     tap(viewport, 100);
     expect(onTurn).toHaveBeenCalledWith("retreat");
-    onLookUp.mockReturnValueOnce(true);
+    // While the text appears, a tap on a word, shown or not yet, only shows the rest.
+    revealing = true;
+    onReadOn.mockClear();
+    onLookUp.mockClear().mockReturnValue(true);
     tap(viewport, 500);
-    expect(onReadOn).toHaveBeenLastCalledWith(false);
+    expect(onReadOn.mock.calls).toEqual([[false]]);
+    expect(onLookUp).not.toHaveBeenCalled();
+    // Once it all shows, the word is looked up, without reading on.
+    tap(viewport, 500);
+    expect(onLookUp).toHaveBeenCalledTimes(1);
+    expect(onReadOn.mock.calls).toEqual([[false], [false]]);
+  });
+
+  it("shows the controls from a tap anywhere on a continuous book, whole or a chapter alone", async () => {
+    for (const readerViewMode of ["continuous", "semi-continuous"] as const) {
+      const { viewport, onTurn } = reader({
+        pageTurns: {
+          canAdvance: true,
+          canRetreat: true,
+          forwardArrow: "ArrowRight",
+          scrollAxis: "vertical",
+        },
+        preferences: { readerViewMode },
+      });
+      await shown();
+      tap(viewport, 950);
+      expect(onTurn).not.toHaveBeenCalled();
+      expect(await screen.findByRole("banner")).toBeInTheDocument();
+      cleanup();
+      document.body.replaceChildren();
+    }
+  });
+
+  it("turns the page by the volume keys only with their setting on and the book alone shown", async () => {
+    const press = (key: string) =>
+      (window as Window & { komoriVolumeKey?: (key: string) => boolean }).komoriVolumeKey?.(key);
+    const off = reader();
+    await shown();
+    expect(press("down")).toBe(false);
+    expect(off.onTurn).not.toHaveBeenCalled();
+    cleanup();
+    document.body.replaceChildren();
+
+    const { viewport, onTurn, onReadOn, lookup } = reader({
+      preferences: { readerVolumePageTurns: true },
+    });
+    await shown();
+    expect(press("down")).toBe(true);
+    expect(press("up")).toBe(true);
+    expect(onTurn.mock.calls).toEqual([["advance"], ["retreat"]]);
+    // Down reads on as VN view does, turning nothing more where it did.
+    onReadOn.mockReturnValueOnce(true);
+    press("down");
+    expect(onReadOn).toHaveBeenLastCalledWith(true);
+    expect(onTurn).toHaveBeenCalledTimes(2);
+    // With the lookup open, a press closes it, as Back does.
+    lookup.open = true;
+    expect(press("up")).toBe(true);
+    expect(lookup.back).toHaveBeenCalledTimes(1);
+    expect(onTurn).toHaveBeenCalledTimes(2);
+    lookup.open = false;
+    // Over the controls the keys change the volume.
+    tap(viewport, 500);
+    await screen.findByRole("banner");
+    expect(press("down")).toBe(false);
+    expect(onTurn).toHaveBeenCalledTimes(2);
+    cleanup();
+    document.body.replaceChildren();
+    expect(press("down")).toBeUndefined();
   });
 
   it("takes touches from the book's own pages through the Reader", () => {
@@ -760,6 +831,9 @@ describe("the Reader by touch", () => {
     await userEvent.click(
       within(sheet).getByRole("button", { name: "Tap or swipe to turn pages" }),
     );
+    expect(
+      within(sheet).getByRole("button", { name: "Volume keys turn pages" }),
+    ).toBeInTheDocument();
     await userEvent.click(within(sheet).getByRole("button", { name: "Close" }));
     onLookUp.mockClear().mockReturnValue(true);
     tap(viewport, 950);

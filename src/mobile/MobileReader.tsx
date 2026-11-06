@@ -68,7 +68,13 @@ import { i18n, useI18n } from "../i18n/i18n";
 import { ContinueFromDialog, useReaderSync } from "./ContinueFrom";
 import "./mobileReader.css";
 import { MobileSheet } from "./MobileSheet";
-import { ownBookSelection, showSystemBars, systemBarIcons, useBackCloser } from "./system";
+import {
+  onVolumeKey,
+  ownBookSelection,
+  showSystemBars,
+  systemBarIcons,
+  useBackCloser,
+} from "./system";
 
 /** The Reader's tools, as the PC's sidebar shows them. */
 export interface MobileReaderTools {
@@ -201,9 +207,9 @@ export function MobileReader({
   const {
     readerTheme,
     readerCustomThemes,
-    readerLookupDisplay,
     readerTapLookup,
     readerTouchPageTurns,
+    readerVolumePageTurns,
     readerViewMode,
     readerShowReadingPosition,
     readerShowPercentage,
@@ -235,8 +241,8 @@ export function MobileReader({
     : [];
   const lightPage = isLightTheme(resolveReaderTheme(readerTheme, readerCustomThemes));
   useEffect(() => systemBarIcons(lightPage), [lightPage]);
-  // The sheet answers Back itself; the popup closes from here.
-  useBackCloser(lookup.open && readerLookupDisplay === "popup", lookup.back);
+  // Back closes the deepest lookup popup.
+  useBackCloser(lookup.open, lookup.back);
 
   const current = {
     ready,
@@ -249,6 +255,8 @@ export function MobileReader({
     lookupClosedAt: lookup.closedAt,
     tapLookup: readerTapLookup,
     touchTurns: readerTouchPageTurns,
+    // Taps turn only pages: a continuous book, whole or a chapter at a time, has none.
+    tapTurns: readerViewMode === "paginated" || readerViewMode === "vn",
     chapterView: readerViewMode === "semi-continuous",
   };
   const latest = useRef(current);
@@ -297,6 +305,7 @@ export function MobileReader({
         lookupClosedAt,
         tapLookup,
         touchTurns,
+        tapTurns,
       } = latest.current;
       if (event.type !== "touchend" || !began || event.touches.length || !ready) return;
       const dx = point.x - began.x;
@@ -310,20 +319,16 @@ export function MobileReader({
         if (owner.getSelection()?.isCollapsed === false) return;
         // The tap's own click would otherwise land on the controls it shows, and hide them.
         if (event.cancelable) event.preventDefault();
-        // A tap on a word looks it up; one on blank space turns the page or shows the controls,
-        // unless it closed the lookup by the word, as the press it began with does. In VN
-        // view either only shows the rest of the text, as a click does on the PC.
-        if (tapLookup && onLookUp(point.x, point.y)) {
-          onReadOn(false);
-          return;
-        }
-        if (lookupClosedAt() >= began.now - closingPress) {
-          onReadOn(false);
-          return;
-        }
+        // While VN view's text still appears, a tap only shows the rest of it, as a click does
+        // on the PC: the words not shown yet are blank page. Otherwise a tap on a word looks
+        // it up; one on blank space turns the page or shows the controls, unless it closed
+        // the lookup by the word, as the press it began with does.
+        if (onReadOn(false)) return;
+        if (tapLookup && onLookUp(point.x, point.y)) return;
+        if (lookupClosedAt() >= began.now - closingPress) return;
         const across = point.x / window.innerWidth;
         const back = leftAdvances ? across > 1 - sideZone : across < sideZone;
-        if (!touchTurns) setShown(true);
+        if (!touchTurns || !tapTurns) setShown(true);
         // VN view reads on from anywhere but the side that turns back; the footer and the
         // clock show the controls.
         else if (!back && onReadOn(true)) return;
@@ -476,6 +481,31 @@ export function MobileReader({
       else onGoToOffset(0, () => {});
     },
   });
+
+  // The volume keys turn the page while the book alone shows, when their setting is on: down
+  // reads on, as VN view's tap does, and up turns back. A press with the lookup open closes
+  // it, as Back does. Any other press changes the volume.
+  const volume = {
+    on: readerVolumePageTurns && ready,
+    covered: shown || chaptersOpen || appearanceOpen || !!tool || image.viewing || !!sync.conflict,
+    lookup,
+    onTurn,
+    onReadOn,
+  };
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
+  useEffect(
+    () =>
+      onVolumeKey((key) => {
+        const { on, covered, lookup, onTurn, onReadOn } = volumeRef.current;
+        if (!on || covered) return false;
+        if (lookup.open) lookup.back();
+        else if (key === "up") onTurn("retreat");
+        else if (!onReadOn(true)) onTurn("advance");
+        return true;
+      }),
+    [],
+  );
 
   return (
     <>
@@ -1091,6 +1121,11 @@ function AppearanceSheet({
             label={t("appearancePanel.touchTurns")}
             checked={appearance.readerTouchPageTurns}
             onChange={appearance.setReaderTouchPageTurns}
+          />
+          <ToggleSetting
+            label={t("appearancePanel.volumeTurns")}
+            checked={appearance.readerVolumePageTurns}
+            onChange={appearance.setReaderVolumePageTurns}
           />
         </div>
       </section>

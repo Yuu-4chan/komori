@@ -10,7 +10,8 @@
     var(--stable-area-left);
 }
 
-/* The clock and session time above the book, the position below; both show the controls. */
+/* The clock and session time above the book, the position below, each in a pill as on the
+ * PC; both show the controls. */
 .mobile-reader__status,
 .mobile-reader__footer {
   position: absolute;
@@ -24,9 +25,10 @@
   justify-content: center;
   transform: translateX(-50%);
   color: var(--reader-footer-text);
-  background: none;
-  border: 0;
+  background: color-mix(in srgb, var(--reader-page) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--reader-ink) 8%, transparent);
   border-radius: var(--radius-pill);
+  backdrop-filter: blur(10px);
   font: inherit;
   font-size: 0.6875rem;
   font-variant-numeric: tabular-nums;
@@ -507,116 +509,18 @@ li:only-child > .mobile-chapter .mobile-chapter__dot::before {
   grid-auto-columns: minmax(0, 1fr);
 }
 
-/* A lookup: a sheet from the bottom of the screen, or from the top for a word under that
-   place, in the popup's theme, above the book it leaves showing. */
-.mobile-lookup__close {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  padding: 0;
-  background: none;
-  border: 0;
-}
-
-.mobile-lookup__sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  z-index: 41;
-  padding: 0 var(--safe-area-right) 0 var(--safe-area-left);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  color: var(--text-primary);
-  background: var(--surface-card);
-  box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.38);
-  transition: height var(--duration-normal) var(--ease-out);
-}
-
-.mobile-lookup__sheet[data-dragging] {
-  transition: none;
-}
-
-.mobile-lookup--bottom .mobile-lookup__sheet {
-  bottom: 0;
-  padding-bottom: var(--safe-area-bottom);
-  border-radius: 1.5rem 1.5rem 0 0;
-  animation: mobile-rise var(--duration-normal) var(--ease-out);
-}
-
-.mobile-lookup--top .mobile-lookup__sheet {
-  top: 0;
-  padding-top: var(--safe-area-top);
-  border-radius: 0 0 1.5rem 1.5rem;
-  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.38);
-  animation: mobile-lookup-drop var(--duration-normal) var(--ease-out);
-}
-
-/* The whole screen keeps the handle clear of where the system bars and their gestures are,
-   though they are hidden while reading. */
-.mobile-lookup--bottom .mobile-lookup__sheet[data-full] {
-  padding-top: var(--stable-area-top);
-  border-radius: 0;
-}
-
-.mobile-lookup--top .mobile-lookup__sheet[data-full] {
-  padding-bottom: var(--stable-area-bottom);
-  border-radius: 0;
-}
-
-@keyframes mobile-lookup-drop {
-  from {
-    transform: translateY(-100%);
-  }
-}
-
-/* The handle: a bar the finger drags, at the edge facing the book. */
-.mobile-lookup__handle {
-  height: 1.5rem;
-  flex: none;
-  display: grid;
-  place-items: center;
-  touch-action: none;
-}
-
-.mobile-lookup--top .mobile-lookup__handle {
-  order: 1;
-}
-
-.mobile-lookup__handle span {
-  width: 2.25rem;
-  height: 0.25rem;
-  background: var(--border-medium);
-  border-radius: var(--radius-pill);
-}
-
-/* The lookup fills the sheet below its handle. */
-.mobile-lookup .reader-lookup {
-  position: static;
-  min-height: 0;
-  flex: 1;
-  background: none;
-  box-shadow: none;
-  animation: none;
-}
-
-.mobile-lookup .reader-lookup[hidden] {
-  display: none;
-}
-
-.mobile-lookup .reader-lookup__body {
-  padding: 0 1.125rem 1.25rem;
+/* The popup over the book keeps its text clear of the screen's edge, with no scroll bar. */
+.mobile-shell .reader-lookup__body {
+  padding-right: 0.75rem;
   scrollbar-gutter: auto;
 }
 
 /* The headword row ends with plain icons, as on the PC, each a full touch target. */
-.mobile-lookup .lookup-entry__actions :is(.anki-action, .icon-button, .dictionary-audio-button),
 .mobile-shell .lookup-entry__actions :is(.anki-action, .icon-button, .dictionary-audio-button) {
   width: 2.5rem;
   height: 2.5rem;
 }
 
-.mobile-lookup .lookup-entry__actions,
 .mobile-shell .lookup-entry__actions {
   margin-right: -0.5rem;
   gap: 0;

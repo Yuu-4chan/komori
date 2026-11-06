@@ -1,6 +1,5 @@
 import { PaletteIcon } from "@phosphor-icons/react";
 
-import { isAndroid } from "../../app/platform";
 import { Card } from "../../components/ui/Card";
 import { ColorField } from "../../components/ui/ColorField";
 import { Select } from "../../components/ui/Select";
@@ -46,10 +45,7 @@ export function PopupAppearanceSettings() {
     readerPopupStyle,
     readerTheme,
     readerCustomThemes,
-    readerLookupDisplay,
   } = useAppearance();
-  // Lookups float by the word on the PC, and on the phone when Popup is chosen over the sheet.
-  const floating = !isAndroid || readerLookupDisplay === "popup";
   const page = resolveReaderTheme(readerTheme, readerCustomThemes);
   const dictionaryStyle = readerPopupStyle === "dictionary";
   const { t } = useI18n();
@@ -117,30 +113,25 @@ export function PopupAppearanceSettings() {
         </div>
       )}
       <div className="settings-list">
-        {/* The phone's sheet has a size and shape of its own; its popup takes these. */}
-        {floating && (
-          <>
-            <div className="settings-field">
-              <Stepper
-                label={t("popupSettings.width")}
-                value={readerPopupWidth}
-                {...lookupPopupWidth}
-                unit={t("unit.px")}
-                onChange={setReaderPopupWidth}
-              />
-              <p className="settings-field__hint">{t("popupSettings.widthHint")}</p>
-            </div>
-            <div className="settings-field">
-              <Stepper
-                label={t("popupSettings.height")}
-                value={readerPopupHeight}
-                {...lookupPopupHeight}
-                unit={t("unit.px")}
-                onChange={setReaderPopupHeight}
-              />
-            </div>
-          </>
-        )}
+        <div className="settings-field">
+          <Stepper
+            label={t("popupSettings.width")}
+            value={readerPopupWidth}
+            {...lookupPopupWidth}
+            unit={t("unit.px")}
+            onChange={setReaderPopupWidth}
+          />
+          <p className="settings-field__hint">{t("popupSettings.widthHint")}</p>
+        </div>
+        <div className="settings-field">
+          <Stepper
+            label={t("popupSettings.height")}
+            value={readerPopupHeight}
+            {...lookupPopupHeight}
+            unit={t("unit.px")}
+            onChange={setReaderPopupHeight}
+          />
+        </div>
         <div className="settings-field">
           <Stepper
             label={t("popupSettings.fontSize")}
@@ -168,18 +159,16 @@ export function PopupAppearanceSettings() {
             onChange={setReaderPopupLineHeight}
           />
         </div>
-        {floating && (
-          <div className="settings-field">
-            <Stepper
-              label={t("popupSettings.radius")}
-              value={readerPopupRadius}
-              {...lookupPopupRadius}
-              unit={t("unit.px")}
-              onChange={setReaderPopupRadius}
-            />
-            <p className="settings-field__hint">{t("popupSettings.radiusHint")}</p>
-          </div>
-        )}
+        <div className="settings-field">
+          <Stepper
+            label={t("popupSettings.radius")}
+            value={readerPopupRadius}
+            {...lookupPopupRadius}
+            unit={t("unit.px")}
+            onChange={setReaderPopupRadius}
+          />
+          <p className="settings-field__hint">{t("popupSettings.radiusHint")}</p>
+        </div>
         <div className="settings-field">
           <Select
             label={t("popupSettings.readingPosition")}

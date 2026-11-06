@@ -1159,7 +1159,7 @@
 .reader-lookup__body {
   min-height: 0;
   flex: 1 1 auto;
-  padding: 4px 14px 18px 22px;
+  padding: 0 6px 12px 14px;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -1575,7 +1575,7 @@
 
 /* In the popup the headword stays under twice the definitions' size, so the meaning leads. */
 .reader-lookup .lookup-entry {
-  padding: 12px 0 10px;
+  padding: 8px 0;
   gap: 6px;
 }
 .reader-lookup .lookup-entry__headline {
@@ -1604,7 +1604,7 @@
   fallback: decimal;
 }
 .reader-lookup--dictionary .reader-lookup__body {
-  padding: 14px 20px 20px 22px;
+  padding: 10px 10px 14px 14px;
 }
 .reader-lookup--dictionary .reader-lookup__entries {
   gap: 14px;
