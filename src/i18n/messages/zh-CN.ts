@@ -1350,6 +1350,8 @@ export const zhCN: MessageCatalog = {
   "readingStatus.time": "本次阅读时间",
   "readingStatus.timeLabel": "本次阅读时间：{duration}",
   "readingStatus.speed": "阅读速度",
+  "readingStatus.startSession": "开始计时",
+  "readingStatus.stopSession": "暂停计时",
   "readingStatus.speedTitle": "本次阅读速度",
   "readingStatus.speedLabel": "本次阅读速度：{speed}",
   "sidebar.reader": "阅读器",

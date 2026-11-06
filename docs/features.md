@@ -20,12 +20,17 @@ Komori on an Android phone (Android 10 and later) has its own frame: page header
 brand and the gear to Settings, a floating dock (Dictionary, Library, Statistics) above the
 gesture bar, and Back closing an open sheet before it leaves the page. The Library shows the
 count of books, search, Add books (the system document picker, several EPUBs at once), the
-book to continue and a grid of covers with progress; books stay where they are, and a moved
-or deleted one offers Relink and Remove. The Reader is read by touch: in paginated and VN
+books to continue and the books as a grid of covers or a list with progress, with the PC's
+status filter, grouping (series, language, author), sort and direction, and card details in
+its view sheet; books stay where they are, and a moved or deleted one offers Relink and Remove.
+A long press selects a book or a group's books, then taps select more, with Select all, and
+a bar offers Series… (which also renames or removes a series), Edit…, Mark as completed and
+Remove, or Keep on this phone and Remove from this phone for the PC's books. The Reader is read by touch: in paginated and VN
 views tap the sides to turn a page (in the book's page progression), tap the paragraph in VN
 view to read on, swipe in paginated view,
 scroll in continuous views, where a tap anywhere shows the controls, optionally turn pages with
-the volume keys, and tap the middle, the clock or the footer for the controls: two rows of a pill between round
+the volume keys, start or pause counting the reading session from the play button in the
+top pill, and tap the middle, the clock or the footer for the controls: two rows of a pill between round
 buttons, Back, the title and Search at the top, Appearance (theme, font size, line height,
 page margin, writing and view mode), the chapter and a bookmark toggle at the bottom. Either
 pill opens Contents: Images, Bookmarks, Notes, the chapters and a position slider. A footer
@@ -36,8 +41,10 @@ deepest one. A long press selects text for Komori's toolbar (note, highlight, co
 search); on a highlight or note it offers Delete instead of Highlight. Reopening Komori after
 Android ends it opens the last book where it was. Dictionary searches from the keyboard, its
 sources a row of chips. Statistics is the PC page in two columns. Settings has General
-(language, application theme), Reader popup (appearance and scanning), Dictionary (ZIPs
-imported from the phone, starter downloads, order, removal and word audio) and About.
+(language, application theme, Automatic series), Reader popup (appearance and scanning),
+Dictionary (ZIPs imported from the phone, starter downloads, order, removal and word audio),
+Anki, Statistics (recording, session start Auto, First character read or Manual, jump and
+idle limits), Sync and About.
 
 ## Library
 

@@ -8,7 +8,7 @@ import {
   editBooks,
   listLibrary,
   markBooksCompleted,
-  removeBook,
+  removeBooks,
   setBookSeries,
   type LibraryBook,
 } from "../features/library/libraryApi";
@@ -22,6 +22,9 @@ vi.mock("../features/library/libraryApi", () => ({
   relinkBook: vi.fn(),
   markBooksCompleted: vi.fn(async (ids: string[]) => ids),
   removeBook: vi.fn(async () => true),
+  removeBooks: vi.fn(async (ids: string[]) =>
+    ids.map((id) => ({ id, status: "removed", message: null })),
+  ),
   setBookSeries: vi.fn(async () => 1),
   resetBookSeries: vi.fn(async () => 1),
   editBooks: vi.fn(async () => {}),
@@ -37,19 +40,22 @@ const reading: LibraryBook = {
   lastReadAt: "2026-11-01T00:00:00Z",
   availability: "available",
   hasCover: false,
+  language: "ja",
   progress: { unit: "characters", current: 2_500, total: 10_000 },
 } as LibraryBook;
 const finished: LibraryBook = {
   ...reading,
   id: "book-2",
   title: "こころ",
-  series: "漱石",
+  author: "夏目漱石",
+  series: "漱石全集",
   progress: { unit: "characters", current: 10_000, total: 10_000 },
 } as LibraryBook;
 const gone: LibraryBook = {
   ...reading,
   id: "book-3",
   title: "人間失格",
+  author: "太宰治",
   availability: "missing",
   lastReadAt: null,
   progress: null,
@@ -73,76 +79,116 @@ function library(books: LibraryBook[] = [reading, finished, gone]) {
   );
 }
 
+const allBooks = () => screen.findByRole("region", { name: "All" });
+
 async function tile(title: string) {
-  const books = await screen.findByRole("region", { name: "All" });
+  const books = await allBooks();
   const titles = [...books.querySelectorAll(".mobile-tile__title")];
   return titles.find((each) => each.textContent === title)!.closest("a, button")!;
+}
+
+function titles(region: HTMLElement) {
+  return [...region.querySelectorAll(".mobile-tile__title")].map((each) => each.textContent);
+}
+
+/**
+ * A long press, as Android reports it, and the click that follows it on what is there once the
+ * press has selected the book. The clock then moves on, as a person's next tap would.
+ */
+async function longPress(
+  element: Element,
+  again: () => Element | Promise<Element> = () => element,
+) {
+  const now = Date.now();
+  vi.spyOn(Date, "now").mockReturnValue(now);
+  fireEvent.contextMenu(element);
+  fireEvent.click(await again());
+  vi.spyOn(Date, "now").mockReturnValue(now + 1_000);
+}
+
+const closeSheet = () => fireEvent.click(document.querySelector(".mobile-sheet-layer")!);
+
+function bar() {
+  return within(screen.getByRole("toolbar", { name: "Library selection" }));
+}
+
+function actions() {
+  return bar()
+    .getAllByRole("button")
+    .map((each) => each.textContent);
+}
+
+async function view(group: string, choice: string | RegExp) {
+  await userEvent.click(screen.getByRole("button", { name: "Library view" }));
+  const sheet = screen.getByRole("dialog", { name: "Library view" });
+  await userEvent.click(
+    within(within(sheet).getByRole("region", { name: group })).getByRole("button", {
+      name: choice,
+    }),
+  );
 }
 
 beforeEach(() => libraryCache.reset());
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
-describe("a long press on a book on the phone", () => {
-  it("opens its sheet, under its cover and progress, and not the book", async () => {
+describe("selecting books on the phone", () => {
+  it("selects a book on a long press, not opening it, and more with taps", async () => {
     library();
-    const book = await tile("羅生門");
-    fireEvent.contextMenu(book);
-    fireEvent.click(book);
-    const sheet = screen.getByRole("dialog", { name: "羅生門" });
+    await longPress(await tile("羅生門"), () => tile("羅生門"));
     expect(screen.queryByText(/^Reading/)).toBeNull();
-    expect(sheet.textContent).toContain("芥川龍之介");
-    expect(sheet.textContent).toContain("25% · 2,500 / 10,000");
-    expect(
-      within(sheet)
-        .getAllByRole("button")
-        .concat(within(sheet).getAllByRole("link"))
-        .map((action) => action.textContent),
-    ).toEqual(
-      expect.arrayContaining([
-        "Continue reading",
-        "Edit…",
-        "SeriesNo series",
-        "Mark as completed",
-        "Remove from library",
-      ]),
-    );
-    await userEvent.click(within(sheet).getByRole("link", { name: "Continue reading" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 book selected");
+    expect(actions()).toEqual(["Series…", "Edit…", "Mark as completed", "Remove"]);
+
+    await userEvent.click(await tile("こころ"));
+    expect(screen.queryByText(/^Reading/)).toBeNull();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("2 books selected");
+    expect((await tile("こころ")).getAttribute("aria-pressed")).toBe("true");
+
+    await userEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("3 books selected");
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("0 books selected");
+    expect(screen.queryByRole("toolbar")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Done selecting" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Library");
+    await userEvent.click(await tile("羅生門"));
     expect(screen.getByText("Reading book-1")).toBeTruthy();
   });
 
-  it("marks a book completed and lists the Library again", async () => {
+  it("marks the books selected completed and lists the Library again", async () => {
     library();
-    fireEvent.contextMenu(await tile("羅生門"));
-    await userEvent.click(screen.getByRole("button", { name: "Mark as completed" }));
+    await longPress(await tile("羅生門"), () => tile("羅生門"));
+    await userEvent.click(bar().getByRole("button", { name: "Mark as completed" }));
     expect(markBooksCompleted).toHaveBeenCalledWith(["book-1"]);
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
     expect(listLibrary).toHaveBeenCalledTimes(2);
   });
 
-  it("offers Read again and the series for a finished book, without Mark as completed", async () => {
+  it("offers no Mark as completed for a finished book, and renames its series", async () => {
     library();
-    fireEvent.contextMenu(await tile("こころ"));
-    const sheet = screen.getByRole("dialog", { name: "こころ" });
-    expect(within(sheet).getByRole("link").textContent).toBe("Read again");
-    expect(within(sheet).queryByRole("button", { name: "Mark as completed" })).toBeNull();
-    await userEvent.click(within(sheet).getByRole("button", { name: /^Series/ }));
+    await longPress(await tile("こころ"), () => tile("こころ"));
+    expect(actions()).toEqual(["Series…", "Edit…", "Remove"]);
+    await userEvent.click(bar().getByRole("button", { name: "Series…" }));
     const dialog = screen.getByRole("dialog", { name: "Series" });
     const name = within(dialog).getByRole("combobox", { name: "Series name" }) as HTMLInputElement;
-    expect(name.value).toBe("漱石");
+    expect(name.value).toBe("漱石全集");
     await userEvent.clear(name);
     await userEvent.type(name, "夏目漱石");
     await userEvent.click(within(dialog).getByRole("button", { name: "Save series" }));
     expect(setBookSeries).toHaveBeenCalledWith(["book-2"], "夏目漱石");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.queryByRole("toolbar")).toBeNull();
   });
 
-  it("edits the title and author, and removes the book after asking", async () => {
+  it("edits the title and author, and removes the books selected after asking", async () => {
     library();
-    fireEvent.contextMenu(await tile("羅生門"));
-    await userEvent.click(screen.getByRole("button", { name: "Edit…" }));
+    await longPress(await tile("羅生門"), () => tile("羅生門"));
+    await userEvent.click(bar().getByRole("button", { name: "Edit…" }));
     const edit = screen.getByRole("dialog", { name: "Title and author" });
     const title = within(edit).getByRole("textbox", { name: "Title" });
     await userEvent.type(title, "（改）");
@@ -153,17 +199,113 @@ describe("a long press on a book on the phone", () => {
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
-    fireEvent.contextMenu(await tile("羅生門"));
-    await userEvent.click(screen.getByRole("button", { name: "Remove from library" }));
-    const confirm = screen.getByRole("alertdialog", { name: "Remove this book from Komori?" });
-    await userEvent.click(within(confirm).getByRole("button", { name: "Remove from library" }));
-    expect(removeBook).toHaveBeenCalledWith("book-1");
+    await longPress(await tile("羅生門"), () => tile("羅生門"));
+    await userEvent.click(await tile("人間失格"));
+    await userEvent.click(bar().getByRole("button", { name: "Remove" }));
+    const confirm = screen.getByRole("alertdialog", { name: "Remove 2 books from Komori?" });
+    await userEvent.click(within(confirm).getByRole("button", { name: "Remove 2 books" }));
+    expect(removeBooks).toHaveBeenCalledWith(["book-3", "book-1"]);
+    await waitFor(() =>
+      expect(titles(screen.getByRole("region", { name: "All" }))).toEqual(["こころ"]),
+    );
+    expect(screen.queryByRole("toolbar")).toBeNull();
   });
 
-  it("offers Relink and Remove for a book whose file is gone", async () => {
+  it("offers Relink and Remove for a book whose file is gone, and selects it on a long press", async () => {
     library();
-    fireEvent.contextMenu(await tile("人間失格"));
+    await userEvent.click(await tile("人間失格"));
     expect(screen.getByRole("button", { name: "Relink EPUB…" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Edit…" })).toBeNull();
+    closeSheet();
+    await longPress(await tile("人間失格"), () => tile("人間失格"));
+    expect(screen.queryByRole("button", { name: "Relink EPUB…" })).toBeNull();
+    expect(actions()).toEqual(["Series…", "Edit…", "Remove"]);
+  });
+});
+
+describe("the phone Library's view", () => {
+  it("filters by status, sorts either way and shows a list, saved as chosen", async () => {
+    library();
+    const books = await allBooks();
+    await waitFor(() => expect(titles(books)).toHaveLength(3));
+    expect(screen.getByRole("button", { name: "Library view" }).className).not.toContain(
+      "--active",
+    );
+
+    await view("Status filter", "Completed");
+    expect(titles(books)).toEqual(["こころ"]);
+    expect(books.textContent).toContain("1 book");
+    expect(screen.queryByRole("region", { name: "Continue reading" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Library view" }).className).toContain("--active");
+    await userEvent.click(
+      within(screen.getByRole("region", { name: "Status filter" })).getByRole("button", {
+        name: "All books",
+      }),
+    );
+
+    const sorted = titles(books);
+    await userEvent.click(
+      within(screen.getByRole("region", { name: "Sort books" })).getByRole("button", {
+        name: "Reverse order",
+      }),
+    );
+    expect(titles(books)).toEqual([...sorted].reverse());
+
+    await userEvent.click(
+      within(screen.getByRole("region", { name: "Library layout" })).getByRole("button", {
+        name: "List view",
+      }),
+    );
+    expect(books.querySelectorAll(".mobile-book-row")).toHaveLength(3);
+    expect(books.querySelector(".mobile-tile")).toBeNull();
+  });
+
+  it("shows the details chosen for cards", async () => {
+    library();
+    const books = await allBooks();
+    await waitFor(() => expect(books.textContent).toContain("漱石全集"));
+    expect(books.textContent).toContain("Japanese");
+    await view("Visible on cards", /Series/);
+    await userEvent.click(
+      within(screen.getByRole("region", { name: "Visible on cards" })).getByRole("button", {
+        name: /Language/,
+      }),
+    );
+    expect(books.textContent).not.toContain("漱石全集");
+    expect(books.textContent).not.toContain("Japanese");
+  });
+
+  it("groups by series under headings, and a heading selects its books", async () => {
+    library();
+    await allBooks();
+    await view("Group books", "Series");
+    closeSheet();
+    const books = await allBooks();
+    const headings = [...books.querySelectorAll(".mobile-group-heading")].map(
+      (each) => each.textContent,
+    );
+    expect(headings).toEqual(["漱石全集1 book", "No series2 books"]);
+
+    await longPress(
+      books.querySelectorAll(".mobile-group-heading")[1]!,
+      () => books.querySelectorAll(".mobile-group-heading")[1]!,
+    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("2 books selected");
+    const series = screen.getByRole("button", { name: /^漱石全集/ });
+    await userEvent.click(series);
+    expect(series.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("3 books selected");
+    await userEvent.click(series);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("2 books selected");
+
+    // Removing a group: the books selected leave their series.
+    await userEvent.click(series);
+    await userEvent.click(bar().getByRole("button", { name: "Series…" }));
+    const dialog = screen.getByRole("dialog", { name: "Series" });
+    await userEvent.click(within(dialog).getByRole("radio", { name: /No series/ }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save series" }));
+    expect(setBookSeries).toHaveBeenCalledWith(
+      expect.arrayContaining(["book-1", "book-2", "book-3"]),
+      null,
+    );
   });
 });

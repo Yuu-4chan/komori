@@ -1419,6 +1419,8 @@ export const ko: MessageCatalog = {
   "readingStatus.time": "이번 세션에서 읽은 시간",
   "readingStatus.timeLabel": "이번 세션의 읽은 시간: {duration}",
   "readingStatus.speed": "읽기 속도",
+  "readingStatus.startSession": "측정 시작",
+  "readingStatus.stopSession": "측정 일시정지",
   "readingStatus.speedTitle": "이번 세션의 읽기 속도",
   "readingStatus.speedLabel": "이번 세션의 읽기 속도: {speed}",
   "sidebar.reader": "뷰어",

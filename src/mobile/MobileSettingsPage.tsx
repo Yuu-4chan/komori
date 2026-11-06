@@ -1,6 +1,7 @@
 import {
   ArrowsClockwiseIcon,
   CaretRightIcon,
+  ChartBarIcon,
   ChatTextIcon,
   GearSixIcon,
   InfoIcon,
@@ -11,6 +12,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { version } from "../../package.json";
 import { BrandMark } from "../brand/BrandMark";
+import { Card } from "../components/ui/Card";
+import { ToggleSetting } from "../components/ui/ToggleSetting";
 import { ankiChanged, cachedAnki } from "../features/anki/ankiApi";
 import { AnkiIcon } from "../features/anki/AnkiIcon";
 import { AnkiSettings } from "../features/anki/AnkiSettings";
@@ -19,6 +22,8 @@ import { AppThemeSettings } from "../features/appearance/AppThemeSettings";
 import { DictionarySources } from "../features/dictionary/DictionarySources";
 import { WordAudioSettings } from "../features/dictionary/WordAudioSettings";
 import { ReaderPopupSettings } from "../features/reader/ReaderPopupSettings";
+import { StatisticsSettings } from "../features/statistics/StatisticsSettings";
+import { sessionStartModes } from "../features/statistics/statisticsPreferences";
 import { useI18n } from "../i18n/i18n";
 import { MobilePageHeader } from "./MobileShell";
 import { MobileSyncSettings } from "./MobileSyncSettings";
@@ -29,6 +34,7 @@ const sections = [
   { id: "popup", label: "settings.popup", icon: ChatTextIcon },
   { id: "dictionary", label: "settings.dictionary", icon: TranslateIcon },
   { id: "anki", label: "settings.anki", icon: AnkiIcon },
+  { id: "statistics", label: "settings.statistics", icon: ChartBarIcon },
   { id: "sync", label: "settings.sync", icon: ArrowsClockwiseIcon },
   { id: "about", label: "settings.about", icon: InfoIcon },
 ] as const;
@@ -37,20 +43,32 @@ const sections = [
  * Settings on the phone: a list of its sections, each opening as its own page that Back
  * leaves. General holds the interface language and the application theme; Reader popup, the
  * lookup sheet's content, look, sources and scanning; Dictionary, the dictionaries and word
- * audio; Anki, AnkiDroid and the cards it gets; Sync, pairing with Komori PC and its
- * dictionaries; About, the version.
+ * audio; Anki, AnkiDroid and the cards it gets; Statistics, whether and how the Reader counts
+ * reading sessions; Sync, pairing with Komori PC and its dictionaries; About, the version.
  */
 export function MobileSettingsPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { lookupLanguage, setLookupLanguage, starterDefinitions, setStarterDefinitions } =
-    useAppearance();
+  const {
+    lookupLanguage,
+    setLookupLanguage,
+    starterDefinitions,
+    setStarterDefinitions,
+    statisticsEnabled,
+    statisticsSessionStart,
+  } = useAppearance();
   const section = sections.find(({ id }) => id === searchParams.get("section"));
   const deck = useAnkiDeck();
   const link = usePcLink();
   const details: Partial<Record<(typeof sections)[number]["id"], string>> = {
     anki: deck ? `AnkiDroid · ${deck}` : "AnkiDroid",
+    statistics: statisticsEnabled
+      ? t(
+          sessionStartModes.find(({ value }) => value === statisticsSessionStart)?.label ??
+            "statisticsSettings.startAuto",
+        )
+      : t("readingStatus.off"),
     sync: link?.paired ? (link.pcName ?? "") : t("sync.notPaired"),
   };
 
@@ -88,7 +106,12 @@ export function MobileSettingsPage() {
   return (
     <div className={`mobile-page mobile-settings mobile-settings--${section.id}`}>
       <MobilePageHeader back title={t(section.label)} />
-      {section.id === "general" && <AppThemeSettings />}
+      {section.id === "general" && (
+        <>
+          <AppThemeSettings />
+          <AutomaticSeries />
+        </>
+      )}
       {section.id === "popup" && (
         <ReaderPopupSettings
           onDictionarySettings={() => navigate("/settings?section=dictionary")}
@@ -106,6 +129,7 @@ export function MobileSettingsPage() {
         </>
       )}
       {section.id === "anki" && <AnkiSettings lookupLanguage={lookupLanguage} />}
+      {section.id === "statistics" && <StatisticsSettings recorded={false} />}
       {section.id === "sync" && <MobileSyncSettings />}
       {section.id === "about" && (
         <div className="mobile-about">
@@ -137,4 +161,20 @@ function useAnkiDeck() {
     };
   }, []);
   return deck;
+}
+
+/** General's Automatic series, the PC's: whether numbered titles and file names name series. */
+function AutomaticSeries() {
+  const { library, updateLibrary } = useAppearance();
+  const { t } = useI18n();
+  return (
+    <Card className="settings-card">
+      <ToggleSetting
+        checked={library.seriesFromTitles}
+        description={t("librarySettings.seriesFromTitlesHint")}
+        label={t("librarySettings.seriesFromTitles")}
+        onChange={(seriesFromTitles) => updateLibrary({ seriesFromTitles })}
+      />
+    </Card>
+  );
 }

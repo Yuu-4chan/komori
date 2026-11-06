@@ -135,6 +135,11 @@
 .mobile-dock__item:focus-visible,
 .mobile-row:focus-visible,
 .mobile-tile:focus-visible,
+.mobile-book-row:focus-visible,
+.mobile-group-heading:focus-visible,
+.mobile-choice:focus-visible,
+.mobile-selection-bar__action:focus-visible,
+.mobile-selection-header__all:focus-visible,
 .mobile-continue:focus-visible,
 .mobile-sheet-row:focus-visible {
   outline: var(--focus-ring);
@@ -567,110 +572,10 @@
   font-size: 0.8125rem;
 }
 
-/* A long press on a book: a sheet floating above the bottom, with its cover and progress over
-   what can be done with it. */
-.mobile-sheet.mobile-sheet--floating {
-  margin: 0 calc(var(--safe-area-right) + 0.5rem) calc(var(--safe-area-bottom) + 0.5rem)
-    calc(var(--safe-area-left) + 0.5rem);
-  padding: 0.5rem 0 0.625rem;
-  border-radius: 1.625rem;
-}
-
-.mobile-book-sheet__book {
-  padding: 0.25rem 1.125rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.mobile-book-sheet__book .library-book__cover {
-  width: 3rem;
-  flex: none;
-  aspect-ratio: 2 / 3;
-  border-radius: 0.3125rem;
-}
-
-.mobile-book-sheet__book div {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1875rem;
-}
-
-.mobile-book-sheet__book strong {
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.mobile-book-sheet__book span {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.mobile-book-sheet__actions {
-  padding: 0.375rem 0.5rem 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.mobile-book-sheet__action {
-  height: 3.25rem;
-  padding: 0 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-  color: var(--text-primary);
-  background: none;
-  border: 0;
-  border-radius: 0.875rem;
-  font: inherit;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  text-align: start;
-  text-decoration: none;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.mobile-book-sheet__action:active {
-  background: var(--surface-subtle);
-}
-
-.mobile-book-sheet__action:disabled {
-  opacity: 0.6;
-}
-
-.mobile-book-sheet__action > svg {
-  font-size: 1.25rem;
-  flex: none;
-}
-
-.mobile-book-sheet__action--danger {
-  color: var(--danger);
-}
-
-.mobile-book-sheet__label {
-  flex: 1;
-}
-
-.mobile-book-sheet__value {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mobile-book-sheet__action > .mobile-book-sheet__caret {
-  font-size: 1rem;
-  color: var(--text-muted);
-}
-
-/* A long press on a book shows its sheet, not Android's callout or a selection. */
+/* A long press on a book selects it, with no Android callout or text selection. */
 .mobile-tile,
+.mobile-book-row,
+.mobile-group-heading,
 .mobile-continue {
   -webkit-touch-callout: none;
   user-select: none;
@@ -783,7 +688,8 @@
 
 .mobile-settings .settings-card__icon,
 .mobile-settings .settings-card__heading p,
-.mobile-settings--general .settings-card__heading {
+.mobile-settings--general .settings-card__heading,
+.mobile-settings--statistics .settings-card__heading {
   display: none;
 }
 
@@ -1208,7 +1114,6 @@
   color: var(--danger);
 }
 
-/* The books' heading: the place shown, its counts, and the filter choosing the place. */
 /* The place shown and its count of books, with the filter at the end. */
 .mobile-books-heading {
   display: flex;
@@ -1249,26 +1154,6 @@
   border-radius: var(--radius-pill);
   font-size: 1.0625rem;
   cursor: pointer;
-}
-
-.mobile-place-choices {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.mobile-place-choices small {
-  margin-left: auto;
-  color: var(--text-muted);
-  font-size: 0.8125rem;
-}
-
-.mobile-place-choices svg {
-  color: var(--accent-ink);
-}
-
-.mobile-place-choices [aria-pressed="true"] {
-  border-color: var(--border-accent);
 }
 
 .mobile-pc-tile {
@@ -1579,4 +1464,334 @@
 
 .mobile-sync__status .mobile-row__detail {
   white-space: normal;
+}
+
+/* The Library view button shows that a status, place or grouping narrows the books. */
+.mobile-books-heading__filter--active {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--border-accent);
+}
+
+/* The Library view sheet: each choice a row of chips. */
+.mobile-view-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+}
+
+.mobile-view-sheet__group h3 {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.mobile-view-sheet__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.mobile-choice {
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-choice svg {
+  font-size: 1rem;
+  flex: none;
+}
+
+.mobile-choice small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-choice[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--border-accent);
+  font-weight: 600;
+}
+
+/* A book's title, author, chips and progress, under its cover or beside it in the list. */
+.mobile-book-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mobile-book-chips {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.mobile-book-chips > span {
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  flex: none;
+  gap: 0.1875rem;
+  font-size: 0.625rem;
+  white-space: nowrap;
+}
+
+.mobile-book-chips > span:has(.mobile-book-chips__text) {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.mobile-book-chips__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-book-chips svg {
+  flex: none;
+}
+
+/* The list: one book a row, its cover beside what the grid shows under it. */
+.mobile-library__grid--list .mobile-library__row,
+.mobile-library__row.mobile-library__row--heading {
+  grid-template-columns: minmax(0, 1fr);
+  padding-bottom: 0.625rem;
+}
+
+.mobile-book-row {
+  width: 100%;
+  min-width: 0;
+  padding: 0.625rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: inherit;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.9375rem;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mobile-book-row .library-book__cover {
+  width: 3.5rem;
+  height: auto;
+  flex: none;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.3125rem;
+}
+
+.mobile-book-row .mobile-book-copy {
+  flex: 1;
+  gap: 0.3125rem;
+}
+
+.mobile-book-row .mobile-tile__title {
+  font-size: 0.875rem;
+}
+
+.mobile-book-row .mobile-tile__author {
+  font-size: 0.75rem;
+}
+
+.mobile-book-row.mobile-tile--missing .library-book__cover img {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.mobile-book-row .mobile-tile__missing {
+  font-size: 1.375rem;
+}
+
+/* In the list, a PC book's badge sits at the row's end. */
+.mobile-pc-tile--list .mobile-book-row {
+  padding-right: 3rem;
+}
+
+.mobile-pc-tile--list .mobile-pc-tile__badge {
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+}
+
+.mobile-library--selecting .mobile-pc-tile__badge {
+  display: none;
+}
+
+/* Selecting: a ring on each cover, filled with a check once the book is selected. */
+.mobile-select-mark {
+  width: 1.5rem;
+  height: 1.5rem;
+  position: absolute;
+  top: 0.375rem;
+  left: 0.375rem;
+  display: grid;
+  place-items: center;
+  color: var(--text-on-accent);
+  background: color-mix(in srgb, #0c1224 28%, transparent);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px color-mix(in srgb, #0c1224 30%, transparent);
+  font-size: 0.8125rem;
+}
+
+.is-selected .mobile-select-mark,
+.mobile-group-heading[aria-pressed="true"] .mobile-select-mark {
+  background: var(--accent-action);
+  border-color: var(--accent-action);
+}
+
+.mobile-tile.is-selected .library-book__cover {
+  outline: 3px solid var(--accent-action);
+  outline-offset: 2px;
+}
+
+.mobile-book-row.is-selected,
+.mobile-continue.is-selected {
+  background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface-card));
+  border-color: var(--accent-action);
+}
+
+.mobile-book-row .mobile-select-mark,
+.mobile-continue .mobile-select-mark {
+  width: 1.25rem;
+  height: 1.25rem;
+  top: 0.25rem;
+  left: 0.25rem;
+  font-size: 0.6875rem;
+}
+
+/* A group's heading and count; while selecting, a button selecting its books. */
+.mobile-group-heading {
+  width: 100%;
+  margin: 0.375rem 0 0;
+  padding: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-align: start;
+}
+
+.mobile-group-heading__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-group-heading small {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+button.mobile-group-heading {
+  align-items: center;
+  cursor: pointer;
+}
+
+button.mobile-group-heading .mobile-select-mark {
+  position: static;
+  flex: none;
+  background: none;
+  border-color: var(--border-medium);
+  box-shadow: none;
+}
+
+/* The header while selecting: Done, the count, and Select all or Clear. */
+.mobile-selection-header h1 {
+  font-size: 1.25rem;
+}
+
+.mobile-selection-header__all {
+  height: var(--mobile-control);
+  padding: 0 1rem;
+  flex: none;
+  color: var(--accent-ink);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* What can be done with the selection floats where the dock is, over it. */
+.mobile-selection-bar {
+  position: fixed;
+  right: calc(var(--safe-area-right) + 0.75rem);
+  bottom: calc(var(--safe-area-bottom) + var(--mobile-dock-gap));
+  left: calc(var(--safe-area-left) + 0.75rem);
+  z-index: 30;
+  padding: 0.3125rem;
+  display: flex;
+  gap: 0.125rem;
+  overflow-x: auto;
+  background: color-mix(in srgb, var(--surface-card) 96%, transparent);
+  border: 1px solid var(--border-soft);
+  border-radius: 1.375rem;
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(16px);
+  scrollbar-width: none;
+}
+
+.mobile-selection-bar__action {
+  min-width: 4.25rem;
+  padding: 0.5rem 0.375rem 0.4375rem;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1875rem;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  border-radius: 1.0625rem;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-selection-bar__action:active {
+  background: var(--surface-subtle);
+}
+
+.mobile-selection-bar__action:disabled {
+  opacity: 0.5;
+}
+
+.mobile-selection-bar__action svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.mobile-selection-bar__action--danger {
+  color: var(--danger);
 }

@@ -1431,6 +1431,8 @@ export const ja: MessageCatalog = {
   "readingStatus.time": "このセッションで読んだ時間",
   "readingStatus.timeLabel": "このセッションの読書時間：{duration}",
   "readingStatus.speed": "読書速度",
+  "readingStatus.startSession": "計測を開始",
+  "readingStatus.stopSession": "計測を一時停止",
   "readingStatus.speedTitle": "このセッションの読書速度",
   "readingStatus.speedLabel": "このセッションの読書速度：{speed}",
   "sidebar.reader": "読書画面",

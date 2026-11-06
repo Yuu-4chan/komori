@@ -1588,6 +1588,8 @@ export const fr: MessageCatalog = {
   "readingStatus.time": "Temps de lecture de cette session",
   "readingStatus.timeLabel": "Temps de lecture de cette session : {duration}",
   "readingStatus.speed": "Vitesse de lecture",
+  "readingStatus.startSession": "Démarrer le décompte",
+  "readingStatus.stopSession": "Mettre le décompte en pause",
   "readingStatus.speedTitle": "Vitesse de lecture de cette session",
   "readingStatus.speedLabel": "Vitesse de lecture de cette session : {speed}",
   "sidebar.reader": "Lecteur",

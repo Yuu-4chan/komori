@@ -36,11 +36,34 @@ describe("Settings on the phone", () => {
       "Reader popup",
       "Dictionary",
       "AnkiAnkiDroid",
+      "StatisticsAuto",
       "SyncNot paired",
       "About",
     ]);
     await userEvent.click(within(nav).getByRole("button", { name: "Dictionary" }));
     expect(screen.getByRole("heading", { level: 1, name: "Dictionary" })).toBeTruthy();
+  });
+
+  it("makes series automatically by choice, as the PC does", async () => {
+    settings("general");
+    const series = screen.getByRole("button", { name: /Automatic series/ });
+    expect(series.getAttribute("aria-pressed")).toBe("true");
+    await userEvent.click(series);
+    expect(series.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("records statistics as chosen, without the PC's recorded statistics to delete", async () => {
+    settings("statistics");
+    expect(screen.getByRole("heading", { level: 1, name: "Statistics" })).toBeTruthy();
+    const session = screen.getByRole("combobox", { name: "Session start" });
+    expect(screen.getByText("Jump limit")).toBeTruthy();
+    expect(screen.getByText("Stop counting after")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Delete/ })).toBeNull();
+    await userEvent.selectOptions(session, "manual");
+    expect((session as HTMLSelectElement).value).toBe("manual");
+    const record = screen.getByRole("button", { name: /Record reading statistics/ });
+    await userEvent.click(record);
+    expect(record.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("shows the popup settings that apply to a lookup by touch", () => {

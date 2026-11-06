@@ -1515,6 +1515,8 @@ export const ptBR: MessageCatalog = {
   "readingStatus.time": "Tempo lido nesta sessão",
   "readingStatus.timeLabel": "Tempo de leitura nesta sessão: {duration}",
   "readingStatus.speed": "Velocidade de leitura",
+  "readingStatus.startSession": "Começar a contar",
+  "readingStatus.stopSession": "Pausar a contagem",
   "readingStatus.speedTitle": "Velocidade de leitura nesta sessão",
   "readingStatus.speedLabel": "Velocidade de leitura nesta sessão: {speed}",
   "sidebar.reader": "Leitor",

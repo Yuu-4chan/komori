@@ -1350,6 +1350,8 @@ export const zhTW: MessageCatalog = {
   "readingStatus.time": "本次閱讀時間",
   "readingStatus.timeLabel": "本次閱讀時間：{duration}",
   "readingStatus.speed": "閱讀速度",
+  "readingStatus.startSession": "開始計時",
+  "readingStatus.stopSession": "暫停計時",
   "readingStatus.speedTitle": "本次閱讀速度",
   "readingStatus.speedLabel": "本次閱讀速度：{speed}",
   "sidebar.reader": "閱讀器",

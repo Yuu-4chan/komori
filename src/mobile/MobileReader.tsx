@@ -7,7 +7,9 @@ import {
   ImageIcon,
   MagnifyingGlassIcon,
   NotePencilIcon,
+  PlayIcon,
   PlusIcon,
+  StopIcon,
   TextAaIcon,
   TranslateIcon,
   TrashIcon,
@@ -101,7 +103,8 @@ export interface MobileReaderProps {
   pageTurns: ReaderPageTurnAvailability;
   contents: ReaderContentsEntry[];
   currentEntryId?: string | null;
-  session: { readingMs: () => number; state: SessionState };
+  /** The reading session: its active time, its state, and starting or stopping its counting. */
+  session: { readingMs: () => number; state: SessionState; toggle: () => void };
   /** The session's reading speed when the footer shows it and a minute was read. */
   speed: ReadingSpeed | null;
   bookmarks: ReturnType<typeof useBookmarks>;
@@ -222,6 +225,7 @@ export function MobileReader({
     readerShowChapterPercentage,
     readerShowClock,
     readerShowReadingTime,
+    statisticsSessionStart,
   } = useAppearance();
   // The footer's parts, as the PC's footer chooses them, in its order.
   const chapterProgress = progress?.chapter?.total ? progress.chapter : null;
@@ -573,21 +577,50 @@ export function MobileReader({
 
   return (
     <>
-      {ready && !shown && (readerShowClock || readerShowReadingTime) && (
-        <button
-          aria-label={t("mobileReader.showControls")}
-          className="mobile-reader__status"
-          onClick={() => setShown(true)}
-          type="button"
-        >
-          <ReaderReadingStatus
-            clock={readerShowClock}
-            readingTime={readerShowReadingTime}
-            readingMs={session.readingMs}
-            session={session.state}
-          />
-        </button>
-      )}
+      {/* The upper pill: the clock and time read, with the session's play/stop button while
+          statistics are recorded; a Manual session always shows it, as it only counts from it. */}
+      {ready &&
+        !shown &&
+        (readerShowClock ||
+          readerShowReadingTime ||
+          (session.state !== "off" && statisticsSessionStart === "manual")) && (
+          <div className="mobile-reader__status">
+            {session.state !== "off" && (
+              <button
+                aria-label={t(
+                  session.state === "counting"
+                    ? "readingStatus.stopSession"
+                    : "readingStatus.startSession",
+                )}
+                aria-pressed={session.state === "counting"}
+                className="mobile-reader__session"
+                onClick={session.toggle}
+                type="button"
+              >
+                {session.state === "counting" ? (
+                  <StopIcon aria-hidden="true" weight="fill" />
+                ) : (
+                  <PlayIcon aria-hidden="true" weight="fill" />
+                )}
+              </button>
+            )}
+            {(readerShowClock || readerShowReadingTime) && (
+              <button
+                aria-label={t("mobileReader.showControls")}
+                className="mobile-reader__status-text"
+                onClick={() => setShown(true)}
+                type="button"
+              >
+                <ReaderReadingStatus
+                  clock={readerShowClock}
+                  readingTime={readerShowReadingTime}
+                  readingMs={session.readingMs}
+                  session={session.state}
+                />
+              </button>
+            )}
+          </div>
+        )}
       {footerWidest && (
         <span
           aria-hidden="true"

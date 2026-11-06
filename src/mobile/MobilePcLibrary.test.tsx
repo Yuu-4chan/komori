@@ -104,10 +104,16 @@ const paired: api.PcLink = {
 
 const allBooks = () => screen.findByRole("region", { name: "All" });
 
-/** Chooses the place the Library shows from the books' filter, as a tap would. */
+/** Chooses the place the Library shows from the Library view sheet, as a tap would. */
 async function choosePlace(place: RegExp) {
-  await userEvent.click(screen.getByRole("button", { name: "Show" }));
-  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: place }));
+  await userEvent.click(screen.getByRole("button", { name: "Library view" }));
+  const sheet = screen.getByRole("dialog", { name: "Library view" });
+  await userEvent.click(
+    within(within(sheet).getByRole("region", { name: "Show" })).getByRole("button", {
+      name: place,
+    }),
+  );
+  fireEvent.click(document.querySelector(".mobile-sheet-layer")!);
 }
 
 function titles(region: HTMLElement) {
@@ -138,15 +144,18 @@ describe("the Library on a phone paired with a PC", () => {
     expect(screen.queryByRole("button", { name: "KOMORI-PC" })).toBeNull();
     expect(screen.getByRole("searchbox").getAttribute("placeholder")).not.toContain("KOMORI-PC");
 
-    await userEvent.click(within(books).getByRole("button", { name: "Show" }));
-    const choices = within(screen.getByRole("dialog")).getAllByRole("button");
+    await userEvent.click(within(books).getByRole("button", { name: "Library view" }));
+    const choices = within(
+      within(screen.getByRole("dialog")).getByRole("region", { name: "Show" }),
+    ).getAllByRole("button");
     expect(choices.map((each) => [each.textContent, each.getAttribute("aria-pressed")])).toEqual([
       ["All3", "true"],
       ["On this phone2", "false"],
       ["On PC2", "false"],
     ]);
     await userEvent.click(choices[2]!);
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(choices[2]!.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(document.querySelector(".mobile-sheet-layer")!);
     expect(books.querySelector("h2")!.textContent).toBe("On PC");
     expect(titles(books)).toEqual(["それから", "三四郎"]);
     await choosePlace(/^On this phone/);
@@ -367,21 +376,36 @@ describe("the Library on a phone paired with a PC", () => {
     }
   });
 
-  it("offers opening, keeping and removing the copy here on a long press", async () => {
+  it("selects PC books on a long press, keeping them or removing their copies here", async () => {
     library(paired);
     const books = await allBooks();
     await waitFor(() => expect(titles(books)).toHaveLength(3));
-    const book = tile(books, "三四郎");
-    fireEvent.contextMenu(book);
-    fireEvent.click(book);
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    fireEvent.contextMenu(tile(books, "三四郎"));
+    fireEvent.click(tile(books, "三四郎"));
+    vi.spyOn(Date, "now").mockReturnValue(now + 1_000);
     expect(api.openPcBook).not.toHaveBeenCalled();
-    const sheet = screen.getByRole("dialog", { name: "三四郎" });
-    expect(
-      within(sheet)
+    const bar = () => within(screen.getByRole("toolbar", { name: "Library selection" }));
+    const actions = () =>
+      bar()
         .getAllByRole("button")
-        .map((each) => each.textContent),
-    ).toEqual(["Continue reading", "Remove from this phone"]);
-    await userEvent.click(within(sheet).getByRole("button", { name: "Remove from this phone" }));
-    expect(api.removePcBook).toHaveBeenCalledWith(kept);
+        .map((each) => each.textContent);
+    expect(actions()).toEqual(["Remove from this phone"]);
+    await userEvent.click(tile(books, "それから"));
+    expect(actions()).toEqual(["Keep on this phone", "Remove from this phone"]);
+    await userEvent.click(tile(books, "羅生門"));
+    expect(actions()).toEqual([
+      "Series…",
+      "Edit…",
+      "Keep on this phone",
+      "Remove from this phone",
+      "Remove",
+    ]);
+    await userEvent.click(tile(books, "羅生門"));
+    await userEvent.click(bar().getByRole("button", { name: "Remove from this phone" }));
+    await waitFor(() => expect(api.removePcBook).toHaveBeenCalledWith(kept));
+    expect(screen.queryByRole("toolbar")).toBeNull();
+    vi.restoreAllMocks();
   });
 });

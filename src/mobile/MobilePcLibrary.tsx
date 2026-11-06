@@ -1,20 +1,5 @@
-import {
-  ArrowsClockwiseIcon,
-  BookOpenIcon,
-  CheckIcon,
-  DownloadSimpleIcon,
-  TrashIcon,
-  WarningCircleIcon,
-} from "@phosphor-icons/react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type CSSProperties,
-} from "react";
+import { ArrowsClockwiseIcon, CheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { BookCover } from "../features/library/BookCover";
@@ -24,13 +9,11 @@ import {
   lastReadLabel,
   progressLabel,
   progressPercent,
-  readingStatus,
   readTotalLabel,
   timeAgo,
 } from "../features/library/libraryView";
 import { useI18n, type MessageKey } from "../i18n/i18n";
 import { useLongPress } from "./longPress";
-import { MobileSheet } from "./MobileSheet";
 import { pcSession, type PcConnection } from "./pcLibrarySession";
 import {
   asLibraryBook,
@@ -253,81 +236,6 @@ export function PcStatusRow({
   );
 }
 
-const openLabel = {
-  "not-started": "libraryCard.start",
-  reading: "libraryCard.continue",
-  completed: "libraryCard.again",
-} as const;
-
-/** What a long press on a PC book offers: opening it, and keeping or removing it here. */
-export function PcBookSheet({
-  entry,
-  onClose,
-  onKeep,
-  onOpen,
-  onRemove,
-}: {
-  entry: PcEntry | null;
-  onClose: () => void;
-  onKeep: (entry: PcEntry) => void;
-  onOpen: (entry: PcEntry) => void;
-  onRemove: (entry: PcEntry) => void;
-}) {
-  const { t } = useI18n();
-  const title = entry?.book.title ?? t("library.untitled");
-  return (
-    <MobileSheet
-      className="mobile-sheet--floating"
-      label={title}
-      onClose={onClose}
-      open={entry !== null}
-    >
-      {entry ? (
-        <div className="mobile-book-sheet">
-          <div className="mobile-book-sheet__book">
-            <BookCover book={entry.book} size="small" />
-            <div>
-              <strong>{title}</strong>
-              <span>{entry.book.author ?? t("libraryCard.unknownAuthor")}</span>
-              <span>{progressLabel(entry.book)}</span>
-            </div>
-          </div>
-          <div className="mobile-book-sheet__actions">
-            <button
-              className="mobile-book-sheet__action"
-              onClick={() => onOpen(entry)}
-              type="button"
-            >
-              <BookOpenIcon aria-hidden="true" />
-              {t(openLabel[readingStatus(entry.book)])}
-            </button>
-            {entry.pc.kept ? null : (
-              <button
-                className="mobile-book-sheet__action"
-                onClick={() => onKeep(entry)}
-                type="button"
-              >
-                <DownloadSimpleIcon aria-hidden="true" />
-                {t("sync.keep")}
-              </button>
-            )}
-            {entry.pc.onPhone ? (
-              <button
-                className="mobile-book-sheet__action mobile-book-sheet__action--danger"
-                onClick={() => onRemove(entry)}
-                type="button"
-              >
-                <TrashIcon aria-hidden="true" />
-                {t("sync.removeFromPhone")}
-              </button>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-    </MobileSheet>
-  );
-}
-
 /** How far a book is read, as a bar and its label. */
 export function Progress({ book }: { book: LibraryBook }) {
   const { t } = useI18n();
@@ -349,27 +257,37 @@ export function Progress({ book }: { book: LibraryBook }) {
   );
 }
 
-/** A PC book in Continue reading, with whether it is on this phone. */
+/** A PC book in Continue reading, with whether it is on this phone; marked while selected. */
 export function PcContinueCard({
   entry,
   onChoose,
   onOpen,
+  selected,
 }: {
   entry: PcEntry;
   onChoose: (entry: PcEntry) => void;
   onOpen: (entry: PcEntry) => void;
+  /** Whether the book is selected, while selecting; undefined otherwise. */
+  selected?: boolean;
 }) {
   const { t } = useI18n();
   const longPress = useLongPress(() => onChoose(entry));
   const lastRead = lastReadLabel(entry.book, Date.now(), "narrow");
   return (
     <button
-      className="mobile-continue mobile-continue--button"
+      aria-pressed={selected}
+      className={`mobile-continue mobile-continue--button${selected ? " is-selected" : ""}`}
       onClick={() => onOpen(entry)}
       type="button"
       {...longPress}
     >
-      <BookCover book={entry.book} size="small" />
+      <BookCover book={entry.book} size="small">
+        {selected !== undefined ? (
+          <span aria-hidden="true" className="mobile-select-mark">
+            {selected ? <CheckIcon weight="bold" /> : null}
+          </span>
+        ) : null}
+      </BookCover>
       <span className="mobile-continue__copy">
         <span>
           <strong>{entry.book.title ?? t("library.untitled")}</strong>
@@ -389,59 +307,5 @@ export function PcContinueCard({
         <span className="mobile-continue__count">{readTotalLabel(entry.book)}</span>
       </span>
     </button>
-  );
-}
-
-/** A PC book in the grid, with a badge for whether it is on this phone. */
-export function PcTile({
-  entry,
-  onChoose,
-  onKeep,
-  onOpen,
-  saving,
-}: {
-  entry: PcEntry;
-  onChoose: (entry: PcEntry) => void;
-  onKeep: (entry: PcEntry) => void;
-  onOpen: (entry: PcEntry) => void;
-  saving: number | undefined;
-}) {
-  const { t } = useI18n();
-  const longPress = useLongPress(() => onChoose(entry));
-  const { book } = entry;
-  return (
-    <div className="mobile-pc-tile">
-      <button className="mobile-tile" onClick={() => onOpen(entry)} type="button" {...longPress}>
-        <BookCover book={book} />
-        <strong className="mobile-tile__title">{book.title ?? t("library.untitled")}</strong>
-        <span className="mobile-tile__author">{book.author ?? t("libraryCard.unknownAuthor")}</span>
-        <Progress book={book} />
-      </button>
-      {saving !== undefined ? (
-        <span
-          aria-label={t("sync.saving", { percent: saving })}
-          className="mobile-pc-tile__badge mobile-pc-tile__badge--saving"
-          role="img"
-          style={{ "--saved": `${saving}%` } as CSSProperties}
-        />
-      ) : entry.pc.kept ? (
-        <span
-          aria-label={t("sync.onPhone")}
-          className="mobile-pc-tile__badge mobile-pc-tile__badge--kept"
-          role="img"
-        >
-          <CheckIcon aria-hidden="true" weight="bold" />
-        </span>
-      ) : (
-        <button
-          aria-label={t("sync.keep")}
-          className="mobile-pc-tile__badge"
-          onClick={() => onKeep(entry)}
-          type="button"
-        >
-          <DownloadSimpleIcon aria-hidden="true" weight="bold" />
-        </button>
-      )}
-    </div>
   );
 }

@@ -1609,6 +1609,8 @@ export const ru: MessageCatalog = {
   "readingStatus.time": "Время чтения за сессию",
   "readingStatus.timeLabel": "Время чтения за сессию: {duration}",
   "readingStatus.speed": "Скорость чтения",
+  "readingStatus.startSession": "Начать отсчёт",
+  "readingStatus.stopSession": "Приостановить отсчёт",
   "readingStatus.speedTitle": "Скорость чтения за сессию",
   "readingStatus.speedLabel": "Скорость чтения за сессию: {speed}",
   "sidebar.reader": "Чтение",

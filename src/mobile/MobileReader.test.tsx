@@ -1,3 +1,4 @@
+import type { SessionState } from "../features/reader/useReadingSession";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -121,6 +122,7 @@ function reader({
   preferences,
   lookupClosedAt = Number.NEGATIVE_INFINITY,
   speed = null,
+  session = { readingMs: () => 0, state: "counting" as SessionState, toggle: vi.fn() },
 }: {
   pageTurns?: ReaderPageTurnAvailability;
   bookmarked?: boolean;
@@ -129,6 +131,7 @@ function reader({
   /** When a press last closed a lookup. */
   lookupClosedAt?: number;
   speed?: ReadingSpeed | null;
+  session?: { readingMs: () => number; state: SessionState; toggle: () => void };
 } = {}) {
   const viewport = document.createElement("div");
   document.body.append(viewport);
@@ -236,7 +239,7 @@ function reader({
         progress={progress}
         ready
         selectionRef={selectionRef}
-        session={{ readingMs: () => 0, state: "counting" }}
+        session={session}
         speed={speed}
         tools={tools}
         touchRef={touchRef}
@@ -603,6 +606,39 @@ describe("the Reader by touch", () => {
     expect(footer!.textContent).toBe(
       "3,500 / 10,000 Ch. · 500 / 2,000 Ch. · Chapter 25% · 12,000 Ch./h",
     );
+  });
+
+  it("starts and pauses counting from the status pill, shown in Manual mode however bare", async () => {
+    const toggle = vi.fn();
+    reader({
+      preferences: {
+        readerShowClock: false,
+        readerShowReadingTime: false,
+        statisticsSessionStart: "manual",
+      },
+      session: { readingMs: () => 0, state: "paused", toggle },
+    });
+    await shown();
+    const start = screen.getByRole("button", { name: "Start counting" });
+    expect(start.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(start);
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Show reader controls" })).not.toBeNull();
+  });
+
+  it("shows Pause counting while counting, and no button with statistics off", async () => {
+    reader({ session: { readingMs: () => 0, state: "counting", toggle: vi.fn() } });
+    await shown();
+    expect(
+      screen.getByRole("button", { name: "Pause counting" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    cleanup();
+    reader({
+      preferences: { statisticsSessionStart: "manual" },
+      session: { readingMs: () => 0, state: "off", toggle: vi.fn() },
+    });
+    await shown();
+    expect(screen.queryByRole("button", { name: /counting$/ })).toBeNull();
   });
 
   it("puts the chapter and the speed on a second footer line when one line won't hold them", async () => {

@@ -1547,6 +1547,8 @@ export const en = {
   "readingStatus.time": "Time read this session",
   "readingStatus.timeLabel": "Reading time this session: {duration}",
   "readingStatus.speed": "Reading speed",
+  "readingStatus.startSession": "Start counting",
+  "readingStatus.stopSession": "Pause counting",
   "readingStatus.speedTitle": "Reading speed this session",
   "readingStatus.speedLabel": "Reading speed this session: {speed}",
 
