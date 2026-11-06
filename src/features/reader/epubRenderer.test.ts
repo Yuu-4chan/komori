@@ -4187,6 +4187,12 @@ describe("EPUB.js renderer adapter", () => {
       selection.setBaseAndExtent(ef, 0, ef, 2);
       document.dispatchEvent(new Event("selectionchange"));
       expect(selection.isCollapsed || selection.rangeCount === 0).toBe(true);
+      // A selection in the group shown goes when the next group shows, with no handle moved.
+      selection.setBaseAndExtent(cd, 0, cd, 2);
+      document.dispatchEvent(new Event("selectionchange"));
+      expect(selection.toString()).toBe("cd");
+      await renderer.advancePage();
+      expect(selection.isCollapsed || selection.rangeCount === 0).toBe(true);
       // Outside VN view a selection is left alone.
       await renderer.setPresentation?.({ fontSize: 16, viewMode: "continuous" });
       selection.setBaseAndExtent(ab, 0, ef, 2);

@@ -185,7 +185,7 @@ export function MobileReader({
   onBack,
   onFeedback,
 }: MobileReaderProps) {
-  const { t } = useI18n();
+  const { t, number } = useI18n();
   const [shown, setShown] = useState(false);
   const [chaptersOpen, setChaptersOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -222,25 +222,78 @@ export function MobileReader({
   } = useAppearance();
   // The footer's parts, as the PC's footer chooses them, in its order.
   const chapterProgress = progress?.chapter?.total ? progress.chapter : null;
-  const footer: ReactNode[] = progress?.total
-    ? [
-        readerShowReadingPosition && (
-          <BookPosition current={progress.current} total={progress.total} unit={progress.unit} />
-        ),
-        readerShowPercentage && `${percent(progress.current, progress.total)}%`,
-        chapterProgress && readerShowChapterPosition && (
-          <BookPosition
-            current={chapterProgress.current}
-            total={chapterProgress.total}
-            unit={progress.unit}
-          />
-        ),
-        chapterProgress &&
-          readerShowChapterPercentage &&
-          `${t("readerFooter.chapterPrefix")} ${percent(chapterProgress.current, chapterProgress.total)}%`,
-        speed && formatReadingSpeed(speed),
-      ].filter(Boolean)
+  // Each part with its widest form (the book's total for each number), so whether the pill
+  // needs a second line changes only with the settings, the book or the screen, never while
+  // reading.
+  const position = (total: number) =>
+    `${number(total)} / ${number(total)} ${unitShort(progress?.unit ?? "characters")}`;
+  type FooterPart = { node: ReactNode; widest: string; book: boolean };
+  const parts: FooterPart[] = progress?.total
+    ? (
+        [
+          readerShowReadingPosition && {
+            node: (
+              <BookPosition
+                current={progress.current}
+                total={progress.total}
+                unit={progress.unit}
+              />
+            ),
+            widest: position(progress.total),
+            book: true,
+          },
+          readerShowPercentage && {
+            node: `${percent(progress.current, progress.total)}%`,
+            widest: "100%",
+            book: true,
+          },
+          chapterProgress &&
+            readerShowChapterPosition && {
+              node: (
+                <BookPosition
+                  current={chapterProgress.current}
+                  total={chapterProgress.total}
+                  unit={progress.unit}
+                />
+              ),
+              // A chapter is never longer than its book, so its widest is the book's.
+              widest: position(progress.total),
+              book: false,
+            },
+          chapterProgress &&
+            readerShowChapterPercentage && {
+              node: `${t("readerFooter.chapterPrefix")} ${percent(chapterProgress.current, chapterProgress.total)}%`,
+              widest: `${t("readerFooter.chapterPrefix")} 100%`,
+              book: false,
+            },
+          speed && {
+            node: formatReadingSpeed(speed),
+            widest: formatReadingSpeed({ ...speed, perHour: 99_999 }),
+            book: false,
+          },
+        ] as (FooterPart | false | null | undefined)[]
+      ).filter((part): part is FooterPart => !!part)
     : [];
+  const footerWidest = parts.map((part) => part.widest).join(" · ");
+  const footerMeasure = useRef<HTMLSpanElement>(null);
+  const [footerTwoLines, setFooterTwoLines] = useState(false);
+  useLayoutEffect(() => {
+    const measure = footerMeasure.current;
+    if (!measure) return setFooterTwoLines(false);
+    const decide = () => setFooterTwoLines(measure.scrollWidth > measure.clientWidth);
+    decide();
+    window.addEventListener("resize", decide);
+    return () => window.removeEventListener("resize", decide);
+  }, [footerWidest]);
+  // Two lines: the book's position on the first, the chapter's and the speed on the second.
+  const bookParts = parts.filter((part) => part.book);
+  const footerLines = (
+    footerTwoLines && bookParts.length && bookParts.length < parts.length
+      ? [bookParts, parts.filter((part) => !part.book)]
+      : footerTwoLines && parts.length > 1
+        ? [parts.slice(0, -1), parts.slice(-1)]
+        : [parts]
+  ).map((line) => line.map((part) => part.node));
   const lightPage = isLightTheme(resolveReaderTheme(readerTheme, readerCustomThemes));
   useEffect(() => systemBarIcons(lightPage), [lightPage]);
   // Back closes the deepest lookup popup.
@@ -527,22 +580,34 @@ export function MobileReader({
           />
         </button>
       )}
-      {ready && !shown && footer.length ? (
+      {footerWidest && (
+        <span
+          aria-hidden="true"
+          className="mobile-reader__footer mobile-reader__footer-measure"
+          data-lines={footerTwoLines ? 2 : 1}
+          ref={footerMeasure}
+        >
+          {footerWidest}
+        </span>
+      )}
+      {ready && !shown && parts.length ? (
         <button
           aria-label={t("mobileReader.showControls")}
-          className="mobile-reader__footer"
+          className={`mobile-reader__footer${footerLines.length > 1 ? " mobile-reader__footer--two-lines" : ""}`}
           onClick={() => setShown(true)}
           type="button"
         >
-          {/* One run of text, so the flex button keeps the spaces around the dots. */}
-          <span>
-            {footer.map((part, index) => (
-              <Fragment key={index}>
-                {index > 0 && " · "}
-                {part}
-              </Fragment>
-            ))}
-          </span>
+          {footerLines.map((line, lineIndex) => (
+            // One run of text per line, so the flex button keeps the spaces around the dots.
+            <span key={lineIndex}>
+              {line.map((part, index) => (
+                <Fragment key={index}>
+                  {index > 0 && " · "}
+                  {part}
+                </Fragment>
+              ))}
+            </span>
+          ))}
         </button>
       ) : null}
       {shown && (

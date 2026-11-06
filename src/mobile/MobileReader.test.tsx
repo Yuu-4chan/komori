@@ -249,7 +249,9 @@ function reader({
 
 /** Waits for saved preferences to apply and the Reader to show. */
 async function shown() {
-  await waitFor(() => expect(document.querySelector(".mobile-reader__footer")).not.toBeNull());
+  await waitFor(() =>
+    expect(document.querySelector("button.mobile-reader__footer")).not.toBeNull(),
+  );
 }
 
 /** A book page whose selection is `text`, shown at the given place. */
@@ -572,6 +574,38 @@ describe("the Reader by touch", () => {
     expect(footer!.textContent).toBe(
       "3,500 / 10,000 Ch. · 500 / 2,000 Ch. · Chapter 25% · 12,000 Ch./h",
     );
+  });
+
+  it("puts the chapter and the speed on a second footer line when one line won't hold them", async () => {
+    // The footer's widest text, measured on one line, is wider than the pill can be.
+    const scroll = vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(400);
+    const client = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(360);
+    try {
+      reader({
+        preferences: {
+          readerShowChapterPosition: true,
+          readerShowChapterPercentage: true,
+          readerShowClock: false,
+          readerShowReadingTime: false,
+        },
+        speed: { perHour: 12_000, unit: "characters" },
+      });
+      await shown();
+      const footer = screen.getByRole("button", { name: "Show reader controls" });
+      expect(footer).toHaveClass("mobile-reader__footer--two-lines");
+      expect([...footer.children].map((line) => line.textContent)).toEqual([
+        "3,500 / 10,000 Ch. · 35%",
+        "500 / 2,000 Ch. · Chapter 25% · 12,000 Ch./h",
+      ]);
+      // The book leaves room for the second line whether or not the footer shows.
+      expect(document.querySelector(".mobile-reader__footer-measure")).toHaveAttribute(
+        "data-lines",
+        "2",
+      );
+    } finally {
+      scroll.mockRestore();
+      client.mockRestore();
+    }
   });
 
   it("shows the controls from the center, the clock or the footer, with the bars", async () => {

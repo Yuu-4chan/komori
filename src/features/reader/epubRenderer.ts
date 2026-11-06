@@ -618,6 +618,8 @@ class EpubRenderer implements ReaderRenderer {
       .map((block) => block.element);
     this.vnShownGroup = elements.length ? { document, elements } : undefined;
     this.keepSelectionInGroup(document);
+    // A selection made in the group before belongs to it, not to the one now shown.
+    this.clampSelectionToGroup(document);
     this.vnReveal.start(
       `${start.spineIndex}:${start.blockIndex ?? 0}`,
       elements,
@@ -637,47 +639,50 @@ class EpubRenderer implements ReaderRenderer {
   private keepSelectionInGroup(document: Document): void {
     if (this.groupSelectionDocuments.has(document)) return;
     this.groupSelectionDocuments.add(document);
-    document.addEventListener("selectionchange", () => {
-      const group = this.vnShownGroup;
-      if (!this.vnView || group?.document !== document) return;
-      const selection = document.getSelection();
-      if (!selection?.rangeCount || selection.isCollapsed) return;
-      const first = group.elements[0];
-      const last = group.elements.at(-1);
-      if (!first?.isConnected || !last?.isConnected) return;
-      const range = selection.getRangeAt(0);
-      const groupStart = document.createRange();
-      groupStart.setStartBefore(first);
-      const groupEnd = document.createRange();
-      groupEnd.setStartAfter(last);
-      const startsBefore = range.compareBoundaryPoints(Range.START_TO_START, groupStart) < 0;
-      const endsAfter = range.compareBoundaryPoints(Range.END_TO_END, groupEnd) > 0;
-      if (!startsBefore && !endsAfter) return;
-      const kept = range.cloneRange();
-      if (startsBefore) kept.setStart(groupStart.startContainer, groupStart.startOffset);
-      if (endsAfter) kept.setEnd(groupEnd.startContainer, groupEnd.startOffset);
-      if (kept.collapsed || !kept.toString().trim()) {
-        selection.removeAllRanges();
-        return;
-      }
-      // Keep the end the reader drags as the selection's focus.
-      const backward =
-        selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
-      if (backward)
-        selection.setBaseAndExtent(
-          kept.endContainer,
-          kept.endOffset,
-          kept.startContainer,
-          kept.startOffset,
-        );
-      else
-        selection.setBaseAndExtent(
-          kept.startContainer,
-          kept.startOffset,
-          kept.endContainer,
-          kept.endOffset,
-        );
-    });
+    document.addEventListener("selectionchange", () => this.clampSelectionToGroup(document));
+  }
+
+  /** Trims the book's selection to the VN group shown, and clears one wholly outside it. */
+  private clampSelectionToGroup(document: Document): void {
+    const group = this.vnShownGroup;
+    if (!this.vnView || group?.document !== document) return;
+    const selection = document.getSelection();
+    if (!selection?.rangeCount || selection.isCollapsed) return;
+    const first = group.elements[0];
+    const last = group.elements.at(-1);
+    if (!first?.isConnected || !last?.isConnected) return;
+    const range = selection.getRangeAt(0);
+    const groupStart = document.createRange();
+    groupStart.setStartBefore(first);
+    const groupEnd = document.createRange();
+    groupEnd.setStartAfter(last);
+    const startsBefore = range.compareBoundaryPoints(Range.START_TO_START, groupStart) < 0;
+    const endsAfter = range.compareBoundaryPoints(Range.END_TO_END, groupEnd) > 0;
+    if (!startsBefore && !endsAfter) return;
+    const kept = range.cloneRange();
+    if (startsBefore) kept.setStart(groupStart.startContainer, groupStart.startOffset);
+    if (endsAfter) kept.setEnd(groupEnd.startContainer, groupEnd.startOffset);
+    if (kept.collapsed || !kept.toString().trim()) {
+      selection.removeAllRanges();
+      return;
+    }
+    // Keep the end the reader drags as the selection's focus.
+    const backward =
+      selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
+    if (backward)
+      selection.setBaseAndExtent(
+        kept.endContainer,
+        kept.endOffset,
+        kept.startContainer,
+        kept.startOffset,
+      );
+    else
+      selection.setBaseAndExtent(
+        kept.startContainer,
+        kept.startOffset,
+        kept.endContainer,
+        kept.endOffset,
+      );
   }
   /** Where the book's chapters begin, found once per book, and once found. */
   private chapterStarts?: Promise<ChapterStart[]>;

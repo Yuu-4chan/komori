@@ -1114,12 +1114,17 @@
 }
 
 /* Library: the paired PC's status */
+/* The PC's status above the Library, in one box whatever it says. */
 .mobile-pc-status {
-  min-height: 2rem;
+  min-height: 3rem;
+  padding: 0.375rem 0.375rem 0.375rem 0.875rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   color: var(--text-secondary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8125rem;
   font-size: 0.8125rem;
 }
 
@@ -1129,11 +1134,7 @@
 }
 
 .mobile-pc-status--synced {
-  padding: 0.375rem 0.375rem 0.375rem 0.875rem;
   color: var(--text-primary);
-  background: var(--surface-card);
-  border: 1px solid var(--border-soft);
-  border-radius: 0.8125rem;
 }
 
 .mobile-pc-status--synced small {
@@ -1145,9 +1146,10 @@
   font-weight: 600;
 }
 
-.mobile-pc-status__sync {
-  width: 2.25rem;
+/* Sync now and Try again, the same small button. */
+.mobile-pc-status__action {
   height: 2.25rem;
+  padding: 0 0.75rem;
   flex: none;
   display: grid;
   place-items: center;
@@ -1155,10 +1157,17 @@
   background: var(--surface-subtle);
   border: 0;
   border-radius: 0.625rem;
+  font: inherit;
+  font-weight: 600;
+}
+
+.mobile-pc-status__action--icon {
+  width: 2.25rem;
+  padding: 0;
   font-size: 1.125rem;
 }
 
-.mobile-pc-status__sync:disabled {
+.mobile-pc-status__action:disabled {
   color: var(--text-muted);
 }
 
@@ -1453,7 +1462,7 @@
 }
 
 .mobile-sync__now[aria-busy="true"] svg,
-.mobile-pc-status__sync[aria-busy="true"] svg {
+.mobile-pc-status__action[aria-busy="true"] svg {
   animation: mobile-spin 0.9s linear infinite;
 }
 

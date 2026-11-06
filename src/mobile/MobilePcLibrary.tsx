@@ -17,7 +17,6 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { Button } from "../components/ui/Button";
 import { BookCover } from "../features/library/BookCover";
 import type { LibraryBook } from "../features/library/libraryApi";
 import {
@@ -214,9 +213,9 @@ export function PcStatusRow({
       <div className="mobile-pc-status" aria-live="polite">
         <WarningCircleIcon aria-hidden="true" weight="fill" />
         <span>{t(connection, { name: pcName })}</span>
-        <Button tone="secondary" onClick={onRetry}>
+        <button className="mobile-pc-status__action" onClick={onRetry} type="button">
           {t("common.tryAgain")}
-        </Button>
+        </button>
       </div>
     );
   return (
@@ -243,7 +242,7 @@ export function PcStatusRow({
       <button
         aria-busy={syncing}
         aria-label={t("sync.syncNow")}
-        className="mobile-pc-status__sync"
+        className="mobile-pc-status__action mobile-pc-status__action--icon"
         disabled={syncing}
         onClick={onSync}
         type="button"

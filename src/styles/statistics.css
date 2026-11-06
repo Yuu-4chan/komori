@@ -962,6 +962,11 @@ div.statistics-card__empty p {
   margin-bottom: 0;
 }
 
+/* Below the day's books, as far from the last as the books are from the heading. */
+.statistics-day-book .character-show-all {
+  margin: 0.85rem auto 0;
+}
+
 .menu-button {
   position: relative;
 }

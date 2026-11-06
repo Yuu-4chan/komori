@@ -27,7 +27,8 @@ scroll in continuous views, where a tap anywhere shows the controls, optionally 
 the volume keys, and tap the middle, the clock or the footer for the controls: two rows of a pill between round
 buttons, Back, the title and Search at the top, Appearance (theme, font size, line height,
 page margin, writing and view mode), the chapter and a bookmark toggle at the bottom. Either
-pill opens Contents: Images, Bookmarks, Notes, Search, the chapters and a position slider. The status and navigation bars hide
+pill opens Contents: Images, Bookmarks, Notes, Search, the chapters and a position slider. A footer
+too wide for one line takes two. The status and navigation bars hide
 while reading. A tap on a word looks it up in the PC's popup, below a word high on the
 screen and above one low on it, tap a word in it for the next lookup, and Back closes the
 deepest one. A long press selects text for Komori's toolbar (note, highlight, copy, look up,

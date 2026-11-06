@@ -353,9 +353,16 @@ export function DailyBooks({
           aria-expanded={showAll}
           onClick={() => setShowAll((value) => !value)}
         >
-          {showAll
-            ? t("statisticsCards.showPreview")
-            : t("statisticsCards.showAllBooks", { count: available.length })}
+          <span>
+            {showAll
+              ? t("statisticsCards.showPreview")
+              : t("statisticsCards.showAllBooks", { count: available.length })}
+          </span>
+          {showAll ? (
+            <CaretUpIcon aria-hidden="true" size={16} />
+          ) : (
+            <CaretDownIcon aria-hidden="true" size={16} />
+          )}
         </button>
       ) : null}
     </aside>
