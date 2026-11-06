@@ -1306,8 +1306,6 @@ export const zhTW: MessageCatalog = {
   "lookupEntry.matchedLabel": "匹配：",
   "lookupEntry.inflected": "活用：{inflections}",
   "lookupEntry.inflectedLabel": "活用：",
-  "lookupEntry.fewer": "收起",
-  "lookupEntry.more": "另外{count}個",
   "lookupEntry.collapse": "收起{title}的釋義",
   "lookupEntry.expand": "展開{title}的釋義",
   "glossary.search": "搜尋{term}",

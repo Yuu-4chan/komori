@@ -99,7 +99,7 @@ describe("LookupEntry", () => {
     }
   });
 
-  it("shows four of a dictionary's tags before +N more, so the definitions stay in view", () => {
+  it("shows every one of a dictionary's tags, with no More control", () => {
     const names = ["n", "vs", "uk", "P", "news", "ichi", "spec"];
     const tagged = group("本", [{ ...good.terms[0], tags: names.map((name) => ({ name })) }]);
     render(
@@ -115,11 +115,8 @@ describe("LookupEntry", () => {
       />,
     );
     const shown = () => names.filter((name) => screen.queryByText(name, { exact: true }));
-    expect(shown()).toEqual(["n", "vs", "uk", "P"]);
-    fireEvent.click(screen.getByRole("button", { name: "+3 more" }));
     expect(shown()).toEqual(names);
-    fireEvent.click(screen.getByRole("button", { name: "Show fewer" }));
-    expect(shown()).toEqual(["n", "vs", "uk", "P"]);
+    expect(screen.queryByRole("button", { name: /more|fewer/i })).toBeNull();
   });
 });
 
@@ -309,8 +306,11 @@ describe("pitch row", () => {
     ]);
     expect(row.querySelector("li")).toHaveAttribute("title", "[2] Pitch");
     expect(row.querySelector("li")).toHaveTextContent("[2]");
-    // Its source shows with the dictionary names.
-    expect(row.querySelector(".lookup-entry__pitch-sources")).toHaveTextContent("Pitch");
+    // Its sources show on hover only.
+    const seen = [...row.querySelector("li")!.children].filter(
+      (part) => !part.classList.contains("visually-hidden"),
+    );
+    expect(seen.map((part) => part.textContent)).toEqual(["あつりょく", "[2]"]);
     expect(container.querySelector(".lookup-entry__reading")).toHaveTextContent(/^あつりょく$/);
     expect(container.querySelector(".lookup-entry__word [class^='pitch-kana']")).toBeNull();
   });

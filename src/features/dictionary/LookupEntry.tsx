@@ -25,9 +25,6 @@ import {
 import { pitchMarks, pitchPatterns, readingMoras, type PitchPattern } from "./pitchAccent";
 import { GlossaryText, termGlossaries } from "./GlossaryText";
 
-// A dictionary's tags shown before "+N more", so a long list does not push definitions away.
-const shownTagCount = 4;
-
 /**
  * One headword in the Reader's lookup popup and on the Dictionary page, compact: the headword with
  * its reading (beside it, or above it as furigana) and a common word's stars, then its Voice,
@@ -211,11 +208,7 @@ function LookupEntryContent({
             showDictionaryNames={showDictionaryNames}
           />
         )}
-        <EntryPitch
-          patterns={patterns}
-          reading={group.reading}
-          showDictionaryNames={showDictionaryNames}
-        />
+        <EntryPitch patterns={patterns} reading={group.reading} />
       </header>
       {sources.map((terms) => (
         <EntrySource
@@ -291,18 +284,10 @@ function PitchKana({ text, marks }: { text: string; marks: (string | undefined)[
 
 /**
  * The Pitch row: each pattern drawn on the reading, as accent dictionaries draw it, with its
- * position, tags and sources (shown with the dictionary names, otherwise in its tooltip), and its
- * nasal and devoiced morae said in words for screen readers.
+ * position and tags, the patterns separated by commas; its sources show in its tooltip, and its
+ * nasal and devoiced morae and sources are said in words for screen readers.
  */
-function EntryPitch({
-  patterns,
-  reading,
-  showDictionaryNames,
-}: {
-  patterns: PitchPattern[];
-  reading: string;
-  showDictionaryNames: boolean;
-}) {
+function EntryPitch({ patterns, reading }: { patterns: PitchPattern[]; reading: string }) {
   const { t } = useI18n();
   const label = useId();
   if (patterns.length === 0) return null;
@@ -350,11 +335,6 @@ function EntryPitch({
               {pattern.tags.length > 0 && (
                 <span aria-hidden="true" className="lookup-entry__pitch-tags">
                   {pattern.tags.join(", ")}
-                </span>
-              )}
-              {showDictionaryNames && (
-                <span aria-hidden="true" className="lookup-entry__pitch-sources">
-                  {sources}
                 </span>
               )}
               <span className="visually-hidden">{spoken}</span>
@@ -423,10 +403,8 @@ export function EntrySource({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
-  const [allTags, setAllTags] = useState(false);
   const bodyId = useId();
   const { t } = useI18n();
-  const hiddenTags = allTags ? 0 : Math.max(0, tags.length - shownTagCount);
   return (
     <section aria-label={title} className={`lookup-source${open ? "" : " lookup-source--closed"}`}>
       <div className="lookup-source__head">
@@ -443,7 +421,7 @@ export function EntrySource({
         </button>
         {tags.length > 0 && (
           <span className="lookup-source__tags">
-            {tags.slice(0, tags.length - hiddenTags).map(({ name, notes }) => (
+            {tags.map(({ name, notes }) => (
               <span
                 aria-description={notes || undefined}
                 className={notes ? "lookup-source__tag--noted" : undefined}
@@ -453,16 +431,6 @@ export function EntrySource({
                 {name}
               </span>
             ))}
-            {tags.length > shownTagCount ? (
-              <button
-                aria-expanded={allTags}
-                className="lookup-source__more"
-                onClick={() => setAllTags((current) => !current)}
-                type="button"
-              >
-                {allTags ? t("lookupEntry.fewer") : t("lookupEntry.more", { count: hiddenTags })}
-              </button>
-            ) : null}
           </span>
         )}
       </div>

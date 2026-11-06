@@ -159,7 +159,7 @@ A search bar and a source rail listing only dictionaries with matches, in the Se
 order. Lookup is exact, or the longest matching start (with deinflection chains named in
 the header and on each entry), followed by shorter matching starts. Single kanji show a
 kanji entry first. Pitch positions merge across agreeing sources, each drawn on the reading in the
-Pitch row with nasal and devoiced marks, then its position, tags and sources. Until an installed dictionary can supply definitions, this page and the Reader's
+Pitch row with nasal and devoiced marks, then its position and tags, its sources on hover. Until an installed dictionary can supply definitions, this page and the Reader's
 lookup popup (and its Settings preview) offer Get dictionaries, linking to Settings; the
 Dictionary page says it has no dictionaries only in that offer.
 

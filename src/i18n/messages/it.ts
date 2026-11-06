@@ -1528,8 +1528,6 @@ export const it: MessageCatalog = {
   "lookupEntry.matchedLabel": "Corrispondenza:",
   "lookupEntry.inflected": "Flesso: {inflections}",
   "lookupEntry.inflectedLabel": "Flesso:",
-  "lookupEntry.fewer": "Mostra meno",
-  "lookupEntry.more": "+{count} altri",
   "lookupEntry.collapse": "Comprimi le definizioni di {title}",
   "lookupEntry.expand": "Espandi le definizioni di {title}",
   "glossary.search": "Cerca {term}",

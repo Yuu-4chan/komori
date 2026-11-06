@@ -1375,8 +1375,6 @@ export const ko: MessageCatalog = {
   "lookupEntry.matchedLabel": "일치:",
   "lookupEntry.inflected": "활용: {inflections}",
   "lookupEntry.inflectedLabel": "활용:",
-  "lookupEntry.fewer": "적게 보기",
-  "lookupEntry.more": "외 {count}개",
   "lookupEntry.collapse": "{title} 뜻풀이 접기",
   "lookupEntry.expand": "{title} 뜻풀이 펼치기",
   "glossary.search": "{term} 검색",

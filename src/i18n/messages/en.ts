@@ -1496,8 +1496,6 @@ export const en = {
   "lookupEntry.matchedLabel": "Matched:",
   "lookupEntry.inflected": "Inflected: {inflections}",
   "lookupEntry.inflectedLabel": "Inflected:",
-  "lookupEntry.fewer": "Show fewer",
-  "lookupEntry.more": "+{count} more",
   "lookupEntry.collapse": "Collapse {title} definitions",
   "lookupEntry.expand": "Expand {title} definitions",
 

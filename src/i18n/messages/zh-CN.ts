@@ -1306,8 +1306,6 @@ export const zhCN: MessageCatalog = {
   "lookupEntry.matchedLabel": "匹配：",
   "lookupEntry.inflected": "活用：{inflections}",
   "lookupEntry.inflectedLabel": "活用：",
-  "lookupEntry.fewer": "收起",
-  "lookupEntry.more": "另外{count}个",
   "lookupEntry.collapse": "收起{title}的释义",
   "lookupEntry.expand": "展开{title}的释义",
   "glossary.search": "搜索{term}",

@@ -105,7 +105,7 @@ Progress is a narrow rounded green bar beside percentage, with read/total counts
 
 ### Chips and lookup sheet
 
-Library metadata chips are compact bordered pills. A lookup entry is compact: the headword row with its reading, a common word's gold stars without a box and its actions as identical plain icons; every frequency in small close boxes pairing a source with its values; a Pitch row with each pattern drawn on the reading, its [position], tags and sources; then the definitions.
+Library metadata chips are compact bordered pills. A lookup entry is compact: the headword row with its reading, a common word's gold stars without a box and its notes centered on the headword's line, and its actions as identical plain icons; every frequency in small close boxes pairing a source with its values; a Pitch row with each pattern drawn on the reading with its [position] and tags, separated by commas, its sources on hover; then the definitions with every tag beside each dictionary's name.
 
 Each dictionary's definitions sit under its name, a small tinted label that folds them, with its tags after it in small muted italics; they are numbered when there are several. One rule separates headwords. Keep imported safe content and interactive dictionary term links shared with the Dictionary page. A kanji result is an ordinary entry. The sheet retains loading, no-match, failure, audio availability and Open in Dictionary states, with Escape/outside-click dismissal.
 

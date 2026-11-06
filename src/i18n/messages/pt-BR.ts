@@ -1469,8 +1469,6 @@ export const ptBR: MessageCatalog = {
   "lookupEntry.matchedLabel": "Correspondência:",
   "lookupEntry.inflected": "Flexão: {inflections}",
   "lookupEntry.inflectedLabel": "Flexão:",
-  "lookupEntry.fewer": "Mostrar menos",
-  "lookupEntry.more": "+{count} mais",
   "lookupEntry.collapse": "Recolher as definições de {title}",
   "lookupEntry.expand": "Expandir as definições de {title}",
   "glossary.search": "Pesquisar {term}",

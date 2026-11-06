@@ -1386,8 +1386,6 @@ export const ja: MessageCatalog = {
   "lookupEntry.matchedLabel": "一致：",
   "lookupEntry.inflected": "活用：{inflections}",
   "lookupEntry.inflectedLabel": "活用：",
-  "lookupEntry.fewer": "少なく表示",
-  "lookupEntry.more": "ほか{count}件",
   "lookupEntry.collapse": "{title}の語釈を折りたたむ",
   "lookupEntry.expand": "{title}の語釈を展開",
   "glossary.search": "{term}を検索",

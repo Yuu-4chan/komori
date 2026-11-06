@@ -1126,7 +1126,7 @@ describe("Reader lookup popup", () => {
       "[0] Pitch A, Pitch B, Pitch A",
       "[2] noun Pitch A, Pitch B, Pitch A",
     ]);
-    // The sources leave the row but stay in what a screen reader says.
+    // The sources show on hover and in what a screen reader says.
     expect(pitch.querySelector(".lookup-entry__pitch-sources")).toBeNull();
     const spoken = patterns.map((pattern) => pattern.querySelector(".visually-hidden")!);
     for (const phrase of spoken) expect(phrase).not.toHaveAttribute("aria-hidden");

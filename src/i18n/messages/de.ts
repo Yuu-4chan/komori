@@ -1484,8 +1484,6 @@ export const de: MessageCatalog = {
   "lookupEntry.matchedLabel": "Treffer:",
   "lookupEntry.inflected": "Flektiert: {inflections}",
   "lookupEntry.inflectedLabel": "Flektiert:",
-  "lookupEntry.fewer": "Weniger anzeigen",
-  "lookupEntry.more": "+{count} weitere",
   "lookupEntry.collapse": "{title}-Definitionen einklappen",
   "lookupEntry.expand": "{title}-Definitionen ausklappen",
   "glossary.search": "{term} suchen",

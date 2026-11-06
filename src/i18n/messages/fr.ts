@@ -1539,8 +1539,6 @@ export const fr: MessageCatalog = {
   "lookupEntry.matchedLabel": "Correspondance :",
   "lookupEntry.inflected": "Fléchi : {inflections}",
   "lookupEntry.inflectedLabel": "Fléchi :",
-  "lookupEntry.fewer": "Afficher moins",
-  "lookupEntry.more": "+{count} de plus",
   "lookupEntry.collapse": "Replier les définitions de {title}",
   "lookupEntry.expand": "Déplier les définitions de {title}",
   "glossary.search": "Rechercher {term}",

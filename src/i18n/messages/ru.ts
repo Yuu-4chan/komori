@@ -1563,8 +1563,6 @@ export const ru: MessageCatalog = {
   "lookupEntry.matchedLabel": "Совпадение:",
   "lookupEntry.inflected": "Словоформа: {inflections}",
   "lookupEntry.inflectedLabel": "Словоформа:",
-  "lookupEntry.fewer": "Показать меньше",
-  "lookupEntry.more": "Ещё {count}",
   "lookupEntry.collapse": "Свернуть определения для {title}",
   "lookupEntry.expand": "Развернуть определения для {title}",
   "glossary.search": "Найти {term}",

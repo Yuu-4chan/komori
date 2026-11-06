@@ -174,10 +174,8 @@ function stubWordAudio() {
   vi.mocked(getWordAudio).mockResolvedValue(new Blob(["ID3"], { type: "audio/mpeg" }));
 }
 
-// Every tag beside a dictionary's name, including those waiting behind "+N more".
-async function sourceTags(user: ReturnType<typeof userEvent.setup>, source: HTMLElement) {
-  const more = within(source).queryByRole("button", { name: /^\+\d+ more$/ });
-  if (more) await user.click(more);
+// Every tag beside a dictionary's name.
+async function sourceTags(_user: ReturnType<typeof userEvent.setup>, source: HTMLElement) {
   return [...source.querySelectorAll(".lookup-source__tags > span")];
 }
 
@@ -275,7 +273,8 @@ describe("Dictionary page", () => {
       row.compareDocumentPosition(within(card).getByText("to read")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(row.querySelector(".lookup-entry__pitch-sources")).toHaveTextContent("Pitch source");
+    // Its sources show on hover only, whether or not dictionary names show.
+    expect(row.querySelector(".lookup-entry__pitch-sources")).toBeNull();
     expect(pitch).toHaveAttribute("title", "[0] Pitch source");
     expect(pitch).toHaveTextContent("Position 0; Pitch source");
     expect(highKana(card)).toEqual(["む"]);
@@ -376,12 +375,9 @@ describe("Dictionary page", () => {
     const card = await screen.findByRole("article");
     const jitendex = within(card).getByRole("region", { name: "Jitendex" });
     const other = within(card).getByRole("region", { name: "見本国語辞典" });
-    // Four tags show beside a dictionary's name, and the rest wait behind "+N more".
-    expect(jitendex.querySelectorAll(".lookup-source__tags > span")).toHaveLength(4);
-    expect(within(jitendex).getByRole("button", { name: "+1 more" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    // Every tag shows beside a dictionary's name.
+    expect(jitendex.querySelectorAll(".lookup-source__tags > span")).toHaveLength(5);
+    expect(within(jitendex).queryByRole("button", { name: /more/ })).toBeNull();
     const describe = (tags: Element[]) =>
       tags.map((tag) => [tag.textContent, tag.getAttribute("title"), tag.getAttribute("class")]);
     const tags = await sourceTags(user, jitendex);

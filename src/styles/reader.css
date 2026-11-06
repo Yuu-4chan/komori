@@ -1224,11 +1224,16 @@
   min-width: 0;
   min-height: calc(var(--lookup-headword-line) + var(--lookup-reading-line));
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   align-content: center;
   flex-wrap: wrap;
   gap: 2px 10px;
   padding-top: var(--lookup-reading-line);
+}
+/* What follows the headword (its reading, a common word's stars, the matched start and the
+   inflections) is centered on the headword's own line rather than sitting on its baseline. */
+.lookup-entry__word > :not(.lookup-entry__expression) {
+  line-height: var(--lookup-headword-line);
 }
 .lookup-entry__headline > .lookup-entry__actions {
   height: var(--lookup-headword-line);
@@ -1285,12 +1290,8 @@
   font-size: 16px;
 }
 /* A common word's stars, beside the headword. */
-/* Centered on the headword's own line rather than sitting on its baseline. */
 .lookup-entry__stars {
-  height: var(--lookup-headword-line);
-  align-self: flex-end;
   display: inline-flex;
-  align-items: center;
   gap: 3px;
   color: color-mix(in srgb, #d49b00 72%, var(--text-primary));
   font-size: 14px;
@@ -1379,23 +1380,11 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
-.lookup-source__more {
-  padding: 0 6px;
-  color: var(--accent-ink);
-  background: transparent;
-  font: inherit;
-  font-size: 12.5px;
-  font-style: normal;
-  font-weight: 650;
-  cursor: pointer;
-}
-.lookup-source__more:hover {
-  background: var(--accent-faint);
-}
 
 /* The Pitch row: each pattern drawn on the reading, as accent dictionaries draw it, a line over
    each high mora and a step down after the mora where it falls (a devoiced mora ringed, a nasal
-   one marked), then its position, tags and sources. */
+   one marked), then its position and tags; the patterns are separated by commas, and each
+   one's sources show in its tooltip. */
 .lookup-entry__pitch {
   display: flex;
   align-items: baseline;
@@ -1414,7 +1403,7 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 14px;
+  gap: 2px 8px;
   list-style: none;
 }
 .lookup-entry__pitch li {
@@ -1424,6 +1413,11 @@
   gap: 5px;
   color: var(--text-muted);
   font-size: 12.5px;
+  cursor: help;
+}
+.lookup-entry__pitch li:not(:last-child)::after {
+  content: ",";
+  margin-inline-start: -5px;
 }
 .lookup-entry__pitch-reading {
   padding-top: 2px;
@@ -1534,9 +1528,6 @@
   margin-inline: 5px;
   font-style: normal;
   opacity: 0.6;
-}
-.lookup-source__tags > button.lookup-source__more {
-  padding: 0;
 }
 .lookup-source__tag--noted {
   cursor: help;

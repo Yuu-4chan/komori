@@ -1531,8 +1531,6 @@ export const es: MessageCatalog = {
   "lookupEntry.matchedLabel": "Coincidencia:",
   "lookupEntry.inflected": "Flexionado: {inflections}",
   "lookupEntry.inflectedLabel": "Flexionado:",
-  "lookupEntry.fewer": "Mostrar menos",
-  "lookupEntry.more": "+{count} más",
   "lookupEntry.collapse": "Contraer las definiciones de {title}",
   "lookupEntry.expand": "Expandir las definiciones de {title}",
   "glossary.search": "Buscar {term}",
