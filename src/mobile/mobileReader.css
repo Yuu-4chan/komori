@@ -535,7 +535,7 @@ li:only-child > .mobile-chapter .mobile-chapter__dot::before {
 /* Images, Bookmarks, Notes and Search, as Chapters shows them above the chapters. */
 .mobile-chapters__tools {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
 }
 
@@ -605,6 +605,38 @@ li:only-child > .mobile-chapter .mobile-chapter__dot::before {
 dialog.reader-image-viewer {
   padding: calc(var(--safe-area-top) + 0.5rem) calc(var(--safe-area-right) + 0.75rem)
     calc(var(--safe-area-bottom) + 0.75rem) calc(var(--safe-area-left) + 0.75rem);
+}
+
+/* Its controls in one row of small round buttons, so the image keeps the screen. */
+dialog.reader-image-viewer .reader-image-viewer__toolbar {
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+dialog.reader-image-viewer .icon-button {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border-radius: var(--radius-pill);
+  font-size: 1.0625rem;
+}
+
+dialog.reader-image-viewer .reader-image-viewer__toolbar > span {
+  min-width: 2.5rem;
+  text-align: center;
+}
+
+dialog.reader-image-viewer .reader-image-viewer__image-wrap {
+  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+  gap: 0.25rem;
+}
+
+dialog.reader-image-viewer .reader-image-viewer__nav.icon-button {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.8125rem;
 }
 
 /* Where to continue a book read on the PC and on this phone since they last synced. */

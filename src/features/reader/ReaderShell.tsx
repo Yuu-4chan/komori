@@ -666,6 +666,7 @@ export function ReaderShell({
     measureReadingHeight,
     highlightPointerMatch,
     lookupAt,
+    vnGroupAt,
     setNoteHighlights,
   } = useReaderRenderer(
     rendererFactory,
@@ -1989,6 +1990,7 @@ export function ReaderShell({
               onScroll={scrolledNatively}
               onChapterEdge={chapterEdge}
               onReadOn={(advance) => vnStep.current?.(advance) ?? false}
+              onVnGroupAt={vnGroupAt}
               onGoToEntry={(id) => {
                 closeLookup();
                 void jumpRemembering((settled) => goToContentsEntry(id, settled));

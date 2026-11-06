@@ -941,6 +941,9 @@ class EpubRenderer implements ReaderRenderer {
           : applyHeadingCentering(document, this.headingTargets.get(section));
         if (!this.fixedLayout) applyBookImageLayout(document);
         else fillFixedSvgPage(document);
+        // A touch flashes no box over what it touched: Android draws one over the paragraph
+        // a tap reads on from, and keeps it for a whole long press.
+        document.documentElement.style.setProperty("-webkit-tap-highlight-color", "transparent");
         applyPresentation(document, this.sectionPresentation());
         let index = section?.index ?? -1;
         if (index < 0) {
@@ -5436,6 +5439,37 @@ class EpubRenderer implements ReaderRenderer {
       if (watch.scanAt(x - frame.left, y - frame.top)) return true;
     }
     return false;
+  }
+
+  vnGroupAt(x: number, y: number): boolean {
+    const group = this.vnShownGroup;
+    const element = this.vnView && group?.document.defaultView?.frameElement;
+    if (!group || !element || !shownAt(element, x, y)) return false;
+    const frame = element.getBoundingClientRect();
+    // The group's box, lines and the gaps between them alike, with a finger's slop around it.
+    const slop = 12;
+    let box: { left: number; top: number; right: number; bottom: number } | undefined;
+    for (const block of group.elements) {
+      const rect = block.getBoundingClientRect();
+      if (!rect.width && !rect.height) continue;
+      box = box
+        ? {
+            left: Math.min(box.left, rect.left),
+            top: Math.min(box.top, rect.top),
+            right: Math.max(box.right, rect.right),
+            bottom: Math.max(box.bottom, rect.bottom),
+          }
+        : { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+    }
+    if (!box) return false;
+    const localX = x - frame.left;
+    const localY = y - frame.top;
+    return (
+      localX >= box.left - slop &&
+      localX <= box.right + slop &&
+      localY >= box.top - slop &&
+      localY <= box.bottom + slop
+    );
   }
 
   highlightPointerMatch(scanId: number | null, length = 0): void {

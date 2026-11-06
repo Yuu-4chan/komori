@@ -120,6 +120,8 @@ export interface ReaderRenderer {
    * reported like any other; false when no text of the book is there.
    */
   lookupAt?(x: number, y: number): boolean;
+  /** Whether a point, in the Reader window's CSS pixels, is on the group VN view shows. */
+  vnGroupAt?(x: number, y: number): boolean;
   /** Idempotently release DOM, listeners, subscriptions, and pending work. */
   dispose(): void;
 }

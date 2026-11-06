@@ -133,6 +133,8 @@ export interface MobileReaderProps {
    * `advance`; false outside VN view or with nothing to do.
    */
   onReadOn: (advance: boolean) => boolean;
+  /** Whether a point is on the group VN view shows, where a tap reads on. */
+  onVnGroupAt?: (x: number, y: number) => boolean;
   onGoToEntry: (id: string) => void;
   onGoToOffset: (offset: number, settled: (succeeded: boolean) => void) => void;
   /** Shows a saved reading position, such as the PC's. */
@@ -179,6 +181,7 @@ export function MobileReader({
   onScroll,
   onChapterEdge,
   onReadOn,
+  onVnGroupAt,
   onGoToEntry,
   onGoToOffset,
   onGoToPosition,
@@ -307,6 +310,7 @@ export function MobileReader({
     onScroll,
     onChapterEdge,
     onReadOn,
+    onVnGroupAt,
     lookupClosedAt: lookup.closedAt,
     tapLookup: readerTapLookup,
     touchTurns: readerTouchPageTurns,
@@ -357,6 +361,7 @@ export function MobileReader({
         onTurn,
         onLookUp,
         onReadOn,
+        onVnGroupAt,
         lookupClosedAt,
         tapLookup,
         touchTurns,
@@ -378,17 +383,20 @@ export function MobileReader({
         const turns = touchTurns && tapTurns;
         const back = turns && (leftAdvances ? across > 1 - sideZone : across < sideZone);
         const forward = turns && (leftAdvances ? across < sideZone : across > 1 - sideZone);
+        // In VN view a tap on the group shown reads on, as a click on it does on the PC, with
+        // or without page turns by touch: it is how VN view is read.
+        const onGroup = !back && !forward && !!onVnGroupAt?.(point.x, point.y);
         // While VN view's text still appears, a tap only shows the rest of it, as a click does
         // on the PC: the words not shown yet are blank page. The side that turns back still
         // turns back. Otherwise a tap on a word looks it up; one on blank space turns the
-        // page from a side or shows the controls from the middle, unless it closed the lookup
-        // by the word, as the press it began with does.
+        // page from a side, reads on from the group, or shows the controls from the middle,
+        // unless it closed the lookup by the word, as the press it began with does.
         if (!back && onReadOn(false)) return;
         if (tapLookup && onLookUp(point.x, point.y)) return;
         if (lookupClosedAt() >= began.now - closingPress) return;
         if (back) onTurn("retreat");
         // VN view reads on, first showing the rest of the group.
-        else if (forward) {
+        else if (forward || onGroup) {
           if (!onReadOn(true)) onTurn("advance");
         } else setShown(true);
         return;
@@ -918,16 +926,15 @@ function ChaptersSheet({
 
 const toolButtons: {
   tool: Tool;
-  label: "sidebar.images" | "sidebar.bookmarks" | "sidebar.notes" | "sidebar.search";
+  label: "sidebar.images" | "sidebar.bookmarks" | "sidebar.notes";
   icon: typeof ImageIcon;
 }[] = [
   { tool: "images", label: "sidebar.images", icon: ImageIcon },
   { tool: "bookmarks", label: "sidebar.bookmarks", icon: BookmarkSimpleIcon },
   { tool: "notes", label: "sidebar.notes", icon: NotePencilIcon },
-  { tool: "search", label: "sidebar.search", icon: MagnifyingGlassIcon },
 ];
 
-/** Images, Bookmarks, Notes and Search, as the Reader controls and Chapters show them. */
+/** Images, Bookmarks and Notes in Contents; Search has its own button in the controls. */
 function ToolButtons({ onOpen }: { onOpen: (tool: Tool) => void }) {
   const { t } = useI18n();
   return toolButtons.map(({ tool, label, icon: Icon }) => (

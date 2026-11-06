@@ -138,6 +138,7 @@ function reader({
     onScroll: vi.fn(),
     onChapterEdge: vi.fn((_direction: "advance" | "retreat"): boolean => false),
     onReadOn: vi.fn((_advance: boolean): boolean => false),
+    onVnGroupAt: vi.fn((_x: number, _y: number): boolean => false),
     onGoToEntry: vi.fn(),
     onGoToOffset: vi.fn((_offset: number, settled: (succeeded: boolean) => void) => settled(true)),
     onGoToPosition: vi.fn(),
@@ -479,6 +480,34 @@ describe("the Reader by touch", () => {
     expect(await screen.findByRole("banner")).toBeInTheDocument();
   });
 
+  it("reads a VN book on from a tap on the group shown, with or without page turns by touch", async () => {
+    for (const readerTouchPageTurns of [true, false]) {
+      const { viewport, onTurn, onReadOn, onVnGroupAt } = reader({
+        pageTurns: {
+          canAdvance: true,
+          canRetreat: true,
+          forwardArrow: "ArrowRight",
+          scrollAxis: "vertical",
+        },
+        preferences: { readerViewMode: "vn", readerTouchPageTurns },
+      });
+      await shown();
+      onReadOn.mockImplementation((advance) => advance);
+      // The group spans the middle of the page from 300 to 700 px.
+      onVnGroupAt.mockImplementation((x) => x >= 300 && x <= 700);
+      tap(viewport, 500);
+      expect(onReadOn.mock.calls).toEqual([[false], [true]]);
+      expect(screen.queryByRole("banner")).toBeNull();
+      // Blank page beside it shows the controls.
+      onReadOn.mockClear();
+      tap(viewport, 250);
+      expect(onReadOn.mock.calls).toEqual([[false]]);
+      expect(onTurn).not.toHaveBeenCalled();
+      expect(await screen.findByRole("banner")).toBeInTheDocument();
+      cleanup();
+    }
+  });
+
   it("shows the controls from a tap anywhere on a continuous book, whole or a chapter alone", async () => {
     for (const readerViewMode of ["continuous", "semi-continuous"] as const) {
       const { viewport, onTurn } = reader({
@@ -704,7 +733,7 @@ describe("the Reader by touch", () => {
     expect(screen.queryByRole("banner")).toBeNull();
   });
 
-  it("opens Search from the controls, and Images, Bookmarks, Notes and Search from Contents", async () => {
+  it("opens Search from the controls, and Images, Bookmarks and Notes from Contents", async () => {
     const { viewport, tools } = reader();
     tap(viewport, 500);
     const header = await screen.findByRole("banner");
@@ -724,7 +753,7 @@ describe("the Reader by touch", () => {
         .getAllByRole("button")
         .filter((button) => button.classList.contains("mobile-reader-tool"))
         .map((button) => button.textContent),
-    ).toEqual(["Images", "Bookmarks", "Notes", "Search"]);
+    ).toEqual(["Images", "Bookmarks", "Notes"]);
     await userEvent.click(within(contents).getByRole("button", { name: "Notes" }));
     expect(screen.getByRole("dialog", { name: "Notes" }).textContent).toContain("No notes yet");
     await userEvent.click(
