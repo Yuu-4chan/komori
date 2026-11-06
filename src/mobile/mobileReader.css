@@ -92,8 +92,11 @@
   pointer-events: none;
 }
 
+/* The pill's own button sizes the status; the PC's limit would shrink it to nothing in there,
+   spilling the clock over the play/stop button. */
 .mobile-reader__status .reader-reading-status-top {
   position: static;
+  max-width: none;
   min-height: 0;
   padding: 0;
   transform: none;
