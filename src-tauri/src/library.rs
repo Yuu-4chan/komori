@@ -638,28 +638,128 @@ pub(crate) fn list_from_catalog(connection: &Connection) -> Result<Vec<LibraryBo
         .query_map([], library_book_from_row)
         .map_err(storage_error)?;
     let mut books = rows.collect::<Result<Vec<_>, _>>().map_err(storage_error)?;
+    let automatic = appearance_preferences::series_from_titles(connection);
     // On the phone, the paired PC's books as it last listed them: their series are the PC's.
     #[cfg(mobile)]
-    let (pc_listing, from_pc) = (
-        crate::pc_listing::saved(connection)
-            .ok()
-            .flatten()
-            .unwrap_or_default(),
-        crate::pc_link::pc_book_ids(connection),
-    );
+    {
+        let from_pc = crate::pc_link::pc_book_ids(connection);
+        name_phone_series(connection, &mut books, automatic, &from_pc);
+        for book in &mut books {
+            book.from_pc = from_pc.contains(&book.id);
+        }
+    }
     #[cfg(not(mobile))]
-    let (pc_listing, from_pc): (Vec<RemoteBook>, HashSet<String>) = Default::default();
-    if appearance_preferences::series_from_titles(connection) {
-        name_series_from_titles(&mut books, &pc_listing);
+    name_series(&mut books, &[], &HashSet::new(), automatic);
+    Ok(books)
+}
+
+/// Names the books' series: by their titles too when `automatic` (Automatic series), read among
+/// `listing` (the PC's books), and as the listing gives it for a copy of a PC book (`copies`).
+fn name_series(
+    books: &mut [LibraryBook],
+    listing: &[RemoteBook],
+    copies: &HashSet<String>,
+    automatic: bool,
+) {
+    if automatic {
+        name_series_from_titles(books, listing);
     } else {
         books.iter_mut().for_each(without_automatic_series);
     }
-    take_pc_series(&mut books, &pc_listing, &from_pc);
-    #[cfg(mobile)]
-    for book in &mut books {
-        book.from_pc = from_pc.contains(&book.id);
+    take_pc_series(books, listing, copies);
+}
+
+/// The phone's series as last named, and what they were named from.
+#[cfg(any(mobile, test))]
+const PHONE_SERIES: &str = "phone-series";
+
+#[cfg(any(mobile, test))]
+#[derive(Serialize, serde::Deserialize)]
+struct PhoneSeries {
+    key: String,
+    series: HashMap<String, (Option<String>, Option<f64>)>,
+}
+
+/// Names the phone's series as `name_series` does among the PC's last listing, reusing the
+/// names saved the last time while the books, the listing and the setting are the same, as
+/// reading the PC's thousands of books takes most of a listing's time.
+#[cfg(any(mobile, test))]
+fn name_phone_series(
+    connection: &Connection,
+    books: &mut [LibraryBook],
+    automatic: bool,
+    copies: &HashSet<String>,
+) {
+    let key = phone_series_key(
+        books,
+        automatic,
+        copies,
+        crate::pc_listing::saved_stamp(connection),
+    );
+    let saved: Option<PhoneSeries> = connection
+        .query_row(
+            "SELECT value FROM preferences WHERE name = ?1",
+            [PHONE_SERIES],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|value| serde_json::from_str(&value).ok());
+    if let Some(saved) = saved.filter(|saved| saved.key == key) {
+        for book in books.iter_mut() {
+            if let Some((series, index)) = saved.series.get(&book.id) {
+                book.series = series.clone();
+                book.series_index = *index;
+            }
+        }
+        return;
     }
-    Ok(books)
+    let listing = crate::pc_listing::saved(connection)
+        .ok()
+        .flatten()
+        .unwrap_or_default();
+    name_series(books, &listing, copies, automatic);
+    let named = PhoneSeries {
+        key,
+        series: books
+            .iter()
+            .map(|book| (book.id.clone(), (book.series.clone(), book.series_index)))
+            .collect(),
+    };
+    // Saving is only a shortcut for the next listing; one that fails names them again.
+    if let Ok(value) = serde_json::to_string(&named) {
+        let _ = connection.execute(
+            "INSERT INTO preferences (name, value) VALUES (?1, ?2)
+             ON CONFLICT(name) DO UPDATE SET value = excluded.value,
+               updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')",
+            [PHONE_SERIES, &value],
+        );
+    }
+}
+
+/// What the phone's series are named from: each book's names and own series, which are PC
+/// copies, the setting, the PC's listing as saved (`listing`), and the naming's version.
+#[cfg(any(mobile, test))]
+fn phone_series_key(
+    books: &[LibraryBook],
+    automatic: bool,
+    copies: &HashSet<String>,
+    listing: Option<(i64, String)>,
+) -> String {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    env!("CARGO_PKG_VERSION").hash(&mut hasher);
+    automatic.hash(&mut hasher);
+    listing.hash(&mut hasher);
+    for book in books {
+        book.id.hash(&mut hasher);
+        book.file_name.hash(&mut hasher);
+        book.title.hash(&mut hasher);
+        book.series.hash(&mut hasher);
+        book.series_index.map(f64::to_bits).hash(&mut hasher);
+        book.series_manual.hash(&mut hasher);
+        copies.contains(&book.id).hash(&mut hasher);
+    }
+    format!("{:016x}", hasher.finish())
 }
 
 /// Gives books without a series one their file names or titles name, read among `context` too
@@ -2482,6 +2582,47 @@ pub(crate) mod tests {
                 (None, None)
             ]
         );
+    }
+
+    #[test]
+    fn the_phone_reuses_its_series_names_until_its_books_or_the_pcs_listing_change() {
+        let directory = tempdir().unwrap();
+        let connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        let series = "35歳の選択～異世界転生を選んだ場合～";
+        let pc = [
+            listed("pc-1", &format!("{series}01"), Some((series, 1.0))),
+            listed("pc-2", &format!("{series}02"), Some((series, 2.0))),
+        ];
+        crate::pc_listing::save(&connection, &pc).unwrap();
+        let phone = vec![titled("own", &format!("{series}01"), "28thfqt.epub")];
+        let named = |books: &[LibraryBook]| {
+            let mut books = books.to_vec();
+            name_phone_series(&connection, &mut books, true, &HashSet::new());
+            books[0].series.clone()
+        };
+        assert_eq!(named(&phone).as_deref(), Some(series));
+
+        // A second listing takes the saved names instead of reading the PC's books again.
+        connection
+            .execute(
+                "UPDATE preferences SET value = replace(value, ?1, 'Saved') WHERE name = ?2",
+                [series, PHONE_SERIES],
+            )
+            .unwrap();
+        assert_eq!(named(&phone).as_deref(), Some("Saved"));
+
+        // A renamed book, or a new listing, names them again.
+        let mut renamed = phone.clone();
+        renamed[0].title = Some(format!("{series}02"));
+        assert_eq!(named(&renamed).as_deref(), Some(series));
+        connection
+            .execute(
+                "UPDATE preferences SET value = replace(value, ?1, 'Saved') WHERE name = ?2",
+                [series, PHONE_SERIES],
+            )
+            .unwrap();
+        crate::pc_listing::save(&connection, &pc[..1]).unwrap();
+        assert_eq!(named(&renamed).as_deref(), Some(series));
     }
 
     #[test]

@@ -26,6 +26,18 @@ pub(crate) fn saved(connection: &Connection) -> Result<Option<Vec<RemoteBook>>, 
     Ok(value.and_then(|value| serde_json::from_str(&value).ok()))
 }
 
+/// When the listing was last saved, and its length: what changes whenever it does, read without
+/// the listing itself.
+pub(crate) fn saved_stamp(connection: &Connection) -> Option<(i64, String)> {
+    connection
+        .query_row(
+            "SELECT length(value), updated_at FROM preferences WHERE name = ?1",
+            [LISTING],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .ok()
+}
+
 /// Saves the listing; returns whether it differs from the one saved before.
 pub(crate) fn save(connection: &Connection, books: &[RemoteBook]) -> Result<bool, String> {
     let value = serde_json::to_string(books).map_err(|error| error.to_string())?;
