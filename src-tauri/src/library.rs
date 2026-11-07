@@ -1,4 +1,5 @@
 use std::{
+    collections::{HashMap, HashSet},
     fs::File,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
@@ -17,6 +18,7 @@ use crate::{
         compaction_needed, reclaim, BatchProgress, RemovalBatch, COMPACTION_MINIMUM_FREE,
     },
     covers,
+    devices::protocol::RemoteBook,
     dictionary::store::CompactionResult,
     epub,
     title_series::{self, TitledBook},
@@ -32,7 +34,7 @@ pub struct CatalogState {
     pub(crate) write_lock: Arc<Mutex<()>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryBook {
     id: String,
@@ -636,36 +638,84 @@ pub(crate) fn list_from_catalog(connection: &Connection) -> Result<Vec<LibraryBo
         .query_map([], library_book_from_row)
         .map_err(storage_error)?;
     let mut books = rows.collect::<Result<Vec<_>, _>>().map_err(storage_error)?;
+    // On the phone, the paired PC's books as it last listed them: their series are the PC's.
+    #[cfg(mobile)]
+    let (pc_listing, from_pc) = (
+        crate::pc_listing::saved(connection)
+            .ok()
+            .flatten()
+            .unwrap_or_default(),
+        crate::pc_link::pc_book_ids(connection),
+    );
+    #[cfg(not(mobile))]
+    let (pc_listing, from_pc): (Vec<RemoteBook>, HashSet<String>) = Default::default();
     if appearance_preferences::series_from_titles(connection) {
-        let named = title_series::series_from_titles(
-            &books
-                .iter()
-                .map(|book| TitledBook {
-                    file_name: Some(&book.file_name),
-                    title: book.title.as_deref(),
-                    series: book.series.as_deref(),
-                    series_index: book.series_index,
-                    series_manual: book.series_manual,
-                })
-                .collect::<Vec<_>>(),
-        );
-        for (book, named) in books.iter_mut().zip(named) {
-            if let Some((series, index)) = named {
-                book.series = Some(series);
-                book.series_index = Some(index);
-            }
-        }
+        name_series_from_titles(&mut books, &pc_listing);
     } else {
         books.iter_mut().for_each(without_automatic_series);
     }
+    take_pc_series(&mut books, &pc_listing, &from_pc);
     #[cfg(mobile)]
-    {
-        let from_pc = crate::pc_link::pc_book_ids(connection);
-        for book in &mut books {
-            book.from_pc = from_pc.contains(&book.id);
-        }
+    for book in &mut books {
+        book.from_pc = from_pc.contains(&book.id);
     }
     Ok(books)
+}
+
+/// Gives books without a series one their file names or titles name, read among `context` too
+/// (on the phone, the PC's books it does not have), so a phone book named as the PC's volumes
+/// are joins the PC's series for them, as it would on the PC.
+fn name_series_from_titles(books: &mut [LibraryBook], context: &[RemoteBook]) {
+    let named = {
+        let here: HashSet<&str> = books.iter().map(|book| book.id.as_str()).collect();
+        let titled: Vec<TitledBook<'_>> = books
+            .iter()
+            .map(|book| TitledBook {
+                file_name: Some(&book.file_name),
+                title: book.title.as_deref(),
+                series: book.series.as_deref(),
+                series_index: book.series_index,
+                series_manual: book.series_manual,
+            })
+            .chain(
+                context
+                    .iter()
+                    .filter(|book| !here.contains(book.id.as_str()))
+                    .map(|book| TitledBook {
+                        file_name: Some(&book.file_name),
+                        title: book.title.as_deref(),
+                        series: book.series.as_deref(),
+                        series_index: book.series_index,
+                        series_manual: false,
+                    }),
+            )
+            .collect();
+        title_series::series_from_titles(&titled)
+    };
+    for (book, named) in books.iter_mut().zip(named) {
+        if let Some((series, index)) = named {
+            book.series = Some(series);
+            book.series_index = Some(index);
+        }
+    }
+}
+
+/// A copy of a PC book (`copies`, by its catalog ID, which is the PC's) takes the series and
+/// number the PC's listing gives it, so the phone groups and names it as the PC does.
+fn take_pc_series(books: &mut [LibraryBook], listing: &[RemoteBook], copies: &HashSet<String>) {
+    if copies.is_empty() {
+        return;
+    }
+    let listed: HashMap<&str, &RemoteBook> = listing
+        .iter()
+        .map(|book| (book.id.as_str(), book))
+        .collect();
+    for book in books.iter_mut().filter(|book| copies.contains(&book.id)) {
+        if let Some(pc) = listed.get(book.id.as_str()) {
+            book.series = pc.series.clone();
+            book.series_index = pc.series_index;
+        }
+    }
 }
 
 /// The Library as a paired phone sees it: the books whose files are here, by catalog ID, with
@@ -769,6 +819,20 @@ fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<Lib
         )
         .optional()
         .map_err(storage_error)?;
+    // On the phone the series is the Library's, named among the PC's books too; its catalog is
+    // small enough to list whole.
+    if cfg!(mobile) {
+        if let Some(book) = book.as_mut() {
+            if let Some(listed) = list_from_catalog(connection)?
+                .into_iter()
+                .find(|listed| listed.id == book.id)
+            {
+                book.series = listed.series;
+                book.series_index = listed.series_index;
+            }
+        }
+        return Ok(book);
+    }
     if let Some(book) = book.as_mut().filter(|book| !book.series_manual) {
         if appearance_preferences::series_from_titles(connection) {
             if let Some((series, index)) = series_from_catalog_titles(connection, id)? {
@@ -2319,6 +2383,105 @@ pub(crate) mod tests {
             .execute("UPDATE book_progress SET current_units = 5000", [])
             .unwrap();
         assert_eq!(list_from_catalog(&connection).unwrap()[0].progress, None);
+    }
+
+    fn titled(id: &str, title: &str, file_name: &str) -> LibraryBook {
+        LibraryBook {
+            id: id.into(),
+            title: Some(title.into()),
+            own_title: None,
+            title_manual: false,
+            own_author: None,
+            author_manual: false,
+            author: None,
+            file_name: file_name.into(),
+            imported_at: String::new(),
+            availability: "available",
+            has_cover: false,
+            cover_url: None,
+            progress: None,
+            last_read_at: None,
+            language: None,
+            series: None,
+            series_index: None,
+            series_manual: false,
+            characters: None,
+            unique_kanji: None,
+            words: None,
+            from_pc: false,
+        }
+    }
+
+    fn listed(id: &str, title: &str, series: Option<(&str, f64)>) -> RemoteBook {
+        RemoteBook {
+            id: id.into(),
+            title: Some(title.into()),
+            author: None,
+            file_name: format!("{title}.epub"),
+            size: 1,
+            cover: None,
+            progress: None,
+            last_read_at: None,
+            series: series.map(|(name, _)| name.into()),
+            series_index: series.map(|(_, index)| index),
+            language: None,
+            characters: None,
+            words: None,
+        }
+    }
+
+    #[test]
+    fn a_phone_book_joins_the_series_the_pcs_volumes_name_and_a_copy_takes_the_pcs() {
+        let series = "35歳の選択～異世界転生を選んだ場合～";
+        let pc = [
+            listed("pc-1", &format!("{series}01"), Some((series, 1.0))),
+            listed("pc-2", &format!("{series}02"), Some((series, 2.0))),
+            listed("pc-3", &format!("{series}03"), Some((series, 3.0))),
+            listed(
+                "lone",
+                "攻撃力ゼロから始める剣聖譚01",
+                Some(("剣聖譚", 1.0)),
+            ),
+            listed("one-off", "Classroom of the Elite: Year 3 Vol. 3", None),
+        ];
+        let mut books = vec![
+            // The phone's own import of the first volume, under a file name of its own.
+            titled("own", &format!("{series}01"), "28thfqt.epub"),
+            // Copies of PC books keep the PC's catalog IDs.
+            titled(
+                "lone",
+                "攻撃力ゼロから始める剣聖譚01",
+                "攻撃力ゼロから始める剣聖譚01.epub",
+            ),
+            titled(
+                "one-off",
+                "Classroom of the Elite: Year 3 Vol. 3",
+                "Classroom of the Elite - Year 3 v03 [Seven Seas].epub",
+            ),
+        ];
+        // Alone on the phone, no title names a series.
+        let mut alone = books.clone();
+        name_series_from_titles(&mut alone, &[]);
+        assert!(alone.iter().all(|book| book.series.is_none()));
+
+        name_series_from_titles(&mut books, &pc);
+        take_pc_series(
+            &mut books,
+            &pc,
+            &HashSet::from(["lone".to_owned(), "one-off".to_owned()]),
+        );
+        let shown: Vec<_> = books
+            .iter()
+            .map(|book| (book.series.as_deref(), book.series_index))
+            .collect();
+        assert_eq!(
+            shown,
+            vec![
+                (Some(series), Some(1.0)),
+                (Some("剣聖譚"), Some(1.0)),
+                (None, None)
+            ]
+        );
     }
 
     #[test]
