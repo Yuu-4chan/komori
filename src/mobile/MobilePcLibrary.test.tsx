@@ -188,7 +188,7 @@ describe("the Library on a phone paired with a PC", () => {
     expect(document.querySelector(".mobile-books-heading")!.textContent).toBe("On PC3 books");
   });
 
-  it("shows the saved listing at once, and Connected once the PC answers", async () => {
+  it("shows the saved listing at once, Disconnected until the PC answers, then Connected", async () => {
     const minutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
     vi.mocked(api.cachedPcLibrary).mockResolvedValueOnce([remote, kept]);
     let answer: (books: api.PcBook[]) => void = () => {};
@@ -201,7 +201,9 @@ describe("the Library on a phone paired with a PC", () => {
     const books = await allBooks();
     await waitFor(() => expect(titles(books)).toEqual(["それから", "三四郎", "羅生門"]));
     expect(screen.queryByText("Connected")).toBeNull();
-    expect(screen.getByText("Synced 5 minutes ago")).toBeTruthy();
+    const checking = screen.getByText("Disconnected").closest(".mobile-pc-status")!;
+    expect(checking.textContent).toBe("Disconnected · Synced 5 minutes ago");
+    expect(checking.querySelector(".mobile-sync__dot--disconnected")).toBeTruthy();
     expect(screen.queryByText("Connecting…")).toBeNull();
 
     await act(async () => answer([remote, kept, { ...remote, id: "pc-3", title: "門" }]));

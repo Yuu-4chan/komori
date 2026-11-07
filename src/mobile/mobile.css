@@ -1060,7 +1060,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   background: var(--surface-card);
   border: 1px solid var(--border-soft);
   border-radius: 0.8125rem;
@@ -1072,11 +1072,7 @@
   flex: 1;
 }
 
-.mobile-pc-status--synced {
-  color: var(--text-primary);
-}
-
-.mobile-pc-status--synced small {
+.mobile-pc-status small {
   color: var(--text-secondary);
   font-size: inherit;
 }
@@ -1408,10 +1404,6 @@
   flex: none;
   background: var(--progress-fill);
   border-radius: 50%;
-}
-
-.mobile-sync__dot--off {
-  background: var(--text-muted);
 }
 
 .mobile-sync__dot--disconnected {

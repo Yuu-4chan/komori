@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { createMemoryRouter, RouterProvider, useNavigate } from "react-router-dom";
@@ -51,6 +51,9 @@ function Filters() {
         <button onClick={() => setOpen(false)} type="button">
           Close
         </button>
+        <ul data-testid="list">
+          <li>Chapter</li>
+        </ul>
       </MobileSheet>
     </>
   );
@@ -94,6 +97,17 @@ describe("The phone's frame", () => {
     expect(page.scrollTop).toBe(640);
   });
 
+  it("returns to where a page was left when the dock opens it again", async () => {
+    const { router, page } = shell();
+    scroll(page, 640);
+    await userEvent.click(screen.getByRole("link", { name: "Statistics" }));
+    expect(page.scrollTop).toBe(0);
+    await userEvent.click(screen.getByRole("link", { name: "Library" }));
+    expect(router.state.location.pathname).toBe("/library");
+    expect(router.state.historyAction).toBe("PUSH");
+    expect(page.scrollTop).toBe(640);
+  });
+
   it("takes the page already open back to its top when its dock item is tapped again", async () => {
     const { router, page } = shell();
     page.scrollTo = vi.fn();
@@ -112,5 +126,27 @@ describe("The phone's frame", () => {
       await userEvent.click(screen.getByRole("button", { name: "Close" }));
     });
     expect(document.documentElement.dataset.sheetOpen).toBeUndefined();
+  });
+
+  it("closes a sheet swiped down, and not one swiped up or swiped in a list scrolled down", async () => {
+    shell();
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    const sheet = screen.getByRole("dialog", { name: "Filters" });
+    const swipe = (target: Element, from: number, to: number) => {
+      fireEvent.touchStart(target, { touches: [{ clientX: 100, clientY: from }] });
+      fireEvent.touchMove(target, { touches: [{ clientX: 100, clientY: (from + to) / 2 }] });
+      fireEvent.touchMove(target, { touches: [{ clientX: 100, clientY: to }] });
+      fireEvent.touchEnd(target, { touches: [] });
+    };
+
+    swipe(sheet, 400, 100);
+    expect(screen.getByRole("dialog", { name: "Filters" })).toBeTruthy();
+    const list = screen.getByTestId("list");
+    list.scrollTop = 80;
+    swipe(list, 100, 500);
+    expect(screen.getByRole("dialog", { name: "Filters" })).toBeTruthy();
+    list.scrollTop = 0;
+    await act(async () => swipe(list, 100, 500));
+    expect(screen.queryByRole("dialog", { name: "Filters" })).toBeNull();
   });
 });

@@ -191,47 +191,33 @@ export function PcStatusRow({
 }) {
   const { t } = useI18n();
   const connected = connection === "connected";
-  // Any answer but connected (or not asked yet) is Disconnected, its reason in the title.
-  const disconnected = !connected && connection !== "unknown";
+  // Until the PC answers, while it is still asked too, the row says Disconnected; a reason the
+  // PC did not answer is the row's title.
   const synced = timeAgo(lastSynced);
   return (
     <div
-      className={
-        connected || disconnected ? "mobile-pc-status mobile-pc-status--synced" : "mobile-pc-status"
-      }
+      className="mobile-pc-status"
       aria-live="polite"
-      title={disconnected ? t(connection, { name: pcName }) : undefined}
+      title={connected || connection === "unknown" ? undefined : t(connection, { name: pcName })}
     >
       <span
         aria-hidden="true"
-        className={[
-          "mobile-sync__dot",
-          disconnected ? "mobile-sync__dot--disconnected" : "",
-          connected || disconnected ? "" : "mobile-sync__dot--off",
-        ]
-          .filter(Boolean)
-          .join(" ")}
+        className={
+          connected ? "mobile-sync__dot" : "mobile-sync__dot mobile-sync__dot--disconnected"
+        }
       />
       <span>
-        {connected || disconnected ? (
-          <>
-            <span className="mobile-pc-status__label">
-              {t(connected ? "sync.connectedShort" : "sync.disconnectedShort")}
-            </span>
-            {synced ? <small>{` · ${t("sync.syncedShort", { time: synced })}`}</small> : null}
-          </>
-        ) : synced ? (
-          <small>{t("sync.syncedShort", { time: synced })}</small>
-        ) : (
-          <small>{pcName}</small>
-        )}
+        <span className="mobile-pc-status__label">
+          {t(connected ? "sync.connectedShort" : "sync.disconnectedShort")}
+        </span>
+        {synced ? <small>{` · ${t("sync.syncedShort", { time: synced })}`}</small> : null}
       </span>
       <button
         aria-busy={syncing}
-        aria-label={t(disconnected ? "common.tryAgain" : "sync.syncNow")}
+        aria-label={t(connected ? "sync.syncNow" : "common.tryAgain")}
         className="mobile-pc-status__action mobile-pc-status__action--icon"
         disabled={syncing}
-        onClick={disconnected ? onRetry : onSync}
+        onClick={connected ? onSync : onRetry}
         type="button"
       >
         <ArrowsClockwiseIcon aria-hidden="true" weight="bold" />

@@ -12,6 +12,7 @@ import {
 import { navigationItems } from "../app/navigation";
 import { flushPendingWrites } from "../app/windowLifecycle";
 import { BrandMark } from "../brand/BrandMark";
+import { isLibraryReturn } from "../features/library/libraryCache";
 import { MobileHeaderContext, type MobileHeaderProps } from "../components/layout/mobileHeader";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { StatisticsSourceContext } from "../features/statistics/statisticsSource";
@@ -54,6 +55,7 @@ export function MobileShell() {
                   event.preventDefault();
                   content.current?.scrollTo({ top: 0, behavior: "smooth" });
                 }}
+                state={FROM_DOCK}
                 to={path}
               >
                 <NavigationIcon aria-hidden="true" weight="duotone" />
@@ -67,25 +69,42 @@ export function MobileShell() {
   );
 }
 
-// Where each page was scrolled to, by its history entry: kept while Komori runs, and across the
-// Reader, which leaves the shell.
+// Where each page was scrolled to, by its history entry and by its path: kept while Komori runs,
+// and across the Reader, which leaves the shell.
 const scrolledTo = new Map<string, number>();
+const scrolledToPath = new Map<string, number>();
+
+/** The state of a navigation from the dock, which returns to a page where it was left. */
+const FROM_DOCK = { dock: true };
 
 /**
- * Pages open at their top, and Back returns to a page where it was left: the shell's scroller
- * outlives its pages, so without this a page would open where the last one was scrolled to. A
- * page still listing what it shows is followed until it is tall enough or the reader scrolls.
+ * Pages open at their top, and Back, the dock or the Reader's Back returns to a page where it
+ * was left: the shell's scroller outlives its pages, so without this a page would open where the
+ * last one was scrolled to. A page still listing what it shows is followed until it is tall
+ * enough or the reader scrolls.
  */
 function useScrollMemory(content: RefObject<HTMLElement | null>) {
-  const { key } = useLocation();
+  const { key, pathname, search, state } = useLocation();
   const navigation = useNavigationType();
+  const path = pathname + search;
+  const returning = (state as typeof FROM_DOCK | null)?.dock === true || isLibraryReturn(state);
   useLayoutEffect(() => {
     const page = content.current;
     if (!page) return;
-    const target = navigation === "POP" ? (scrolledTo.get(key) ?? 0) : 0;
+    const target =
+      navigation === "POP"
+        ? (scrolledTo.get(key) ?? 0)
+        : returning
+          ? (scrolledToPath.get(path) ?? 0)
+          : 0;
     page.scrollTop = target;
-    const remember = () => scrolledTo.set(key, page.scrollTop);
     let following = target > 0 && page.scrollTop < target;
+    // While the page grows to where it was, its shorter scroll is not where it was left.
+    const remember = () => {
+      if (following) return;
+      scrolledTo.set(key, page.scrollTop);
+      scrolledToPath.set(path, page.scrollTop);
+    };
     const stop = () => {
       following = false;
     };
@@ -108,7 +127,7 @@ function useScrollMemory(content: RefObject<HTMLElement | null>) {
       page.removeEventListener("touchstart", stop);
       page.removeEventListener("wheel", stop);
     };
-  }, [content, key, navigation]);
+  }, [content, key, navigation, path, returning]);
 }
 
 /**

@@ -19,8 +19,8 @@ three, while the Reader keeps it for bookmarks.
 Komori on an Android phone (Android 10 and later) has its own frame: page headers with the
 brand and the gear to Settings, a floating dock (Dictionary, Library, Statistics) above the
 gesture bar, and Back closing an open sheet before it leaves the page. Pages open at their top,
-Back returns to where a page was left, tapping the open page's dock item scrolls it to the top,
-and the page keeps still under an open sheet. The Library shows the
+Back, the dock and the Reader's Back return to where a page was left, tapping the open page's dock item scrolls it to the top,
+and the page keeps still under an open sheet, which a swipe down closes. The Library shows the
 count of books, search, Add books (the system document picker, several EPUBs at once), the
 books to continue and the books as a grid of covers or a list with progress and the
 characters or words read, with the PC's status filter, grouping (series, language, author, each
