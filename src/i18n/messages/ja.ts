@@ -957,6 +957,7 @@ export const ja: MessageCatalog = {
   "library.selectAll": "すべて選択",
   "library.clear": "解除",
   "library.series": "シリーズ…",
+  "library.information": "情報",
   "library.removeTitle": "本棚から削除（Delete）",
   "library.doneSelecting": "選択を終了",
   "library.doneTitle": "完了（Esc）",

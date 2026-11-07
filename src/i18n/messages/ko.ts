@@ -949,6 +949,7 @@ export const ko: MessageCatalog = {
   "library.selectAll": "모두 선택",
   "library.clear": "지우기",
   "library.series": "시리즈…",
+  "library.information": "정보",
   "library.removeTitle": "서재에서 제거(Delete)",
   "library.doneSelecting": "선택 완료",
   "library.doneTitle": "완료(Esc)",

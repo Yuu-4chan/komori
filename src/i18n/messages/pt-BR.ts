@@ -1018,6 +1018,7 @@ export const ptBR: MessageCatalog = {
   "library.selectAll": "Selecionar tudo",
   "library.clear": "Limpar",
   "library.series": "Série…",
+  "library.information": "Informações",
   "library.removeTitle": "Remover da biblioteca (Delete)",
   "library.doneSelecting": "Concluir seleção",
   "library.doneTitle": "Concluído (Esc)",

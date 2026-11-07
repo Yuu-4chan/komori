@@ -632,12 +632,21 @@ describe("the Reader by touch", () => {
     expect(screen.queryByRole("button", { name: "Show reader controls" })).not.toBeNull();
   });
 
-  it("shows Pause counting while counting, and no button with statistics off", async () => {
-    reader({ session: { readingMs: () => 0, state: "counting", toggle: vi.fn() } });
+  it("shows Pause counting between the clock and the time read, and no button with statistics off", async () => {
+    reader({
+      preferences: { readerShowClock: true, readerShowReadingTime: true },
+      session: { readingMs: () => 0, state: "counting", toggle: vi.fn() },
+    });
     await shown();
-    expect(
-      screen.getByRole("button", { name: "Pause counting" }).getAttribute("aria-pressed"),
-    ).toBe("true");
+    const pause = screen.getByRole("button", { name: "Pause counting" });
+    expect(pause.getAttribute("aria-pressed")).toBe("true");
+    const pill = [...pause.parentElement!.children];
+    expect(pill.map((each) => each.getAttribute("aria-label"))).toEqual([
+      "Show reader controls",
+      "Pause counting",
+      "Show reader controls",
+    ]);
+    expect(pill[2]!.textContent).toContain("0m 00s");
     cleanup();
     reader({
       preferences: { statisticsSessionStart: "manual" },

@@ -62,17 +62,27 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Between the clock and the time read, the play/stop button takes the pill's middle; at an
+   end of the pill it keeps the pill's own padding there. */
 .mobile-reader__session {
-  padding-inline: 0.75rem 0.25rem;
+  padding-inline: 0.4375rem;
   font-size: 0.875rem;
 }
 
-.mobile-reader__session:only-child {
-  padding-inline: 0.625rem;
+.mobile-reader__session:first-child {
+  padding-left: 0.75rem;
+}
+
+.mobile-reader__session:last-child {
+  padding-right: 0.75rem;
+}
+
+.mobile-reader__status-text:has(+ .mobile-reader__session) {
+  padding-right: 0.25rem;
 }
 
 .mobile-reader__session + .mobile-reader__status-text {
-  padding-left: 0.375rem;
+  padding-left: 0.25rem;
 }
 
 .mobile-reader__footer {

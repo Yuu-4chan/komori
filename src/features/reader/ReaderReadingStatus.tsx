@@ -34,11 +34,14 @@ function useEverySecond(active: boolean, refresh: () => void) {
   }, [active, refresh]);
 }
 
+/** No time read, one function for every render, so the refresh it feeds stays the same. */
+const NO_READING_TIME = () => 0;
+
 /** The upper-center status pill, separate from the book's layout. */
 export function ReaderReadingStatus({
   clock,
   readingTime,
-  readingMs = () => 0,
+  readingMs = NO_READING_TIME,
   session = "counting",
 }: {
   clock: boolean;

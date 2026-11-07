@@ -72,6 +72,7 @@ function library(books: LibraryBook[] = [reading, finished, gone]) {
       <MemoryRouter>
         <Routes>
           <Route element={<MobileLibraryPage />} path="/" />
+          <Route element={<MobileLibraryPage />} path="/library" />
           <Route element={<ReaderRoute />} path="/reader/:id" />
         </Routes>
       </MemoryRouter>
@@ -141,7 +142,7 @@ describe("selecting books on the phone", () => {
     await longPress(await tile("羅生門"), () => tile("羅生門"));
     expect(screen.queryByText(/^Reading/)).toBeNull();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 book selected");
-    expect(actions()).toEqual(["Series…", "Edit…", "Mark as completed", "Remove"]);
+    expect(actions()).toEqual(["Information", "Series…", "Edit…", "Mark as completed", "Remove"]);
 
     await userEvent.click(await tile("こころ"));
     expect(screen.queryByText(/^Reading/)).toBeNull();
@@ -172,7 +173,7 @@ describe("selecting books on the phone", () => {
   it("offers no Mark as completed for a finished book, and renames its series", async () => {
     library();
     await longPress(await tile("こころ"), () => tile("こころ"));
-    expect(actions()).toEqual(["Series…", "Edit…", "Remove"]);
+    expect(actions()).toEqual(["Information", "Series…", "Edit…", "Remove"]);
     await userEvent.click(bar().getByRole("button", { name: "Series…" }));
     const dialog = screen.getByRole("dialog", { name: "Series" });
     const name = within(dialog).getByRole("combobox", { name: "Series name" }) as HTMLInputElement;
@@ -218,7 +219,7 @@ describe("selecting books on the phone", () => {
     closeSheet();
     await longPress(await tile("人間失格"), () => tile("人間失格"));
     expect(screen.queryByRole("button", { name: "Relink EPUB…" })).toBeNull();
-    expect(actions()).toEqual(["Series…", "Edit…", "Remove"]);
+    expect(actions()).toEqual(["Information", "Series…", "Edit…", "Remove"]);
   });
 });
 
@@ -259,19 +260,47 @@ describe("the phone Library's view", () => {
     expect(books.querySelector(".mobile-tile")).toBeNull();
   });
 
-  it("shows the details chosen for cards", async () => {
+  it("shows the characters read beside each book's percentage, short on a tile", async () => {
     library();
     const books = await allBooks();
-    await waitFor(() => expect(books.textContent).toContain("漱石全集"));
-    expect(books.textContent).toContain("Japanese");
-    await view("Visible on cards", /Series/);
-    await userEvent.click(
-      within(screen.getByRole("region", { name: "Visible on cards" })).getByRole("button", {
-        name: /Language/,
-      }),
+    await waitFor(() => expect(titles(books)).toHaveLength(3));
+    const counts = [...books.querySelectorAll(".mobile-progress__count")].map(
+      (each) => each.textContent,
     );
+    expect(counts).toEqual(expect.arrayContaining(["2,500 / 10,000 Ch.", "10,000 / 10,000 Ch."]));
+    // The list has the room for the whole word.
+    await view("Library layout", "List view");
+    expect(books.querySelector(".mobile-progress__count")!.textContent).toMatch(/ characters$/);
     expect(books.textContent).not.toContain("漱石全集");
-    expect(books.textContent).not.toContain("Japanese");
+  });
+
+  it("shows Information for one selected book, whose series opens the series' page", async () => {
+    library();
+    await longPress(await tile("こころ"), () => tile("こころ"));
+    expect(actions()[0]).toBe("Information");
+    await userEvent.click(await tile("羅生門"));
+    expect(actions()).not.toContain("Information");
+    await userEvent.click(await tile("羅生門"));
+
+    await userEvent.click(bar().getByRole("button", { name: "Information" }));
+    const sheet = within(screen.getByRole("dialog", { name: "Information" }));
+    expect(sheet.getByText("夏目漱石")).toBeTruthy();
+    expect(sheet.getByText("Japanese")).toBeTruthy();
+    expect(sheet.getByText("Completed · 10,000 / 10,000 characters")).toBeTruthy();
+
+    await userEvent.click(sheet.getByRole("button", { name: "漱石全集" }));
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("漱石全集"),
+    );
+    expect(screen.queryByRole("toolbar")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Continue reading" })).toBeNull();
+    expect(titles(await allBooks())).toEqual(["こころ"]);
+    expect((await allBooks()).textContent).toContain("1 book");
+    // Its view has no grouping, as on the PC.
+    await userEvent.click(screen.getByRole("button", { name: "Library view" }));
+    const viewSheet = screen.getByRole("dialog", { name: "Library view" });
+    expect(within(viewSheet).queryByRole("region", { name: "Group books" })).toBeNull();
+    expect(within(viewSheet).getByRole("region", { name: "Sort books" })).toBeTruthy();
   });
 
   it("groups by series under headings, and a heading selects its books", async () => {
@@ -284,9 +313,17 @@ describe("the phone Library's view", () => {
       (each) => each.textContent,
     );
     expect(headings).toEqual(["漱石全集1 book", "No series2 books"]);
+    // Each group's books are a row of their own, its heading a link to the group's page.
+    const rows = [...books.querySelectorAll(".mobile-carousel")].map((row) =>
+      titles(row as HTMLElement),
+    );
+    expect(rows).toEqual([["こころ"], expect.arrayContaining(["羅生門", "人間失格"])]);
+    expect(books.querySelector(".mobile-group-heading__link")!.getAttribute("href")).toBe(
+      `/library?group=${encodeURIComponent("series:漱石全集")}`,
+    );
 
     await longPress(
-      books.querySelectorAll(".mobile-group-heading")[1]!,
+      books.querySelectorAll(".mobile-group-heading__link")[1]!,
       () => books.querySelectorAll(".mobile-group-heading")[1]!,
     );
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("2 books selected");

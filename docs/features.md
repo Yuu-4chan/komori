@@ -20,17 +20,19 @@ Komori on an Android phone (Android 10 and later) has its own frame: page header
 brand and the gear to Settings, a floating dock (Dictionary, Library, Statistics) above the
 gesture bar, and Back closing an open sheet before it leaves the page. The Library shows the
 count of books, search, Add books (the system document picker, several EPUBs at once), the
-books to continue and the books as a grid of covers or a list with progress, with the PC's
-status filter, grouping (series, language, author), sort and direction, and card details in
-its view sheet; books stay where they are, and a moved or deleted one offers Relink and Remove.
+books to continue and the books as a grid of covers or a list with progress and the
+characters or words read, with the PC's status filter, grouping (series, language, author, each
+group a row that scrolls sideways under a heading opening the group's page), sort and direction
+in its view sheet; books stay where they are, and a moved or deleted one offers Relink and Remove.
 A long press selects a book or a group's books, then taps select more, with Select all, and
-a bar offers Series… (which also renames or removes a series), Edit…, Mark as completed and
+a bar offers Information for one book (its details, the series opening its page), Series…
+(which also renames or removes a series), Edit…, Mark as completed and
 Remove, or Keep on this phone and Remove from this phone for the PC's books. The Reader is read by touch: in paginated and VN
 views tap the sides to turn a page (in the book's page progression), tap the paragraph in VN
 view to read on, swipe in paginated view,
 scroll in continuous views, where a tap anywhere shows the controls, optionally turn pages with
-the volume keys, start or pause counting the reading session from the play button in the
-top pill, and tap the middle, the clock or the footer for the controls: two rows of a pill between round
+the volume keys, start or pause counting the reading session from the play button between the
+clock and the session time in the top pill, and tap the middle, the clock or the footer for the controls: two rows of a pill between round
 buttons, Back, the title and Search at the top, Appearance (theme, font size, line height,
 page margin, writing and view mode), the chapter and a bookmark toggle at the bottom. Either
 pill opens Contents: Images, Bookmarks, Notes, the chapters and a position slider. A footer

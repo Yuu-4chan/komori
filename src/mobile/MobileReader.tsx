@@ -582,14 +582,25 @@ export function MobileReader({
 
   return (
     <>
-      {/* The upper pill: the clock and time read, with the session's play/stop button while
-          statistics are recorded; a Manual session always shows it, as it only counts from it. */}
+      {/* The upper pill: the clock and the time read, with the session's play/stop button
+          between them while statistics are recorded; a Manual session always shows it, as it
+          only counts from it. */}
       {ready &&
         !shown &&
         (readerShowClock ||
           readerShowReadingTime ||
           (session.state !== "off" && statisticsSessionStart === "manual")) && (
           <div className="mobile-reader__status">
+            {readerShowClock && (
+              <button
+                aria-label={t("mobileReader.showControls")}
+                className="mobile-reader__status-text"
+                onClick={() => setShown(true)}
+                type="button"
+              >
+                <ReaderReadingStatus clock readingTime={false} />
+              </button>
+            )}
             {session.state !== "off" && (
               <button
                 aria-label={t(
@@ -609,7 +620,7 @@ export function MobileReader({
                 )}
               </button>
             )}
-            {(readerShowClock || readerShowReadingTime) && (
+            {readerShowReadingTime && (
               <button
                 aria-label={t("mobileReader.showControls")}
                 className="mobile-reader__status-text"
@@ -617,8 +628,8 @@ export function MobileReader({
                 type="button"
               >
                 <ReaderReadingStatus
-                  clock={readerShowClock}
-                  readingTime={readerShowReadingTime}
+                  clock={false}
+                  readingTime
                   readingMs={session.readingMs}
                   session={session.state}
                 />

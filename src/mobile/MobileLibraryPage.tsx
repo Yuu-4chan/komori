@@ -4,6 +4,7 @@ import {
   CheckIcon,
   DownloadSimpleIcon,
   FunnelSimpleIcon,
+  InfoIcon,
   LinkSimpleIcon,
   PencilSimpleIcon,
   PlusIcon,
@@ -12,7 +13,7 @@ import {
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
@@ -47,6 +48,7 @@ import {
   bookTitle,
   canMarkCompleted,
   groupBooks,
+  groupPageLink,
   hasReadingProgress,
   languageName,
   lastReadLabel,
@@ -55,6 +57,7 @@ import {
   progressPercent,
   readTotalLabel,
   readingStatus,
+  sectionGroup,
   seriesFromTitles,
   sortBooks,
   type LibraryPlace,
@@ -66,6 +69,7 @@ import { MobilePageHeader } from "./MobileShell";
 
 import { useLongPress } from "./longPress";
 import {
+  BookInfoSheet,
   GroupHeading,
   itemKey,
   LibraryBooks,
@@ -75,7 +79,6 @@ import {
   PLACE_LABELS,
   SelectionBar,
   SelectionHeader,
-  type CardDetails,
   type ItemActions,
   type ItemSection,
   type SelectionAction,
@@ -106,17 +109,26 @@ const onThisPhone = (item: Item) => item.kind === "phone" || item.entry.pc.kept;
 /**
  * The Library on the phone: its count of books, search, Add books, the books in progress to
  * continue, and every book with its progress, as the PC's Library chooses them: by reading
- * status, grouped by series, language or author under headings, sorted either way, as a grid or
- * a list, with the details chosen for cards (the Library view button's sheet). Paired with a PC
+ * status, grouped by series, language or author in rows that scroll sideways under headings
+ * opening each group's page, sorted either way, as a grid or a list (the Library view button's
+ * sheet). Paired with a PC
  * (Sync with PC on), it lists the PC's books with the phone's own, with the PC's status above
  * them and All / On this phone / On PC to choose from; the PC's books show at once from what the
  * phone saved, while the PC is listed again behind them. Tapping a book opens it (a PC book
  * downloads first unless it is here; a missing one offers Relink and Remove). A long press
  * selects a book, or a group's books from its heading; then taps select more, and a bar offers
- * what applies to them: Series…, Edit…, Mark as completed and Remove for the phone's books, Keep
- * on this phone and Remove from this phone for the PC's.
+ * what applies to them: Information for one book, Series…, Edit…, Mark as completed and Remove
+ * for the phone's books, Keep on this phone and Remove from this phone for the PC's.
  */
 export function MobileLibraryPage() {
+  const [params] = useSearchParams();
+  const group = params.get("group");
+  return <LibraryContent group={group} key={group ?? ""} />;
+}
+
+/** The Library, or with `group` (a section key such as `series:Name`) that group's own page. */
+function LibraryContent({ group }: { group: string | null }) {
+  const navigate = useNavigate();
   const { t, tp } = useI18n();
   const imports = useLibraryImport();
   const cached = libraryCache.books();
@@ -137,6 +149,7 @@ export function MobileLibraryPage() {
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [info, setInfo] = useState<LibraryBook | null>(null);
   const requests = useRef(0);
 
   const refresh = useCallback(async () => {
@@ -227,18 +240,26 @@ export function MobileLibraryPage() {
   );
   const byId = useMemo(() => new Map(placed.map((item) => [item.book.id, item])), [placed]);
   // Grouped, the sort orders the groups and each group's books follow the group sort (Title
-  // unless a PC's group page chose another), as the PC's carousels show them.
-  const grouped = display.group !== "none";
+  // unless a PC's group page chose another), as the PC's carousels show them; a group's page
+  // shows its books in that order too.
+  const groupKind = group === null ? null : sectionGroup(group);
+  const onGroupPage = groupKind !== null;
+  const grouped = !onGroupPage && display.group !== "none";
   const sections = useMemo<ItemSection[]>(() => {
     const books = sortBooks(
       filtered.map((item) => item.book).filter((book) => matchesQuery(book, query)),
-      grouped ? display.groupSort : display.sort,
-      grouped ? display.groupSortReversed : display.sortReversed,
+      grouped || onGroupPage ? display.groupSort : display.sort,
+      grouped || onGroupPage ? display.groupSortReversed : display.sortReversed,
     );
+    const toItems = (each: LibraryBook[]) => each.flatMap((book) => byId.get(book.id) ?? []);
+    if (groupKind !== null) {
+      const own = groupBooks(books, groupKind).find((section) => section.key === group);
+      return [{ key: group ?? "", title: null, items: toItems(own?.books ?? []) }];
+    }
     return groupBooks(books, display.group, display.sort, display.sortReversed).map((section) => ({
       key: section.key,
       title: section.title,
-      items: section.books.flatMap((book) => byId.get(book.id) ?? []),
+      items: toItems(section.books),
     }));
   }, [
     byId,
@@ -248,11 +269,20 @@ export function MobileLibraryPage() {
     display.sort,
     display.sortReversed,
     filtered,
+    group,
+    groupKind,
     grouped,
+    onGroupPage,
     query,
   ]);
   const shown = useMemo(() => sections.flatMap((section) => section.items), [sections]);
   const placedBooks = useMemo(() => placed.map((item) => item.book), [placed]);
+  // A group's page is named as its heading names it, whatever the filters and search.
+  const groupTitle = useMemo(() => {
+    if (groupKind === null || group === null) return "";
+    const whole = groupBooks(placedBooks, groupKind).find((section) => section.key === group);
+    return whole?.title ?? group.slice(group.indexOf(":") + 1);
+  }, [group, groupKind, placedBooks]);
   // Books in progress head the Library while it shows all its books and nothing is searched.
   const inProgress = useMemo(
     () =>
@@ -315,7 +345,12 @@ export function MobileLibraryPage() {
     [chosen],
   );
   const dialogOpen =
-    editing !== null || seriesOpen || bulkRemoveOpen || removing !== null || viewOpen;
+    editing !== null ||
+    seriesOpen ||
+    bulkRemoveOpen ||
+    removing !== null ||
+    viewOpen ||
+    info !== null;
   useBackCloser(selecting && !dialogOpen, cancel);
   // The series every chosen book shares or, without one, the name their titles begin with.
   const sharedSeries = useMemo(() => {
@@ -463,15 +498,6 @@ export function MobileLibraryPage() {
     }
   }
 
-  const details: CardDetails = useMemo(
-    () => ({
-      series: display.cardSeries,
-      language: display.cardLanguage,
-      kanji: display.cardKanji,
-      lastRead: display.cardLastRead,
-    }),
-    [display.cardKanji, display.cardLanguage, display.cardLastRead, display.cardSeries],
-  );
   const { keep: keepPc, open: openPc, saving } = pcActions;
   const itemActions: ItemActions = useMemo(
     () => ({
@@ -510,6 +536,16 @@ export function MobileLibraryPage() {
   ) : null;
 
   const selectionActions: SelectionAction[] = [
+    ...(chosen.length === 1
+      ? [
+          {
+            key: "info",
+            label: t("library.information"),
+            icon: <InfoIcon aria-hidden="true" />,
+            onClick: () => setInfo(chosen[0]!.book),
+          },
+        ]
+      : []),
     ...(chosenOwn.length
       ? [
           {
@@ -594,7 +630,11 @@ export function MobileLibraryPage() {
           onSelectAll={() => replace(shownKeys)}
         />
       ) : (
-        <MobilePageHeader actions={addBooks} title={t("shell.library")} />
+        <MobilePageHeader
+          actions={onGroupPage ? undefined : addBooks}
+          back={onGroupPage}
+          title={onGroupPage ? groupTitle : t("shell.library")}
+        />
       )}
 
       <div className="mobile-notices">
@@ -658,9 +698,9 @@ export function MobileLibraryPage() {
           <div className="mobile-search">
             <LibrarySearch onQueryChange={setQuery} query={query} />
           </div>
-          {status}
+          {onGroupPage ? null : status}
 
-          {inProgress.length > 0 && !query && display.filter === "all" ? (
+          {inProgress.length > 0 && !query && display.filter === "all" && !onGroupPage ? (
             <section className="mobile-library__section" aria-labelledby="mobile-continue">
               <h2 className="mobile-section-heading">
                 <span id="mobile-continue">{t("libraryCard.continue")}</span>
@@ -708,13 +748,13 @@ export function MobileLibraryPage() {
                 </h2>
                 {known ? (
                   <small className="mobile-books-heading__count">
-                    {tp("librarySummary.books", filtered.length)}
+                    {tp("librarySummary.books", onGroupPage ? shown.length : filtered.length)}
                   </small>
                 ) : null}
               </div>
               <button
                 aria-label={t("libraryToolbar.view")}
-                className={`mobile-books-heading__filter${narrowed(display, pcActive) ? " mobile-books-heading__filter--active" : ""}`}
+                className={`mobile-books-heading__filter${narrowed(display, pcActive, onGroupPage) ? " mobile-books-heading__filter--active" : ""}`}
                 onClick={() => setViewOpen(true)}
                 type="button"
               >
@@ -725,6 +765,7 @@ export function MobileLibraryPage() {
               <p className="mobile-library__none">{t("library.noneFound")}</p>
             ) : (
               <LibraryBooks
+                grouped={grouped}
                 renderHeading={(section) => (
                   <GroupHeading
                     allSelected={
@@ -736,13 +777,8 @@ export function MobileLibraryPage() {
                     selecting={selecting}
                   />
                 )}
-                renderItem={(item) => (
-                  <LibraryItem
-                    actions={itemActions}
-                    details={details}
-                    item={item}
-                    view={display.view}
-                  />
+                renderItem={(item, view) => (
+                  <LibraryItem actions={itemActions} item={item} view={view} />
                 )}
                 sections={sections}
                 view={display.view}
@@ -756,6 +792,7 @@ export function MobileLibraryPage() {
 
       <LibraryViewSheet
         display={display}
+        groupPage={onGroupPage}
         onChange={updateLibrary}
         onClose={() => setViewOpen(false)}
         open={viewOpen}
@@ -768,6 +805,16 @@ export function MobileLibraryPage() {
               ]
             : null
         }
+      />
+
+      <BookInfoSheet
+        book={info}
+        onClose={() => setInfo(null)}
+        onOpenSeries={(series) => {
+          setInfo(null);
+          cancel();
+          navigate(groupPageLink(`series:${series}`));
+        }}
       />
 
       <MobileSheet

@@ -135,9 +135,10 @@ export function useBackCloser(open: boolean, close: () => void) {
  */
 export function useBackButton() {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const path = useRef(pathname);
-  path.current = pathname;
+  // A group's page (`/library?group=…`) goes back to the Library, which then leaves.
+  const { pathname, search } = useLocation();
+  const path = useRef(pathname + search);
+  path.current = pathname + search;
   useEffect(() => {
     let active = true;
     const listening = onBackButtonPress(() => {

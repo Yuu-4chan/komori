@@ -889,6 +889,7 @@ export const zhCN: MessageCatalog = {
   "library.selectAll": "全选",
   "library.clear": "清除",
   "library.series": "系列…",
+  "library.information": "信息",
   "library.removeTitle": "从书架中移除（Delete）",
   "library.doneSelecting": "完成选择",
   "library.doneTitle": "完成（Esc）",

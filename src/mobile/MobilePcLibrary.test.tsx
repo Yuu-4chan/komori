@@ -364,7 +364,7 @@ describe("the Library on a phone paired with a PC", () => {
       scroller = books
         .querySelector<HTMLElement>(".mobile-library__grid")!
         .closest<HTMLElement>("[style*=overflow]")!;
-      scroller.scrollTop = 54_000;
+      scroller.scrollTop = 58_000;
       fireEvent.scroll(scroller);
       await waitFor(() => expect(titles(books)).toContain("羅生門"));
       expect(titles(books)).not.toContain("Book 000");
@@ -391,7 +391,7 @@ describe("the Library on a phone paired with a PC", () => {
       bar()
         .getAllByRole("button")
         .map((each) => each.textContent);
-    expect(actions()).toEqual(["Remove from this phone"]);
+    expect(actions()).toEqual(["Information", "Remove from this phone"]);
     await userEvent.click(tile(books, "それから"));
     expect(actions()).toEqual(["Keep on this phone", "Remove from this phone"]);
     await userEvent.click(tile(books, "羅生門"));

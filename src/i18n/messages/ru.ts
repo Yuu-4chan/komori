@@ -1090,6 +1090,7 @@ export const ru: MessageCatalog = {
   "library.selectAll": "Выбрать все",
   "library.clear": "Снять выбор",
   "library.series": "Серия…",
+  "library.information": "Информация",
   "library.removeTitle": "Удалить из библиотеки (Delete)",
   "library.doneSelecting": "Завершить выбор",
   "library.doneTitle": "Готово (Esc)",

@@ -1,12 +1,10 @@
 import {
+  CaretRightIcon,
   CheckIcon,
-  ClockCounterClockwiseIcon,
   DownloadSimpleIcon,
   ListIcon,
   SortDescendingIcon,
   SquaresFourIcon,
-  StackIcon,
-  TranslateIcon,
   WarningCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -18,15 +16,18 @@ import { BookCover } from "../features/library/BookCover";
 import type { LibraryBook } from "../features/library/libraryApi";
 import { useVirtualRows } from "../features/library/useVirtualRows";
 import {
+  groupPageLink,
   languageName,
   lastReadLabel,
+  progressLabel,
+  readTotalLabel,
   type LibraryFilter,
   type LibraryGroup,
   type LibraryPlace,
   type LibrarySort,
   type LibraryView,
 } from "../features/library/libraryView";
-import { i18n, useI18n, type MessageKey } from "../i18n/i18n";
+import { useI18n, type MessageKey } from "../i18n/i18n";
 import { useLongPress } from "./longPress";
 import { Progress, type PcEntry } from "./MobilePcLibrary";
 import { MobileSheet } from "./MobileSheet";
@@ -61,16 +62,6 @@ const viewChoices: { value: LibraryView; label: MessageKey; icon: ReactNode }[] 
   { value: "grid", label: "libraryToolbar.grid", icon: <SquaresFourIcon aria-hidden="true" /> },
   { value: "list", label: "libraryToolbar.list", icon: <ListIcon aria-hidden="true" /> },
 ];
-const cardChoices: {
-  key: "cardSeries" | "cardLanguage" | "cardKanji" | "cardLastRead";
-  label: MessageKey;
-}[] = [
-  { key: "cardSeries", label: "libraryToolbar.cardSeries" },
-  { key: "cardLanguage", label: "libraryToolbar.cardLanguage" },
-  { key: "cardKanji", label: "libraryToolbar.cardKanji" },
-  { key: "cardLastRead", label: "libraryToolbar.cardLastRead" },
-];
-
 /** The place labels, as the Library's heading names them. */
 export const PLACE_LABELS = {
   all: "sync.placeAll",
@@ -79,16 +70,19 @@ export const PLACE_LABELS = {
 } as const satisfies Record<LibraryPlace, MessageKey>;
 
 /** Whether the Library shows other than all its books, ungrouped: the view button marks it. */
-export function narrowed(display: LibraryDisplay, paired: boolean): boolean {
+export function narrowed(display: LibraryDisplay, paired: boolean, groupPage = false): boolean {
   return (
-    display.filter !== "all" || display.group !== "none" || (paired && display.place !== "all")
+    display.filter !== "all" ||
+    (!groupPage && display.group !== "none") ||
+    (paired && display.place !== "all")
   );
 }
 
 /**
  * The Library's view on the phone, the PC's toolbar as chips: where the books are (paired with a
- * PC, with each place's count), their reading status, grouping, sort and its direction, grid or
- * list, and what their cards show. Each choice saves at once with the Library's other choices.
+ * PC, with each place's count), their reading status, grouping, sort and its direction, and grid
+ * or list. Each choice saves at once with the Library's other choices. On a group's page, as on
+ * the PC, there is no grouping and the sort is the group pages' own.
  */
 export function LibraryViewSheet({
   open,
@@ -96,6 +90,7 @@ export function LibraryViewSheet({
   display,
   onChange,
   places,
+  groupPage = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -103,8 +98,12 @@ export function LibraryViewSheet({
   onChange: (patch: Partial<LibraryDisplay>) => void;
   /** Each place with its count, while paired with a PC. */
   places: readonly (readonly [LibraryPlace, number])[] | null;
+  /** On a group's page: no grouping, and the group pages' sort. */
+  groupPage?: boolean;
 }) {
   const { number, t } = useI18n();
+  const sort = groupPage ? display.groupSort : display.sort;
+  const reversed = groupPage ? display.groupSortReversed : display.sortReversed;
   return (
     <MobileSheet label={t("libraryToolbar.view")} onClose={onClose} open={open}>
       <div className="mobile-view-sheet">
@@ -133,30 +132,34 @@ export function LibraryViewSheet({
             </Choice>
           ))}
         </ChoiceGroup>
-        <ChoiceGroup label={t("libraryToolbar.groupBooks")}>
-          {groupChoices.map(({ value, label }) => (
-            <Choice
-              key={value}
-              onClick={() => onChange({ group: value })}
-              pressed={display.group === value}
-            >
-              {t(label)}
-            </Choice>
-          ))}
-        </ChoiceGroup>
+        {groupPage ? null : (
+          <ChoiceGroup label={t("libraryToolbar.groupBooks")}>
+            {groupChoices.map(({ value, label }) => (
+              <Choice
+                key={value}
+                onClick={() => onChange({ group: value })}
+                pressed={display.group === value}
+              >
+                {t(label)}
+              </Choice>
+            ))}
+          </ChoiceGroup>
+        )}
         <ChoiceGroup label={t("libraryToolbar.sortBooks")}>
           {sortChoices.map(({ value, label }) => (
             <Choice
               key={value}
-              onClick={() => onChange({ sort: value })}
-              pressed={display.sort === value}
+              onClick={() => onChange(groupPage ? { groupSort: value } : { sort: value })}
+              pressed={sort === value}
             >
               {t(label)}
             </Choice>
           ))}
           <Choice
-            onClick={() => onChange({ sortReversed: !display.sortReversed })}
-            pressed={display.sortReversed}
+            onClick={() =>
+              onChange(groupPage ? { groupSortReversed: !reversed } : { sortReversed: !reversed })
+            }
+            pressed={reversed}
           >
             <SortDescendingIcon aria-hidden="true" />
             {t("libraryToolbar.reverseOrder")}
@@ -170,18 +173,6 @@ export function LibraryViewSheet({
               pressed={display.view === value}
             >
               {icon}
-              {t(label)}
-            </Choice>
-          ))}
-        </ChoiceGroup>
-        <ChoiceGroup label={t("libraryToolbar.visibleOnCards")}>
-          {cardChoices.map(({ key, label }) => (
-            <Choice
-              key={key}
-              onClick={() => onChange({ [key]: !display[key] })}
-              pressed={display[key]}
-            >
-              {display[key] ? <CheckIcon aria-hidden="true" weight="bold" /> : null}
               {t(label)}
             </Choice>
           ))}
@@ -218,14 +209,6 @@ function Choice({
   );
 }
 
-/** Which details the Library's cards show, as the PC's Cards menu chooses them. */
-export interface CardDetails {
-  series: boolean;
-  language: boolean;
-  kanji: boolean;
-  lastRead: boolean;
-}
-
 /** What a card does: open its book, or while selecting, choose it. */
 export interface ItemActions {
   selecting: boolean;
@@ -240,20 +223,18 @@ export interface ItemActions {
 }
 
 /**
- * A book the Library lists, as a grid tile or a list row: its cover, title, author, the details
- * chosen for cards and its progress. A tap opens it (a PC book downloads first unless it is here;
+ * A book the Library lists, as a grid tile or a list row: its cover, title, author and progress,
+ * with the characters or words read and in all. A tap opens it (a PC book downloads first unless it is here;
  * a missing one offers Relink and Remove), and a long press selects it; while selecting, a tap
  * selects or leaves it. A PC book has a badge for whether it is kept here, which keeps it.
  */
 export function LibraryItem({
   item,
   view,
-  details,
   actions,
 }: {
   item: MergedBook;
   view: LibraryView;
-  details: CardDetails;
   actions: ItemActions;
 }) {
   const { t } = useI18n();
@@ -270,7 +251,6 @@ export function LibraryItem({
   ]
     .filter(Boolean)
     .join(" ");
-  const chips = cardChips(book, details, view);
   const content = (
     <>
       <BookCover book={book} size={view === "list" ? "small" : undefined}>
@@ -292,8 +272,7 @@ export function LibraryItem({
             ? (book.author ?? t("libraryCard.unknownAuthor"))
             : t(book.availability === "missing" ? "libraryCard.missing" : "libraryCard.unreadable")}
         </span>
-        {chips.length ? <span className="mobile-chips mobile-book-chips">{chips}</span> : null}
-        <Progress book={book} />
+        <Progress book={book} count={view === "grid" ? "short" : "full"} />
       </span>
     </>
   );
@@ -375,45 +354,6 @@ export function LibraryItem({
   );
 }
 
-/** The chosen details of a book: its series, language, distinct kanji and when it was read. */
-function cardChips(book: LibraryBook, details: CardDetails, view: LibraryView): ReactNode[] {
-  const { number, t } = i18n();
-  const chips: ReactNode[] = [];
-  if (details.series && book.series)
-    chips.push(
-      <span key="series" title={t("libraryCard.seriesTitle", { series: book.series })}>
-        <StackIcon aria-hidden="true" />
-        <span className="mobile-book-chips__text">{book.series}</span>
-      </span>,
-    );
-  if (details.language && book.language)
-    chips.push(
-      <span key="language">
-        {view === "list" ? <TranslateIcon aria-hidden="true" /> : null}
-        {languageName(book.language)}
-      </span>,
-    );
-  if (details.kanji && typeof book.uniqueKanji === "number")
-    chips.push(
-      <span key="kanji" title={t("libraryCard.uniqueKanji", { count: book.uniqueKanji })}>
-        <span aria-hidden="true" lang="ja">
-          漢
-        </span>
-        {number(book.uniqueKanji)}
-        <span className="visually-hidden"> {t("libraryCard.uniqueKanjiHidden")}</span>
-      </span>,
-    );
-  const lastRead = details.lastRead ? lastReadLabel(book, Date.now(), "narrow") : null;
-  if (lastRead)
-    chips.push(
-      <span key="lastRead">
-        {view === "list" ? <ClockCounterClockwiseIcon aria-hidden="true" /> : null}
-        {lastRead}
-      </span>,
-    );
-  return chips;
-}
-
 /** Books under one heading: a group's, or the whole Library's without one. */
 export interface ItemSection {
   key: string;
@@ -422,77 +362,108 @@ export interface ItemSection {
   items: MergedBook[];
 }
 
-type Row =
-  { kind: "heading"; section: ItemSection } | { kind: "books"; key: string; items: MergedBook[] };
-
 const GRID_COLUMNS = 3;
+/** A carousel shows this many books; See all at its end shows the rest on the group's page. */
+export const CAROUSEL_BOOKS = 20;
+
+type Row =
+  { kind: "carousel"; section: ItemSection } | { kind: "books"; key: string; items: MergedBook[] };
 
 /**
- * The Library's books, under their groups' headings when grouped: three to a row in the grid, one
- * to a row in the list. Only the rows within about a screen of the view are rendered, so a
- * Library of thousands of the PC's books shows and scrolls as fast as a small one.
+ * The Library's books: grouped, each group's heading above its books in a row that scrolls
+ * sideways (as the PC's carousels); otherwise three to a row in the grid, one to a row in the
+ * list. Only the rows within about a screen of the view are rendered, so a Library of thousands
+ * of the PC's books shows and scrolls as fast as a small one.
  */
 export function LibraryBooks({
   sections,
+  grouped,
   view,
   renderItem,
   renderHeading,
 }: {
   sections: readonly ItemSection[];
+  /** Whether the sections are groups, each a carousel under its heading. */
+  grouped: boolean;
   view: LibraryView;
-  renderItem: (item: MergedBook) => ReactNode;
+  renderItem: (item: MergedBook, view: LibraryView) => ReactNode;
   renderHeading: (section: ItemSection) => ReactNode;
 }) {
+  const { t } = useI18n();
   const listRef = useRef<HTMLDivElement>(null);
   const columns = view === "grid" ? GRID_COLUMNS : 1;
   const rows = useMemo(() => {
     const result: Row[] = [];
     for (const section of sections) {
-      if (section.title !== null) result.push({ kind: "heading", section });
+      if (grouped) {
+        if (section.items.length) result.push({ kind: "carousel", section });
+        continue;
+      }
       for (let index = 0; index < section.items.length; index += columns) {
         const items = section.items.slice(index, index + columns);
         result.push({ kind: "books", key: itemKey(items[0]!), items });
       }
     }
     return result;
-  }, [columns, sections]);
+  }, [columns, grouped, sections]);
   const list = useVirtualRows(listRef, {
     count: rows.length,
-    estimate: view === "grid" ? 270 : 104,
+    estimate: grouped ? 300 : view === "grid" ? 290 : 104,
     gap: 0,
-    kindOf: (index) => (rows[index]?.kind === "heading" ? "heading" : view),
-    kindEstimates: { heading: 48 },
-    layoutKey: `mobile-${view}`,
+    kindOf: () => (grouped ? "carousel" : view),
+    layoutKey: `mobile-${grouped ? "carousel" : view}`,
   });
   return (
     <div
       className={[
         "mobile-library__grid",
-        `mobile-library__grid--${view}`,
+        `mobile-library__grid--${grouped ? "carousels" : view}`,
         list.virtual ? "mobile-library__grid--virtual" : "",
       ]
         .filter(Boolean)
         .join(" ")}
       ref={listRef}
-      role="list"
+      role={grouped ? undefined : "list"}
       style={list.virtual ? { height: list.total } : undefined}
     >
       {list.rows.map(({ index, start }) => {
         const row = rows[index];
         if (!row) return null;
         const style = list.virtual ? { transform: `translateY(${start}px)` } : undefined;
-        return row.kind === "heading" ? (
-          <div
-            className="mobile-library__row mobile-library__row--heading"
-            data-index={index}
-            key={`heading:${row.section.key}`}
-            ref={list.measureRef}
-            role="presentation"
-            style={style}
-          >
-            {renderHeading(row.section)}
-          </div>
-        ) : (
+        if (row.kind === "carousel") {
+          const { section } = row;
+          const more = section.items.length > CAROUSEL_BOOKS;
+          return (
+            <section
+              aria-label={section.title ?? undefined}
+              className="mobile-library__row mobile-carousel"
+              data-index={index}
+              key={`group:${section.key}`}
+              ref={list.measureRef}
+              style={style}
+            >
+              {renderHeading(section)}
+              <div className="mobile-carousel__track" role="list">
+                {section.items.slice(0, CAROUSEL_BOOKS).map((item) => (
+                  <div className="mobile-carousel__item" key={itemKey(item)} role="listitem">
+                    {renderItem(item, "grid")}
+                  </div>
+                ))}
+                {more ? (
+                  <Link
+                    aria-label={t("libraryCarousel.seeAllOf", { title: section.title ?? "" })}
+                    className="mobile-carousel__more"
+                    to={groupPageLink(section.key)}
+                  >
+                    <CaretRightIcon aria-hidden="true" weight="bold" />
+                    {t("libraryCarousel.seeAll")}
+                  </Link>
+                ) : null}
+              </div>
+            </section>
+          );
+        }
+        return (
           <div
             className="mobile-library__row"
             data-index={index}
@@ -503,7 +474,7 @@ export function LibraryBooks({
           >
             {row.items.map((item) => (
               <div key={itemKey(item)} role="listitem">
-                {renderItem(item)}
+                {renderItem(item, view)}
               </div>
             ))}
           </div>
@@ -514,8 +485,8 @@ export function LibraryBooks({
 }
 
 /**
- * A group's heading with its count. A long press selects its books; while selecting, a tap
- * selects them all or, when they all are, leaves them.
+ * A group's heading with its count: a tap opens the group's page and a long press selects its
+ * books; while selecting, a tap selects them all or, when they all are, leaves them.
  */
 export function GroupHeading({
   section,
@@ -550,9 +521,114 @@ export function GroupHeading({
       {content}
     </button>
   ) : (
-    <h3 className="mobile-group-heading" {...longPress}>
-      {content}
+    <h3 className="mobile-group-heading">
+      <Link className="mobile-group-heading__link" to={groupPageLink(section.key)} {...longPress}>
+        {content}
+        <CaretRightIcon aria-hidden="true" className="mobile-group-heading__caret" weight="bold" />
+      </Link>
     </h3>
+  );
+}
+
+/**
+ * What the Library knows of a book, from Information while it alone is selected: its author,
+ * series (which opens the series), language, length, kanji, progress, when it was last read and
+ * when it was added.
+ */
+export function BookInfoSheet({
+  book,
+  onClose,
+  onOpenSeries,
+}: {
+  book: LibraryBook | null;
+  onClose: () => void;
+  onOpenSeries: (series: string) => void;
+}) {
+  const { t, number, date } = useI18n();
+  const rows: { key: string; label: string; value: ReactNode }[] = [];
+  if (book) {
+    rows.push({
+      key: "author",
+      label: t("libraryToolbar.sort.author"),
+      value: book.author ?? t("libraryCard.unknownAuthor"),
+    });
+    if (book.series) {
+      const series = book.series;
+      rows.push({
+        key: "series",
+        label: t("libraryToolbar.group.series"),
+        value: (
+          <button
+            className="mobile-book-info__link"
+            onClick={() => onOpenSeries(series)}
+            type="button"
+          >
+            {series}
+            <CaretRightIcon aria-hidden="true" weight="bold" />
+          </button>
+        ),
+      });
+    }
+    if (book.language)
+      rows.push({
+        key: "language",
+        label: t("libraryToolbar.group.language"),
+        value: languageName(book.language),
+      });
+    if (typeof book.characters === "number")
+      rows.push({
+        key: "characters",
+        label: t("libraryToolbar.sort.characters"),
+        value: number(book.characters),
+      });
+    else if (typeof book.words === "number")
+      rows.push({
+        key: "words",
+        label: t("libraryToolbar.sort.words"),
+        value: number(book.words),
+      });
+    if (typeof book.uniqueKanji === "number")
+      rows.push({
+        key: "kanji",
+        label: t("libraryToolbar.cardKanji"),
+        value: number(book.uniqueKanji),
+      });
+    const read = readTotalLabel(book);
+    rows.push({
+      key: "progress",
+      label: t("libraryToolbar.sort.progress"),
+      value: read ? `${progressLabel(book)} · ${read}` : progressLabel(book),
+    });
+    const lastRead = lastReadLabel(book, Date.now());
+    if (lastRead)
+      rows.push({ key: "lastRead", label: t("libraryToolbar.cardLastRead"), value: lastRead });
+    const added = book.importedAt ? new Date(book.importedAt) : null;
+    if (added && !Number.isNaN(added.getTime()))
+      rows.push({
+        key: "added",
+        label: t("libraryToolbar.sort.added"),
+        value: date(added, { dateStyle: "medium" }),
+      });
+  }
+  return (
+    <MobileSheet label={t("library.information")} onClose={onClose} open={book !== null}>
+      {book ? (
+        <div className="mobile-book-info">
+          <div className="mobile-book-info__book">
+            <BookCover book={book} size="small" />
+            <strong>{book.title ?? t("library.untitled")}</strong>
+          </div>
+          <dl className="mobile-book-info__rows">
+            {rows.map((row) => (
+              <div key={row.key}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
+    </MobileSheet>
   );
 }
 

@@ -1033,6 +1033,7 @@ export const en = {
   "library.selectAll": "Select all",
   "library.clear": "Clear",
   "library.series": "Series…",
+  "library.information": "Information",
   "library.removeTitle": "Remove from library (Delete)",
   "library.doneSelecting": "Done selecting",
   "library.doneTitle": "Done (Esc)",

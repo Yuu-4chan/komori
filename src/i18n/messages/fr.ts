@@ -1074,6 +1074,7 @@ export const fr: MessageCatalog = {
   "library.selectAll": "Tout sélectionner",
   "library.clear": "Effacer",
   "library.series": "Série…",
+  "library.information": "Informations",
   "library.removeTitle": "Retirer de la bibliothèque (Suppr)",
   "library.doneSelecting": "Terminer la sélection",
   "library.doneTitle": "Terminé (Échap)",

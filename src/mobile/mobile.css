@@ -376,6 +376,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The characters or words read and in all: beside the percentage in the list, under the bar on
+   a tile. */
+.mobile-progress__count {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .mobile-library__grid {
   /* Each row ends with the gap to the next; the last row's gap is taken back. */
   margin: 0 0 -1.125rem;
@@ -463,6 +475,16 @@
 }
 
 .mobile-tile .mobile-progress__percent {
+  font-size: 0.625rem;
+}
+
+.mobile-tile .mobile-progress {
+  flex-wrap: wrap;
+  row-gap: 0.125rem;
+}
+
+.mobile-tile .mobile-progress__count {
+  flex-basis: 100%;
   font-size: 0.625rem;
 }
 
@@ -675,7 +697,9 @@
   text-align: center;
 }
 
+/* A phone card is as tall as its rows, not the PC's card height. */
 .mobile-settings .settings-card {
+  min-height: 0;
   padding: 1rem;
   border-radius: 1rem;
 }
@@ -1528,7 +1552,7 @@
   font-weight: 600;
 }
 
-/* A book's title, author, chips and progress, under its cover or beside it in the list. */
+/* A book's title, author and progress, under its cover or beside it in the list. */
 .mobile-book-copy {
   min-width: 0;
   display: flex;
@@ -1536,38 +1560,8 @@
   gap: 0.25rem;
 }
 
-.mobile-book-chips {
-  flex-wrap: nowrap;
-  overflow: hidden;
-}
-
-.mobile-book-chips > span {
-  height: 1.25rem;
-  padding: 0 0.375rem;
-  flex: none;
-  gap: 0.1875rem;
-  font-size: 0.625rem;
-  white-space: nowrap;
-}
-
-.mobile-book-chips > span:has(.mobile-book-chips__text) {
-  min-width: 0;
-  flex: 0 1 auto;
-}
-
-.mobile-book-chips__text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mobile-book-chips svg {
-  flex: none;
-}
-
 /* The list: one book a row, its cover beside what the grid shows under it. */
-.mobile-library__grid--list .mobile-library__row,
-.mobile-library__row.mobile-library__row--heading {
+.mobile-library__grid--list .mobile-library__row {
   grid-template-columns: minmax(0, 1fr);
   padding-bottom: 0.625rem;
 }
@@ -1710,6 +1704,141 @@
 
 button.mobile-group-heading {
   align-items: center;
+  cursor: pointer;
+}
+
+.mobile-group-heading__link {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.mobile-group-heading__caret {
+  flex: none;
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* Grouped: each group's heading over its books in a row that scrolls sideways. */
+.mobile-library__grid--carousels .mobile-library__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.mobile-carousel__track {
+  margin-right: calc(-1 * (var(--safe-area-right) + var(--mobile-gutter)));
+  padding-right: calc(var(--safe-area-right) + var(--mobile-gutter));
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 0;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.mobile-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-carousel__item {
+  width: 6.75rem;
+  min-width: 0;
+  flex: none;
+  scroll-snap-align: start;
+}
+
+.mobile-carousel__more {
+  width: 6.75rem;
+  aspect-ratio: 2 / 3;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  color: var(--accent);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  scroll-snap-align: start;
+}
+
+.mobile-carousel__more svg {
+  font-size: 1.25rem;
+}
+
+/* Information: a book's cover and title over what the Library knows of it. */
+.mobile-book-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.mobile-book-info__book {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.mobile-book-info__book .library-book__cover {
+  width: 3rem;
+  height: auto;
+  flex: none;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.3125rem;
+}
+
+.mobile-book-info__rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-book-info__rows > div {
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.mobile-book-info__rows dt {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.mobile-book-info__rows dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.mobile-book-info__link {
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: end;
   cursor: pointer;
 }
 

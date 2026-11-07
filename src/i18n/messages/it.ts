@@ -1067,6 +1067,7 @@ export const it: MessageCatalog = {
   "library.selectAll": "Seleziona tutto",
   "library.clear": "Cancella",
   "library.series": "Serie…",
+  "library.information": "Informazioni",
   "library.removeTitle": "Rimuovi dalla libreria (Canc)",
   "library.doneSelecting": "Fine selezione",
   "library.doneTitle": "Fine (Esc)",

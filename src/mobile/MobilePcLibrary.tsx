@@ -9,6 +9,7 @@ import {
   lastReadLabel,
   progressLabel,
   progressPercent,
+  readCounts,
   readTotalLabel,
   timeAgo,
 } from "../features/library/libraryView";
@@ -236,10 +237,25 @@ export function PcStatusRow({
   );
 }
 
-/** How far a book is read, as a bar and its label. */
-export function Progress({ book }: { book: LibraryBook }) {
-  const { t } = useI18n();
+/** How far a book is read, as a bar and its label, with its characters or words read and in all. */
+export function Progress({
+  book,
+  count = null,
+}: {
+  book: LibraryBook;
+  /** The characters or words read and in all beside the percentage, in Ch./Wo. when short. */
+  count?: "full" | "short" | null;
+}) {
+  const { t, number } = useI18n();
   const percent = progressPercent(book);
+  let total: string | null = null;
+  if (count === "full") total = readTotalLabel(book);
+  else if (count === "short") {
+    const read = readCounts(book);
+    total = read
+      ? `${number(read.read)} / ${number(read.total)} ${t(read.unit === "characters" ? "readerFooter.ch" : "readerFooter.wo")}`
+      : null;
+  }
   return (
     <span className="mobile-progress">
       <span
@@ -253,6 +269,7 @@ export function Progress({ book }: { book: LibraryBook }) {
         <span style={{ width: `${percent}%` }} />
       </span>
       <span className="mobile-progress__percent">{progressLabel(book)}</span>
+      {total ? <span className="mobile-progress__count">{total}</span> : null}
     </span>
   );
 }
