@@ -287,6 +287,8 @@ describe("the phone Library's view", () => {
     expect(sheet.getByText("夏目漱石")).toBeTruthy();
     expect(sheet.getByText("Japanese")).toBeTruthy();
     expect(sheet.getByText("Completed · 10,000 / 10,000 characters")).toBeTruthy();
+    // Its length is the one its progress counts.
+    expect(sheet.getByText("Characters").nextElementSibling!.textContent).toBe("10,000");
 
     await userEvent.click(sheet.getByRole("button", { name: "漱石全集" }));
     await waitFor(() =>

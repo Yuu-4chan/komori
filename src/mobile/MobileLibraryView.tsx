@@ -20,6 +20,7 @@ import {
   languageName,
   lastReadLabel,
   progressLabel,
+  readCounts,
   readTotalLabel,
   type LibraryFilter,
   type LibraryGroup,
@@ -575,17 +576,24 @@ export function BookInfoSheet({
         label: t("libraryToolbar.group.language"),
         value: languageName(book.language),
       });
-    if (typeof book.characters === "number")
+    // Its length as its progress counts it, else as the import counted it.
+    const counts = readCounts(book);
+    const length = counts
+      ? { unit: counts.unit, total: counts.total }
+      : typeof book.characters === "number"
+        ? { unit: "characters" as const, total: book.characters }
+        : typeof book.words === "number"
+          ? { unit: "words" as const, total: book.words }
+          : null;
+    if (length)
       rows.push({
-        key: "characters",
-        label: t("libraryToolbar.sort.characters"),
-        value: number(book.characters),
-      });
-    else if (typeof book.words === "number")
-      rows.push({
-        key: "words",
-        label: t("libraryToolbar.sort.words"),
-        value: number(book.words),
+        key: length.unit,
+        label: t(
+          length.unit === "characters"
+            ? "libraryToolbar.sort.characters"
+            : "libraryToolbar.sort.words",
+        ),
+        value: number(length.total),
       });
     if (typeof book.uniqueKanji === "number")
       rows.push({
