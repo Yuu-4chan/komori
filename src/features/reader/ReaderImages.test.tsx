@@ -133,6 +133,44 @@ describe("Reader images", () => {
       vi.unstubAllGlobals();
     }
   });
+  it("zooms the open image with a two-finger pinch, within the zoom buttons' range", async () => {
+    const view = render(
+      <ReaderImageViewer
+        session={{ items: images.items, index: 0, signal: new AbortController().signal }}
+        navigationBusy={false}
+        onJump={() => false}
+        onClose={() => {}}
+        loadImage={async () => ({ url: "blob:art", width: 640, height: 480 })}
+        releaseImage={() => {}}
+      />,
+    );
+    try {
+      await screen.findByRole("img", { name: "Real cover" });
+      const pan = screen.getByRole("group", { name: "Image pan area" });
+      const finger = (pointerId: number, clientX: number) => ({
+        pointerId,
+        pointerType: "touch",
+        button: 0,
+        clientX,
+        clientY: 200,
+      });
+      fireEvent.pointerDown(pan, finger(1, 150));
+      fireEvent.pointerDown(pan, finger(2, 250));
+      fireEvent.pointerMove(pan, finger(2, 350));
+      expect(screen.getByText("200%")).toBeInTheDocument();
+      fireEvent.pointerMove(pan, finger(2, 1000));
+      expect(screen.getByText("400%")).toBeInTheDocument();
+      fireEvent.pointerMove(pan, finger(2, 160));
+      expect(screen.getByText("50%")).toBeInTheDocument();
+      fireEvent.pointerUp(pan, finger(2, 160));
+      // One finger left pans, as before, and no longer zooms.
+      fireEvent.pointerMove(pan, finger(1, 100));
+      expect(screen.getByText("50%")).toBeInTheDocument();
+      fireEvent.pointerUp(pan, finger(1, 100));
+    } finally {
+      view.unmount();
+    }
+  });
   it("browses by keyboard and pointer with zoom/rotation, focus return and no book navigation", async () => {
     const renderer = adapter();
     const factory = vi.fn(() => renderer);

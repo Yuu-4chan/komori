@@ -1235,7 +1235,7 @@ side arrows, location caption and Go to location. It adds labelled Close, zoom
 (50–400% in 25% steps), clockwise rotation and reset controls. Left/Right and the
 mouse wheel (down for the next image, one per wheel step, a touchpad's finer movement
 once a whole step has built up) browse without wrapping; +/− zoom, Ctrl+wheel zooms,
-R rotates, and 0 resets. Zoomed images larger than the stage pan by drag, scrollbar or
+R rotates, and 0 resets; a two-finger pinch on the image zooms it (50–400%, as the buttons) around the point between the fingers, the one zoom a phone allows. Zoomed images larger than the stage pan by drag, scrollbar or
 wheel instead of browsing. Escape, Close and a click on the overlay return focus to the image card.
 Tab stays within the dialog. Browsing, transforms and closing never navigate,
 reflow or remount the book or write reading state. Opening dismisses lookup and

@@ -123,7 +123,7 @@ back. The search stays in the top bar even in an empty Library.
   clock and session reading time in an upper pill; both center over the available
   reading area, including while the sidebar is pinned. Empty pills disappear.
 - **Images.** The book's illustrations as cards and a modal viewer with zoom, rotation,
-  reset, panning and Go to location; clicking an unblurred book image opens it.
+  reset, panning, pinch to zoom on a touch screen and Go to location; clicking an unblurred book image opens it.
 - **Find in book.** Whole book or this chapter, up to 100 results with excerpts.
 - **Bookmarks and Notes.** Optional labels, B quick bookmarks, N notes from selected
   text, editing, removal, note search and order; saved passages use the theme's
