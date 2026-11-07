@@ -22,6 +22,7 @@ import { AppThemeSettings } from "../features/appearance/AppThemeSettings";
 import { DictionarySources } from "../features/dictionary/DictionarySources";
 import { WordAudioSettings } from "../features/dictionary/WordAudioSettings";
 import { ReaderPopupSettings } from "../features/reader/ReaderPopupSettings";
+import { getStartupPreferences, saveStartupPreferences } from "../features/startup/startupApi";
 import { StatisticsSettings } from "../features/statistics/StatisticsSettings";
 import { sessionStartModes } from "../features/statistics/statisticsPreferences";
 import { useI18n } from "../i18n/i18n";
@@ -109,7 +110,7 @@ export function MobileSettingsPage() {
       {section.id === "general" && (
         <>
           <AppThemeSettings />
-          <AutomaticSeries />
+          <GeneralChoices />
         </>
       )}
       {section.id === "popup" && (
@@ -163,18 +164,56 @@ function useAnkiDeck() {
   return deck;
 }
 
-/** General's Automatic series, the PC's: whether numbered titles and file names name series. */
-function AutomaticSeries() {
+/**
+ * General's choices from the PC's: Restore last book (whether Komori opens on the book last
+ * read, the native startup choice) and Automatic series (whether numbered titles and file names
+ * name series).
+ */
+function GeneralChoices() {
   const { library, updateLibrary } = useAppearance();
   const { t } = useI18n();
+  // Null until the saved choice is read; it is the native one the app opens by.
+  const [restore, setRestore] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void getStartupPreferences().then(
+      (saved) => {
+        if (active) setRestore(saved.restoreLastBook);
+      },
+      () => {},
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+  async function changeRestore(restoreLastBook: boolean) {
+    setSaving(true);
+    setRestore(restoreLastBook);
+    try {
+      setRestore((await saveStartupPreferences({ restoreLastBook })).restoreLastBook);
+    } catch {
+      setRestore(!restoreLastBook);
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
     <Card className="settings-card">
-      <ToggleSetting
-        checked={library.seriesFromTitles}
-        description={t("librarySettings.seriesFromTitlesHint")}
-        label={t("librarySettings.seriesFromTitles")}
-        onChange={(seriesFromTitles) => updateLibrary({ seriesFromTitles })}
-      />
+      <div className="settings-list">
+        <ToggleSetting
+          checked={restore ?? false}
+          disabled={restore === null || saving}
+          label={t("startup.restoreLastBook")}
+          onChange={(value) => void changeRestore(value)}
+        />
+        <ToggleSetting
+          checked={library.seriesFromTitles}
+          description={t("librarySettings.seriesFromTitlesHint")}
+          label={t("librarySettings.seriesFromTitles")}
+          onChange={(seriesFromTitles) => updateLibrary({ seriesFromTitles })}
+        />
+      </div>
     </Card>
   );
 }

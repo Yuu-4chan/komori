@@ -67,15 +67,15 @@
   border-radius: var(--radius-sm);
 }
 
-/* The logo takes the application accent: Sakura's accent gives its own pastel colors, and every
-   other theme the same shapes in its color. */
+/* The logo takes the theme's logo color (each theme's own, the custom theme's chosen one), not the
+   accent: a pink gives its own pastel colors, and any other color the same shapes in it. */
 .brand-mark {
-  --logo-cover: color-mix(in oklab, var(--accent-base) 86%, #ffffff);
-  --logo-ear: color-mix(in oklab, var(--accent-base) 90%, #000000);
-  --logo-ear-light: color-mix(in oklab, var(--accent-base) 58%, #ffffff);
-  --logo-page: color-mix(in oklab, var(--accent-base) 13%, #ffffff);
-  --logo-tail: color-mix(in oklab, var(--accent-base) 55%, #8a5c8f);
-  --logo-petal: color-mix(in oklab, var(--accent-base) 70%, #ffffff);
+  --logo-cover: color-mix(in oklab, var(--logo-base, var(--accent-base)) 86%, #ffffff);
+  --logo-ear: color-mix(in oklab, var(--logo-base, var(--accent-base)) 90%, #000000);
+  --logo-ear-light: color-mix(in oklab, var(--logo-base, var(--accent-base)) 58%, #ffffff);
+  --logo-page: color-mix(in oklab, var(--logo-base, var(--accent-base)) 13%, #ffffff);
+  --logo-tail: color-mix(in oklab, var(--logo-base, var(--accent-base)) 55%, #8a5c8f);
+  --logo-petal: color-mix(in oklab, var(--logo-base, var(--accent-base)) 70%, #ffffff);
   width: 2.5rem;
   aspect-ratio: 1;
   display: grid;
@@ -112,7 +112,7 @@
 }
 
 .brand-mark #sakura-pink stop {
-  stop-color: var(--accent-base);
+  stop-color: var(--logo-base, var(--accent-base));
 }
 
 .app-topbar__center {

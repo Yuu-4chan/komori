@@ -65,7 +65,11 @@ describe("User-chosen install defaults", () => {
       readerShowChapterPercentage: true,
       readerVnTextSpeed: 0,
     };
-    expect(normalizeAppearancePreferences(saved)).toEqual(saved);
+    // A custom theme saved before the logo had its own color takes the default one.
+    expect(normalizeAppearancePreferences(saved)).toEqual({
+      ...saved,
+      appCustomTheme: { ...saved.appCustomTheme, logo: "#b8743c" },
+    });
     expect({ ...defaultAppearance, ...normalizeAppearancePreferences(saved) }).toMatchObject(saved);
   });
 });

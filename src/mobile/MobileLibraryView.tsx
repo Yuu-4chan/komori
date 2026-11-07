@@ -697,14 +697,15 @@ export function SelectionBar({ actions }: { actions: readonly SelectionAction[] 
     <div aria-label={t("library.selection")} className="mobile-selection-bar" role="toolbar">
       {actions.map((action) => (
         <button
+          aria-label={action.label}
           className={`mobile-selection-bar__action${action.danger ? " mobile-selection-bar__action--danger" : ""}`}
           disabled={action.disabled}
           key={action.key}
           onClick={action.onClick}
+          title={action.label}
           type="button"
         >
           {action.icon}
-          <span>{action.label}</span>
         </button>
       ))}
     </div>

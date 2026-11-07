@@ -80,8 +80,8 @@ export function AppThemeSettings() {
   function startFrom(id: AppThemeId) {
     const preset = appPresetThemes.find((candidate) => candidate.id === id);
     if (!preset) return;
-    const { base, background, surface, text } = preset;
-    updateAppCustomTheme({ base, background, surface, text });
+    const { base, background, surface, text, logo } = preset;
+    updateAppCustomTheme({ base, background, surface, text, logo });
     setAccentColor(preset.accent);
   }
 
@@ -202,6 +202,11 @@ export function AppThemeSettings() {
                 label={t("appearance.accent")}
                 onChange={setAccentColor}
                 value={accentColor}
+              />
+              <ColorField
+                label={t("appearance.logo")}
+                onChange={(logo) => updateAppCustomTheme({ logo })}
+                value={appCustomTheme.logo}
               />
             </div>
             <div className="app-theme-editor__row app-theme-editor__row--wrap">

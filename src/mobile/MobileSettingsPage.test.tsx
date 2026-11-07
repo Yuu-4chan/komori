@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -6,8 +6,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 
 vi.mock("../app/platform", () => ({ isAndroid: true }));
+vi.mock("../features/startup/startupApi", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../features/startup/startupApi")>();
+  let saved = { ...original.defaultStartupPreferences };
+  return {
+    ...original,
+    getStartupPreferences: vi.fn(async () => saved),
+    saveStartupPreferences: vi.fn(async (changes: Partial<typeof saved>) => {
+      saved = { ...saved, ...changes };
+      return saved;
+    }),
+  };
+});
 
 const { MobileSettingsPage } = await import("./MobileSettingsPage");
+const { saveStartupPreferences } = await import("../features/startup/startupApi");
 
 function settings(section?: string) {
   render(
@@ -42,6 +55,22 @@ describe("Settings on the phone", () => {
     ]);
     await userEvent.click(within(nav).getByRole("button", { name: "Dictionary" }));
     expect(screen.getByRole("heading", { level: 1, name: "Dictionary" })).toBeTruthy();
+  });
+
+  it("opens on the last book read by choice, the native startup choice", async () => {
+    settings("general");
+    const restore = screen.getByRole("button", { name: "Restore last book" });
+    await waitFor(() => expect(restore.getAttribute("aria-pressed")).toBe("true"));
+    await userEvent.click(restore);
+    expect(saveStartupPreferences).toHaveBeenCalledWith({ restoreLastBook: false });
+    await waitFor(() => expect(restore.getAttribute("aria-pressed")).toBe("false"));
+    cleanup();
+    settings("general");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Restore last book" }).getAttribute("aria-pressed"),
+      ).toBe("false"),
+    );
   });
 
   it("makes series automatically by choice, as the PC does", async () => {

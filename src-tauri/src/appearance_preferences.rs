@@ -207,7 +207,8 @@ pub struct ReaderCustomTheme {
     footer_text: String,
 }
 
-/// The application's custom theme: a light or dark base and `#rrggbb` colors, never CSS.
+/// The application's custom theme: a light or dark base and `#rrggbb` colors, never CSS. The
+/// logo's color is absent from themes saved before it had one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppCustomTheme {
@@ -215,6 +216,8 @@ pub struct AppCustomTheme {
     background: String,
     surface: String,
     text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    logo: Option<String>,
 }
 
 impl AppCustomTheme {
@@ -223,6 +226,7 @@ impl AppCustomTheme {
             && [&self.background, &self.surface, &self.text]
                 .iter()
                 .all(|color| valid_accent(color))
+            && self.logo.as_deref().is_none_or(valid_accent)
     }
 }
 
@@ -3254,6 +3258,7 @@ mod tests {
             background: "#101820".into(),
             surface: "#18222c".into(),
             text: "#f0e6d2".into(),
+            logo: Some("#f08a9b".into()),
         };
         let chosen = AppearancePreferences {
             app_custom_theme: Some(custom.clone()),
@@ -3299,6 +3304,13 @@ mod tests {
             AppearancePreferences {
                 app_custom_theme: Some(AppCustomTheme {
                     text: "red".into(),
+                    ..custom.clone()
+                }),
+                ..chosen.clone()
+            },
+            AppearancePreferences {
+                app_custom_theme: Some(AppCustomTheme {
+                    logo: Some("pink".into()),
                     ..custom.clone()
                 }),
                 ..chosen.clone()

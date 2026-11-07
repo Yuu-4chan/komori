@@ -116,7 +116,7 @@ function bar() {
 function actions() {
   return bar()
     .getAllByRole("button")
-    .map((each) => each.textContent);
+    .map((each) => each.getAttribute("aria-label"));
 }
 
 async function view(group: string, choice: string | RegExp) {
@@ -143,6 +143,12 @@ describe("selecting books on the phone", () => {
     expect(screen.queryByText(/^Reading/)).toBeNull();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 book selected");
     expect(actions()).toEqual(["Information", "Series…", "Edit…", "Mark as completed", "Remove"]);
+    // Each action is its icon alone, so all of them fit the phone's width.
+    expect(
+      bar()
+        .getAllByRole("button")
+        .map((each) => each.textContent),
+    ).toEqual(["", "", "", "", ""]);
 
     await userEvent.click(await tile("こころ"));
     expect(screen.queryByText(/^Reading/)).toBeNull();

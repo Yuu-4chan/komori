@@ -223,13 +223,16 @@ describe("the Library on a phone paired with a PC", () => {
     expect(api.listPcLibrary).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the books and says why when the PC does not answer", async () => {
+  it("keeps the books and shows Disconnected by a red dot when the PC does not answer", async () => {
     vi.mocked(api.cachedPcLibrary).mockResolvedValueOnce([remote, kept]);
     library(paired);
     vi.mocked(api.listPcLibrary).mockRejectedValueOnce(new Error("unreachable"));
     const books = await allBooks();
     await screen.findByRole("button", { name: "Try again" });
     expect(titles(books)).toEqual(["それから", "三四郎", "羅生門"]);
+    const status = screen.getByText("Disconnected").closest(".mobile-pc-status")!;
+    expect(status.querySelector(".mobile-sync__dot--disconnected")).not.toBeNull();
+    expect(status.getAttribute("title")).toBeTruthy();
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Connected")).toBeTruthy();
@@ -390,7 +393,7 @@ describe("the Library on a phone paired with a PC", () => {
     const actions = () =>
       bar()
         .getAllByRole("button")
-        .map((each) => each.textContent);
+        .map((each) => each.getAttribute("aria-label"));
     expect(actions()).toEqual(["Information", "Remove from this phone"]);
     await userEvent.click(tile(books, "それから"));
     expect(actions()).toEqual(["Keep on this phone", "Remove from this phone"]);

@@ -18,14 +18,16 @@ three, while the Reader keeps it for bookmarks.
 
 Komori on an Android phone (Android 10 and later) has its own frame: page headers with the
 brand and the gear to Settings, a floating dock (Dictionary, Library, Statistics) above the
-gesture bar, and Back closing an open sheet before it leaves the page. The Library shows the
+gesture bar, and Back closing an open sheet before it leaves the page. Pages open at their top,
+Back returns to where a page was left, tapping the open page's dock item scrolls it to the top,
+and the page keeps still under an open sheet. The Library shows the
 count of books, search, Add books (the system document picker, several EPUBs at once), the
 books to continue and the books as a grid of covers or a list with progress and the
 characters or words read, with the PC's status filter, grouping (series, language, author, each
 group a row that scrolls sideways under a heading opening the group's page), sort and direction
 in its view sheet; books stay where they are, and a moved or deleted one offers Relink and Remove.
-A long press selects a book or a group's books, then taps select more, with Select all, and
-a bar offers Information for one book (its details, the series opening its page), Series…
+A long press selects a book or a group's books, then taps select more, with Done and Select all
+staying at the top as the page scrolls, and a bar of icons (each named for screen readers) offers Information for one book (its details, the series opening its page), Series…
 (which also renames or removes a series), Edit…, Mark as completed and
 Remove, or Keep on this phone and Remove from this phone for the PC's books. The Reader is read by touch: in paginated and VN
 views tap the sides to turn a page (in the book's page progression), tap the paragraph in VN
@@ -43,7 +45,7 @@ deepest one. A long press selects text for Komori's toolbar (note, highlight, co
 search); on a highlight or note it offers Delete instead of Highlight. Reopening Komori after
 Android ends it opens the last book where it was. Dictionary searches from the keyboard, its
 sources a row of chips. Statistics is the PC page in two columns. Settings has General
-(language, application theme, Automatic series), Reader popup (appearance and scanning),
+(language, application theme, Restore last book, Automatic series), Reader popup (appearance and scanning),
 Dictionary (ZIPs imported from the phone, starter downloads, order, removal and word audio),
 Anki, Statistics (recording, session start Auto, First character read or Manual, jump and
 idle limits), Sync and About.
@@ -264,7 +266,8 @@ the action itself, and Edit in Anki Browser hands off manual editing.
 ## Themes
 
 Application themes: Light, Dark, Sakura, Matcha, Hojicha, Midnight, Ember, Forest and one
-custom theme (Light/Dark base, Background, Surface, Text, Accent). Reader themes are
+custom theme (Light/Dark base, Background, Surface, Text, Accent, Logo). Each preset colors the
+logo its own way (Hojicha in its accent); the custom theme's logo color is chosen. Reader themes are
 separate: Paper, Sepia, Night, Sakura, Matcha, Hojicha, Solarized, Nord, Gruvbox, Rosé
 Pine, Tokyo Night and Catppuccin Latte, Frappé, Macchiato and Mocha, plus named custom
 themes, each deleted from its swatch's context menu. Custom Reader themes are structured values, never arbitrary CSS.

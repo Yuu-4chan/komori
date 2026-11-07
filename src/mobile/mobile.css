@@ -61,6 +61,11 @@
   overscroll-behavior: contain;
 }
 
+/* The page keeps still under an open sheet. */
+:root[data-sheet-open] .mobile-shell__content {
+  overflow-y: hidden;
+}
+
 /* Every page in the frame, its own and the PC's, takes the phone's gutters and leaves room for
    the dock. */
 .mobile-page,
@@ -498,6 +503,8 @@
   position: fixed;
   inset: 0;
   z-index: 60;
+  overscroll-behavior: contain;
+  touch-action: none;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -507,6 +514,8 @@
 
 .mobile-sheet {
   max-height: calc(100% - var(--safe-area-top) - 2rem);
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   padding: 0.5rem calc(var(--safe-area-right) + 1.125rem) calc(var(--safe-area-bottom) + 1.125rem)
     calc(var(--safe-area-left) + 1.125rem);
   display: flex;
@@ -1133,11 +1142,6 @@
   animation: mobile-spin 0.9s linear infinite;
 }
 
-.mobile-pc-status > svg {
-  flex: none;
-  color: var(--danger);
-}
-
 /* The place shown and its count of books, with the filter at the end. */
 .mobile-books-heading {
   display: flex;
@@ -1408,6 +1412,10 @@
 
 .mobile-sync__dot--off {
   background: var(--text-muted);
+}
+
+.mobile-sync__dot--disconnected {
+  background: var(--danger);
 }
 
 .mobile-sync__dictionaries {
@@ -1850,7 +1858,20 @@ button.mobile-group-heading .mobile-select-mark {
   box-shadow: none;
 }
 
-/* The header while selecting: Done, the count, and Select all or Clear. */
+/* The header while selecting: Done, the count, and Select all or Clear, staying at the top of
+   the page however far it scrolls. */
+.mobile-selection-header {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  margin: calc(-1 * (var(--safe-area-top) + 0.75rem))
+    calc(-1 * (var(--safe-area-right) + var(--mobile-gutter))) 0
+    calc(-1 * (var(--safe-area-left) + var(--mobile-gutter)));
+  padding: calc(var(--safe-area-top) + 0.75rem) calc(var(--safe-area-right) + var(--mobile-gutter))
+    0.5rem calc(var(--safe-area-left) + var(--mobile-gutter));
+  background: var(--surface-main);
+}
+
 .mobile-selection-header h1 {
   font-size: 1.25rem;
 }
@@ -1889,21 +1910,17 @@ button.mobile-group-heading .mobile-select-mark {
 }
 
 .mobile-selection-bar__action {
-  min-width: 4.25rem;
-  padding: 0.5rem 0.375rem 0.4375rem;
+  min-width: 2.625rem;
+  height: 2.75rem;
+  padding: 0;
   flex: 1 0 auto;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.1875rem;
+  justify-content: center;
   color: var(--text-primary);
   background: none;
   border: 0;
   border-radius: 1.0625rem;
-  font: inherit;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1917,8 +1934,8 @@ button.mobile-group-heading .mobile-select-mark {
 }
 
 .mobile-selection-bar__action svg {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.375rem;
+  height: 1.375rem;
 }
 
 .mobile-selection-bar__action--danger {

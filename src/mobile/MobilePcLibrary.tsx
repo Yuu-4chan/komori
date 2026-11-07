@@ -1,4 +1,4 @@
-import { ArrowsClockwiseIcon, CheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CheckIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -191,30 +191,33 @@ export function PcStatusRow({
 }) {
   const { t } = useI18n();
   const connected = connection === "connected";
+  // Any answer but connected (or not asked yet) is Disconnected, its reason in the title.
+  const disconnected = !connected && connection !== "unknown";
   const synced = timeAgo(lastSynced);
-  if (connection !== "connected" && connection !== "unknown")
-    return (
-      <div className="mobile-pc-status" aria-live="polite">
-        <WarningCircleIcon aria-hidden="true" weight="fill" />
-        <span>{t(connection, { name: pcName })}</span>
-        <button className="mobile-pc-status__action" onClick={onRetry} type="button">
-          {t("common.tryAgain")}
-        </button>
-      </div>
-    );
   return (
     <div
-      className={connected ? "mobile-pc-status mobile-pc-status--synced" : "mobile-pc-status"}
+      className={
+        connected || disconnected ? "mobile-pc-status mobile-pc-status--synced" : "mobile-pc-status"
+      }
       aria-live="polite"
+      title={disconnected ? t(connection, { name: pcName }) : undefined}
     >
       <span
         aria-hidden="true"
-        className={connected ? "mobile-sync__dot" : "mobile-sync__dot mobile-sync__dot--off"}
+        className={[
+          "mobile-sync__dot",
+          disconnected ? "mobile-sync__dot--disconnected" : "",
+          connected || disconnected ? "" : "mobile-sync__dot--off",
+        ]
+          .filter(Boolean)
+          .join(" ")}
       />
       <span>
-        {connected ? (
+        {connected || disconnected ? (
           <>
-            <span className="mobile-pc-status__label">{t("sync.connectedShort")}</span>
+            <span className="mobile-pc-status__label">
+              {t(connected ? "sync.connectedShort" : "sync.disconnectedShort")}
+            </span>
             {synced ? <small>{` · ${t("sync.syncedShort", { time: synced })}`}</small> : null}
           </>
         ) : synced ? (
@@ -225,10 +228,10 @@ export function PcStatusRow({
       </span>
       <button
         aria-busy={syncing}
-        aria-label={t("sync.syncNow")}
+        aria-label={t(disconnected ? "common.tryAgain" : "sync.syncNow")}
         className="mobile-pc-status__action mobile-pc-status__action--icon"
         disabled={syncing}
-        onClick={onSync}
+        onClick={disconnected ? onRetry : onSync}
         type="button"
       >
         <ArrowsClockwiseIcon aria-hidden="true" weight="bold" />
