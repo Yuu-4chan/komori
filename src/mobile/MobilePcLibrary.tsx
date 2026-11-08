@@ -75,13 +75,16 @@ async function relistCopies() {
 
 let readingSaved: Promise<void> | null = null;
 
-/** Reads the saved listing once, unless the PC's books are already known. */
+/**
+ * Reads the saved listing once, unless the PC's books are already known; with none saved they
+ * are none until the PC answers, so the phone's books need not wait for it.
+ */
 function readSavedListing(): Promise<void> {
   if (pcSession.get().books !== null) return Promise.resolve();
   readingSaved ??= cachedPcLibrary()
     .catch(() => null)
     .then((saved) => {
-      if (saved && pcSession.get().books === null) pcSession.set({ books: saved });
+      if (pcSession.get().books === null) pcSession.set({ books: saved ?? [] });
     })
     .finally(() => {
       readingSaved = null;

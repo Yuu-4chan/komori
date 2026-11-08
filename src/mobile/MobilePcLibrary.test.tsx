@@ -241,6 +241,19 @@ describe("the Library on a phone paired with a PC", () => {
     await act(async () => answer([remote, kept]));
   });
 
+  it("shows the phone's books without waiting for the PC when no listing is saved yet", async () => {
+    let answer: (books: api.PcBook[]) => void = () => {};
+    library(paired);
+    vi.mocked(api.listPcLibrary).mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    await waitFor(async () => expect(titles(await allBooks())).toEqual(["三四郎", "羅生門"]));
+    await act(async () => answer([remote, kept]));
+    expect(titles(await allBooks())).toEqual(["それから", "三四郎", "羅生門"]);
+  });
+
   it("shows the books at once on returning, without listing the PC again", async () => {
     const first = library(paired);
     await waitFor(async () => expect(titles(await allBooks())).toHaveLength(3));

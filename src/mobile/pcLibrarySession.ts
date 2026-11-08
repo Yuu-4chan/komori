@@ -5,7 +5,8 @@ import type { PcBook } from "./pcLinkApi";
 export type PcConnection = "unknown" | "connected" | MessageKey;
 
 export interface PcSession {
-  /** The PC's books as last listed or saved on the phone; null before either is read. */
+  /** The PC's books as last listed or saved on the phone (none when none is saved); null
+   * before either is read. */
   books: PcBook[] | null;
   connection: PcConnection;
   /** When the PC was last listed (ms), 0 before the first time or after a sync. */
