@@ -15,18 +15,23 @@ vi.mock("../features/library/libraryApi", () => ({
   listLibrary: vi.fn(),
   scanLibraryFolders: vi.fn(async () => []),
 }));
-vi.mock("./pcLinkApi", async (importOriginal) => ({
-  ...(await importOriginal<typeof api>()),
-  usePcLink: vi.fn(),
-  listPcLibrary: vi.fn(),
-  cachedPcLibrary: vi.fn(async () => null),
-  openPcBook: vi.fn(),
-  keepPcBook: vi.fn(),
-  removePcBook: vi.fn(async () => {}),
-  onPcTransfer: vi.fn(async () => () => {}),
-  syncPc: vi.fn(),
-  autoSync: vi.fn(async () => null),
-}));
+vi.mock("./pcLinkApi", async (importOriginal) => {
+  const usePcLink = vi.fn();
+  return {
+    ...(await importOriginal<typeof api>()),
+    usePcLink,
+    // The pairing reads at once, as `usePcLink` gives it.
+    usePcLinkState: () => ({ link: usePcLink(), settled: true }),
+    listPcLibrary: vi.fn(),
+    cachedPcLibrary: vi.fn(async () => null),
+    openPcBook: vi.fn(),
+    keepPcBook: vi.fn(),
+    removePcBook: vi.fn(async () => {}),
+    onPcTransfer: vi.fn(async () => () => {}),
+    syncPc: vi.fn(),
+    autoSync: vi.fn(async () => null),
+  };
+});
 
 const { MobileLibraryPage } = await import("./MobileLibraryPage");
 
@@ -210,6 +215,30 @@ describe("the Library on a phone paired with a PC", () => {
     const status = await screen.findByText("Connected");
     expect(status.parentElement!.textContent).toBe("Connected · Synced 5 minutes ago");
     expect(titles(books)).toEqual(["それから", "三四郎", "羅生門", "門"]);
+  });
+
+  it("shows the phone's books only with the PC's saved ones, never one before the other", async () => {
+    let saved: (books: api.PcBook[]) => void = () => {};
+    vi.mocked(api.cachedPcLibrary).mockReturnValueOnce(
+      new Promise((resolve) => {
+        saved = resolve;
+      }),
+    );
+    let answer: (books: api.PcBook[]) => void = () => {};
+    library(paired);
+    vi.mocked(api.listPcLibrary).mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    await waitFor(() => expect(listLibrary).toHaveBeenCalled());
+    await act(async () => {});
+    expect(screen.queryByText("羅生門")).toBeNull();
+    expect(screen.queryByRole("region", { name: "All" })).toBeNull();
+
+    await act(async () => saved([remote, kept]));
+    expect(titles(await allBooks())).toEqual(["それから", "三四郎", "羅生門"]);
+    await act(async () => answer([remote, kept]));
   });
 
   it("shows the books at once on returning, without listing the PC again", async () => {

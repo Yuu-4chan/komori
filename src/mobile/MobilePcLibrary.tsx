@@ -73,19 +73,37 @@ async function relistCopies() {
   if (books) pcSession.set({ books });
 }
 
+let readingSaved: Promise<void> | null = null;
+
+/** Reads the saved listing once, unless the PC's books are already known. */
+function readSavedListing(): Promise<void> {
+  if (pcSession.get().books !== null) return Promise.resolve();
+  readingSaved ??= cachedPcLibrary()
+    .catch(() => null)
+    .then((saved) => {
+      if (saved && pcSession.get().books === null) pcSession.set({ books: saved });
+    })
+    .finally(() => {
+      readingSaved = null;
+    });
+  return readingSaved;
+}
+
 /**
  * The paired PC's Library while `active`: the saved listing at once, listed again in the
  * background on the first showing in a session, after a sync, or once the listing is old.
+ * `early` reads the saved listing before whether it is needed is known (the pairing still
+ * being read), so the PC's books show with the phone's rather than after them.
  */
-export function usePcLibrary(active: boolean) {
+export function usePcLibrary(active: boolean, early = false) {
   const session = useSyncExternalStore(pcSession.subscribe, pcSession.get);
+  useEffect(() => {
+    if (early && !active) void readSavedListing();
+  }, [active, early]);
   useEffect(() => {
     if (!active) return;
     void (async () => {
-      if (pcSession.get().books === null) {
-        const saved = await cachedPcLibrary().catch(() => null);
-        if (saved && pcSession.get().books === null) pcSession.set({ books: saved });
-      }
+      await readSavedListing();
       if (Date.now() - pcSession.get().listedAt > STALE_AFTER) await refreshPcLibrary();
     })();
   }, [active]);

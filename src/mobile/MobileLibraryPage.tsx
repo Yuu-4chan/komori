@@ -91,7 +91,7 @@ import {
   type PcEntry,
 } from "./MobilePcLibrary";
 import { MobileSheet } from "./MobileSheet";
-import { onPcSynced, syncPc, usePcLink } from "./pcLinkApi";
+import { onPcSynced, syncPc, usePcLinkState } from "./pcLinkApi";
 import { mergePcLibrary, phoneItem, type MergedBook } from "./pcLibraryMerge";
 import { PullToSync } from "./pullToSync";
 import { useBackCloser } from "./system";
@@ -103,6 +103,9 @@ type Listing =
 
 /** A book the Library lists: the phone's own, or the paired PC's (with its copy here, if any). */
 type Item = MergedBook;
+
+/** How long the Library waits for all it holds before showing what it has (ms). */
+const SHOW_WITHIN = 2000;
 
 const onThisPhone = (item: Item) => item.kind === "phone" || item.entry.pc.kept;
 
@@ -179,9 +182,9 @@ function LibraryContent({ group }: { group: string | null }) {
     void refresh();
   }, [refresh, imports.version]);
 
-  const link = usePcLink();
+  const { link, settled: linkSettled } = usePcLinkState();
   const pcActive = link?.paired === true && link.syncOn;
-  const pc = usePcLibrary(pcActive);
+  const pc = usePcLibrary(pcActive, !linkSettled);
   const pcActions = usePcBookActions();
   const pcName = link?.pcName ?? "";
   const { library: display, updateLibrary } = useAppearance();
@@ -215,12 +218,24 @@ function LibraryContent({ group }: { group: string | null }) {
 
   const allBooks = listing.books;
   const pcEntries = pc.entries;
+  // The Library shows once it can show all it holds: the phone's books, whether it is paired,
+  // and while paired the PC's books as last saved (or the PC's answer, before any is saved),
+  // so books never appear in steps. A pairing that cannot be read waits at most a moment.
+  const [waited, setWaited] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setWaited(true), SHOW_WITHIN);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const complete =
+    listing.status !== "loading" &&
+    (waited || (linkSettled && (!pcActive || pcEntries !== null || pc.connection !== "unknown")));
   const items = useMemo<Item[]>(() => {
+    if (!complete) return [];
     // Until the pairing is read, the PC's copies wait, so they never show as the phone's.
     if (link === null) return allBooks.filter((book) => !book.fromPc).map(phoneItem);
     if (!pcActive) return allBooks.map(phoneItem);
     return mergePcLibrary(allBooks, pcEntries);
-  }, [allBooks, link, pcActive, pcEntries]);
+  }, [allBooks, complete, link, pcActive, pcEntries]);
   const placed = useMemo(
     () =>
       place === "phone"
@@ -301,10 +316,6 @@ function LibraryContent({ group }: { group: string | null }) {
       ),
     [ownBooks],
   );
-  // Nothing to show yet only until the phone's books, and the PC's while paired, are read.
-  const known =
-    listing.status !== "loading" &&
-    (!pcActive || pcEntries !== null || pc.connection !== "unknown");
 
   // Selecting: by a long press on a book or a group's heading, then by taps.
   const keys = useMemo(() => items.map(itemKey), [items]);
@@ -672,7 +683,7 @@ function LibraryContent({ group }: { group: string | null }) {
               title={t("library.unavailable")}
             />
           </>
-        ) : known ? (
+        ) : complete ? (
           <>
             {status}
             <EmptyState
@@ -746,7 +757,7 @@ function LibraryContent({ group }: { group: string | null }) {
                 <h2 className="mobile-section-heading" id="mobile-all-books">
                   {t(PLACE_LABELS[place])}
                 </h2>
-                {known ? (
+                {complete ? (
                   <small className="mobile-books-heading__count">
                     {tp("librarySummary.books", onGroupPage ? shown.length : filtered.length)}
                   </small>

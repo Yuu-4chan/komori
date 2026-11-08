@@ -223,17 +223,28 @@ let lastLink: PcLink | null = null;
 
 /** The pairing as saved, kept current when it changes; null until first read. */
 export function usePcLink(): PcLink | null {
+  return usePcLinkState().link;
+}
+
+/** The pairing as `usePcLink` gives it, and whether reading it has ended, even in failure. */
+export function usePcLinkState(): { link: PcLink | null; settled: boolean } {
   // The pairing read last this session, so a page shown again starts from it.
   const [link, setLink] = useState<PcLink | null>(lastLink);
+  const [settled, setSettled] = useState(lastLink !== null);
   useEffect(() => {
     let active = true;
     const read = () =>
       void getPcLink().then(
         (saved) => {
           lastLink = saved;
-          if (active) setLink(saved);
+          if (active) {
+            setLink(saved);
+            setSettled(true);
+          }
         },
-        () => {},
+        () => {
+          if (active) setSettled(true);
+        },
       );
     read();
     window.addEventListener(pcLinkChanged, read);
@@ -242,5 +253,5 @@ export function usePcLink(): PcLink | null {
       window.removeEventListener(pcLinkChanged, read);
     };
   }, []);
-  return link;
+  return { link, settled };
 }
