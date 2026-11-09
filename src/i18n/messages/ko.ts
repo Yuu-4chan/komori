@@ -1651,6 +1651,7 @@ export const ko: MessageCatalog = {
   "notes.noMatches": "일치하는 메모가 없습니다.",
   "notes.jump": "메모 {index}(으)로 이동",
   "reader.section": "섹션 {number}",
+  "reader.unreadableChapter": "이 장을 표시할 수 없습니다.",
   "bookmarks.placeUnavailable": "이 위치는 현재 EPUB에 없습니다.",
   "notes.edit": "메모 {index} 편집",
   "notes.remove": "메모 {index} 제거",

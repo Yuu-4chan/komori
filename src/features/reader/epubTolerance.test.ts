@@ -141,6 +141,17 @@ describe("diagnosed EPUB XML tolerance", () => {
     );
     expect(book.archive.request).not.toHaveBeenCalled();
     book.archive.zip.file.mockReturnValue({ _data: { uncompressedSize: 1024 } });
+    // A book with some unreadable linear documents opens; one with none readable does not.
+    const unreadable = new DOMParser().parseFromString(
+      '<html xmlns="http://www.w3.org/1999/xhtml" data-komori-unreadable=""><body><p>Not shown</p></body></html>',
+      "application/xhtml+xml",
+    );
+    book.archive.request.mockResolvedValueOnce(unreadable);
+    await validateEpubSpine(book, new AbortController().signal);
+    book.archive.request.mockResolvedValue(unreadable);
+    await expect(validateEpubSpine(book, new AbortController().signal)).rejects.toThrow(
+      InvalidEpubDocument,
+    );
     book.archive.request.mockResolvedValue(
       new DOMParser().parseFromString("<html><body>", "application/xhtml+xml"),
     );
@@ -155,8 +166,9 @@ describe("archive reads with the pinned EPUB.js engine", () => {
   const chapter =
     '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>One</title></head><body><p>Text</p></body></html>';
 
-  /** A synthetic book with one linear chapter and the given manifest assets; `missing`
-   * assets are declared in the manifest but absent from the archive. */
+  /** A synthetic book with one linear chapter, any `more` linear chapters after it, and
+   * the given manifest assets; `missing` assets are declared in the manifest but absent
+   * from the archive. */
   async function epub(
     assets: Record<string, string>,
     {
@@ -164,6 +176,7 @@ describe("archive reads with the pinned EPUB.js engine", () => {
       missing = [] as string[],
       href = "chapter.xhtml",
       type = "application/xhtml+xml",
+      more = {} as Record<string, string>,
     } = {},
   ) {
     const { zip } = new EpubArchive();
@@ -175,18 +188,26 @@ describe("archive reads with the pinned EPUB.js engine", () => {
       (name, index) =>
         `<item id="a${index}" href="${name}" media-type="${name.endsWith(".css") ? "text/css" : "application/octet-stream"}"/>`,
     );
+    const chapters = Object.keys(more).map(
+      (name, index) => `<item id="m${index}" href="${name}" media-type="application/xhtml+xml"/>`,
+    );
     zip.file(
       "OPS/book.opf",
-      `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">synthetic</dc:identifier><dc:title>Synthetic</dc:title><dc:language>en</dc:language></metadata><manifest><item id="c" href="${href}" media-type="${type}"/>${items.join("")}</manifest><spine><itemref idref="c"/></spine></package>`,
+      `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">synthetic</dc:identifier><dc:title>Synthetic</dc:title><dc:language>en</dc:language></metadata><manifest><item id="c" href="${href}" media-type="${type}"/>${chapters.join("")}${items.join("")}</manifest><spine><itemref idref="c"/>${Object.keys(
+        more,
+      )
+        .map((_, index) => `<itemref idref="m${index}"/>`)
+        .join("")}</spine></package>`,
     );
     zip.file(`OPS/${href}`, body);
+    for (const [name, text] of Object.entries(more)) zip.file(`OPS/${name}`, text);
     for (const [name, text] of Object.entries(assets)) zip.file(`OPS/${name}`, text);
     return (await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" })) as Uint8Array;
   }
 
   /** The serialized chapter as a rendition would show it, with its asset URLs. */
-  async function shown(book: Awaited<ReturnType<typeof open>>) {
-    const section = book.spine.get(0)!;
+  async function shown(book: Awaited<ReturnType<typeof open>>, index = 0) {
+    const section = book.spine.get(index)!;
     return (await section.render(book.load.bind(book))) as string;
   }
 
@@ -233,18 +254,20 @@ describe("archive reads with the pinned EPUB.js engine", () => {
       vi.fn(async (url: string, init?: RequestInit) => {
         if (url === base && init?.method === "POST") {
           const numbers = new DataView(init.body as ArrayBuffer);
-          const frames: number[] = [];
+          const frames: Uint8Array[] = [];
           const names: string[] = [];
           for (let at = 0; at < numbers.byteLength; at += 4) {
             const number = numbers.getUint32(at, true);
             names.push(files[number]!.name);
             const data = await read(number);
             const length = data === 413 ? 0xffff_ffff : data === 422 ? 0xffff_fffe : data.length;
-            frames.push(...new Uint8Array(new Uint32Array([length]).buffer));
-            if (typeof data !== "number") frames.push(...data);
+            frames.push(new Uint8Array(new Uint32Array([length]).buffer));
+            if (typeof data !== "number") frames.push(data);
           }
           requests.push(`bundle ${names.join(" ")}`);
-          return reply(new Uint8Array(frames));
+          const bundle = new Uint8Array(frames.reduce((total, frame) => total + frame.length, 0));
+          frames.reduce((at, frame) => (bundle.set(frame, at), at + frame.length), 0);
+          return reply(bundle);
         }
         if (url === base) {
           requests.push("list");
@@ -521,5 +544,46 @@ describe("archive reads with the pinned EPUB.js engine", () => {
     await expect(open(await epub({}), limits, { "OPS/chapter.xhtml": 413 })).rejects.toThrow(
       EpubResourceLimit,
     );
+  });
+
+  it("shows a chapter that cannot be read as a notice and refuses a book with none readable", async () => {
+    const notice = (output: string) => {
+      const page = new DOMParser().parseFromString(output, "application/xhtml+xml");
+      return page.documentElement.hasAttribute("data-komori-unreadable")
+        ? page.body?.textContent
+        : undefined;
+    };
+    const broken = '<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Cut';
+    const book = await open(
+      await epub({}, { more: { "two.xhtml": broken, "three.xhtml": chapter } }),
+    );
+    expect(notice(await shown(book))).toBeUndefined();
+    expect(notice(await shown(book, 1))).toBe("This chapter could not be shown.");
+    expect(notice(await shown(book, 2))).toBeUndefined();
+    // A damaged entry, and one the manifest names but the archive lacks, show the same.
+    const damaged = await open(await epub({}, { more: { "two.xhtml": chapter } }), limits, {
+      "OPS/two.xhtml": 422,
+    });
+    expect(notice(await shown(damaged, 1))).toBe("This chapter could not be shown.");
+    const { zip } = new EpubArchive();
+    await zip.loadAsync(await epub({}, { more: { "two.xhtml": chapter } }));
+    zip.remove("OPS/two.xhtml");
+    const lacking = await open(
+      (await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" })) as Uint8Array,
+    );
+    expect(notice(await shown(lacking, 1))).toBe("This chapter could not be shown.");
+
+    await expect(
+      open(await epub({}, { body: broken, more: { "two.xhtml": broken } })),
+    ).rejects.toThrow(InvalidEpubDocument);
+    // A document too large for its limit still refuses the book.
+    await expect(
+      open(
+        await epub(
+          {},
+          { more: { "two.xhtml": chapter.replace("Text", "a".repeat(2 * 1024 * 1024)) } },
+        ),
+      ),
+    ).rejects.toThrow(EpubResourceLimit);
   });
 });

@@ -833,7 +833,11 @@ class EpubRenderer implements ReaderRenderer {
       });
       this.book = book;
       installNativeArchive(book as unknown as Parameters<typeof installNativeArchive>[0]);
-      installEpubTolerance(book as unknown as Parameters<typeof installEpubTolerance>[0]);
+      installEpubTolerance(
+        book as unknown as Parameters<typeof installEpubTolerance>[0],
+        undefined,
+        i18n().t("reader.unreadableChapter"),
+      );
       await book.open(access.url, "epub");
       await book.opened;
       if (signal.aborted || this.disposed) return "error";

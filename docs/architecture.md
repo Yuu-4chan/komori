@@ -726,12 +726,17 @@ Before displaying a book the adapter checks every linear spine document through
 the native archive, without section styling or publishing reading state.
 OPF, NCX and XHTML reads are capped at 2 MiB of UTF-8, with the declared entry
 size checked before reading; spine preflight is capped at 10,000 sections and 64 MiB of
-declared uncompressed content. Invalid content returns `invalid`, exceeded adapter
-bounds return `tooLarge`, and cancellation/book switches discard late results.
+declared uncompressed content. A spine document that is damaged, missing from
+the archive or does not parse after the repairs is shown as a one-line "This
+chapter could not be shown." page (in the interface language, its root marked
+`data-komori-unreadable`) so the rest of the book stays readable; a book with no
+readable linear document returns `invalid`, exceeded adapter bounds return
+`tooLarge` (an oversized chapter still refuses the book), and cancellation/book
+switches discard late results.
 An unreadable optional navigation document resolves to the existing empty
 contents state instead of leaving EPUB.js's navigation promise pending. Import
-continues to validate the package and extract metadata; a cataloged book with a
-damaged chapter receives the honest Reader refusal when opened. Failed opening
+continues to validate the package and extract metadata; a cataloged book whose
+chapters are all damaged receives the honest Reader refusal when opened. Failed opening
 does not overwrite its position or progress. All corrections are in memory:
 the native protocol still serves original bytes, and the source is never changed.
 Invalid-book feedback recommends another copy or an EPUB editor followed by

@@ -23,7 +23,9 @@ shorter than declared or is damaged. Manifest assets count toward the total in
 manifest order as the book opens, before the spine preflight, though each is
 read only when a stylesheet or a shown section names it. A refused or damaged
 asset is left out of
-the pages that name it; a damaged linear document or an exceeded total refuses the
+the pages that name it; a damaged or unparseable spine document is shown as a
+one-line notice page instead of its text, never as parser output. A book with no
+readable linear document, an oversized document or an exceeded total refuses the
 open, which always settles. A refused Reader open leaves
 saved position/progress intact; import and relink retain their existing per-item
 outcomes, cancellation and transactional rollback.

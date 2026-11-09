@@ -1834,6 +1834,7 @@ export const fr: MessageCatalog = {
   "notes.noMatches": "Aucune note correspondante.",
   "notes.jump": "Aller à la note {index}",
   "reader.section": "Section {number}",
+  "reader.unreadableChapter": "Ce chapitre n’a pas pu être affiché.",
   "bookmarks.placeUnavailable": "Cet emplacement n’est pas disponible dans l’EPUB actuel.",
   "notes.edit": "Modifier la note {index}",
   "notes.remove": "Retirer la note {index}",

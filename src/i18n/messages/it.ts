@@ -1816,6 +1816,7 @@ export const it: MessageCatalog = {
   "notes.noMatches": "Nessuna nota corrispondente.",
   "notes.jump": "Vai alla nota {index}",
   "reader.section": "Sezione {number}",
+  "reader.unreadableChapter": "Impossibile mostrare questo capitolo.",
   "bookmarks.placeUnavailable": "Questa posizione non è disponibile nell’EPUB attuale.",
   "notes.edit": "Modifica la nota {index}",
   "notes.remove": "Rimuovi la nota {index}",

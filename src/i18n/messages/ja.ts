@@ -1663,6 +1663,7 @@ export const ja: MessageCatalog = {
   "notes.noMatches": "一致するメモはありません。",
   "notes.jump": "メモ{index}に移動",
   "reader.section": "セクション{number}",
+  "reader.unreadableChapter": "この章は表示できませんでした。",
   "bookmarks.placeUnavailable": "この場所は現在のEPUBにありません。",
   "notes.edit": "メモ{index}を編集",
   "notes.remove": "メモ{index}を削除",

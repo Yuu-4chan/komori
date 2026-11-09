@@ -1776,6 +1776,7 @@ export const de: MessageCatalog = {
   "notes.noMatches": "Keine passenden Notizen.",
   "notes.jump": "Zu Notiz {index} springen",
   "reader.section": "Abschnitt {number}",
+  "reader.unreadableChapter": "Dieses Kapitel konnte nicht angezeigt werden.",
   "bookmarks.placeUnavailable": "Diese Stelle ist in der aktuellen EPUB nicht verfügbar.",
   "notes.edit": "Notiz {index} bearbeiten",
   "notes.remove": "Notiz {index} entfernen",

@@ -1820,6 +1820,7 @@ export const es: MessageCatalog = {
   "notes.noMatches": "No hay notas que coincidan.",
   "notes.jump": "Ir a la nota {index}",
   "reader.section": "Sección {number}",
+  "reader.unreadableChapter": "No se pudo mostrar este capítulo.",
   "bookmarks.placeUnavailable": "Esta posición no está disponible en el EPUB actual.",
   "notes.edit": "Editar la nota {index}",
   "notes.remove": "Quitar la nota {index}",

@@ -1758,6 +1758,7 @@ export const ptBR: MessageCatalog = {
   "notes.noMatches": "Nenhuma nota corresponde.",
   "notes.jump": "Ir para a nota {index}",
   "reader.section": "Seção {number}",
+  "reader.unreadableChapter": "Não foi possível mostrar este capítulo.",
   "bookmarks.placeUnavailable": "Este local não está disponível no EPUB atual.",
   "notes.edit": "Editar a nota {index}",
   "notes.remove": "Remover a nota {index}",

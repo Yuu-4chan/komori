@@ -1797,6 +1797,7 @@ export const en = {
   "notes.noMatches": "No matching notes.",
   "notes.jump": "Jump to note {index}",
   "reader.section": "Section {number}",
+  "reader.unreadableChapter": "This chapter could not be shown.",
   "bookmarks.placeUnavailable": "This place is unavailable in the current EPUB.",
   "notes.edit": "Edit note {index}",
   "notes.remove": "Remove note {index}",

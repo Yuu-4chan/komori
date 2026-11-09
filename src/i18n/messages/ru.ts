@@ -1850,6 +1850,7 @@ export const ru: MessageCatalog = {
   "notes.noMatches": "Подходящих заметок нет.",
   "notes.jump": "Перейти к заметке {index}",
   "reader.section": "Раздел {number}",
+  "reader.unreadableChapter": "Не удалось показать эту главу.",
   "bookmarks.placeUnavailable": "Это место недоступно в текущем EPUB.",
   "notes.edit": "Изменить заметку {index}",
   "notes.remove": "Удалить заметку {index}",

@@ -1579,6 +1579,7 @@ export const zhTW: MessageCatalog = {
   "notes.noMatches": "沒有匹配的筆記。",
   "notes.jump": "跳到筆記{index}",
   "reader.section": "第{number}部分",
+  "reader.unreadableChapter": "無法顯示此章節。",
   "bookmarks.placeUnavailable": "此位置在當前EPUB中不可用。",
   "notes.edit": "編輯筆記{index}",
   "notes.remove": "移除筆記{index}",

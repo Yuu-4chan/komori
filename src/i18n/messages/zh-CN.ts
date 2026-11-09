@@ -1579,6 +1579,7 @@ export const zhCN: MessageCatalog = {
   "notes.noMatches": "没有匹配的笔记。",
   "notes.jump": "跳到笔记{index}",
   "reader.section": "第{number}部分",
+  "reader.unreadableChapter": "无法显示此章节。",
   "bookmarks.placeUnavailable": "此位置在当前EPUB中不可用。",
   "notes.edit": "编辑笔记{index}",
   "notes.remove": "移除笔记{index}",
