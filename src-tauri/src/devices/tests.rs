@@ -69,10 +69,14 @@ fn a_phone_pairs_with_the_code_and_then_reads_the_library_without_paths() {
     let pc = pc();
     let unpaired = Client::new("127.0.0.1", pc.port, None, None).unwrap();
     assert_eq!(run(unpaired.library()).unwrap_err(), LinkError::NotPaired);
+    // Before pairing, the PC tells only the protocol it speaks: no name, no version.
+    let hello = run(unpaired.hello()).unwrap();
+    assert_eq!((hello.protocol, hello.name), (protocol::PROTOCOL, None));
 
     let code = pc.shared.code();
     let pairing = pair(&pc, &code).unwrap();
     assert_eq!(pc.shared.device_names(), ["Test phone"]);
+    assert_eq!(pairing.pc_name, super::pc_name());
     // A code pairs one phone.
     assert_ne!(pc.shared.code(), code);
 
@@ -233,7 +237,8 @@ fn a_paired_phone_syncs_its_reading_and_the_pc_notes_when() {
     let pc = pc();
     let pairing = pair(&pc, &pc.shared.code()).unwrap();
     let client = paired(&pc, &pairing);
-    assert_eq!(run(client.hello()).unwrap().protocol, 2);
+    let hello = run(client.hello()).unwrap();
+    assert_eq!((hello.protocol, hello.name), (2, Some(super::pc_name())));
     let book = run(client.library()).unwrap().books.remove(0);
 
     // The phone has a copy of the PC's book under the PC's ID, and read some of it.

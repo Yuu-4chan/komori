@@ -614,15 +614,16 @@ fn route(
     let path = request.path.as_str();
     match (request.method.as_str(), path) {
         ("GET", "/v1/hello") => {
+            // Anyone on the network learns only that Komori answers; a paired phone, its name.
+            let name = authenticate(shared, request.authorization.as_deref()).map(|_| pc_name());
             return http::respond_json(
                 stream,
                 200,
                 &Hello {
                     protocol: protocol::PROTOCOL,
-                    name: pc_name(),
-                    version: env!("CARGO_PKG_VERSION").to_owned(),
+                    name,
                 },
-            )
+            );
         }
         ("POST", "/v1/pair/start") => return pair_start(shared, request, stream),
         ("POST", "/v1/pair/finish") => return pair_finish(shared, certificate, request, stream),
@@ -948,6 +949,7 @@ fn pair_finish(
             proof: encode(&protocol::pc_proof(&pending.key, certificate)),
             token: encode(&token),
             device: id,
+            name: pc_name(),
         },
     )
 }

@@ -270,7 +270,7 @@ impl Client {
 
     /// Pairs with the code the PC shows, as `device`.
     pub(crate) async fn pair(&self, code: &str, device: &str) -> Result<Pairing, LinkError> {
-        let hello = self.hello().await?;
+        self.hello().await?;
         let (state, message) = protocol::start_phone(code);
         let started: PairStarted = self
             .json(
@@ -307,7 +307,7 @@ impl Client {
         let token = decode(&paired.token).filter(|token| token.len() == 32);
         match (proven, token) {
             (true, Some(token)) => Ok(Pairing {
-                pc_name: hello.name,
+                pc_name: paired.name,
                 fingerprint,
                 token,
                 device: paired.device,

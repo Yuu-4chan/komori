@@ -511,7 +511,7 @@ pub async fn check_pc(catalog: State<'_, CatalogState>) -> Result<PcStatus, Stri
     Ok(match checked.await {
         Ok(hello) => PcStatus {
             status: "connected".into(),
-            name: Some(hello.name),
+            name: hello.name.or(link.pc_name),
         },
         Err(error) => PcStatus {
             status: error.code(),

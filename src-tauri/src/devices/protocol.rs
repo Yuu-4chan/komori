@@ -22,12 +22,13 @@ pub(crate) const PAIRING_ATTEMPTS: u32 = 5;
 const PHONE: &[u8] = b"komori-phone";
 const PC: &[u8] = b"komori-pc";
 
+/// What the PC answers anyone: the protocol it speaks, and its name to a paired phone only.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Hello {
     pub(crate) protocol: u32,
-    pub(crate) name: String,
-    pub(crate) version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -59,6 +60,8 @@ pub(crate) struct Paired {
     pub(crate) proof: String,
     pub(crate) token: String,
     pub(crate) device: String,
+    /// The PC's name, told only once the phone has proven the code.
+    pub(crate) name: String,
 }
 
 /// A book in the PC's Library, as a phone sees it: no path, only its catalog ID.
