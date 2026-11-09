@@ -1666,6 +1666,15 @@ its curated starter dictionaries only when the lookup language is Japanese. Thes
 dictionaries have no source role: turning one off in Settings hides it. Anki's `{{ipa}}` field holds
 them joined by commas.
 
+When no imported dictionary of the lookup language supplies definitions, the Reader popup says No
+dictionaries yet with a Get dictionaries link to Settings > Dictionary, naming Japanese's starter
+dictionaries or, for another language, saying No dictionary for Italian is imported. A lookup that
+matches nothing in a book whose language is another lookup language (its primary subtag as a two-
+or three-letter code, as for a dictionary) with no definition dictionary says No dictionary for that
+language is imported, with the same link in place of Open in dictionary; otherwise it says No
+imported dictionary matches this text or the words it starts with. The Reader reads the dictionary
+list once for the lookup language and once for such a book's language.
+
 ## Reader lookup
 
 Settings > Reader popup's Scanning and results card saves `readerPopupCjkOnly`

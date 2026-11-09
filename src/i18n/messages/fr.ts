@@ -1808,6 +1808,7 @@ export const fr: MessageCatalog = {
     "La recherche n’a pas pu aboutir. Sélectionnez de nouveau le texte pour réessayer.",
   "popup.noMatches":
     "Aucun dictionnaire importé ne correspond à ce texte ni aux mots par lesquels il commence.",
+  "popup.noLanguageDictionary": "Aucun dictionnaire n’est importé pour cette langue ({language}).",
   "popupPreview.title": "Aperçu du popup",
   "popupPreview.description":
     "{query} recherché dans vos dictionnaires importés, tel que le popup du lecteur l’affiche.",

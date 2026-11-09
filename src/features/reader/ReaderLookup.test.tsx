@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,6 +14,7 @@ import {
 } from "../dictionary/dictionaryApi";
 import type { ReaderRendererFactory, ReaderSelection } from "./renderer";
 import { ReaderShell } from "./ReaderShell";
+import type { ReaderIdentity } from "./readerIdentity";
 import { readerFooterChoices } from "./footerPreferences";
 import { watchTextSelection } from "./textSelection";
 import { defaultLookupTriggers } from "./lookupTriggers";
@@ -221,6 +222,7 @@ async function openReader(
   canAdvance = true,
   area = { left: 0, top: 0, right: 1000, bottom: 800 },
   popupSize?: Partial<AppearancePreferences>,
+  identity?: ReaderIdentity,
 ) {
   const pageActions = {
     setLookupTriggers: vi.fn(),
@@ -279,7 +281,10 @@ async function openReader(
       >
         <PopupControl />
         <Routes>
-          <Route path="/reader" element={<ReaderShell rendererFactory={factory} />} />
+          <Route
+            path="/reader"
+            element={<ReaderShell rendererFactory={factory} identity={identity} />}
+          />
           <Route path="/dictionary" element={<DictionaryLocation />} />
         </Routes>
       </AppearanceProvider>
@@ -1369,6 +1374,57 @@ describe("Reader lookup popup", () => {
     act(() => window.dispatchEvent(new Event(dictionariesChanged)));
     expect(await within(popup).findByText("No matches")).toBeInTheDocument();
     expect(within(popup).queryByRole("link", { name: "Get dictionaries" })).toBeNull();
+  });
+
+  it("says when no dictionary of the lookup language, or of a book in another, is imported", async () => {
+    // Lookups read Italian, and only Japanese dictionaries are imported.
+    const italian = await openReader(true, undefined, { lookupLanguage: "it" });
+    italian.select(horizontal("casa"));
+    let popup = await screen.findByRole("dialog");
+    expect(await within(popup).findByText("No dictionaries yet")).toBeInTheDocument();
+    expect(within(popup).getByText("No dictionary for Italian is imported.")).toBeInTheDocument();
+    cleanup();
+
+    // An Italian book while lookups read Japanese.
+    const book = {
+      id: "11111111-1111-4111-8111-111111111111",
+      title: "Le avventure di Pinocchio",
+      author: "Carlo Collodi",
+      availability: "available" as const,
+      hasCover: false,
+      language: "IT-it",
+      series: null,
+      seriesIndex: null,
+    };
+    const reader = await openReader(true, undefined, undefined, {
+      status: "book",
+      book,
+      cover: null,
+    });
+    reader.select(horizontal("casa"));
+    popup = await screen.findByRole("dialog");
+    expect(
+      await within(popup).findByText("No dictionary for Italian is imported."),
+    ).toBeInTheDocument();
+    expect(within(popup).getByText("No matches")).toBeInTheDocument();
+    expect(within(popup).getByRole("link", { name: "Get dictionaries" })).toHaveAttribute(
+      "href",
+      "/settings?section=dictionary",
+    );
+    expect(within(popup).queryByRole("button", { name: "Open casa in dictionary" })).toBeNull();
+    // With an Italian dictionary, a Japanese lookup that matches nothing reads as before.
+    listMock.mockResolvedValue([
+      summary(1, "Jitendex", true),
+      { ...summary(2, "Dizionario", true), language: "it" },
+    ]);
+    act(() => window.dispatchEvent(new Event(dictionariesChanged)));
+    expect(
+      await within(popup).findByText(
+        "No imported dictionary matches this text or the words it starts with.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(popup).queryByRole("link", { name: "Get dictionaries" })).toBeNull();
+    expect(within(popup).getByRole("button", { name: "Open casa in dictionary" })).toBeVisible();
   });
 
   it("clears a scan on close and never paints its late response", async () => {

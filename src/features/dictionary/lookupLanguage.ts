@@ -38,6 +38,33 @@ export const isDefinitionLanguage = (value: unknown): value is DefinitionLanguag
 export const isLookupLanguage = (value: unknown): value is LookupLanguage =>
   lookupLanguages.includes(value as LookupLanguage);
 
+const threeLetterCodes: Record<string, LookupLanguage> = {
+  jpn: "ja",
+  eng: "en",
+  fra: "fr",
+  fre: "fr",
+  por: "pt",
+  ita: "it",
+  spa: "es",
+  kor: "ko",
+  zho: "zh",
+  chi: "zh",
+  cmn: "zh",
+  yue: "zh",
+  deu: "de",
+  ger: "de",
+  rus: "ru",
+};
+
+/**
+ * The lookup language a language tag (a book's, say) names by its primary subtag, in either case,
+ * as a two- or three-letter code (`it-IT`, `IT`, `ita`), as native code reads a dictionary's.
+ */
+export function lookupLanguageOf(tag: string | null | undefined): LookupLanguage | undefined {
+  const primary = tag?.trim().split(/[-_]/u)[0]?.toLowerCase() ?? "";
+  return isLookupLanguage(primary) ? primary : threeLetterCodes[primary];
+}
+
 /** Whether the language spaces its words, so a lookup starts at the word under the pointer. */
 export const spacesWords = (language: LookupLanguage) => language !== "ja" && language !== "zh";
 

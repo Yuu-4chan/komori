@@ -1796,6 +1796,7 @@ export const es: MessageCatalog = {
     "No se pudo completar la búsqueda. Vuelve a seleccionar el texto para reintentarlo.",
   "popup.noMatches":
     "Ningún diccionario importado coincide con este texto ni con las palabras con que empieza.",
+  "popup.noLanguageDictionary": "No hay ningún diccionario de {language} importado.",
   "popupPreview.title": "Vista previa de la ventana emergente",
   "popupPreview.description":
     "{query} buscado en tus diccionarios importados, tal como lo muestra la ventana emergente del lector.",

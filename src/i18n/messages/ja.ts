@@ -1640,6 +1640,7 @@ export const ja: MessageCatalog = {
   "popup.previewFailed": "辞書を引けませんでした。設定を開き直して再試行してください。",
   "popup.failed": "辞書を引けませんでした。文字をもう一度選択して再試行してください。",
   "popup.noMatches": "この文や、その先頭から始まる語に一致する辞書はありません。",
+  "popup.noLanguageDictionary": "{language}の辞書はインポートされていません。",
   "popupPreview.title": "ポップアップのプレビュー",
   "popupPreview.description": "取り込んだ辞書で{query}を引いた、読書画面のポップアップの表示です。",
   "notes.editorDescription": "選択した一節にメモを残します。EPUBは変更されません。",

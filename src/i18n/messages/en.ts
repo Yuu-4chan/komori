@@ -1771,6 +1771,7 @@ export const en = {
   "popup.previewFailed": "Lookup could not be completed. Open Settings again to retry.",
   "popup.failed": "Lookup could not be completed. Select the text again to retry.",
   "popup.noMatches": "No imported dictionary matches this text or the words it starts with.",
+  "popup.noLanguageDictionary": "No dictionary for {language} is imported.",
   "popupPreview.title": "Popup preview",
   "popupPreview.description":
     "{query} looked up in your imported dictionaries, as the reader's popup shows it.",

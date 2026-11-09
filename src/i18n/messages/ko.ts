@@ -1627,6 +1627,7 @@ export const ko: MessageCatalog = {
   "popup.previewFailed": "사전을 찾지 못했습니다. 설정을 다시 열어 다시 시도하세요.",
   "popup.failed": "사전을 찾지 못했습니다. 글자를 다시 선택해 다시 시도하세요.",
   "popup.noMatches": "이 글이나 그 앞부분으로 시작하는 단어와 일치하는 사전이 없습니다.",
+  "popup.noLanguageDictionary": "{language} 사전을 가져오지 않았습니다.",
   "popupPreview.title": "팝업 미리 보기",
   "popupPreview.description":
     "가져온 사전에서 {query}을(를) 찾은 결과를 뷰어 팝업처럼 보여 줍니다.",

@@ -1734,6 +1734,7 @@ export const ptBR: MessageCatalog = {
     "Não foi possível concluir a consulta. Selecione o texto de novo para tentar outra vez.",
   "popup.noMatches":
     "Nenhum dicionário importado corresponde a este texto ou às palavras com que ele começa.",
+  "popup.noLanguageDictionary": "Nenhum dicionário de {language} foi importado.",
   "popupPreview.title": "Prévia do pop-up",
   "popupPreview.description":
     "{query} consultado nos seus dicionários importados, como o pop-up do leitor mostra.",

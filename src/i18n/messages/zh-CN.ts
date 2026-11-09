@@ -1556,6 +1556,7 @@ export const zhCN: MessageCatalog = {
   "popup.previewFailed": "无法完成查词。请重新打开设置后重试。",
   "popup.failed": "无法完成查词。请重新选择文字后重试。",
   "popup.noMatches": "没有已导入的词典与此文本或以其开头的词语匹配。",
+  "popup.noLanguageDictionary": "尚未导入{language}词典。",
   "popupPreview.title": "弹窗预览",
   "popupPreview.description": "在已导入的词典中查询{query}，按阅读器弹窗的样子显示。",
   "notes.editorDescription": "为所选段落记下想法。EPUB不会被修改。",

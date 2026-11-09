@@ -25,6 +25,7 @@ import { characterAtPoint, textFromCharacter, wordStart } from "./textSelection"
 import type { ReaderRect } from "./renderer";
 import { activateExpression } from "./popupShortcuts";
 import { usePopupFont } from "./popupFont";
+import type { LookupLanguage } from "../dictionary/lookupLanguage";
 
 /** The popup's box: the preview keeps the saved height, a lookup shrinks to its content. */
 function fitted(placement: ReaderLookupPopupProps["placement"], preview?: boolean): CSSProperties {
@@ -78,6 +79,11 @@ interface ReaderLookupPopupProps {
    * Reader for all its popups. The settings preview sits beside its own source settings.
    */
   definitionSources?: boolean | null;
+  /**
+   * The book's language when lookups read another and no imported dictionary of the book's
+   * language supplies definitions: a lookup that matches nothing says so.
+   */
+  bookWithoutDictionary?: LookupLanguage;
 }
 
 /**
@@ -98,9 +104,13 @@ export function ReaderLookupPopup({
   preview = false,
   retry = 0,
   definitionSources = null,
+  bookWithoutDictionary,
 }: ReaderLookupPopupProps) {
   const appearance = useAppearance();
-  const { t } = useI18n();
+  const i18n = useI18n();
+  const { t } = i18n;
+  const noDictionaryFor = (language: LookupLanguage) =>
+    t("popup.noLanguageDictionary", { language: i18n.languageName(language) ?? language });
   const {
     readerPopupDefinitionSources,
     readerPopupFrequencySources,
@@ -249,7 +259,11 @@ export function ReaderLookupPopup({
             <EmptyState
               icon={TranslateIcon}
               title={t("dictionaryPage.noDictionaries")}
-              description={t("dictionaryPage.noDictionariesHint")}
+              description={
+                lookupLanguage === "ja"
+                  ? t("dictionaryPage.noDictionariesHint")
+                  : noDictionaryFor(lookupLanguage)
+              }
             />
             <Link className="button button--secondary" to="/settings?section=dictionary">
               {t("dictionaryPage.getDictionaries")}
@@ -261,9 +275,19 @@ export function ReaderLookupPopup({
             <EmptyState
               icon={TranslateIcon}
               title={t("dictionaryPage.noMatches")}
-              description={t("popup.noMatches")}
+              description={
+                bookWithoutDictionary
+                  ? noDictionaryFor(bookWithoutDictionary)
+                  : t("popup.noMatches")
+              }
             />
-            {!dictionaryStyle && <OpenInDictionary term={query} onOpen={onSearchTerm} />}
+            {bookWithoutDictionary ? (
+              <Link className="button button--secondary" to="/settings?section=dictionary">
+                {t("dictionaryPage.getDictionaries")}
+              </Link>
+            ) : (
+              !dictionaryStyle && <OpenInDictionary term={query} onOpen={onSearchTerm} />
+            )}
           </div>
         )}
         {lookup && entryCount > 0 && (

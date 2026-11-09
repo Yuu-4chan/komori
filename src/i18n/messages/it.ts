@@ -1791,6 +1791,7 @@ export const it: MessageCatalog = {
   "popup.failed": "Impossibile completare la ricerca. Seleziona di nuovo il testo per riprovare.",
   "popup.noMatches":
     "Nessun dizionario importato corrisponde a questo testo o alle parole con cui inizia.",
+  "popup.noLanguageDictionary": "Nessun dizionario di {language} è stato importato.",
   "popupPreview.title": "Anteprima del popup",
   "popupPreview.description":
     "{query} cercato nei dizionari importati, come lo mostra il popup del lettore.",

@@ -68,6 +68,7 @@ import type {
 } from "./renderer";
 import { ReaderLookupPopup, type ChildLookupRequest } from "./ReaderLookupPopup";
 import { useDefinitionSources } from "../dictionary/definitionSources";
+import { lookupLanguageOf } from "../dictionary/lookupLanguage";
 import { ReaderReadingStatus, ReadingSpeedValue, useReadingSpeed } from "./ReaderReadingStatus";
 import type { ReadingSpeed } from "../statistics/readingSession";
 import type { ReaderFooterPreferences } from "./footerPreferences";
@@ -308,6 +309,11 @@ export function ReaderShell({
   const [lookups, setLookups] = useState<Lookup[]>([]);
   // Read once for the book's popups rather than once per lookup.
   const definitionSources = useDefinitionSources(true, lookupLanguage);
+  // A book in another lookup language than lookups read, with no dictionary of its own.
+  const bookLookupLanguage = lookupLanguageOf(bookLanguage);
+  const otherLanguage = bookLookupLanguage !== lookupLanguage ? bookLookupLanguage : undefined;
+  const otherDefinitions = useDefinitionSources(otherLanguage !== undefined, otherLanguage);
+  const bookWithoutDictionary = otherDefinitions === false ? otherLanguage : undefined;
   const lookup = lookups[0] ?? null;
   const lookupOpen = useRef(false);
   // When a press last closed the lookup, so the phone's tap that did reads on no further.
@@ -1595,6 +1601,7 @@ export function ReaderShell({
       }
       placement={shown.placement}
       definitionSources={definitionSources}
+      bookWithoutDictionary={bookWithoutDictionary}
       query={shown.query}
       readerContext={{
         sentence: lookup?.sentence,

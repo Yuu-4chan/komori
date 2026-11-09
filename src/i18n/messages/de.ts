@@ -1751,6 +1751,7 @@ export const de: MessageCatalog = {
     "Die Suche konnte nicht abgeschlossen werden. Markiere den Text erneut, um es noch einmal zu versuchen.",
   "popup.noMatches":
     "Kein importiertes Wörterbuch passt zu diesem Text oder den Wörtern, mit denen er beginnt.",
+  "popup.noLanguageDictionary": "Für {language} ist kein Wörterbuch importiert.",
   "popupPreview.title": "Popup-Vorschau",
   "popupPreview.description":
     "{query} in deinen importierten Wörterbüchern nachgeschlagen, so wie das Leser-Popup es anzeigt.",
