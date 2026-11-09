@@ -1081,6 +1081,33 @@
   font-weight: 600;
 }
 
+/* Disconnected for a reason: the status opens Settings > Sync. */
+.mobile-pc-status__open {
+  min-width: 0;
+  min-height: 2.25rem;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: start;
+}
+
+.mobile-pc-status__open > span {
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-pc-status__caret {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
 /* Sync now and Try again, the same small button. */
 .mobile-pc-status__action {
   height: 2.25rem;

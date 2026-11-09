@@ -539,6 +539,7 @@ function LibraryContent({ group }: { group: string | null }) {
     <PcStatusRow
       connection={pc.connection}
       lastSynced={link?.lastSynced ?? null}
+      onOpenSync={() => navigate("/settings?section=sync")}
       onRetry={() => void relistPc()}
       onSync={() => void syncNow()}
       pcName={pcName}

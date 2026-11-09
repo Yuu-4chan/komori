@@ -1,4 +1,4 @@
-import { ArrowsClockwiseIcon, CheckIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -193,11 +193,13 @@ export function usePcBookActions() {
 
 /**
  * The PC's status above the Library: Connected · Synced … with Sync now, the last sync until
- * the PC answers in this session, or why it does not with Try again.
+ * the PC answers in this session, or why it does not with Try again. Once the PC has not
+ * answered, the status opens Settings > Sync, which says why and what to do.
  */
 export function PcStatusRow({
   connection,
   lastSynced,
+  onOpenSync,
   onRetry,
   onSync,
   pcName,
@@ -205,6 +207,7 @@ export function PcStatusRow({
 }: {
   connection: PcConnection;
   lastSynced: string | null;
+  onOpenSync: () => void;
   onRetry: () => void;
   onSync: () => void;
   pcName: string;
@@ -213,26 +216,39 @@ export function PcStatusRow({
   const { t } = useI18n();
   const connected = connection === "connected";
   // Until the PC answers, while it is still asked too, the row says Disconnected; a reason the
-  // PC did not answer is the row's title.
+  // PC did not answer is the row's title and the status's description.
+  const reason =
+    connected || connection === "unknown" ? undefined : t(connection, { name: pcName });
   const synced = timeAgo(lastSynced);
+  const status = (
+    <span>
+      <span className="mobile-pc-status__label">
+        {t(connected ? "sync.connectedShort" : "sync.disconnectedShort")}
+      </span>
+      {synced ? <small>{` · ${t("sync.syncedShort", { time: synced })}`}</small> : null}
+    </span>
+  );
   return (
-    <div
-      className="mobile-pc-status"
-      aria-live="polite"
-      title={connected || connection === "unknown" ? undefined : t(connection, { name: pcName })}
-    >
+    <div className="mobile-pc-status" aria-live="polite" title={reason}>
       <span
         aria-hidden="true"
         className={
           connected ? "mobile-sync__dot" : "mobile-sync__dot mobile-sync__dot--disconnected"
         }
       />
-      <span>
-        <span className="mobile-pc-status__label">
-          {t(connected ? "sync.connectedShort" : "sync.disconnectedShort")}
-        </span>
-        {synced ? <small>{` · ${t("sync.syncedShort", { time: synced })}`}</small> : null}
-      </span>
+      {reason ? (
+        <button
+          aria-description={reason}
+          className="mobile-pc-status__open"
+          onClick={onOpenSync}
+          type="button"
+        >
+          {status}
+          <CaretRightIcon aria-hidden="true" className="mobile-pc-status__caret" weight="bold" />
+        </button>
+      ) : (
+        status
+      )}
       <button
         aria-busy={syncing}
         aria-label={t(connected ? "sync.syncNow" : "common.tryAgain")}

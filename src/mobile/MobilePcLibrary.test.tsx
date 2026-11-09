@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
@@ -78,6 +78,10 @@ function ReaderRoute() {
   return <p>Reading {useParams().id}</p>;
 }
 
+function SettingsRoute() {
+  return <p>Settings {useLocation().search}</p>;
+}
+
 function page() {
   return render(
     <AppearanceProvider store={null}>
@@ -85,6 +89,7 @@ function page() {
         <Routes>
           <Route element={<MobileLibraryPage />} path="/" />
           <Route element={<ReaderRoute />} path="/reader/:id" />
+          <Route element={<SettingsRoute />} path="/settings" />
         </Routes>
       </MemoryRouter>
     </AppearanceProvider>,
@@ -280,6 +285,17 @@ describe("the Library on a phone paired with a PC", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Connected")).toBeTruthy();
+  });
+
+  it("opens Settings > Sync from the status once the PC has said why it does not answer", async () => {
+    vi.mocked(api.cachedPcLibrary).mockResolvedValueOnce([remote, kept]);
+    library(paired);
+    vi.mocked(api.listPcLibrary).mockRejectedValueOnce("notPaired");
+    await allBooks();
+    const open = await screen.findByRole("button", { name: /^Disconnected/ });
+    expect(open).toHaveAttribute("aria-description", expect.stringMatching(/pair again/i));
+    await userEvent.click(open);
+    expect(await screen.findByText("Settings ?section=sync")).toBeTruthy();
   });
 
   it("syncs now, listing both Libraries again", async () => {
