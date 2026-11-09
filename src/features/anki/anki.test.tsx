@@ -20,7 +20,7 @@ import {
 import { sentenceAt } from "../reader/textSelection";
 import { AppearanceProvider, useAppearance } from "../appearance/AppearanceProvider";
 import { normalizeAppearancePreferences } from "../appearance/appearancePreferences";
-import { listDictionaries } from "../dictionary/dictionaryApi";
+import { listDictionaries, type TermGroup } from "../dictionary/dictionaryApi";
 vi.mock("../dictionary/dictionaryApi", () => ({ listDictionaries: vi.fn() }));
 
 vi.mock("./ankiApi", async (importOriginal) => ({
@@ -373,6 +373,86 @@ it("reports the affected field and accepts large multi-dictionary glossary check
   expect(await screen.findByRole("button", { name: "Add 読む to Anki" })).toBeEnabled();
   // A check sends the first field alone, never the large glossary.
   expect(vi.mocked(api.noteStatus).mock.calls[0][1]).toEqual([{ type: "text", text: "読む" }]);
+});
+
+it("fills every Lapis field from a long multi-dictionary lookup within Anki's limits", () => {
+  // A long entry as real dictionaries send it: nested structured content beside plain text.
+  const sense = (index: number) => ({
+    tag: "li",
+    content: [
+      { tag: "span", data: { content: "part-of-speech-info" }, content: "verb" },
+      {
+        tag: "ul",
+        content: Array.from({ length: 6 }, (_, n) => ({
+          tag: "li",
+          content: `meaning ${index}.${n}: to take something into one's hand`,
+        })),
+      },
+    ],
+  });
+  const term = { definitionTags: "", rules: "", score: 0, termTags: "", tags: [] };
+  const group: TermGroup = {
+    expression: "取る",
+    reading: "とる",
+    text: "取る",
+    deinflection: null,
+    terms: [
+      {
+        ...term,
+        dictionaryId: 1,
+        dictionaryTitle: "Structured",
+        sequence: 1,
+        glossary: [
+          {
+            type: "structured-content",
+            content: { tag: "ol", content: Array.from({ length: 60 }, (_, i) => sense(i)) },
+          },
+        ],
+      },
+      {
+        ...term,
+        dictionaryId: 2,
+        dictionaryTitle: "Plain",
+        sequence: 2,
+        glossary: ["手に持つ。自分のものにする。".repeat(300)],
+      },
+    ],
+    frequencies: [],
+    pitches: [],
+    transcriptions: [],
+  };
+  const mapping = lapisDefaults([
+    "Expression",
+    "ExpressionFurigana",
+    "ExpressionReading",
+    "ExpressionAudio",
+    "SelectionText",
+    "MainDefinition",
+    "DefinitionPicture",
+    "Sentence",
+    "SentenceFurigana",
+    "SentenceAudio",
+    "Picture",
+    "Glossary",
+    "Hint",
+    "IsWordAndSentenceCard",
+    "IsClickCard",
+    "IsSentenceCard",
+    "IsAudioCard",
+    "PitchPosition",
+    "PitchCategories",
+    "Frequency",
+    "FreqSort",
+    "MiscInfo",
+  ]);
+  const content = cardFields(mapping, termCardSources(group));
+  expect(Object.keys(content.fields).sort()).toEqual([...mapping.fields].sort());
+  expect(validFields(content.fields, mapping.fields)).toBe(true);
+  expect(content.fields.Expression).toBe("取る");
+  const glossary = content.fields.Glossary;
+  expect(new TextEncoder().encode(glossary).length).toBeGreaterThan(16 * 1024);
+  expect(glossary).toContain("meaning 59.5: to take something into one's hand");
+  expect(glossary).toContain("手に持つ。");
 });
 
 describe("One-click Anki actions", () => {
