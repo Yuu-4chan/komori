@@ -919,19 +919,16 @@ fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<Lib
         )
         .optional()
         .map_err(storage_error)?;
-    // On the phone the series is the Library's, named among the PC's books too; its catalog is
-    // small enough to list whole.
+    // On the phone the book is the Library's as listed, its series named among the PC's books
+    // too and marked when it is a PC book's copy, so the Library can take it in place of its
+    // own listing; the catalog is listed whole for it, which reuses the series named last.
     if cfg!(mobile) {
-        if let Some(book) = book.as_mut() {
-            if let Some(listed) = list_from_catalog(connection)?
-                .into_iter()
-                .find(|listed| listed.id == book.id)
-            {
-                book.series = listed.series;
-                book.series_index = listed.series_index;
-            }
+        if book.is_none() {
+            return Ok(None);
         }
-        return Ok(book);
+        return Ok(list_from_catalog(connection)?
+            .into_iter()
+            .find(|listed| listed.id == id));
     }
     if let Some(book) = book.as_mut().filter(|book| !book.series_manual) {
         if appearance_preferences::series_from_titles(connection) {

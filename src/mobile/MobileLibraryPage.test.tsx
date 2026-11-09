@@ -6,14 +6,17 @@ import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 import {
   editBooks,
+  getLibraryBook,
   listLibrary,
   markBooksCompleted,
   removeBooks,
+  scanLibraryFolders,
   setBookSeries,
   type LibraryBook,
 } from "../features/library/libraryApi";
 import { libraryCache } from "../features/library/libraryCache";
 import { MobileLibraryPage } from "./MobileLibraryPage";
+import { pcSynced } from "./pcLinkApi";
 
 vi.mock("../features/library/libraryApi", () => ({
   importBooks: vi.fn(),
@@ -29,6 +32,8 @@ vi.mock("../features/library/libraryApi", () => ({
   resetBookSeries: vi.fn(async () => 1),
   editBooks: vi.fn(async () => {}),
   scanLibraryFolders: vi.fn(async () => []),
+  getLibraryBook: vi.fn(async () => null),
+  onLibraryDetailsUpdated: vi.fn(() => () => {}),
 }));
 
 const reading: LibraryBook = {
@@ -226,6 +231,52 @@ describe("selecting books on the phone", () => {
     await longPress(await tile("人間失格"), () => tile("人間失格"));
     expect(screen.queryByRole("button", { name: "Relink EPUB…" })).toBeNull();
     expect(actions()).toEqual(["Information", "Series…", "Edit…", "Remove"]);
+  });
+});
+
+describe("the phone Library's listing", () => {
+  const counts = (region: HTMLElement) =>
+    [...region.querySelectorAll(".mobile-progress__count")].map((each) => each.textContent);
+
+  it("keeps its listing between showings, reading again only the books opened", async () => {
+    library();
+    await waitFor(async () => expect(titles(await allBooks())).toHaveLength(3));
+    cleanup();
+
+    // Back from the Reader: the books show at once, and only the one read is asked for.
+    libraryCache.touch("book-1");
+    vi.mocked(getLibraryBook).mockResolvedValueOnce({
+      ...reading,
+      progress: { unit: "characters", current: 5_000, total: 10_000 },
+    } as LibraryBook);
+    library();
+    expect(titles(await allBooks())).toHaveLength(3);
+    await waitFor(() =>
+      expect(counts(screen.getByRole("region", { name: "All" }))).toContain("5,000 / 10,000 Ch."),
+    );
+    expect(getLibraryBook).toHaveBeenCalledWith("book-1");
+    expect(listLibrary).toHaveBeenCalledTimes(1);
+    // The book folders are looked in once a session.
+    expect(scanLibraryFolders).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists the catalog whole again after a sync that changed the phone's books", async () => {
+    library();
+    await waitFor(async () => expect(titles(await allBooks())).toHaveLength(3));
+    cleanup();
+
+    const sync = (changed: boolean) =>
+      window.dispatchEvent(new CustomEvent(pcSynced, { detail: { changed, moved: [] } }));
+    sync(false);
+    library([reading, finished, gone]);
+    await allBooks();
+    expect(listLibrary).toHaveBeenCalledTimes(1);
+    cleanup();
+
+    sync(true);
+    library([reading, finished]);
+    await waitFor(async () => expect(titles(await allBooks())).toHaveLength(2));
+    expect(listLibrary).toHaveBeenCalledTimes(2);
   });
 });
 

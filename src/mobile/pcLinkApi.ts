@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 
 import type { LibraryBook, LibraryBookProgress } from "../features/library/libraryApi";
+import { libraryCache } from "../features/library/libraryCache";
 import type { ReaderLocator } from "../features/reader/renderer";
 import type { MessageKey } from "../i18n/i18n";
 import { pcSession } from "./pcLibrarySession";
@@ -104,6 +105,8 @@ export const pcLinkChanged = "komori:pc-link-changed";
 export const pcSynced = "komori:pc-synced";
 
 const changed = <T>(value: T) => {
+  // Which books are the PC's copies, and their series, follow the pairing.
+  libraryCache.markStale();
   window.dispatchEvent(new Event(pcLinkChanged));
   return value;
 };

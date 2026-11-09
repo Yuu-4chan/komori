@@ -11,6 +11,7 @@ All notable changes to Komori are listed here. Versions follow [Semantic Version
 - Chapter swipe threshold sets how many swipes at a chapter's edge turn the chapter on the phone, as Chapter wheel threshold does for the wheel on the PC.
 - Pressing a setting's name no longer opens its dropdown, and the phone no longer flashes a blue box over tapped controls.
 - Swiping along Continue reading no longer starts a sync.
+- The phone's Library opens at once: it lists your books when the app starts and after a sync or an import, and on returning from a book reads only that book again.
 - The Reader's Images sheet on the phone loads its pictures as soon as it opens.
 - A blurred background image keeps its size and framing instead of growing.
 - The installer and Windows name Komori as the publisher.

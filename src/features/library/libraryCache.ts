@@ -36,11 +36,46 @@ let books: LibraryBook[] | null = null;
 let places = new Map<string, ScrollPlace>();
 let rowOffsets = new Map<string, number>();
 let lastPage = "/library";
+// What the phone's Library lists again on its next showing instead of the whole catalog.
+let stale = false;
+let touched = new Set<string>();
+let importVersion = 0;
+let foldersScanned = false;
 
 export const libraryCache = {
   books: () => books,
   setBooks(value: LibraryBook[]) {
     books = value;
+    stale = false;
+    touched = new Set();
+  },
+  /**
+   * The phone's Library keeps its listing between showings. Something that changed the catalog
+   * outside it (a pairing, books' details read in the background) makes it list it whole again.
+   */
+  markStale() {
+    stale = true;
+  },
+  stale: () => stale,
+  /** A book opened in the Reader, which the phone's Library reads again on its return. */
+  touch(id: string) {
+    touched.add(id);
+  },
+  takeTouched() {
+    const ids = [...touched];
+    touched = new Set();
+    return ids;
+  },
+  /** The shell's import count the listing includes. */
+  importVersion: () => importVersion,
+  setImportVersion(value: number) {
+    importVersion = value;
+  },
+  /** Whether the phone looked in its book folders this session. */
+  takeFolderScan() {
+    const first = !foldersScanned;
+    foldersScanned = true;
+    return first;
   },
   /** `page` is the group's key, or "" for the whole Library. */
   place: (page: string) => places.get(page),
@@ -62,5 +97,9 @@ export const libraryCache = {
     places = new Map();
     rowOffsets = new Map();
     lastPage = "/library";
+    stale = false;
+    touched = new Set();
+    importVersion = 0;
+    foldersScanned = false;
   },
 };

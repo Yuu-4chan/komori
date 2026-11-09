@@ -24,7 +24,9 @@ import { BookCover } from "../features/library/BookCover";
 import { BookEditDialog } from "../features/library/BookEditDialog";
 import {
   editBooks,
+  getLibraryBook,
   listLibrary,
+  onLibraryDetailsUpdated,
   markBooksCompleted,
   relinkBook,
   removeBook,
@@ -124,6 +126,13 @@ const onThisPhone = (item: Item) => item.kind === "phone" || item.entry.pc.kept;
  * what applies to them: Information for one book, Series…, Edit…, Mark as completed and Remove
  * for the phone's books, Keep on this phone and Remove from this phone for the PC's.
  */
+// Wherever the phone is, a sync that changed its books and books' details read in the
+// background make the Library's listing old, so its next showing lists the catalog again.
+onPcSynced((sync) => {
+  if (sync.changed) libraryCache.markStale();
+});
+onLibraryDetailsUpdated(() => libraryCache.markStale());
+
 export function MobileLibraryPage() {
   const [params] = useSearchParams();
   const group = params.get("group");
@@ -155,13 +164,17 @@ function LibraryContent({ group }: { group: string | null }) {
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [info, setInfo] = useState<LibraryBook | null>(null);
   const requests = useRef(0);
+  const importVersion = useRef(imports.version);
+  importVersion.current = imports.version;
 
   const refresh = useCallback(async () => {
     const request = ++requests.current;
+    const version = importVersion.current;
     try {
       const books = await listLibrary();
       if (request !== requests.current) return false;
       libraryCache.setBooks(books);
+      libraryCache.setImportVersion(version);
       setListing({ status: "ready", books });
       return true;
     } catch (error) {
@@ -178,14 +191,47 @@ function LibraryContent({ group }: { group: string | null }) {
   // Import results show while the Library is open and are cleared once it is left.
   const { view: viewImports } = imports;
   useEffect(() => viewImports(), [viewImports]);
-  // Lists again on every visit and after each import that added to the catalog.
+  // Reads the books opened since the last showing again, and nothing else.
+  const refreshBooks = useCallback(
+    async (ids: string[]) => {
+      const request = ++requests.current;
+      try {
+        const fresh = new Map(
+          await Promise.all(ids.map(async (id) => [id, await getLibraryBook(id)] as const)),
+        );
+        if (request !== requests.current) return;
+        const current = libraryCache.books() ?? [];
+        const books = current.flatMap((book) =>
+          fresh.has(book.id) ? (fresh.get(book.id) ?? []) : [book],
+        );
+        const known = new Set(current.map((book) => book.id));
+        for (const book of fresh.values()) if (book && !known.has(book.id)) books.push(book);
+        libraryCache.setBooks(books);
+        setListing({ status: "ready", books });
+      } catch {
+        if (request === requests.current) void refresh();
+      }
+    },
+    [refresh],
+  );
+
+  // The catalog is listed whole when the app starts, after an import, a sync or a pull, and
+  // when something outside the Library changed it; a showing otherwise keeps the last listing,
+  // with the books read since then read again.
   useEffect(() => {
-    void refresh();
-  }, [refresh, imports.version]);
-  // Each visit also looks for new books in the book folders, as on the PC.
+    const touched = libraryCache.takeTouched();
+    if (
+      !libraryCache.books() ||
+      libraryCache.stale() ||
+      imports.version !== libraryCache.importVersion()
+    )
+      void refresh();
+    else if (touched.length) void refreshBooks(touched);
+  }, [refresh, refreshBooks, imports.version]);
+  // The book folders are looked in once a session, and on each sync or pull.
   const { scanFolders } = imports;
   useEffect(() => {
-    void scanFolders();
+    if (libraryCache.takeFolderScan()) void scanFolders();
   }, [scanFolders]);
 
   const { link, settled: linkSettled } = usePcLinkState();
@@ -202,14 +248,16 @@ function LibraryContent({ group }: { group: string | null }) {
   useEffect(
     () =>
       onPcSynced((sync) => {
-        void refresh();
+        if (sync.changed) void refresh();
+        void scanFolders();
         if (pcActive) void (changesPcListing(sync) ? relistPc() : relistStalePc());
       }),
-    [refresh, pcActive, relistPc, relistStalePc],
+    [refresh, pcActive, relistPc, relistStalePc, scanFolders],
   );
   const [syncing, setSyncing] = useState(false);
   // Pulling the Library down, or Sync now, syncs with the PC and lists both again.
   const syncNow = useCallback(async () => {
+    void scanFolders();
     if (!pcActive) {
       await refresh();
       return;
@@ -218,13 +266,14 @@ function LibraryContent({ group }: { group: string | null }) {
     try {
       // Asked for, the PC's books are listed again whatever the sync did.
       pcSession.markStale();
-      await syncPc();
+      // …and the phone's, which the sync lists itself when it changed them.
+      if (!(await syncPc()).changed) await refresh();
     } catch {
       await Promise.all([refresh(), relistPc()]);
     } finally {
       setSyncing(false);
     }
-  }, [pcActive, refresh, relistPc]);
+  }, [pcActive, refresh, relistPc, scanFolders]);
 
   const allBooks = listing.books;
   const pcEntries = pc.entries;
