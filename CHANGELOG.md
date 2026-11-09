@@ -11,6 +11,7 @@ All notable changes to Komori are listed here. Versions follow [Semantic Version
 - Web links in books and dictionaries open in the browser.
 - One broken chapter no longer makes a whole book unopenable, and one unreadable dictionary entry no longer fails the whole lookup.
 - Backups no longer include the AnkiConnect key, and a dictionary's title can no longer put script into Anki cards.
+- The installer shows Komori's icon instead of a generic one.
 
 ## 2.0.0
 

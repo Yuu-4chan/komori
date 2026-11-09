@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // Android recreates an activity for a configuration change it does not handle itself, and
@@ -43,5 +44,28 @@ describe("Android activity", () => {
     expect(
       [...paths.matchAll(/<([\w-]+-path)\s[^>]*path="([^"]*)"/gu)].map((m) => [m[1], m[2]]),
     ).toEqual([["cache-path", "ankidroid/"]]);
+  });
+
+  it("launches with Komori's icon, not the Android project's placeholder", () => {
+    const manifest = readFileSync(`${main}/AndroidManifest.xml`, "utf8");
+    expect(manifest).toContain('android:icon="@mipmap/ic_launcher"');
+    expect(manifest).toContain('android:roundIcon="@mipmap/ic_launcher_round"');
+    // scripts/app-icons.mjs renders them into src-tauri/icons/android and copies them here.
+    const rendered = "src-tauri/icons/android";
+    const files = readdirSync(rendered, { recursive: true, withFileTypes: true })
+      .filter((entry) => entry.isFile())
+      .map((entry) => join(entry.parentPath, entry.name).slice(rendered.length + 1));
+    expect(files).toEqual(
+      expect.arrayContaining([
+        join("mipmap-anydpi-v26", "ic_launcher.xml"),
+        join("mipmap-xxxhdpi", "ic_launcher_foreground.png"),
+        join("mipmap-xxxhdpi", "ic_launcher_background.png"),
+      ]),
+    );
+    for (const file of files)
+      expect(
+        readFileSync(join(`${main}/res`, file)).equals(readFileSync(join(rendered, file))),
+        file,
+      ).toBe(true);
   });
 });

@@ -38,6 +38,15 @@ const absolutePath =
 const sourcePath =
   /(?<![\w./-])(?:src-tauri[\\/]|src[\\/](?:features|app|components)[\\/])[\w./\\-]+/gu;
 
+/** The images of an .ico file, as Windows stores each one in an executable's icon resources. */
+export function icoImages(bytes) {
+  return Array.from({ length: bytes.readUInt16LE(4) }, (_, index) => {
+    const entry = 6 + index * 16;
+    const offset = bytes.readUInt32LE(entry + 12);
+    return bytes.subarray(offset, offset + bytes.readUInt32LE(entry + 8));
+  });
+}
+
 /** The source files and folders the notices name on purpose, as the GPL and font licenses ask. */
 export const namedSources = [
   "src-tauri/src/dictionary/deinflect.rs",
@@ -108,6 +117,12 @@ function main(root = process.cwd(), args = process.argv.slice(2)) {
     check(
       versions?.file.startsWith(`${version}.`) && versions?.product.startsWith(`${version}.`),
       `${name} file and product version ${versions?.file} / ${versions?.product}`,
+    );
+    // Komori's icon, not Tauri's or NSIS's default, in Explorer, the taskbar and the download.
+    const icons = icoImages(readFileSync(join(root, "src-tauri", "icons", "icon.ico")));
+    check(
+      icons.every((image) => bytes.includes(image)),
+      `${name} has Komori's icon (${icons.filter((image) => bytes.includes(image)).length}/${icons.length} images)`,
     );
   }
 

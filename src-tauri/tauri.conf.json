@@ -33,7 +33,12 @@
     "active": true,
     "targets": ["nsis"],
     "publisher": "Yuu-4chan",
-    "copyright": "Copyright (C) 2026 Yuu-4chan"
+    "copyright": "Copyright (C) 2026 Yuu-4chan",
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico"
+      }
+    }
   },
   "plugins": {
     "updater": {

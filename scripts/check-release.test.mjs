@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { namedSources, pathsIn, peSubsystem, peVersions } from "./check-release.mjs";
+import { icoImages, namedSources, pathsIn, peSubsystem, peVersions } from "./check-release.mjs";
 
 /** A minimal PE image: DOS header, PE signature, subsystem and a fixed version resource. */
 function pe(subsystem, [major, minor, patch]) {
@@ -49,5 +49,19 @@ describe("release checks", () => {
       ...readFileSync("scripts/third-party-notices.mjs", "utf8").matchAll(/note: "([^"]*)"/gu),
     ].map((match) => match[1]);
     expect(pathsIn([readFileSync("NOTICE", "utf8"), ...notes].join(" "), namedSources)).toEqual([]);
+  });
+
+  it("read each image of an .ico file", () => {
+    const ico = Buffer.alloc(6 + 32 + 5);
+    ico.writeUInt16LE(2, 4);
+    for (const [index, [size, offset]] of [
+      [2, 38],
+      [3, 40],
+    ].entries()) {
+      ico.writeUInt32LE(size, 6 + index * 16 + 8);
+      ico.writeUInt32LE(offset, 6 + index * 16 + 12);
+    }
+    ico.write("abcde", 38, "latin1");
+    expect(icoImages(ico).map((image) => image.toString("latin1"))).toEqual(["ab", "cde"]);
   });
 });

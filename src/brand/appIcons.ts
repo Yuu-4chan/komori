@@ -96,3 +96,26 @@ export function appIconSvg(logo: string, id: AppIconId): string {
       `<rect id="tile" x="${x}" y="${y}" width="${half * 2}" height="${half * 2}" rx="420" fill="url(#tile-fill)"/><g id="komori-logo"`,
     );
 }
+
+/**
+ * Android's adaptive icon layers for an app icon. A launcher shows the middle 72 of the layers'
+ * 108 dp through its mask, so the foreground is the logo alone at the size the tile shows it,
+ * inside the safe zone every mask keeps, and the background is the tile's colours filling the
+ * whole layer.
+ */
+export function adaptiveIconLayers(
+  logo: string,
+  id: AppIconId,
+): { foreground: string; background: string } {
+  const icon = appIcons.find((candidate) => candidate.id === id) ?? appIcons[0];
+  const [first, last = first] = icon.tile;
+  const layer = (half * 108) / 72;
+  const foreground = appIconSvg(logo, id)
+    .replace(/<rect id="tile"[^>]*\/>/u, "")
+    .replace(
+      /viewBox="[^"]*"/u,
+      `viewBox="${centre.x - layer} ${centre.y - layer} ${layer * 2} ${layer * 2}"`,
+    );
+  const background = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1 1"><defs><linearGradient id="tile-fill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${first}"/><stop offset="1" stop-color="${last}"/></linearGradient></defs><rect width="1" height="1" fill="url(#tile-fill)"/></svg>`;
+  return { foreground, background };
+}
