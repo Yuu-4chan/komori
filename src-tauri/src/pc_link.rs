@@ -391,6 +391,8 @@ pub struct SyncResult {
     link: LinkView,
     /// Whether the phone's books changed, for the pages showing them to read them again.
     changed: bool,
+    /// Whether the phone sent the PC anything, so that the PC's Library lists differently now.
+    sent: bool,
     /// The phone's books whose place the PC's moved, for an open Reader to follow.
     moved: Vec<String>,
 }
@@ -431,6 +433,7 @@ pub async fn sync_pc(
         .await
         .map_err(|error| error.code())?;
     let changed = plan.changes_phone();
+    let sent = plan.pushes();
     let (link, moved) = blocking(move || {
         let mut connection = open_catalog(&database)?;
         let moved = crate::sync::finish(&mut connection, &plan, &answer)?;
@@ -452,6 +455,7 @@ pub async fn sync_pc(
     Ok(SyncResult {
         link,
         changed,
+        sent,
         moved,
     })
 }

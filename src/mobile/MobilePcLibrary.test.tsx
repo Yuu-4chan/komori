@@ -114,6 +114,11 @@ const paired: api.PcLink = {
 
 const allBooks = () => screen.findByRole("region", { name: "All" });
 
+/** A sync that neither sent, took nor moved anything, as on most starts and returns. */
+const quietSync: api.PcSync = { ...paired, changed: false, sent: false, moved: [] };
+const synced = (result: api.PcSync) =>
+  act(() => void window.dispatchEvent(new CustomEvent(api.pcSynced, { detail: result })));
+
 /** Chooses the place the Library shows from the Library view sheet, as a tap would. */
 async function choosePlace(place: RegExp) {
   await userEvent.click(screen.getByRole("button", { name: "Library view" }));
@@ -298,11 +303,79 @@ describe("the Library on a phone paired with a PC", () => {
     expect(await screen.findByText("Settings ?section=sync")).toBeTruthy();
   });
 
-  it("syncs now, listing both Libraries again", async () => {
+  it("lists the PC once on starting when the start's sync changed nothing, whichever ends first", async () => {
+    // The sync ends while the saved listing is still being read…
+    let saved: (books: api.PcBook[]) => void = () => {};
+    vi.mocked(api.cachedPcLibrary).mockReturnValueOnce(
+      new Promise((resolve) => {
+        saved = resolve;
+      }),
+    );
+    const first = library(paired);
+    await waitFor(() => expect(api.cachedPcLibrary).toHaveBeenCalled());
+    synced(quietSync);
+    await act(async () => saved([remote, kept]));
+    await screen.findByText("Connected");
+    expect(api.listPcLibrary).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    // …or while the PC is being listed.
+    pcSession.reset();
+    vi.mocked(api.listPcLibrary).mockClear();
+    let answer: (books: api.PcBook[]) => void = () => {};
+    library(paired);
+    vi.mocked(api.listPcLibrary).mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    await waitFor(() => expect(api.listPcLibrary).toHaveBeenCalledTimes(1));
+    synced(quietSync);
+    await act(async () => answer([remote, kept]));
+    await screen.findByText("Connected");
+    await act(async () => {});
+    expect(api.listPcLibrary).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists the PC again after a sync that sent it something, even while a listing runs", async () => {
+    library(paired);
+    await screen.findByText("Connected");
+    let answer: (books: api.PcBook[]) => void = () => {};
+    vi.mocked(api.listPcLibrary).mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    synced({ ...quietSync, sent: true });
+    expect(api.listPcLibrary).toHaveBeenCalledTimes(2);
+    // The listing running may have started before the sync, so another follows it.
+    synced({ ...quietSync, moved: ["phone-2"] });
+    await act(async () => answer([remote, kept]));
+    await waitFor(() => expect(api.listPcLibrary).toHaveBeenCalledTimes(3));
+  });
+
+  it("lists the PC after a sync that changed nothing only once the listing is old", async () => {
+    library(paired);
+    await screen.findByText("Connected");
+    synced(quietSync);
+    await act(async () => {});
+    expect(api.listPcLibrary).toHaveBeenCalledTimes(1);
+
+    const later = Date.now() + 2 * 60_000 + 1;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(later);
+    try {
+      synced(quietSync);
+      await waitFor(() => expect(api.listPcLibrary).toHaveBeenCalledTimes(2));
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("syncs now, listing both Libraries again even when the sync changed nothing", async () => {
     const minutesAgo = new Date(Date.now() - 5 * 60_000).toISOString();
     library({ ...paired, lastSynced: minutesAgo });
     vi.mocked(api.syncPc).mockImplementation(async () => {
-      const result = { ...paired, lastSynced: minutesAgo, changed: true, moved: [] };
+      const result = { ...quietSync, lastSynced: minutesAgo };
       window.dispatchEvent(new CustomEvent(api.pcSynced, { detail: result }));
       return result;
     });

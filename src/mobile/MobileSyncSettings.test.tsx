@@ -112,6 +112,7 @@ describe("Sync on the phone", () => {
       ...paired,
       lastSynced: new Date().toISOString(),
       changed: false,
+      sent: false,
       moved: [],
     });
     sync();

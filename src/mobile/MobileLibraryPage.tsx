@@ -91,7 +91,8 @@ import {
   type PcEntry,
 } from "./MobilePcLibrary";
 import { MobileSheet } from "./MobileSheet";
-import { onPcSynced, syncPc, usePcLinkState } from "./pcLinkApi";
+import { pcSession } from "./pcLibrarySession";
+import { changesPcListing, onPcSynced, syncPc, usePcLinkState } from "./pcLinkApi";
 import { mergePcLibrary, phoneItem, type MergedBook } from "./pcLibraryMerge";
 import { PullToSync } from "./pullToSync";
 import { useBackCloser } from "./system";
@@ -189,15 +190,17 @@ function LibraryContent({ group }: { group: string | null }) {
   const pcName = link?.pcName ?? "";
   const { library: display, updateLibrary } = useAppearance();
   const place: LibraryPlace = pcActive ? display.place : "all";
-  // After each sync, the books show where they were read to on both sides.
-  const relistPc = pc.refresh;
+  // After each sync, the books show where they were read to on both sides. The PC is listed
+  // again after a listing already running when the sync changed what it lists; otherwise only
+  // once its listing is old, as starting and returning sync too.
+  const { refresh: relistPc, refreshIfStale: relistStalePc } = pc;
   useEffect(
     () =>
-      onPcSynced(() => {
+      onPcSynced((sync) => {
         void refresh();
-        if (pcActive) void relistPc();
+        if (pcActive) void (changesPcListing(sync) ? relistPc() : relistStalePc());
       }),
-    [refresh, pcActive, relistPc],
+    [refresh, pcActive, relistPc, relistStalePc],
   );
   const [syncing, setSyncing] = useState(false);
   // Pulling the Library down, or Sync now, syncs with the PC and lists both again.
@@ -208,6 +211,8 @@ function LibraryContent({ group }: { group: string | null }) {
     }
     setSyncing(true);
     try {
+      // Asked for, the PC's books are listed again whatever the sync did.
+      pcSession.markStale();
       await syncPc();
     } catch {
       await Promise.all([refresh(), relistPc()]);

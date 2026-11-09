@@ -9,7 +9,8 @@ export interface PcSession {
    * before either is read. */
   books: PcBook[] | null;
   connection: PcConnection;
-  /** When the PC was last listed (ms), 0 before the first time or after a sync. */
+  /** When the PC was last listed (ms), 0 before the first time or after a sync that changed
+   * what it lists. */
   listedAt: number;
 }
 
@@ -32,7 +33,8 @@ export const pcSession = {
     listeners.add(listener);
     return () => void listeners.delete(listener);
   },
-  /** A sync moved places, so the next showing lists the PC again. */
+  /** The listing is out of date (a sync changed it, or a pull asks again), so the next showing
+   * lists the PC again. */
   markStale() {
     state = { ...state, listedAt: 0 };
   },

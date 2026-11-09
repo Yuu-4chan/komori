@@ -67,6 +67,16 @@ export function refreshPcLibrary(): Promise<void> {
   return listing;
 }
 
+/**
+ * Lists the PC again unless the listing is current; a listing already running will do, so
+ * starting, returning and a sync that changed nothing list the PC once between them.
+ */
+export function refreshStalePcLibrary(): Promise<void> {
+  if (listing) return listing;
+  if (Date.now() - pcSession.get().listedAt <= STALE_AFTER) return Promise.resolve();
+  return refreshPcLibrary();
+}
+
 /** Reads the copies here again from the saved listing, as after keeping or removing one. */
 async function relistCopies() {
   const books = await cachedPcLibrary().catch(() => null);
@@ -107,14 +117,19 @@ export function usePcLibrary(active: boolean, early = false) {
     if (!active) return;
     void (async () => {
       await readSavedListing();
-      if (Date.now() - pcSession.get().listedAt > STALE_AFTER) await refreshPcLibrary();
+      await refreshStalePcLibrary();
     })();
   }, [active]);
   const entries = useMemo(
     () => session.books?.map((pc) => ({ pc, book: asLibraryBook(pc) })) ?? null,
     [session.books],
   );
-  return { entries, connection: session.connection, refresh: refreshPcLibrary };
+  return {
+    entries,
+    connection: session.connection,
+    refresh: refreshPcLibrary,
+    refreshIfStale: refreshStalePcLibrary,
+  };
 }
 
 /**

@@ -22,6 +22,8 @@ export interface PcLink {
 export interface PcSync extends PcLink {
   /** Whether the phone's books changed. */
   changed: boolean;
+  /** Whether the phone sent the PC anything, so the PC's Library lists differently now. */
+  sent: boolean;
   /** The phone's books whose place the PC's moved. */
   moved: string[];
 }
@@ -142,10 +144,14 @@ export const listPcDictionaries = () => invoke<PcDictionary[]>("list_pc_dictiona
 export const copyPcDictionary = (id: number) =>
   invoke<"imported" | "alreadyImported">("copy_pc_dictionary", { id });
 
+/** Whether a sync changed what listing the PC shows: it sent, took or moved something. */
+export const changesPcListing = (sync: PcSync) =>
+  sync.sent || sync.changed || sync.moved.length > 0;
+
 /** Syncs places, bookmarks, notes and reading sessions with the PC. */
 export async function syncPc(): Promise<PcSync> {
   const result = await invoke<PcSync>("sync_pc");
-  pcSession.markStale();
+  if (changesPcListing(result)) pcSession.markStale();
   window.dispatchEvent(new Event(pcLinkChanged));
   window.dispatchEvent(new CustomEvent<PcSync>(pcSynced, { detail: result }));
   return result;

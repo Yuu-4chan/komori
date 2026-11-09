@@ -241,7 +241,6 @@ pub(crate) struct PushRequest {
     pub(crate) deleted: Deleted,
 }
 
-#[cfg(test)]
 impl PushRequest {
     fn is_empty(&self) -> bool {
         self == &Self::default()
@@ -830,7 +829,7 @@ impl Plan {
             || self.deleted != Deleted::default()
     }
 
-    #[cfg(test)]
+    /// Whether the sync sends the PC anything, which its Library then shows.
     pub(crate) fn pushes(&self) -> bool {
         !self.push.is_empty()
     }
