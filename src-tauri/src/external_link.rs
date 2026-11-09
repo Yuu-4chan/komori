@@ -1,12 +1,15 @@
-//! Opens a dictionary's web link (such as a "search on Google" or source-page link) in the
-//! user's default browser. Only plain http(s) addresses without credentials pass; Komori itself
-//! never fetches them.
+//! Opens a web link from a book or a dictionary (such as a "search on Google" or source-page
+//! link) in the user's default browser, on the PC and the phone. Only plain http(s) addresses
+//! without credentials pass; Komori itself never fetches them.
 
 const MAX_URL_BYTES: usize = 2048;
 
 #[tauri::command]
 pub async fn open_external_link(url: String) -> Result<(), String> {
     let url = checked_url(&url).ok_or_else(|| "This link cannot be opened.".to_string())?;
+    #[cfg(mobile)]
+    return crate::android::open_link(&url).await;
+    #[cfg(not(mobile))]
     tauri::async_runtime::spawn_blocking(move || open(&url))
         .await
         .map_err(|error| format!("Opening the link failed: {error}"))?
@@ -64,9 +67,9 @@ fn open(url: &str) -> Result<(), String> {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, mobile)))]
 fn open(_url: &str) -> Result<(), String> {
-    Err("Opening links is supported on Windows only.".into())
+    Err("Opening links is supported on Windows and Android only.".into())
 }
 
 #[cfg(test)]

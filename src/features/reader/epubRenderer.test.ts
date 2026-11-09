@@ -14,10 +14,15 @@ import { imageInkShift } from "./imageInk";
 import { renderBookImage } from "./bookImages";
 import type { ReaderPresentation } from "./renderer";
 import { defaultLookupTriggers } from "./lookupTriggers";
+import { openExternalLink } from "../dictionary/dictionaryApi";
 
 vi.mock("epubjs", () => ({ default: vi.fn() }));
 vi.mock("./contentApi", () => ({ prepareReaderContent: vi.fn() }));
 vi.mock("./imageInk", () => ({ imageInkShift: vi.fn(async () => undefined) }));
+vi.mock("../dictionary/dictionaryApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../dictionary/dictionaryApi")>()),
+  openExternalLink: vi.fn(async () => undefined),
+}));
 vi.mock("./bookImages", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./bookImages")>()),
   renderBookImage: vi.fn(async () => ({
@@ -2348,6 +2353,56 @@ describe("EPUB.js renderer adapter", () => {
       for (const [hook] of register.mock.calls) await hook(contents);
       expect(contents.resizeCheck).toHaveBeenCalled();
     }
+    renderer.dispose();
+  });
+
+  it("opens a book's web links in the browser and nothing else outside the book", async () => {
+    const open = vi.mocked(openExternalLink);
+    open.mockClear();
+    const { rendition } = mockBook();
+    const register = vi.fn();
+    Object.assign(rendition, { hooks: { content: { register } } });
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 20, viewMode: "paginated" },
+    );
+    const section = document.implementation.createHTMLDocument("");
+    Object.defineProperty(section, "fonts", { value: { load: () => undefined } });
+    section.body.innerHTML =
+      '<a id="web" href=" https://example.com/a b?q=1" target="_blank"><span>web</span></a>' +
+      '<a id="mail" href="mailto:someone@example.com">mail</a>' +
+      '<a id="app" href="ms-settings:display">app</a>' +
+      '<a id="script" href="javascript:void 0">script</a>' +
+      '<a id="chapter" href="chapter2.xhtml#n1">chapter</a>';
+    // EPUB.js looks for every link without "://" in the book, and leaves "mailto:" alone.
+    const findInBook = vi.fn(() => false);
+    for (const id of ["app", "script", "chapter"]) section.getElementById(id)!.onclick = findInBook;
+    const contents = { document: section, textWidth: () => 600, resizeCheck: vi.fn() };
+    for (const [hook] of register.mock.calls) await hook(contents);
+    const click = (target: Element) => {
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event;
+    };
+
+    expect(click(section.querySelector("#web span")!).defaultPrevented).toBe(true);
+    expect(open).toHaveBeenCalledExactlyOnceWith("https://example.com/a%20b?q=1");
+    for (const id of ["mail", "app", "script"])
+      expect(click(section.getElementById(id)!).defaultPrevented).toBe(true);
+    expect(findInBook).not.toHaveBeenCalled();
+    click(section.getElementById("chapter")!);
+    expect(findInBook).toHaveBeenCalledOnce();
+    // A click the Reader already took, such as on a saved passage or an image, stays its own.
+    section.body.addEventListener("click", (event) => event.preventDefault(), { once: true });
+    click(section.getElementById("web")!);
+    expect(open).toHaveBeenCalledOnce();
     renderer.dispose();
   });
 

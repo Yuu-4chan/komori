@@ -1,4 +1,5 @@
 import { i18n } from "../../i18n/i18n";
+import { openExternalLink } from "../dictionary/dictionaryApi";
 import {
   isReaderFontChoice,
   fontPairStack,
@@ -155,6 +156,36 @@ interface DisplayedPosition {
   /** The first displayed character and the point just after the last one, when resolvable. */
   pageStart?: PagePoint;
   pageEnd?: PagePoint;
+}
+
+const WEB_LINK = /^https?:\/\//iu;
+const SCHEME = /^[a-z][a-z\d+.-]*:/iu;
+
+/**
+ * A book's web link opens in the browser. EPUB.js marks it for a new window, which the
+ * section frame's sandbox blocks. A link to anything else outside the book (mail, an app,
+ * a script) does nothing; EPUB.js would look for it as a chapter or let the frame follow it.
+ * The browser listener runs after the Reader's own, so a click on a VN page still finishes
+ * the reveal.
+ */
+function followBookLinks(section: Document): void {
+  for (const link of section.querySelectorAll<HTMLElement>("a[href]")) {
+    const href = link.getAttribute("href")?.trim() ?? "";
+    if (SCHEME.test(href) && !WEB_LINK.test(href)) link.onclick = () => false;
+  }
+  (section.defaultView ?? section).addEventListener("click", (event) => {
+    if (event.defaultPrevented) return;
+    const href = (event.target as Element | null)?.closest?.("a[href]")?.getAttribute("href");
+    if (!href || !WEB_LINK.test(href.trim())) return;
+    event.preventDefault();
+    let url: string;
+    try {
+      url = new URL(href.trim()).href;
+    } catch {
+      return;
+    }
+    void openExternalLink(url).catch(() => {});
+  });
 }
 
 /** A point in a displayed section document. */
@@ -1097,6 +1128,7 @@ class EpubRenderer implements ReaderRenderer {
     this.applyHostInset();
     rendition.hooks?.content?.register(async (contents: EpubPageContents) => {
       if (this.disposed) return;
+      followBookLinks(contents.document);
       if (!this.continuous && !this.fixedLayout) pageTextWidth(contents);
       this.restyleIfStale(contents, false);
       await waitForReaderFonts(contents.document, this.sectionPresentation());

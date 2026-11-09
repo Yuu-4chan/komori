@@ -1,6 +1,7 @@
 package app.komori.reader
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -40,6 +41,11 @@ class PickArgs {
 @InvokeArg
 class DocumentArgs {
   lateinit var uri: String
+}
+
+@InvokeArg
+class LinkArgs {
+  lateinit var url: String
 }
 
 @InvokeArg
@@ -353,6 +359,19 @@ class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
       )
     }
     invoke.resolve()
+  }
+
+  /** A web link from a book or a dictionary, in the browser; Rust has checked it is plain http(s). */
+  @Command
+  fun openLink(invoke: Invoke) {
+    val url = invoke.parseArgs(LinkArgs::class.java).url
+    val link = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE)
+    try {
+      activity.startActivity(link)
+      invoke.resolve()
+    } catch (_: ActivityNotFoundException) {
+      invoke.reject("No app on this phone opens web links.")
+    }
   }
 
   /** Back from the Library leaves Komori as Android's own apps do: to the background. */

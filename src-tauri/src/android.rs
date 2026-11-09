@@ -273,6 +273,16 @@ pub async fn book_selection(own: bool) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+/// Opens a web link, already checked as plain http(s), in the phone's browser.
+pub(crate) async fn open_link(url: &str) -> Result<(), String> {
+    plugin()
+        .map_err(|error| error.to_string())?
+        .run_mobile_plugin_async::<Value>("openLink", json!({ "url": url }))
+        .await
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
 /// Sends Komori to the background, as Back does from an Android app's first page.
 #[tauri::command]
 pub async fn leave_app() -> Result<(), String> {
