@@ -352,6 +352,10 @@ export function installEpubTolerance(
   limits = ARCHIVE_LIMITS,
   unreadable = "This chapter could not be shown.",
 ) {
+  let destroyed = false;
+  /** Replacements made after the book is destroyed lead nowhere (see `destroy` below). */
+  const unlessDestroyed = (replace: () => Promise<unknown>) => (): Promise<unknown> =>
+    replace().then((made) => (destroyed ? new Promise<never>(() => {}) : made));
   const unarchive = book.unarchive.bind(book);
   book.unarchive = async (...args) => {
     const result = await unarchive(...args);
@@ -362,7 +366,7 @@ export function installEpubTolerance(
     const limited = archive.createUrl ? limitArchiveReads(archive, limits) : undefined;
     // EPUB.js prepares asset URLs as it unpacks the package, after unarchiving.
     if (limited && book.replacements)
-      book.replacements = () => replaceAssetsOnDemand(book, limited.reserve);
+      book.replacements = unlessDestroyed(() => replaceAssetsOnDemand(book, limited.reserve));
     archive.request = async (url, type) => {
       const extension = url.split(".").at(-1);
       const kind = type === "xml" ? extension : (type ?? extension);
@@ -392,14 +396,18 @@ export function installEpubTolerance(
     return result;
   };
   const destroy = book.destroy.bind(book);
-  // EPUB.js still runs a rendition's queued start, and resolves each loading step as it
-  // finishes, for a book destroyed meanwhile, as one closed while it opens is. Both would
-  // then throw. The queue stops, and late steps resolve into nothing.
+  // EPUB.js still runs a rendition's queued start, resolves each loading step as it
+  // finishes, and reads the loaded display options once its replacements are made, for a
+  // book destroyed meanwhile, as one closed while it opens is. Each would then throw (the
+  // last only into its own log). The queue stops, late steps resolve into nothing, and
+  // replacements made too late lead nowhere.
   book.destroy = () => {
+    destroyed = true;
     book.rendition?.q?.stop();
     destroy();
     book.loading = new Proxy({}, { get: () => ({ resolve() {}, reject() {} }) });
   };
+  if (book.replacements) book.replacements = unlessDestroyed(book.replacements.bind(book));
   const navigation = book.loadNavigation.bind(book);
   // Navigation is optional. EPUB.js otherwise leaves loaded.navigation pending when
   // a declared file is missing or unreadable. Its own empty parser keeps that honest.

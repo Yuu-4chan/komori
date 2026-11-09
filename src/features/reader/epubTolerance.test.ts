@@ -556,6 +556,8 @@ describe("archive reads with the pinned EPUB.js engine", () => {
     };
     process.on("unhandledRejection", record);
     window.addEventListener("error", recordError);
+    // EPUB.js catches and logs a failure of its own late steps.
+    const logged = vi.spyOn(console, "error").mockImplementation(record);
     /** A few frames and tasks, for EPUB.js's queued and late steps to run. */
     const settle = async () => {
       for (let frame = 0; frame < 5; frame++)
@@ -592,6 +594,7 @@ describe("archive reads with the pinned EPUB.js engine", () => {
     } finally {
       process.off("unhandledRejection", record);
       window.removeEventListener("error", recordError);
+      logged.mockRestore();
     }
   });
 
