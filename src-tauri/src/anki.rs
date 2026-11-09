@@ -943,10 +943,18 @@ fn sentence_html(text: &str, expression: &str) -> String {
     text.split(expression).map(escaped).collect::<Vec<_>>().join(&format!(
         "<span class=\"komori-sentence-expression\" style=\"color:var(--bold,#b76529);font-weight:600\">{}</span>", escaped(expression)))
 }
+/// Characters a dictionary's title or frequency value may not carry into a tag. Note types
+/// render `{{Tags}}` unescaped, Lapis's inside a script's template literal and then as HTML, so
+/// a tag must not open markup, an attribute, an entity, a string or a template substitution.
+const TAG_UNSAFE: &[char] = &['<', '>', '&', '"', '\'', '`', '$', '{', '}', '\\'];
+
+/// A dictionary's tag: its title (or frequency value) in lower case, spaces as `_`, without the
+/// characters a note type could run as markup or script.
 fn dictionary_tag(title: &str) -> String {
     let normalized: String = title
         .to_lowercase()
         .chars()
+        .filter(|c| !TAG_UNSAFE.contains(c))
         .map(|c| if c.is_whitespace() { '_' } else { c })
         .collect();
     let mut tag = if normalized.starts_with("komori_request_") {
