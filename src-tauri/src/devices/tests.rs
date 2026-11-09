@@ -180,11 +180,28 @@ fn a_paired_phone_refuses_another_certificate_and_a_removed_phone_is_refused() {
     other[0] ^= 1;
     let impostor = Client::new("127.0.0.1", pc.port, Some(other), Some(&pairing.token)).unwrap();
     assert_eq!(run(impostor.library()).unwrap_err(), LinkError::NotThePc);
+    assert_eq!(run(impostor.check()).unwrap_err(), LinkError::NotThePc);
 
     let client = paired(&pc, &pairing);
     assert!(run(client.library()).is_ok());
+    // Settings > Sync checks with the hello alone: the PC names itself to a phone it knows.
+    assert_eq!(
+        run(client.check()).unwrap().name.as_deref(),
+        Some(&*super::pc_name())
+    );
     pc.shared.remove_all_devices();
     assert_eq!(run(client.library()).unwrap_err(), LinkError::NotPaired);
+    assert_eq!(run(client.check()).unwrap_err(), LinkError::NotPaired);
+    let mut forged = pairing.token.clone();
+    forged[0] ^= 1;
+    let stranger = Client::new(
+        "127.0.0.1",
+        pc.port,
+        Some(pairing.fingerprint),
+        Some(&forged),
+    )
+    .unwrap();
+    assert_eq!(run(stranger.check()).unwrap_err(), LinkError::NotPaired);
 
     // A phone that unpairs itself is forgotten too.
     let again = pair(&pc, &pc.shared.code()).unwrap();

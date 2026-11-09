@@ -507,12 +507,7 @@ pub async fn check_pc(catalog: State<'_, CatalogState>) -> Result<PcStatus, Stri
     let database = catalog_path(&catalog);
     let link = blocking(move || read_link(&database)).await?;
     let client = link.client()?;
-    // The library needs the token, so a PC that forgot this phone says so.
-    let checked = async {
-        let hello = client.hello().await?;
-        client.library().await.map(|_| hello)
-    };
-    Ok(match checked.await {
+    Ok(match client.check().await {
         Ok(hello) => PcStatus {
             status: "connected".into(),
             name: hello.name.or(link.pc_name),

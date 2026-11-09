@@ -268,6 +268,16 @@ impl Client {
         Ok(hello)
     }
 
+    /// The hello of a PC that knows this phone: only a paired phone's token brings the PC's name,
+    /// so a PC that forgot this phone says so without listing anything.
+    pub(crate) async fn check(&self) -> Result<Hello, LinkError> {
+        let hello = self.hello().await?;
+        if hello.name.is_none() {
+            return Err(LinkError::NotPaired);
+        }
+        Ok(hello)
+    }
+
     /// Pairs with the code the PC shows, as `device`.
     pub(crate) async fn pair(&self, code: &str, device: &str) -> Result<Pairing, LinkError> {
         self.hello().await?;
