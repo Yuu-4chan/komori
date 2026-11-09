@@ -194,6 +194,51 @@ fn discord_choices_round_trip_and_older_backups_preserve_them() {
     assert!(serde_json::from_value::<Backup>(value).is_err());
 }
 
+#[test]
+fn the_anki_key_stays_out_of_backups_and_a_restore_keeps_the_one_saved_here() {
+    let fixture = fixture();
+    let mut connection = open_catalog(&fixture.database).unwrap();
+    let with_key = |port: u16, key: &str| anki::Preferences {
+        port,
+        key: key.to_owned(),
+        ..anki::Preferences::default()
+    };
+    save(&connection, &with_key(8766, "backed-up-secret"));
+    let backup = collect(&mut connection, START).unwrap();
+    let exported = backup.preferences.anki.as_ref().unwrap();
+    assert_eq!(
+        (&exported["port"], &exported["key"]),
+        (&serde_json::json!(8766), &serde_json::json!(""))
+    );
+    let path = write(&fixture, "a.komoribackup", &backup);
+    assert!(!String::from_utf8_lossy(&std::fs::read(&path).unwrap()).contains("backed-up-secret"));
+    assert_eq!(read_backup(&path), Ok(backup.clone()));
+
+    let restored = |connection: &Connection| -> anki::Preferences {
+        serde_json::from_str(&record_text(connection, "anki").unwrap()).unwrap()
+    };
+    save(&connection, &with_key(1, "saved-here"));
+    restore(&fixture.database, &backup, START + 1).unwrap();
+    let now = restored(&connection);
+    assert_eq!((now.port, now.key.as_str()), (8766, "saved-here"));
+    // An earlier Komori's backup that holds a key restores it.
+    let mut older = serde_json::to_value(&backup).unwrap();
+    older["preferences"]["anki"]["key"] = serde_json::json!("from-the-backup");
+    restore(
+        &fixture.database,
+        &serde_json::from_value(older).unwrap(),
+        START + 2,
+    )
+    .unwrap();
+    assert_eq!(restored(&connection).key, "from-the-backup");
+    // With no key saved here, a backup without one leaves it empty.
+    connection
+        .execute("DELETE FROM preferences WHERE name = 'anki'", [])
+        .unwrap();
+    restore(&fixture.database, &backup, START + 3).unwrap();
+    assert_eq!(restored(&connection).key, "");
+}
+
 fn record_text(connection: &Connection, name: &str) -> Option<String> {
     connection
         .query_row(

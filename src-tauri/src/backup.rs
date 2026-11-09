@@ -930,10 +930,16 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
         .map(|value| AppearancePreferences::from_stored(&value))
         .map(|preferences| serde_json::to_value(preferences).map_err(|error| error.to_string()))
         .transpose()?;
-    let anki = record("anki")?.filter(|value| {
-        serde_json::from_value::<anki::Preferences>(value.clone())
-            .is_ok_and(|preferences| preferences.validate().is_ok())
-    });
+    // The AnkiConnect key stays on this computer: a backup shared for help would hand it out.
+    let anki = record("anki")?
+        .filter(|value| {
+            serde_json::from_value::<anki::Preferences>(value.clone())
+                .is_ok_and(|preferences| preferences.validate().is_ok())
+        })
+        .map(|mut value| {
+            value["key"] = Value::String(String::new());
+            value
+        });
     let backup = record(SETTINGS_RECORD)?.map(|value| BackupSettings::from_stored(&value));
     let startup = record(crate::startup::RECORD)?
         .map(|value| crate::startup::Preferences::from_stored(&value));
@@ -1560,6 +1566,19 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
         .transpose()
         .map_err(|error| error.to_string())?;
     write_record(&transaction, "appearance", appearance.as_deref())?;
+    // Backups leave the AnkiConnect key out, so the one saved here is kept; one from an
+    // earlier Komori's backup still restores.
+    let saved_key = transaction
+        .query_row(
+            "SELECT value FROM preferences WHERE name = 'anki'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(storage_error)?
+        .and_then(|text| serde_json::from_str::<anki::Preferences>(&text).ok())
+        .map(|preferences| preferences.key)
+        .unwrap_or_default();
     let anki = backup
         .preferences
         .anki
@@ -1567,6 +1586,9 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
         .and_then(|value| serde_json::from_value::<anki::Preferences>(value.clone()).ok())
         .map(|mut preferences| {
             preferences.remap_dictionaries(dictionary);
+            if preferences.key.is_empty() {
+                preferences.key = saved_key;
+            }
             serde_json::to_string(&preferences)
         })
         .transpose()
