@@ -281,9 +281,11 @@ pub fn serve_cover(
         .and_then(parse_path)
         .filter(|_| request.method() == Method::GET && request.uri().query().is_none())
     {
+        // Answered from the phone's cache at once: a cover not here yet is a miss the Library
+        // loads again when it arrives, never a request held open while the PC is asked.
         let app = context.app_handle().clone();
-        tauri::async_runtime::spawn(async move {
-            responder.respond(match crate::pc_link::pc_cover(&app, &id, revision).await {
+        tauri::async_runtime::spawn_blocking(move || {
+            responder.respond(match crate::pc_link::pc_cover(&app, &id, revision) {
                 Some(cover) => response(StatusCode::OK, Some(cover), true),
                 None => response(StatusCode::NOT_FOUND, None, false),
             })

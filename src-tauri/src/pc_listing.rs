@@ -106,6 +106,74 @@ pub(crate) fn cover_file(id: &str, revision: i64) -> String {
     format!("{id}-{revision}")
 }
 
+/// The PC covers the phone still has to fetch: those a screen asked for, the latest first,
+/// before the rest of the listing in its order.
+pub(crate) struct CoverQueue {
+    asked: Vec<(String, i64)>,
+    /// The listing's covers, the next one last.
+    listing: Vec<(String, i64)>,
+    /// Whether a task is fetching them.
+    running: bool,
+}
+
+/// How many asked covers are remembered; older ones were scrolled past and wait for their turn
+/// in the listing.
+const ASKED: usize = 64;
+
+impl CoverQueue {
+    pub(crate) const fn new() -> Self {
+        Self {
+            asked: Vec::new(),
+            listing: Vec::new(),
+            running: false,
+        }
+    }
+
+    /// A screen shows this cover now.
+    pub(crate) fn ask(&mut self, id: &str, revision: i64) {
+        self.asked
+            .retain(|(other, other_revision)| !(other == id && *other_revision == revision));
+        if self.asked.len() >= ASKED {
+            self.asked.remove(0);
+        }
+        self.asked.push((id.to_owned(), revision));
+    }
+
+    /// The listing's covers the phone lacks, in order, in place of the last listing's.
+    pub(crate) fn list(&mut self, mut missing: Vec<(String, i64)>) {
+        missing.reverse();
+        self.listing = missing;
+    }
+
+    /// Whether a task should start fetching them: some wait and none is fetching. The caller
+    /// starts it.
+    pub(crate) fn start(&mut self) -> bool {
+        if self.running || self.is_empty() {
+            return false;
+        }
+        self.running = true;
+        true
+    }
+
+    /// The next cover to fetch; none ends the fetching task.
+    pub(crate) fn next(&mut self) -> Option<(String, i64)> {
+        let next = self.asked.pop().or_else(|| self.listing.pop());
+        self.running = next.is_some();
+        next
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.asked.is_empty() && self.listing.is_empty()
+    }
+
+    /// Forgets every cover waiting, which ends the fetching task.
+    pub(crate) fn clear(&mut self) {
+        self.asked.clear();
+        self.listing.clear();
+        self.running = false;
+    }
+}
+
 /// The cover files the listing names, in its order.
 pub(crate) fn wanted_covers(books: &[RemoteBook]) -> Vec<(String, i64)> {
     books
@@ -171,6 +239,49 @@ mod tests {
             characters: None,
             words: None,
         }
+    }
+
+    #[test]
+    fn covers_a_screen_shows_come_first_the_latest_first_then_the_listing_in_order() {
+        let cover = |id: &str| (id.to_owned(), 1);
+        let mut queue = CoverQueue::new();
+        assert!(!queue.start(), "nothing to fetch");
+        queue.list(vec![cover("a"), cover("b"), cover("c")]);
+        assert!(queue.start());
+        assert!(!queue.start(), "one task fetches them");
+        assert_eq!(queue.next(), Some(cover("a")));
+        queue.ask("x", 1);
+        queue.ask("y", 1);
+        // Asked again: it moves to the front rather than coming twice.
+        queue.ask("x", 1);
+        assert_eq!(queue.next(), Some(cover("x")));
+        assert_eq!(queue.next(), Some(cover("y")));
+        assert_eq!(queue.next(), Some(cover("b")));
+        // A new listing replaces what was left of the last.
+        queue.list(vec![cover("d")]);
+        assert!(!queue.start(), "the running task takes the new listing");
+        assert_eq!(queue.next(), Some(cover("d")));
+        assert_eq!(queue.next(), None);
+        // The task ended: the next cover asked for starts another.
+        queue.ask("w", 1);
+        assert!(queue.start());
+        assert_eq!(queue.next(), Some(cover("w")));
+
+        // Only the covers asked last are remembered.
+        for index in 0..ASKED + 10 {
+            queue.ask(&index.to_string(), 1);
+        }
+        let asked: Vec<_> = std::iter::from_fn(|| queue.next()).collect();
+        assert_eq!(asked.len(), ASKED);
+        assert_eq!(asked[0], cover(&(ASKED + 9).to_string()));
+        assert_eq!(asked[ASKED - 1], cover("10"));
+
+        queue.ask("z", 1);
+        queue.list(vec![cover("e")]);
+        queue.clear();
+        assert!(queue.is_empty());
+        queue.ask("z", 1);
+        assert!(queue.start(), "a cleared queue has no task");
     }
 
     #[test]

@@ -11,7 +11,7 @@
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 use rusqlite::{params, Connection, OptionalExtension};
@@ -31,6 +31,8 @@ const RECORD: &str = "pc-link";
 const TRANSFER_EVENT: &str = "pc-transfer";
 const PC_BOOKS: &str = "pc-books";
 const PC_COVERS: &str = "pc-covers";
+/// Tells the Library a PC cover is now on the phone.
+const COVER_EVENT: &str = "pc-cover";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -336,6 +338,7 @@ pub async fn unpair_pc(
     if let Ok(client) = link.client() {
         let _ = client.forget().await;
     }
+    stop_covers();
     let roots = [directory(&app, false)?, directory(&app, true)?];
     let covers = app
         .path()
@@ -594,7 +597,7 @@ pub async fn list_pc_library(
         with_copies(&connection, library.books)
     })
     .await?;
-    tauri::async_runtime::spawn(fetch_covers(app, link, wanted));
+    tauri::async_runtime::spawn_blocking(move || fetch_covers(&app, wanted));
     Ok(books)
 }
 
@@ -632,30 +635,122 @@ pub async fn list_pc_library_kanji(
     .await
 }
 
-/// One cover fetch at a time, so the covers never take more of the PC's connections than one.
-static COVERS: tauri::async_runtime::Mutex<()> = tauri::async_runtime::Mutex::const_new(());
-static FETCHING: AtomicBool = AtomicBool::new(false);
+/// The covers still to fetch. One task fetches them, one at a time, so the covers never take
+/// more of the PC's connections than one.
+static COVER_QUEUE: std::sync::Mutex<pc_listing::CoverQueue> =
+    std::sync::Mutex::new(pc_listing::CoverQueue::new());
+/// When the PC last did not answer for a cover, in seconds; a screen asking for covers soon after
+/// does not ask it again.
 static UNREACHABLE_SINCE: AtomicU64 = AtomicU64::new(0);
 
-async fn fetch_covers(app: AppHandle, link: Link, wanted: Vec<(String, i64)>) {
-    let Ok(cache) = covers_directory(&app) else {
+fn cover_queue() -> std::sync::MutexGuard<'static, pc_listing::CoverQueue> {
+    COVER_QUEUE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn now_seconds() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs())
+}
+
+/// Removes the covers the listing no longer names and fetches those the phone lacks, in the
+/// listing's order, after any a screen asks for.
+fn fetch_covers(app: &AppHandle, wanted: Vec<(String, i64)>) {
+    let Ok(cache) = covers_directory(app) else {
         return;
     };
     pc_listing::remove_stale_covers(&cache, &wanted);
-    if FETCHING.swap(true, Ordering::SeqCst) {
-        return;
+    let missing = wanted
+        .into_iter()
+        .filter(|(id, revision)| !cache.join(pc_listing::cover_file(id, *revision)).is_file())
+        .collect();
+    let mut queue = cover_queue();
+    queue.list(missing);
+    start_covers(app, &mut queue);
+}
+
+fn start_covers(app: &AppHandle, queue: &mut pc_listing::CoverQueue) {
+    if queue.start() {
+        tauri::async_runtime::spawn(run_covers(app.clone()));
     }
-    if let Ok(client) = link.client() {
-        for (id, revision) in &wanted {
-            if fetch_cover(&client, &cache, id, *revision).await.is_none()
-                && client.hello().await.is_err()
-            {
-                // The PC went away: the rest wait for the next listing.
-                break;
+}
+
+/// Stops fetching covers, as when the PC does not answer or the phone unpairs.
+fn stop_covers() {
+    cover_queue().clear();
+}
+
+#[derive(Clone, Serialize)]
+struct CoverArrived<'a> {
+    id: &'a str,
+    revision: i64,
+}
+
+/// Fetches the queued covers into the cache until none is left, telling the Library of each.
+async fn run_covers(app: AppHandle) {
+    let database = app.state::<CatalogState>().database.clone();
+    let client = tauri::async_runtime::spawn_blocking(move || read_link(&database))
+        .await
+        .ok()
+        .and_then(Result::ok)
+        .and_then(|link| link.client().ok());
+    let (Some(client), Ok(cache)) = (client, covers_directory(&app)) else {
+        stop_covers();
+        return;
+    };
+    loop {
+        let next = cover_queue().next();
+        let Some((id, revision)) = next else {
+            return;
+        };
+        let file = cache.join(pc_listing::cover_file(&id, revision));
+        if file.is_file() {
+            // Fetched since it was asked for: a screen that asked meanwhile hears of it again.
+            let _ = app.emit(COVER_EVENT, CoverArrived { id: &id, revision });
+            continue;
+        }
+        match client.cover(&id).await {
+            Ok((mime, bytes)) => {
+                UNREACHABLE_SINCE.store(0, Ordering::SeqCst);
+                if store_cover(&cache, &file, &mime, &bytes) {
+                    let _ = app.emit(COVER_EVENT, CoverArrived { id: &id, revision });
+                }
+            }
+            // A cover the PC no longer has: the rest go on.
+            Err(LinkError::NotFound | LinkError::Failed(_)) => {}
+            Err(error) => {
+                if error == LinkError::Unreachable {
+                    UNREACHABLE_SINCE.store(now_seconds(), Ordering::SeqCst);
+                }
+                // The rest wait for the next listing.
+                stop_covers();
+                return;
             }
         }
     }
-    FETCHING.store(false, Ordering::SeqCst);
+}
+
+/// Keeps a cover from the PC in the cache: its type on the first line, then the image.
+fn store_cover(cache: &Path, file: &Path, mime: &str, bytes: &[u8]) -> bool {
+    if !mime.starts_with("image/") {
+        return false;
+    }
+    let _ = std::fs::create_dir_all(cache);
+    let mut stored = Vec::with_capacity(mime.len() + 1 + bytes.len());
+    stored.extend_from_slice(mime.as_bytes());
+    stored.push(b'\n');
+    stored.extend_from_slice(bytes);
+    let part = file.with_extension("part");
+    if std::fs::write(&part, stored).is_err() {
+        return false;
+    }
+    if std::fs::rename(&part, file).is_err() {
+        let _ = std::fs::remove_file(&part);
+        return false;
+    }
+    true
 }
 
 fn covers_directory(app: &AppHandle) -> Result<PathBuf, String> {
@@ -663,47 +758,6 @@ fn covers_directory(app: &AppHandle) -> Result<PathBuf, String> {
         .app_cache_dir()
         .map(|root| root.join(PC_COVERS))
         .map_err(|error| error.to_string())
-}
-
-/// The cover from the cache, or from the PC into the cache.
-async fn fetch_cover(client: &Client, cache: &Path, id: &str, revision: i64) -> Option<CoverImage> {
-    let file = cache.join(pc_listing::cover_file(id, revision));
-    if let Some(cover) = cached_cover(&file) {
-        return Some(cover);
-    }
-    let _fetching = COVERS.lock().await;
-    if let Some(cover) = cached_cover(&file) {
-        return Some(cover);
-    }
-    // A PC that did not answer just now is not asked for every cover on the page.
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |since| since.as_secs());
-    if now < UNREACHABLE_SINCE.load(Ordering::SeqCst) + 20 {
-        return None;
-    }
-    let (mime, bytes) = match client.cover(id).await {
-        Ok(cover) => cover,
-        Err(LinkError::Unreachable) => {
-            UNREACHABLE_SINCE.store(now, Ordering::SeqCst);
-            return None;
-        }
-        Err(_) => return None,
-    };
-    UNREACHABLE_SINCE.store(0, Ordering::SeqCst);
-    if !mime.starts_with("image/") {
-        return None;
-    }
-    let _ = std::fs::create_dir_all(cache);
-    let mut stored = Vec::with_capacity(mime.len() + 1 + bytes.len());
-    stored.extend_from_slice(mime.as_bytes());
-    stored.push(b'\n');
-    stored.extend_from_slice(&bytes);
-    let part = file.with_extension("part");
-    if std::fs::write(&part, stored).is_ok() && std::fs::rename(&part, &file).is_err() {
-        let _ = std::fs::remove_file(&part);
-    }
-    Some(CoverImage { mime, bytes })
 }
 
 fn cached_cover(file: &Path) -> Option<CoverImage> {
@@ -743,14 +797,12 @@ pub async fn pc_storage(app: AppHandle) -> Result<PcStorage, String> {
 #[tauri::command]
 pub async fn clear_pc_covers(app: AppHandle) -> Result<PcStorage, String> {
     let covers = covers_directory(&app)?;
-    {
-        let _fetching = COVERS.lock().await;
-        let _ = blocking(move || {
-            let _ = std::fs::remove_dir_all(&covers);
-            Ok(())
-        })
-        .await;
-    }
+    stop_covers();
+    let _ = blocking(move || {
+        let _ = std::fs::remove_dir_all(&covers);
+        Ok(())
+    })
+    .await;
     pc_storage(app).await
 }
 
@@ -1009,18 +1061,20 @@ pub async fn copy_pc_dictionary(
     })
 }
 
-/// A PC book's cover for the Library, kept in the cache once fetched.
-pub(crate) async fn pc_cover(app: &AppHandle, id: &str, revision: i64) -> Option<CoverImage> {
+/// A PC book's cover for the Library, from the cache at once. One not here yet is fetched ahead
+/// of the rest, and `pc-cover` tells the Library when it arrives: the WebView's requests never
+/// wait for the PC, which would hold up everything else the WebView loads.
+pub(crate) fn pc_cover(app: &AppHandle, id: &str, revision: i64) -> Option<CoverImage> {
     let cache = covers_directory(app).ok()?;
     if let Some(cover) = cached_cover(&cache.join(pc_listing::cover_file(id, revision))) {
         return Some(cover);
     }
-    let database = app.state::<CatalogState>().database.clone();
-    let link = tauri::async_runtime::spawn_blocking(move || read_link(&database))
-        .await
-        .ok()?
-        .ok()?;
-    fetch_cover(&link.client().ok()?, &cache, id, revision).await
+    if now_seconds() >= UNREACHABLE_SINCE.load(Ordering::SeqCst) + 20 {
+        let mut queue = cover_queue();
+        queue.ask(id, revision);
+        start_covers(app, &mut queue);
+    }
+    None
 }
 
 /// A cached cover: its type on the first line, then the image.
