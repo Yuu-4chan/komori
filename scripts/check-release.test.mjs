@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { pathsIn, peSubsystem, peVersions } from "./check-release.mjs";
+import { namedSources, pathsIn, peSubsystem, peVersions } from "./check-release.mjs";
 
 /** A minimal PE image: DOS header, PE signature, subsystem and a fixed version resource. */
 function pe(subsystem, [major, minor, patch]) {
@@ -41,5 +42,12 @@ describe("release checks", () => {
         "src-tauri/src/dictionary/deinflect.rs",
       ]),
     ).toEqual([]);
+  });
+
+  it("allow every source path NOTICE and the third-party notes name", () => {
+    const notes = [
+      ...readFileSync("scripts/third-party-notices.mjs", "utf8").matchAll(/note: "([^"]*)"/gu),
+    ].map((match) => match[1]);
+    expect(pathsIn([readFileSync("NOTICE", "utf8"), ...notes].join(" "), namedSources)).toEqual([]);
   });
 });

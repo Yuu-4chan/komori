@@ -71,8 +71,13 @@
 - **Discord.** If you turn it on, your Discord status shows the book you're reading and your
   progress, or which part of Komori you're using.
 - **On your phone too.** The Android app has the same Library, Reader, lookup, Dictionary and
-  Statistics, made for touch, and adds words to AnkiDroid. Connect it to Komori on your PC to
-  read the PC's books on the phone and keep positions, bookmarks, notes and statistics in step.
+  Statistics, made for touch: tap a word to look it up, long press to select, and add words
+  to AnkiDroid.
+- **Seamless sync between PC and phone.** Pair the phone with Komori on your PC once with a
+  short code. The phone then lists the PC's books next to its own and opens them without
+  copying files by hand, copies the PC's dictionaries, and keeps reading positions, bookmarks,
+  notes and reading statistics in step both ways, so you pick up on one where you stopped on
+  the other. It all stays on your own network, with no account or cloud.
 - **At home on Windows.** Application themes, sixteen app icons, launch at startup,
   minimize to the tray, reopen the last book and remember the window's place.
 - **Your data stays yours.** Automatic snapshots, backup export and import, signed
