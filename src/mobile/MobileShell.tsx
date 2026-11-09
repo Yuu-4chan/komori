@@ -168,7 +168,9 @@ export function MobilePageHeader({ title, actions, back = false }: MobileHeaderP
 /**
  * What the phone asks of every page: the safe area's insets, the keyboard's height, Android's
  * Back, saving what is pending when Komori goes to the background, where Android may end it
- * without warning, and syncing with the PC on starting and on coming back.
+ * without warning, and syncing with the PC on starting, on going to the background (so the PC
+ * has the place read last, within the seconds Android still lets Komori reach the network) and
+ * on coming back.
  */
 export function MobileSystem() {
   useBackButton();
@@ -177,7 +179,7 @@ export function MobileSystem() {
   useEffect(() => {
     void autoSync();
     const changed = () => {
-      if (document.visibilityState === "hidden") void flushPendingWrites();
+      if (document.visibilityState === "hidden") void flushPendingWrites().then(() => autoSync());
       else void autoSync();
     };
     document.addEventListener("visibilitychange", changed);
