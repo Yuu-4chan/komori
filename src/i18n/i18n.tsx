@@ -118,14 +118,18 @@ export interface Translator {
   date(value: Date | number, options?: Intl.DateTimeFormatOptions): string;
   /** Names a language tag, such as `ja`, in the interface language. */
   languageName(tag: string): string | null;
-  /** A short relative time, such as "3 days ago". */
-  relative(value: number, unit: Intl.RelativeTimeFormatUnit): string;
+  /** A relative time, such as "3 days ago", or "3d ago" narrow. */
+  relative(
+    value: number,
+    unit: Intl.RelativeTimeFormatUnit,
+    style?: Intl.RelativeTimeFormatStyle,
+  ): string;
   list(items: string[], type?: Intl.ListFormatType): string;
   compare(a: string, b: string): number;
 }
 
 const displayNames = new Map<InterfaceLanguage, Intl.DisplayNames | null>();
-const relativeFormats = new Map<InterfaceLanguage, Intl.RelativeTimeFormat>();
+const relativeFormats = new Map<string, Intl.RelativeTimeFormat>();
 const collators = new Map<InterfaceLanguage, Intl.Collator>();
 
 function createTranslator(language: InterfaceLanguage): Translator {
@@ -179,11 +183,12 @@ function createTranslator(language: InterfaceLanguage): Translator {
         return null;
       }
     },
-    relative(value, unit) {
-      let format = relativeFormats.get(language);
+    relative(value, unit, style = "long") {
+      const key = `${language}:${style}`;
+      let format = relativeFormats.get(key);
       if (!format) {
-        format = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-        relativeFormats.set(language, format);
+        format = new Intl.RelativeTimeFormat(locale, { numeric: "auto", style });
+        relativeFormats.set(key, format);
       }
       return format.format(value, unit);
     },

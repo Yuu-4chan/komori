@@ -1,4 +1,5 @@
-//! Local-only AnkiConnect v6. No URLs or transport errors cross the IPC boundary.
+//! Local-only AnkiConnect v6. No URLs or transport errors cross the IPC boundary. On Android,
+//! Komori's plugin answers the same actions from AnkiDroid (`android::anki`).
 use crate::library::{open_catalog, CatalogState};
 use crate::word_audio;
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -9,11 +10,14 @@ use sha2::{Digest, Sha256};
 use std::{
     cell::Cell,
     collections::BTreeMap,
-    io::{Read, Write},
-    net::{SocketAddr, TcpStream},
     path::Path,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
+};
+#[cfg(not(target_os = "android"))]
+use std::{
+    io::{Read, Write},
+    net::{SocketAddr, TcpStream},
 };
 use tauri::State;
 
@@ -27,6 +31,7 @@ mod glossary;
 mod presentation;
 #[cfg(test)]
 mod tests;
+#[cfg(not(target_os = "android"))]
 const MAX_RESPONSE: usize = 2 * 1024 * 1024;
 const FIELD_LIMIT: usize = 128 * 1024;
 const TOTAL_LIMIT: usize = 512 * 1024;
@@ -63,6 +68,15 @@ pub enum AnkiError {
     Busy,
     Duplicate,
     Pending,
+    /// The phone has no AnkiDroid.
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
+    NotInstalled,
+    /// AnkiDroid has not allowed Komori to use it.
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
+    NotAllowed,
+    /// AnkiDroid has no collection yet: its first-run setup is not done.
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
+    NotReady,
 }
 type Result<T> = std::result::Result<T, AnkiError>;
 
@@ -458,6 +472,24 @@ fn request_body(prefs: &Preferences, action: &str, parameters: Value) -> Result<
 fn call(prefs: &Preferences, action: &str, parameters: Value) -> Result<Value> {
     prefs.validate()?;
     let body = request_body(prefs, action, parameters)?;
+    send(prefs, &body)
+}
+/// AnkiDroid's answer to the request, from Komori's plugin; its size limits are AnkiConnect's.
+#[cfg(target_os = "android")]
+fn send(_prefs: &Preferences, body: &[u8]) -> Result<Value> {
+    let envelope: Value = serde_json::from_slice(body).map_err(|_| AnkiError::Invalid)?;
+    let action = envelope["action"].as_str().ok_or(AnkiError::Invalid)?;
+    crate::android::anki(action, envelope["params"].clone()).map_err(|code| match code.as_str() {
+        "notInstalled" => AnkiError::NotInstalled,
+        "notAllowed" => AnkiError::NotAllowed,
+        "notReady" => AnkiError::NotReady,
+        "duplicate" => AnkiError::Duplicate,
+        "rejected" => AnkiError::Rejected,
+        _ => AnkiError::Unavailable,
+    })
+}
+#[cfg(not(target_os = "android"))]
+fn send(prefs: &Preferences, body: &[u8]) -> Result<Value> {
     let end = CHECK_DEADLINE
         .with(Cell::get)
         .unwrap_or_else(|| Instant::now() + Duration::from_secs(5));
@@ -468,7 +500,7 @@ fn call(prefs: &Preferences, action: &str, parameters: Value) -> Result<Value> {
     let mut stream =
         TcpStream::connect_timeout(&address, timeout).map_err(|_| AnkiError::Unavailable)?;
     let headers = format!("POST / HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", prefs.port, body.len());
-    for part in [headers.as_bytes(), body.as_slice()] {
+    for part in [headers.as_bytes(), body] {
         let mut sent = 0;
         while sent < part.len() {
             let remaining = end
@@ -512,6 +544,7 @@ fn call(prefs: &Preferences, action: &str, parameters: Value) -> Result<Value> {
     parse_response(&bytes)
 }
 // Complete a length-delimited response without waiting for socket close.
+#[cfg(not(target_os = "android"))]
 fn response_length(bytes: &[u8]) -> Result<Option<usize>> {
     let Some(split) = bytes.windows(4).position(|s| s == b"\r\n\r\n") else {
         return if bytes.len() > 8192 {
@@ -548,6 +581,7 @@ fn response_length(bytes: &[u8]) -> Result<Option<usize>> {
     }
     Ok(length)
 }
+#[cfg(not(target_os = "android"))]
 fn parse_response(bytes: &[u8]) -> Result<Value> {
     let split = bytes
         .windows(4)
@@ -909,10 +943,18 @@ fn sentence_html(text: &str, expression: &str) -> String {
     text.split(expression).map(escaped).collect::<Vec<_>>().join(&format!(
         "<span class=\"komori-sentence-expression\" style=\"color:var(--bold,#b76529);font-weight:600\">{}</span>", escaped(expression)))
 }
+/// Characters a dictionary's title or frequency value may not carry into a tag. Note types
+/// render `{{Tags}}` unescaped, Lapis's inside a script's template literal and then as HTML, so
+/// a tag must not open markup, an attribute, an entity, a string or a template substitution.
+const TAG_UNSAFE: &[char] = &['<', '>', '&', '"', '\'', '`', '$', '{', '}', '\\'];
+
+/// A dictionary's tag: its title (or frequency value) in lower case, spaces as `_`, without the
+/// characters a note type could run as markup or script.
 fn dictionary_tag(title: &str) -> String {
     let normalized: String = title
         .to_lowercase()
         .chars()
+        .filter(|c| !TAG_UNSAFE.contains(c))
         .map(|c| if c.is_whitespace() { '_' } else { c })
         .collect();
     let mut tag = if normalized.starts_with("komori_request_") {
@@ -1697,10 +1739,6 @@ fn create_note_with(
     }
     let target = matches.first().copied();
     let media = cover_media(&connection, request)?;
-    let cover = media
-        .as_ref()
-        .map(|(name, _)| format!("<img src=\"{name}\" alt=\"Book cover\">"))
-        .unwrap_or_default();
     // Only a card that is written asks the word audio sources; none having it leaves the field empty.
     let audio = request
         .field_parts
@@ -1711,19 +1749,29 @@ fn create_note_with(
             _ => None,
         })
         .and_then(|(term, reading)| find_audio(&word_audio::saved_sources(path), term, reading));
-    let sound = audio
-        .as_ref()
-        .map(|audio| format!("[sound:{}]", audio.file_name()))
-        .unwrap_or_default();
-    let fields = formatted_fields(request, &cover, &sound)?;
-    let intent = WriteIntent {
-        target,
-        fields: fields.clone(),
-    };
+    let audio = audio.map(|audio| (audio.file_name(), STANDARD.encode(&audio.bytes)));
     let tag = format!("komori_request_{}", request.request_id);
     let mut tags = card_tags(request, &prefs.mappings[&prefs.model]);
     tags.push(tag.clone());
-    let note = json!({"deckName":prefs.deck, "modelName":prefs.model, "fields":fields, "options":{"allowDuplicate":prefs.duplicate_policy == DuplicatePolicy::Allow || other_readings, "duplicateScope":prefs.duplicate_scope, "duplicateScopeOptions":{"deckName":prefs.deck,"checkChildren":prefs.check_children,"checkAllModels":false}}, "tags":tags});
+    // The fields and note showing the cover and recording by the names Anki keeps them as.
+    let draft = |cover: Option<&str>,
+                 sound: Option<&str>|
+     -> Result<(BTreeMap<String, String>, Value)> {
+        let cover = cover
+            .map(|name| format!("<img src=\"{name}\" alt=\"Book cover\">"))
+            .unwrap_or_default();
+        let sound = sound
+            .map(|name| format!("[sound:{name}]"))
+            .unwrap_or_default();
+        let fields = formatted_fields(request, &cover, &sound)?;
+        let note = json!({"deckName":prefs.deck, "modelName":prefs.model, "fields":fields, "options":{"allowDuplicate":prefs.duplicate_policy == DuplicatePolicy::Allow || other_readings, "duplicateScope":prefs.duplicate_scope, "duplicateScopeOptions":{"deckName":prefs.deck,"checkChildren":prefs.check_children,"checkAllModels":false}}, "tags":tags});
+        Ok((fields, note))
+    };
+    let named = (
+        media.as_ref().map(|(name, _)| name.clone()),
+        audio.as_ref().map(|(name, _)| name.clone()),
+    );
+    let (mut fields, mut note) = draft(named.0.as_deref(), named.1.as_deref())?;
     // JSON escaping and envelope overhead also count toward the transport bound.
     // Refuse before media/tag writes or journaling a mutation that cannot be sent.
     if let Some(id) = target {
@@ -1735,17 +1783,21 @@ fn create_note_with(
     } else {
         request_body(&prefs, "addNote", json!({"note":note}))?;
     }
-    let audio = audio.map(|audio| (audio.file_name(), STANDARD.encode(&audio.bytes)));
-    for (filename, data) in media.into_iter().chain(audio) {
-        let saved = call(
-            &prefs,
-            "storeMediaFile",
-            json!({"filename":filename,"data":data}),
-        )?;
-        if saved.as_str() != Some(filename.as_str()) {
-            return Err(AnkiError::Protocol);
-        }
+    let stored = (
+        media
+            .map(|(filename, data)| store_media(&connection, &prefs, filename, data))
+            .transpose()?,
+        audio
+            .map(|(filename, data)| store_media(&connection, &prefs, filename, data))
+            .transpose()?,
+    );
+    if stored != named {
+        (fields, note) = draft(stored.0.as_deref(), stored.1.as_deref())?;
     }
+    let intent = WriteIntent {
+        target,
+        fields: fields.clone(),
+    };
     // Commit before note mutation. Overwrites additionally keep exact expected HTML for recovery.
     connection
         .execute(
@@ -1800,6 +1852,79 @@ fn create_note_with(
         let _ = cleanup_note_tags(&connection, &prefs, *id);
     }
     Ok(outcome)
+}
+/// Stores a cover or recording in Anki; the name its fields show it by. AnkiConnect keeps the
+/// given name. AnkiDroid renames every file it stores, so the phone remembers the name it gave
+/// and stores the file again only once no note shows it.
+fn store_media(
+    connection: &Connection,
+    prefs: &Preferences,
+    filename: String,
+    data: String,
+) -> Result<String> {
+    #[cfg(target_os = "android")]
+    {
+        connection
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS anki_media (name TEXT PRIMARY KEY, stored TEXT NOT NULL)",
+            )
+            .map_err(|_| AnkiError::Storage)?;
+        let remembered: Option<String> = connection
+            .query_row(
+                "SELECT stored FROM anki_media WHERE name=?1",
+                [&filename],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|_| AnkiError::Storage)?;
+        if let Some(stored) = remembered.filter(|stored| valid_media_name(stored)) {
+            let shown: Vec<i64> = serde_json::from_value(call(
+                prefs,
+                "findNotes",
+                json!({ "query": format!("\"{stored}\"") }),
+            )?)
+            .map_err(|_| AnkiError::Protocol)?;
+            if !shown.is_empty() {
+                return Ok(stored);
+            }
+        }
+    }
+    let saved = call(
+        prefs,
+        "storeMediaFile",
+        json!({"filename":filename,"data":data}),
+    )?;
+    let saved = saved.as_str().ok_or(AnkiError::Protocol)?;
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = connection;
+        if saved != filename {
+            return Err(AnkiError::Protocol);
+        }
+    }
+    #[cfg(target_os = "android")]
+    {
+        if !valid_media_name(saved) {
+            return Err(AnkiError::Protocol);
+        }
+        connection
+            .execute(
+                "INSERT INTO anki_media (name,stored) VALUES (?1,?2) ON CONFLICT(name) DO UPDATE SET stored=excluded.stored",
+                [filename.as_str(), saved],
+            )
+            .map_err(|_| AnkiError::Storage)?;
+    }
+    Ok(saved.to_owned())
+}
+/// A stored media name safe inside the fields' HTML and `[sound:]`, and as an Anki search.
+#[cfg(target_os = "android")]
+fn valid_media_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 255
+        && !name.starts_with('.')
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
 }
 fn fields_match(prefs: &Preferences, id: i64, fields: &BTreeMap<String, String>) -> Result<bool> {
     let info = call(prefs, "notesInfo", json!({"notes":[id]}))?;

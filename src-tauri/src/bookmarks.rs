@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::library::{open_catalog, storage_error, CatalogState};
 use crate::reading_position::ReadingPosition;
 
-const MAX_BOOKMARKS: i64 = 1000;
+pub(crate) const MAX_BOOKMARKS: i64 = 1000;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

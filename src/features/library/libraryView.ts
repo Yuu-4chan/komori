@@ -30,6 +30,11 @@ export const isLibraryView = (value: unknown): value is LibraryView =>
   libraryViews.includes(value as LibraryView);
 export const isLibrarySort = (value: unknown): value is LibrarySort =>
   librarySorts.includes(value as LibrarySort);
+/** Which of the phone's books its Library shows while paired with a PC. */
+export type LibraryPlace = "all" | "phone" | "pc";
+const libraryPlaces: readonly LibraryPlace[] = ["all", "phone", "pc"];
+export const isLibraryPlace = (value: unknown): value is LibraryPlace =>
+  libraryPlaces.includes(value as LibraryPlace);
 export const isLibraryFilter = (value: unknown): value is LibraryFilter =>
   libraryFilters.includes(value as LibraryFilter);
 export const isLibraryGroup = (value: unknown): value is LibraryGroup =>
@@ -158,23 +163,34 @@ export function sortBooks(
  * import.
  */
 export function readTotalLabel(book: LibraryBook): string | null {
-  const { t } = i18n();
+  const counts = readCounts(book);
+  if (!counts) return null;
+  return i18n().t(
+    counts.unit === "characters" ? "libraryCard.readCharacters" : "libraryCard.readWords",
+    { read: counts.read, total: counts.total },
+  );
+}
+
+/**
+ * What the Reader counted of a book, read and in all, in its unit; a book not yet opened has
+ * read none of what Komori counted at import. Null when there is nothing to show.
+ */
+export function readCounts(
+  book: LibraryBook,
+): { read: number; total: number; unit: "characters" | "words" } | null {
   const progress = book.progress;
   if (!progress) {
     if (book.lastReadAt) return null;
     if (typeof book.characters === "number")
-      return t("libraryCard.readCharacters", { read: 0, total: book.characters });
-    if (typeof book.words === "number")
-      return t("libraryCard.readWords", { read: 0, total: book.words });
+      return { read: 0, total: book.characters, unit: "characters" };
+    if (typeof book.words === "number") return { read: 0, total: book.words, unit: "words" };
     return null;
   }
-  return t(
-    progress.unit === "characters" ? "libraryCard.readCharacters" : "libraryCard.readWords",
-    {
-      read: Math.min(progress.current, progress.total),
-      total: progress.total,
-    },
-  );
+  return {
+    read: Math.min(progress.current, progress.total),
+    total: progress.total,
+    unit: progress.unit === "characters" ? "characters" : "words",
+  };
 }
 
 /** The percentage beside a progress bar: "Completed" at the end. */
@@ -192,13 +208,26 @@ const units: [Intl.RelativeTimeFormatUnit, number][] = [
   ["minute", 60],
 ];
 
-/** "2 days ago", or null for a book never opened. */
-export function lastReadLabel(book: LibraryBook, now = Date.now()): string | null {
-  const read = book.lastReadAt ? Date.parse(book.lastReadAt) : Number.NaN;
+/** "2 days ago" ("2d ago" narrow), or null for a book never opened. */
+export function lastReadLabel(
+  book: LibraryBook,
+  now = Date.now(),
+  style: Intl.RelativeTimeFormatStyle = "long",
+): string | null {
+  return timeAgo(book.lastReadAt, now, style);
+}
+
+/** "2 days ago" ("2d ago" narrow) for a stored time, or null for none. */
+export function timeAgo(
+  at: string | null | undefined,
+  now = Date.now(),
+  style: Intl.RelativeTimeFormatStyle = "long",
+): string | null {
+  const read = at ? Date.parse(at) : Number.NaN;
   if (Number.isNaN(read)) return null;
   const seconds = Math.round((read - now) / 1000);
   for (const [unit, size] of units) {
-    if (Math.abs(seconds) >= size) return i18n().relative(Math.round(seconds / size), unit);
+    if (Math.abs(seconds) >= size) return i18n().relative(Math.round(seconds / size), unit, style);
   }
   return i18n().t("libraryCard.justNow");
 }

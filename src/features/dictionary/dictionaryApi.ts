@@ -59,6 +59,8 @@ export interface TermMatch {
   /** Each name in `definitionTags`, then `termTags`, once, with its own dictionary's definition. */
   tags: TermTag[];
   glossary: unknown;
+  /** The dictionary's entry could not be read back or is too large; `glossary` is then empty. */
+  unreadable?: boolean;
 }
 
 /**

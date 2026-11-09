@@ -32,9 +32,12 @@ struct Source {
     description: &'static str,
     attribution: &'static str,
     page: &'static str,
+    #[cfg_attr(not(windows), allow(dead_code))]
     url: &'static str,
+    #[cfg_attr(not(windows), allow(dead_code))]
     asset_repository: Option<&'static str>,
     /// Hugging Face answers from its CDN.
+    #[cfg_attr(not(windows), allow(dead_code))]
     hugging_face: bool,
     hash: Option<&'static str>,
     title_prefix: &'static str,
@@ -967,9 +970,66 @@ fn fetch(s: &Source, file: &mut File, progress: Progress<'_>) -> Result<(), Stri
     Err(FAILURE.into())
 }
 
+/// Elsewhere, as on the phone, the same download through Komori's HTTP client: one allowed
+/// redirect, the same limits, and progress every 256 KiB.
 #[cfg(not(windows))]
-fn fetch(_: &Source, _: &mut File, _: Progress<'_>) -> Result<(), String> {
-    Err("Starter downloads require Windows.".into())
+fn fetch(s: &Source, file: &mut File, progress: Progress<'_>) -> Result<(), String> {
+    use reqwest::{header::LOCATION, redirect::Policy, StatusCode};
+    use std::time::{Duration, Instant};
+    let client = crate::http::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .read_timeout(Duration::from_secs(15))
+        .redirect(Policy::none())
+        .build()
+        .map_err(|_| FAILURE)?;
+    let started = Instant::now();
+    tauri::async_runtime::block_on(async {
+        let mut url = s.url.to_owned();
+        for hop in 0..=1 {
+            let mut response = client.get(&url).send().await.map_err(|_| FAILURE)?;
+            if response.status() == StatusCode::FOUND && hop == 0 {
+                let next = response
+                    .headers()
+                    .get(LOCATION)
+                    .and_then(|location| location.to_str().ok())
+                    .ok_or(FAILURE)?;
+                if !allowed_redirect(s, next) {
+                    return Err(FAILURE.into());
+                }
+                url = next.to_owned();
+                continue;
+            }
+            if response.status() != StatusCode::OK {
+                return Err(FAILURE.into());
+            }
+            let total = response.content_length();
+            if total.is_some_and(|size| size == 0 || size > MAX_DOWNLOAD) {
+                return Err(FAILURE.into());
+            }
+            let mut received = 0u64;
+            let mut announced = 0u64;
+            while let Some(chunk) = response.chunk().await.map_err(|_| FAILURE)? {
+                if started.elapsed().as_secs() > 600 {
+                    return Err(FAILURE.into());
+                }
+                received += chunk.len() as u64;
+                if received > MAX_DOWNLOAD || total.is_some_and(|size| received > size) {
+                    return Err(FAILURE.into());
+                }
+                file.write_all(&chunk).map_err(|_| FAILURE)?;
+                if received - announced >= 256 * 1024 {
+                    progress(Phase::Downloading, received, total);
+                    announced = received;
+                }
+            }
+            if received == 0 || total.is_some_and(|size| received != size) {
+                return Err(FAILURE.into());
+            }
+            progress(Phase::Downloading, received, total);
+            return Ok(());
+        }
+        Err(FAILURE.into())
+    })
 }
 
 #[cfg(test)]

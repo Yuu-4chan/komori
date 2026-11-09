@@ -8,7 +8,7 @@
 //! so an older Komori still opens the catalog. Sessions outlive their book's removal, keeping
 //! the title it had, until the reader deletes them from Settings. Sources are never read here.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use rusqlite::{params, Connection, TransactionBehavior};
 use serde::{Deserialize, Serialize};
@@ -81,7 +81,12 @@ pub(crate) fn create_tables(connection: &Connection) -> Result<(), String> {
             ))
             .map_err(storage_error)?;
     }
-    for column in ["units_adjustment", "active_adjustment"] {
+    for (column, kind) in [
+        ("units_adjustment", "INTEGER NOT NULL DEFAULT 0"),
+        ("active_adjustment", "INTEGER NOT NULL DEFAULT 0"),
+        // The device that read the session, when another one did (a synced PC or phone).
+        ("device", "TEXT"),
+    ] {
         let exists: bool = connection
             .query_row(
                 "SELECT count(*) FROM pragma_table_info('reading_sessions') WHERE name = ?1",
@@ -92,7 +97,7 @@ pub(crate) fn create_tables(connection: &Connection) -> Result<(), String> {
         if !exists {
             connection
                 .execute_batch(&format!(
-                    "ALTER TABLE reading_sessions ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"
+                    "ALTER TABLE reading_sessions ADD COLUMN {column} {kind}"
                 ))
                 .map_err(storage_error)?;
         }
@@ -100,8 +105,65 @@ pub(crate) fn create_tables(connection: &Connection) -> Result<(), String> {
     connection
         .execute_batch(
             "CREATE INDEX IF NOT EXISTS reading_sessions_book
-               ON reading_sessions (book_id, started_at);",
+               ON reading_sessions (book_id, started_at);
+             CREATE TABLE IF NOT EXISTS reading_devices (
+               id TEXT PRIMARY KEY,
+               name TEXT NOT NULL
+             );",
         )
+        .map_err(storage_error)
+}
+
+/// The longest device name kept, as the PC keeps it at pairing.
+pub(crate) const DEVICE_NAME_LIMIT: usize = 64;
+
+/// Another device that read sessions recorded here, by the name it had when it last synced.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReadingDevice {
+    pub(crate) id: String,
+    pub(crate) name: String,
+}
+
+impl ReadingDevice {
+    pub(crate) fn is_valid(&self) -> bool {
+        Uuid::parse_str(&self.id).is_ok()
+            && !self.name.trim().is_empty()
+            && self.name.trim() == self.name
+            && self.name.chars().count() <= DEVICE_NAME_LIMIT
+            && !self.name.chars().any(char::is_control)
+    }
+}
+
+pub(crate) fn devices_from(connection: &Connection) -> Result<Vec<ReadingDevice>, String> {
+    let mut statement = connection
+        .prepare("SELECT id, name FROM reading_devices ORDER BY name, id")
+        .map_err(storage_error)?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok(ReadingDevice {
+                id: row.get(0)?,
+                name: row.get(1)?,
+            })
+        })
+        .map_err(storage_error)?;
+    Ok(rows
+        .filter_map(Result::ok)
+        .filter(ReadingDevice::is_valid)
+        .collect())
+}
+
+pub(crate) fn save_device(connection: &Connection, device: &ReadingDevice) -> Result<(), String> {
+    if !device.is_valid() {
+        return Ok(());
+    }
+    connection
+        .execute(
+            "INSERT INTO reading_devices (id, name) VALUES (?1, ?2)
+             ON CONFLICT(id) DO UPDATE SET name = excluded.name",
+            params![device.id, device.name],
+        )
+        .map(|_| ())
         .map_err(storage_error)
 }
 
@@ -139,15 +201,18 @@ impl ReadingSession {
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StoredSession {
-    book_id: String,
+    pub(crate) book_id: String,
     /// The book's title when the session was last saved, for books since removed.
-    book_title: Option<String>,
+    pub(crate) book_title: Option<String>,
     /// Marked unread since: the session no longer counts as finishing the book.
-    finish_cleared: bool,
+    pub(crate) finish_cleared: bool,
     /// Corrections affect measured totals only; Reader checkpoints remain original.
-    adjustment: SessionAdjustment,
+    pub(crate) adjustment: SessionAdjustment,
+    /// The device that read it, when another one did; see `list_reading_devices`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) device: Option<String>,
     #[serde(flatten)]
-    session: ReadingSession,
+    pub(crate) session: ReadingSession,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -341,6 +406,17 @@ pub async fn list_reading_sessions(
         .map_err(|error| format!("Reading session task failed: {error}"))?
 }
 
+/// The other devices that read sessions recorded here (a synced PC or phone), with their names.
+#[tauri::command]
+pub async fn list_reading_devices(
+    catalog: State<'_, CatalogState>,
+) -> Result<Vec<ReadingDevice>, String> {
+    let database = catalog.database.clone();
+    tauri::async_runtime::spawn_blocking(move || devices_from(&open_catalog(&database)?))
+        .await
+        .map_err(|error| format!("Reading session task failed: {error}"))?
+}
+
 /// How many sessions are recorded, and how many belong to books no longer in the Library.
 #[tauri::command]
 pub async fn get_statistics_counts(
@@ -387,8 +463,9 @@ pub(crate) fn counts_from(connection: &Connection) -> Result<StatisticsCounts, S
     connection
         .query_row(
             "SELECT count(*),
-                    count(*) FILTER (WHERE books.id IS NULL),
-                    count(DISTINCT CASE WHEN books.id IS NULL THEN sessions.book_id END)
+                    count(*) FILTER (WHERE books.id IS NULL AND sessions.device IS NULL),
+                    count(DISTINCT CASE WHEN books.id IS NULL AND sessions.device IS NULL
+                                        THEN sessions.book_id END)
                FROM reading_sessions AS sessions
                LEFT JOIN books ON books.id = sessions.book_id",
             [],
@@ -405,7 +482,8 @@ pub(crate) fn counts_from(connection: &Connection) -> Result<StatisticsCounts, S
 
 pub(crate) fn delete_from(connection: &Connection, orphans: bool) -> Result<i64, String> {
     let sql = if orphans {
-        "DELETE FROM reading_sessions WHERE book_id NOT IN (SELECT id FROM books)"
+        "DELETE FROM reading_sessions
+          WHERE device IS NULL AND book_id NOT IN (SELECT id FROM books)"
     } else {
         "DELETE FROM reading_sessions"
     };
@@ -502,13 +580,17 @@ pub(crate) fn list_from(connection: &Connection) -> Result<Vec<StoredSession>, S
         .prepare(
             "SELECT book_id, id, started_at, ended_at, active_ms, unit, units_read,
                     start_units, end_units, total_units, book_title, finish_cleared,
-                    units_adjustment, active_adjustment
+                    units_adjustment, active_adjustment, device
                FROM reading_sessions ORDER BY started_at, id",
         )
         .map_err(storage_error)?;
     let rows = statement
         .query_map([], |row| {
             Ok((
+                row.get::<_, Option<String>>(14)
+                    .ok()
+                    .flatten()
+                    .filter(|device| Uuid::parse_str(device).is_ok()),
                 row.get::<_, String>(0),
                 row.get::<_, Option<String>>(10).unwrap_or(None),
                 row.get::<_, bool>(11).unwrap_or(false),
@@ -534,11 +616,12 @@ pub(crate) fn list_from(connection: &Connection) -> Result<Vec<StoredSession>, S
         .map_err(storage_error)?;
     let mut sessions = Vec::new();
     for row in rows {
-        if let (Ok(book_id), book_title, finish_cleared, adjustment, Ok(session)) =
+        if let (device, Ok(book_id), book_title, finish_cleared, adjustment, Ok(session)) =
             row.map_err(storage_error)?
         {
             if session.is_valid() {
                 sessions.push(StoredSession {
+                    device,
                     book_id,
                     book_title,
                     finish_cleared,
@@ -555,19 +638,19 @@ pub(crate) fn list_from(connection: &Connection) -> Result<Vec<StoredSession>, S
     Ok(sessions)
 }
 
-/// One script's kanji across the Library.
-#[derive(Debug, PartialEq, Serialize)]
+/// One script's kanji across the Library; a paired phone also receives the PC's.
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryKanji {
     /// `ja` or `zh`.
-    language: &'static str,
+    language: String,
     /// The books of this language with counted kanji.
     books: i64,
     /// Each kanji, the books containing it, and whether a completed book does.
     kanji: Vec<KanjiEntry>,
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KanjiEntry {
     character: String,
@@ -578,9 +661,18 @@ pub struct KanjiEntry {
 /// Groups the counted kanji of Japanese and Chinese books, most widespread first. A book is
 /// completed when its saved progress reached its total.
 pub(crate) fn kanji_from(connection: &Connection) -> Result<Vec<LibraryKanji>, String> {
+    kanji_skipping(connection, &HashSet::new())
+}
+
+/// The same, leaving out the books `skip` names, such as a phone's copies of the PC's books
+/// when the PC's kanji count them.
+pub(crate) fn kanji_skipping(
+    connection: &Connection,
+    skip: &HashSet<String>,
+) -> Result<Vec<LibraryKanji>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT details.language, details.kanji,
+            "SELECT details.book_id, details.language, details.kanji,
                     coalesce(progress.current_units >= progress.total_units
                              AND progress.total_units > 0, 0)
                FROM book_details AS details
@@ -591,9 +683,10 @@ pub(crate) fn kanji_from(connection: &Connection) -> Result<Vec<LibraryKanji>, S
     let rows = statement
         .query_map([], |row| {
             Ok((
-                row.get::<_, Option<String>>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, bool>(2)?,
+                row.get::<_, String>(0)?,
+                row.get::<_, Option<String>>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, bool>(3)?,
             ))
         })
         .map_err(storage_error)?;
@@ -601,7 +694,10 @@ pub(crate) fn kanji_from(connection: &Connection) -> Result<Vec<LibraryKanji>, S
     type Kanji = BTreeMap<char, (i64, bool)>;
     let mut groups: BTreeMap<&'static str, (i64, Kanji)> = BTreeMap::new();
     for row in rows {
-        let (language, kanji, completed) = row.map_err(storage_error)?;
+        let (book, language, kanji, completed) = row.map_err(storage_error)?;
+        if skip.contains(&book) {
+            continue;
+        }
         let Some(script) = script_of(language.as_deref()) else {
             continue;
         };
@@ -627,12 +723,51 @@ pub(crate) fn kanji_from(connection: &Connection) -> Result<Vec<LibraryKanji>, S
             // Stable over code point order, so ties stay in code point order.
             kanji.sort_by_key(|entry| std::cmp::Reverse(entry.books));
             LibraryKanji {
-                language,
+                language: language.to_owned(),
                 books,
                 kanji,
             }
         })
         .collect())
+}
+
+/// Two Libraries' kanji as one, such as the phone's and the PC's: per script the books add up,
+/// as do each kanji's, and a kanji is completed when either completed a book with it.
+#[cfg(any(mobile, test))]
+pub(crate) fn merge_kanji(
+    first: Vec<LibraryKanji>,
+    second: Vec<LibraryKanji>,
+) -> Vec<LibraryKanji> {
+    type Kanji = BTreeMap<String, (i64, bool)>;
+    let mut groups: BTreeMap<String, (i64, Kanji)> = BTreeMap::new();
+    for group in first.into_iter().chain(second) {
+        let (books, entries) = groups.entry(group.language).or_default();
+        *books += group.books;
+        for entry in group.kanji {
+            let merged = entries.entry(entry.character).or_default();
+            merged.0 += entry.books;
+            merged.1 |= entry.completed;
+        }
+    }
+    groups
+        .into_iter()
+        .map(|(language, (books, entries))| {
+            let mut kanji: Vec<KanjiEntry> = entries
+                .into_iter()
+                .map(|(character, (books, completed))| KanjiEntry {
+                    character,
+                    books,
+                    completed,
+                })
+                .collect();
+            kanji.sort_by_key(|entry| std::cmp::Reverse(entry.books));
+            LibraryKanji {
+                language,
+                books,
+                kanji,
+            }
+        })
+        .collect()
 }
 
 fn script_of(language: Option<&str>) -> Option<&'static str> {
@@ -1161,6 +1296,9 @@ mod tests {
             },
         )
         .unwrap();
+        let skipped = kanji_skipping(&connection, &HashSet::from([BOOK.to_owned()])).unwrap();
+        assert_eq!(skipped[0].books, 1);
+        assert_eq!(skipped[0].kanji.len(), 2);
         let groups = kanji_from(&connection).unwrap();
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].language, "ja");
@@ -1177,6 +1315,50 @@ mod tests {
                 ("人".into(), 1, false),
                 ("月".into(), 1, true),
                 ("本".into(), 1, false),
+            ]
+        );
+    }
+
+    #[test]
+    fn merges_two_libraries_kanji() {
+        let entry = |character: &str, books: i64, completed: bool| KanjiEntry {
+            character: character.to_owned(),
+            books,
+            completed,
+        };
+        let phone = vec![LibraryKanji {
+            language: "ja".into(),
+            books: 2,
+            kanji: vec![entry("日", 2, false), entry("月", 1, true)],
+        }];
+        let pc = vec![
+            LibraryKanji {
+                language: "ja".into(),
+                books: 3,
+                kanji: vec![entry("人", 3, false), entry("日", 1, true)],
+            },
+            LibraryKanji {
+                language: "zh".into(),
+                books: 1,
+                kanji: vec![entry("书", 1, false)],
+            },
+        ];
+        let json = serde_json::to_string(&pc).unwrap();
+        let pc: Vec<LibraryKanji> = serde_json::from_str(&json).unwrap();
+        let merged = merge_kanji(phone, pc);
+        assert_eq!(
+            merged
+                .iter()
+                .map(|group| (group.language.as_str(), group.books))
+                .collect::<Vec<_>>(),
+            [("ja", 5), ("zh", 1)]
+        );
+        assert_eq!(
+            merged[0].kanji,
+            vec![
+                entry("人", 3, false),
+                entry("日", 3, true),
+                entry("月", 1, true)
             ]
         );
     }

@@ -1,0 +1,1962 @@
+/* Komori on the phone, after the Komori Mobile draft. Android reports the status bar, the
+   display cutout and the gesture bar as --safe-area-* (see system.ts); until it does, the
+   WebView's own insets stand in. */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --stable-area-top: var(--safe-area-top);
+  --stable-area-right: var(--safe-area-right);
+  --stable-area-bottom: var(--safe-area-bottom);
+  --stable-area-left: var(--safe-area-left);
+  --mobile-gutter: 1.25rem;
+  --mobile-control: 2.75rem;
+  --mobile-dock-height: 3.75rem;
+  --mobile-dock-gap: 1.25rem;
+  --mobile-dock-space: calc(
+    var(--safe-area-bottom) + var(--mobile-dock-height) + var(--mobile-dock-gap) + 1.5rem
+  );
+}
+
+/* Android's keyboard covers the page instead of shrinking it (see watchKeyboard): while it is
+   open, a dialog stands in the room above it, and scrolls when that is too short. */
+:root[data-keyboard] dialog[open] {
+  bottom: var(--keyboard-inset);
+  max-height: calc(100% - var(--keyboard-inset) - 1.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The phone draws no scroll bars, where the PC's would take room; Android's WebView ignores
+   `scrollbar-width`. */
+::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-main);
+}
+
+/* The status bar stays clear of the page scrolling under it. */
+.mobile-shell::before {
+  content: "";
+  position: fixed;
+  z-index: 10;
+  inset: 0 0 auto;
+  height: var(--safe-area-top);
+  background: var(--surface-main);
+  pointer-events: none;
+}
+
+.mobile-shell__content {
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The page keeps still under an open sheet. */
+:root[data-sheet-open] .mobile-shell__content {
+  overflow-y: hidden;
+}
+
+/* Every page in the frame, its own and the PC's, takes the phone's gutters and leaves room for
+   the dock. */
+.mobile-page,
+.mobile-shell .page {
+  width: 100%;
+  max-width: none;
+  min-height: 100%;
+  margin: 0;
+  padding: calc(var(--safe-area-top) + 0.75rem) calc(var(--safe-area-right) + var(--mobile-gutter))
+    var(--mobile-dock-space) calc(var(--safe-area-left) + var(--mobile-gutter));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Header: the brand or Back, the title, Settings and the page's own actions. */
+.mobile-header__row {
+  min-height: var(--mobile-control);
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.mobile-header__brand {
+  width: 2.5rem;
+  height: 1.75rem;
+  flex: none;
+}
+
+.mobile-header__title {
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-header h1 {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-round-button {
+  width: var(--mobile-control);
+  height: var(--mobile-control);
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  font-size: 1.25rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mobile-round-button--accent {
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+  border-color: transparent;
+}
+
+.mobile-round-button:disabled {
+  opacity: 0.6;
+}
+
+.mobile-round-button:focus-visible,
+.mobile-dock__item:focus-visible,
+.mobile-row:focus-visible,
+.mobile-tile:focus-visible,
+.mobile-book-row:focus-visible,
+.mobile-group-heading:focus-visible,
+.mobile-choice:focus-visible,
+.mobile-selection-bar__action:focus-visible,
+.mobile-selection-header__all:focus-visible,
+.mobile-continue:focus-visible,
+.mobile-sheet-row:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The page's actions beside Settings, such as the Statistics range, take its round size. */
+.mobile-header .menu-button {
+  height: var(--mobile-control);
+  border-radius: var(--radius-pill);
+}
+
+/* The dock floats above the gesture bar with the three destinations. */
+.mobile-dock {
+  position: fixed;
+  bottom: calc(var(--safe-area-bottom) + var(--mobile-dock-gap));
+  left: 50%;
+  z-index: 20;
+  padding: 0.3125rem;
+  display: flex;
+  gap: 0.125rem;
+  background: color-mix(in srgb, var(--surface-card) 92%, transparent);
+  border: 1px solid var(--border-soft);
+  border-radius: 1.375rem;
+  box-shadow: var(--shadow-float);
+  transform: translateX(-50%);
+  backdrop-filter: blur(16px);
+}
+
+.mobile-dock[hidden] {
+  display: none;
+}
+
+.mobile-dock__item {
+  width: 5.25rem;
+  padding: 0.5rem 0 0.4375rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1875rem;
+  color: var(--text-secondary);
+  border-radius: 1.0625rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.mobile-dock__item svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.mobile-dock__item--active {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+/* Library */
+.mobile-notices:empty {
+  display: none;
+}
+
+.mobile-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-search .book-search {
+  height: var(--mobile-control);
+  padding: 0 1rem;
+  background: var(--surface-card);
+  border-color: var(--border-soft);
+  border-radius: var(--radius-pill);
+}
+
+.mobile-search .book-search input {
+  font-size: 0.9375rem;
+  text-overflow: ellipsis;
+}
+
+.mobile-library__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-section-heading {
+  margin: 0.25rem 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.mobile-section-heading small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.mobile-library__none {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.mobile-continue {
+  padding: 0.75rem;
+  display: flex;
+  gap: 0.875rem;
+  color: inherit;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.9375rem;
+  text-decoration: none;
+}
+
+/* The cover keeps its shape however tall the card's text makes the card. */
+.mobile-continue .library-book__cover {
+  width: 4.5rem;
+  height: auto;
+  flex: none;
+  align-self: center;
+  aspect-ratio: 70 / 104;
+  border-radius: 0.375rem;
+}
+
+.mobile-continue__copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.mobile-continue__copy strong,
+.mobile-continue__copy span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-continue__copy strong {
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.mobile-continue__copy > div > span {
+  margin-top: 0.125rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.mobile-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.mobile-chips:empty {
+  display: none;
+}
+
+.mobile-chips span {
+  height: 1.375rem;
+  padding: 0 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+}
+
+/* A card's chips stay on one line, the last shortened when they do not fit. */
+.mobile-continue .mobile-chips {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.mobile-continue .mobile-chips > span {
+  padding: 0 0.4375rem;
+  flex: none;
+  white-space: nowrap;
+}
+
+.mobile-continue .mobile-chips > span:last-child:not(.mobile-chips__saved) {
+  min-width: 0;
+  flex: 0 1 auto;
+  display: block;
+  line-height: 1.375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-continue__count {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-progress__bar {
+  height: 0.3125rem;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
+  border-radius: var(--radius-pill);
+}
+
+.mobile-progress__bar > span {
+  height: 100%;
+  display: block;
+  background: var(--progress-fill);
+  border-radius: inherit;
+}
+
+.mobile-progress__percent {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The characters or words read and in all: beside the percentage in the list, under the bar on
+   a tile. */
+.mobile-progress__count {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-library__grid {
+  /* Each row ends with the gap to the next; the last row's gap is taken back. */
+  margin: 0 0 -1.125rem;
+}
+
+.mobile-library__grid--virtual {
+  position: relative;
+}
+
+.mobile-library__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 0.75rem;
+  padding-bottom: 1.125rem;
+}
+
+.mobile-library__grid--virtual .mobile-library__row {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+}
+
+.mobile-tile {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mobile-tile .library-book__cover {
+  margin-bottom: 0.25rem;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 12px color-mix(in srgb, #0c1224 14%, transparent);
+}
+
+.mobile-tile--missing .library-book__cover img {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.mobile-tile__missing {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--warning);
+  font-size: 1.75rem;
+}
+
+.mobile-tile__title,
+.mobile-tile__author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-tile__title {
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.mobile-tile__author {
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+
+.mobile-tile .mobile-progress {
+  gap: 0.375rem;
+}
+
+.mobile-tile .mobile-progress__bar {
+  height: 0.25rem;
+}
+
+.mobile-tile .mobile-progress__percent {
+  font-size: 0.625rem;
+}
+
+.mobile-tile .mobile-progress {
+  flex-wrap: wrap;
+  row-gap: 0.125rem;
+}
+
+.mobile-tile .mobile-progress__count {
+  flex-basis: 100%;
+  font-size: 0.625rem;
+}
+
+.mobile-page .empty-state {
+  margin: auto;
+  padding: 2rem 1rem;
+}
+
+/* Sheets rise from the bottom over a dimmed page. */
+.mobile-sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overscroll-behavior: contain;
+  touch-action: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: rgba(8, 9, 14, 0.5);
+  animation: mobile-fade var(--duration-normal) var(--ease-out);
+}
+
+.mobile-sheet {
+  max-height: calc(100% - var(--safe-area-top) - 2rem);
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 0.5rem calc(var(--safe-area-right) + 1.125rem) calc(var(--safe-area-bottom) + 1.125rem)
+    calc(var(--safe-area-left) + 1.125rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  color: var(--text-primary);
+  background: var(--surface-main);
+  border-radius: 1.625rem 1.625rem 0 0;
+  box-shadow: var(--shadow-float);
+  animation: mobile-rise var(--duration-normal) var(--ease-out);
+}
+
+.mobile-sheet__handle {
+  width: 2.25rem;
+  height: 0.25rem;
+  margin: 0 auto 0.25rem;
+  flex: none;
+  background: var(--border-medium);
+  border-radius: var(--radius-pill);
+}
+
+.mobile-sheet-row {
+  min-height: 3.25rem;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mobile-sheet-row svg {
+  font-size: 1.25rem;
+}
+
+.mobile-sheet-row--danger {
+  color: var(--danger);
+}
+
+.mobile-sheet-row:disabled {
+  opacity: 0.6;
+}
+
+.mobile-missing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.mobile-missing__book {
+  margin-bottom: 0.375rem;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.mobile-missing__book .library-book__cover {
+  width: 3.5rem;
+  flex: none;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.375rem;
+}
+
+.mobile-missing__book div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mobile-missing__book strong {
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.mobile-missing__book span {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+/* A long press on a book selects it, with no Android callout or text selection. */
+.mobile-tile,
+.mobile-book-row,
+.mobile-group-heading,
+.mobile-continue {
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@keyframes mobile-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes mobile-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes mobile-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Settings: grouped rows, each opening its section. */
+.mobile-group {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+}
+
+.mobile-row {
+  min-height: 3.5rem;
+  padding: 0 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.mobile-row + .mobile-row {
+  box-shadow:
+    inset 3.625rem 1px 0 var(--surface-card),
+    inset 0 1px 0 var(--border-soft);
+}
+
+.mobile-row__icon {
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+  border-radius: 0.5625rem;
+  font-size: 1.125rem;
+}
+
+.mobile-row__label {
+  flex: 1;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.mobile-row__text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mobile-row__detail {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-row__chevron {
+  color: var(--text-muted);
+}
+
+.mobile-settings__version {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+/* A phone card is as tall as its rows, not the PC's card height. */
+.mobile-settings .settings-card {
+  min-height: 0;
+  padding: 1rem;
+  border-radius: 1rem;
+}
+
+/* A section's cards keep their titles, as the headings of grouped rows; a section of one card
+   has its page's title. */
+.mobile-settings .settings-card__heading {
+  margin-bottom: 0.25rem;
+}
+
+.mobile-settings .settings-card__icon,
+.mobile-settings .settings-card__heading p,
+.mobile-settings--general .settings-card__heading,
+.mobile-settings--statistics .settings-card__heading {
+  display: none;
+}
+
+.mobile-settings .settings-card__heading h2 {
+  font-size: 0.9375rem;
+}
+
+/* The phone's settings are rows without explanations. */
+.mobile-settings .toggle-setting__text small,
+.mobile-settings .settings-field__hint,
+.mobile-settings .settings-section-header > div > span,
+.mobile-settings .settings-source-toolbar:empty {
+  display: none;
+}
+
+.mobile-settings .anki-settings .settings-row > div > span,
+.mobile-settings .anki-settings .settings-note {
+  display: none;
+}
+
+.mobile-settings .anki-lapis-offer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.mobile-settings .anki-lapis-offer p {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.mobile-settings .app-theme-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* The custom theme editor: each label above its control, as the color fields have it. */
+.mobile-settings .app-theme-editor__row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.mobile-settings .app-theme-editor__label {
+  min-width: 0;
+  padding-top: 0;
+  font-size: var(--font-size-1);
+  line-height: 1.2;
+}
+
+.mobile-settings .app-theme-editor .segmented-control {
+  width: 100%;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+.mobile-about {
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.mobile-about__brand {
+  width: 5rem;
+  height: 3.5rem;
+}
+
+.mobile-about p {
+  margin: 0;
+}
+
+/* Statistics: two columns of compact tiles. */
+.mobile-shell .statistics-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+
+.mobile-shell .statistics-metric {
+  padding: 0.75rem;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border-radius: 0.9375rem;
+}
+
+.mobile-shell .statistics-metric__icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.625rem;
+}
+
+.mobile-shell .statistics-metric__icon svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.mobile-shell .statistics-metric strong {
+  font-size: 1.1875rem;
+}
+
+.mobile-shell .statistics-metric > div > span {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.mobile-shell .statistics-metric small {
+  font-size: 0.6875rem;
+}
+
+.mobile-statistics-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-statistics-heading .statistics-section-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Daily activity: the month beside the heading, and a calendar of small days, each with its
+   number and its dot. */
+.mobile-shell .statistics-card__heading--activity {
+  min-height: 0;
+  padding: 0.875rem 0.875rem 0.75rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.mobile-shell .statistics-card__heading--activity h2 {
+  font-size: 1rem;
+}
+
+.mobile-shell .statistics-month-switcher {
+  gap: 0.25rem;
+}
+
+.mobile-shell .statistics-month-switcher button {
+  border-radius: 999px;
+}
+
+.mobile-shell .statistics-month-switcher strong {
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+
+.mobile-shell .statistics-activity-layout {
+  padding-inline: 0.875rem;
+  gap: 0.75rem;
+}
+
+.mobile-shell .statistics-calendar {
+  padding: 0.625rem;
+  border-radius: 0.75rem;
+}
+
+.mobile-shell .statistics-calendar__weekdays span {
+  font-size: 0.625rem;
+}
+
+.mobile-shell .statistics-calendar__grid {
+  gap: 0.3125rem;
+}
+
+.mobile-shell .statistics-calendar__day,
+.mobile-shell .statistics-calendar__blank {
+  min-height: 2.25rem;
+  border-radius: 0.5rem;
+}
+
+.mobile-shell .statistics-calendar__day {
+  padding: 0.25rem 0.3125rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.mobile-shell .statistics-calendar__day span {
+  font-size: 0.6875rem;
+}
+
+.mobile-shell .statistics-calendar__day i {
+  width: 0.375rem;
+  height: 0.375rem;
+  align-self: flex-end;
+}
+
+/* Completion: as tall as its books' dots. */
+.mobile-shell .completion-card {
+  min-height: 0;
+}
+
+/* Dictionary: a round search, the sources as a row of chips, and each entry as a card. */
+.mobile-shell .dictionary-search-row {
+  display: block;
+}
+
+.mobile-shell .dictionary-search {
+  min-height: 2.875rem;
+  padding: 0 0.375rem 0 0.875rem;
+  gap: 0.625rem;
+  border-color: var(--border-soft);
+  border-radius: var(--radius-pill);
+  box-shadow: none;
+}
+
+.mobile-shell .dictionary-search input {
+  font-size: 0.9375rem;
+}
+
+/* The field's own clear button would double Komori's. */
+.mobile-shell .dictionary-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.mobile-shell .dictionary-search__clear {
+  width: 2.125rem;
+  height: 2.125rem;
+  flex: none;
+  border-radius: var(--radius-pill);
+}
+
+.dictionary-source-chips {
+  margin-right: calc(-1 * (var(--safe-area-right) + var(--mobile-gutter)));
+  padding-right: calc(var(--safe-area-right) + var(--mobile-gutter));
+  display: flex;
+  gap: 0.375rem;
+  overflow-x: auto;
+}
+
+.dictionary-source-chip {
+  height: 2rem;
+  padding: 0 0.75rem;
+  flex: none;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dictionary-source-chip[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--border-accent);
+  font-weight: 600;
+}
+
+.mobile-shell .dictionary-workspace {
+  display: block;
+}
+
+.mobile-shell .dictionary-results__header {
+  margin-bottom: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.mobile-shell .dictionary-sheet {
+  padding: 0;
+  gap: 0.75rem;
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.mobile-shell .dictionary-sheet > * {
+  padding: 0 1rem;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-xs);
+}
+
+.mobile-shell .dictionary-results__empty .empty-state p {
+  display: none;
+}
+
+.mobile-shell .dictionary-sheet > .lookup-entry {
+  padding: 0.75rem 1rem 0.875rem;
+}
+
+.mobile-shell .dictionary-sheet > .lookup-entry + .lookup-entry {
+  border-top-color: var(--border-soft);
+}
+
+/* Library: the books in progress, a row of cards that scrolls sideways. */
+.mobile-continue-row {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-columns: 100%;
+  grid-auto-flow: column;
+  gap: 0.625rem;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.mobile-continue-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* The next card shows at the edge, so the row reads as one to scroll. */
+.mobile-continue-row--several {
+  grid-auto-columns: calc(100% - 2.5rem);
+}
+
+.mobile-continue-row > li {
+  min-width: 0;
+  display: flex;
+  scroll-snap-align: start;
+}
+
+.mobile-continue-row .mobile-continue {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Library: the paired PC's status */
+/* The PC's status above the Library, in one box whatever it says. */
+.mobile-pc-status {
+  min-height: 3rem;
+  padding: 0.375rem 0.375rem 0.375rem 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8125rem;
+  font-size: 0.8125rem;
+}
+
+.mobile-pc-status > span:not(.mobile-sync__dot) {
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-pc-status small {
+  color: var(--text-secondary);
+  font-size: inherit;
+}
+
+.mobile-pc-status__label {
+  font-weight: 600;
+}
+
+/* Disconnected for a reason: the status opens Settings > Sync. */
+.mobile-pc-status__open {
+  min-width: 0;
+  min-height: 2.25rem;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: start;
+}
+
+.mobile-pc-status__open > span {
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-pc-status__caret {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* Sync now and Try again, the same small button. */
+.mobile-pc-status__action {
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+  border: 0;
+  border-radius: 0.625rem;
+  font: inherit;
+  font-weight: 600;
+}
+
+.mobile-pc-status__action--icon {
+  width: 2.25rem;
+  padding: 0;
+  font-size: 1.125rem;
+}
+
+.mobile-pc-status__action:disabled {
+  color: var(--text-muted);
+}
+
+/* Pulling the Library down from its top syncs with the PC. */
+.mobile-pull {
+  position: relative;
+  z-index: 5;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mobile-pull > span {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  color: var(--accent-ink);
+  background: var(--surface-raised);
+  border-radius: 50%;
+  box-shadow: var(--shadow-float);
+  font-size: 1.25rem;
+  opacity: var(--pull-shown);
+  transform: translateY(var(--pull-down));
+}
+
+.mobile-pull svg {
+  transform: rotate(var(--pull-turn));
+}
+
+.mobile-pull--syncing svg {
+  animation: mobile-spin 0.9s linear infinite;
+}
+
+/* The place shown and its count of books, with the filter at the end. */
+.mobile-books-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-books-heading__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5rem;
+  row-gap: 0.125rem;
+}
+
+.mobile-books-heading .mobile-section-heading {
+  margin: 0;
+}
+
+.mobile-books-heading__count {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mobile-books-heading__filter {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  font-size: 1.0625rem;
+  cursor: pointer;
+}
+
+.mobile-pc-tile {
+  position: relative;
+}
+
+.mobile-pc-tile__badge {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  position: absolute;
+  top: 0.375rem;
+  right: 0.375rem;
+  display: grid;
+  place-items: center;
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--surface-card) 92%, transparent);
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px color-mix(in srgb, #0c1224 18%, transparent);
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.mobile-pc-tile__badge--kept {
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+  cursor: default;
+}
+
+/* Saving: a ring filling as the book arrives. */
+.mobile-pc-tile__badge--saving {
+  background:
+    radial-gradient(
+      circle,
+      var(--surface-card) 0 calc(50% - 0.25rem),
+      transparent calc(50% - 0.25rem + 0.5px)
+    ),
+    conic-gradient(var(--accent-action) var(--saved, 0%), var(--surface-subtle) 0);
+  cursor: default;
+}
+
+.mobile-continue--button {
+  width: 100%;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mobile-continue--button .mobile-chips,
+.mobile-continue--button .mobile-progress {
+  display: flex;
+}
+
+.mobile-continue--button .mobile-continue__copy > span:first-child > span {
+  margin-top: 0.125rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.mobile-chips .mobile-chips__saved {
+  gap: 0.25rem;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+/* Settings > Sync */
+.mobile-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mobile-sync .toggle-setting {
+  min-height: 3.5rem;
+  padding: 0 0.875rem;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+
+.mobile-sync__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-field {
+  min-height: 3.25rem;
+  padding: 0 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-primary);
+}
+
+.mobile-field + .mobile-field {
+  box-shadow: inset 0 1px 0 var(--border-soft);
+}
+
+.mobile-field > label {
+  flex: none;
+  font-size: 0.9375rem;
+}
+
+.mobile-field__input {
+  min-width: 0;
+  flex: 1;
+  height: 2.25rem;
+  padding: 0;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  outline: none;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.mobile-field__input::placeholder {
+  color: var(--text-muted);
+}
+
+.mobile-sync__pair {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.mobile-sync__pair .button {
+  min-height: 2.125rem;
+  padding: 0 0.875rem;
+}
+
+.mobile-sync__paired,
+.mobile-sync__saved {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  color: var(--accent-ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.mobile-sync__problem {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.8125rem;
+}
+
+.mobile-sync__status {
+  padding: 0.875rem;
+  gap: 0.75rem;
+}
+
+.mobile-sync__state {
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mobile-sync__now {
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--accent-ink);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.8125rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.mobile-sync__now svg {
+  font-size: 1.0625rem;
+}
+
+.mobile-sync__now:disabled {
+  color: var(--text-muted);
+}
+
+.mobile-sync__now[aria-busy="true"] svg,
+.mobile-pc-status__action[aria-busy="true"] svg {
+  animation: mobile-spin 0.9s linear infinite;
+}
+
+.mobile-sync__status .button {
+  min-height: 2.125rem;
+  flex: none;
+}
+
+.mobile-sync__pc {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-radius: 0.625rem;
+  font-size: 1.25rem;
+}
+
+.mobile-sync__status .mobile-row__label {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+}
+
+.mobile-sync__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: none;
+  background: var(--progress-fill);
+  border-radius: 50%;
+}
+
+.mobile-sync__dot--disconnected {
+  background: var(--danger);
+}
+
+.mobile-sync__dictionaries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobile-sync__dictionary {
+  min-height: 3.5rem;
+  padding: 0.5rem 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mobile-sync__dictionary + .mobile-sync__dictionary {
+  box-shadow: inset 0 1px 0 var(--border-soft);
+}
+
+.mobile-sync__copying {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-sync__bar {
+  width: 3.5rem;
+  height: 0.3125rem;
+  overflow: hidden;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-pill);
+}
+
+.mobile-sync__bar > span {
+  height: 100%;
+  display: block;
+  background: var(--accent-action);
+}
+
+.mobile-sync__copy {
+  height: 2rem;
+  padding: 0 0.75rem;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mobile-sync__copy:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.mobile-sync__unpair {
+  min-height: 3.25rem;
+  color: var(--danger);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 1rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mobile-sync__status .mobile-row__detail {
+  white-space: normal;
+}
+
+/* The Library view button shows that a status, place or grouping narrows the books. */
+.mobile-books-heading__filter--active {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--border-accent);
+}
+
+/* The Library view sheet: each choice a row of chips. */
+.mobile-view-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+}
+
+.mobile-view-sheet__group h3 {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.mobile-view-sheet__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.mobile-choice {
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-choice svg {
+  font-size: 1rem;
+  flex: none;
+}
+
+.mobile-choice small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-choice[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--border-accent);
+  font-weight: 600;
+}
+
+/* A book's title, author and progress, under its cover or beside it in the list. */
+.mobile-book-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* The list: one book a row, its cover beside what the grid shows under it. */
+.mobile-library__grid--list .mobile-library__row {
+  grid-template-columns: minmax(0, 1fr);
+  padding-bottom: 0.625rem;
+}
+
+.mobile-book-row {
+  width: 100%;
+  min-width: 0;
+  padding: 0.625rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: inherit;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.9375rem;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mobile-book-row .library-book__cover {
+  width: 3.5rem;
+  height: auto;
+  flex: none;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.3125rem;
+}
+
+.mobile-book-row .mobile-book-copy {
+  flex: 1;
+  gap: 0.3125rem;
+}
+
+.mobile-book-row .mobile-tile__title {
+  font-size: 0.875rem;
+}
+
+.mobile-book-row .mobile-tile__author {
+  font-size: 0.75rem;
+}
+
+.mobile-book-row.mobile-tile--missing .library-book__cover img {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.mobile-book-row .mobile-tile__missing {
+  font-size: 1.375rem;
+}
+
+/* In the list, a PC book's badge sits at the row's end. */
+.mobile-pc-tile--list .mobile-book-row {
+  padding-right: 3rem;
+}
+
+.mobile-pc-tile--list .mobile-pc-tile__badge {
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+}
+
+.mobile-library--selecting .mobile-pc-tile__badge {
+  display: none;
+}
+
+/* Selecting: a ring on each cover, filled with a check once the book is selected. */
+.mobile-select-mark {
+  width: 1.5rem;
+  height: 1.5rem;
+  position: absolute;
+  top: 0.375rem;
+  left: 0.375rem;
+  display: grid;
+  place-items: center;
+  color: var(--text-on-accent);
+  background: color-mix(in srgb, #0c1224 28%, transparent);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px color-mix(in srgb, #0c1224 30%, transparent);
+  font-size: 0.8125rem;
+}
+
+.is-selected .mobile-select-mark,
+.mobile-group-heading[aria-pressed="true"] .mobile-select-mark {
+  background: var(--accent-action);
+  border-color: var(--accent-action);
+}
+
+.mobile-tile.is-selected .library-book__cover {
+  outline: 3px solid var(--accent-action);
+  outline-offset: 2px;
+}
+
+.mobile-book-row.is-selected,
+.mobile-continue.is-selected {
+  background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface-card));
+  border-color: var(--accent-action);
+}
+
+.mobile-book-row .mobile-select-mark,
+.mobile-continue .mobile-select-mark {
+  width: 1.25rem;
+  height: 1.25rem;
+  top: 0.25rem;
+  left: 0.25rem;
+  font-size: 0.6875rem;
+}
+
+/* A group's heading and count; while selecting, a button selecting its books. */
+.mobile-group-heading {
+  width: 100%;
+  margin: 0.375rem 0 0;
+  padding: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-align: start;
+}
+
+.mobile-group-heading__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-group-heading small {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+button.mobile-group-heading {
+  align-items: center;
+  cursor: pointer;
+}
+
+.mobile-group-heading__link {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.mobile-group-heading__caret {
+  flex: none;
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* Grouped: each group's heading over its books in a row that scrolls sideways. */
+.mobile-library__grid--carousels .mobile-library__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.mobile-carousel__track {
+  margin-right: calc(-1 * (var(--safe-area-right) + var(--mobile-gutter)));
+  padding-right: calc(var(--safe-area-right) + var(--mobile-gutter));
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 0;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.mobile-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-carousel__item {
+  width: 6.75rem;
+  min-width: 0;
+  flex: none;
+  scroll-snap-align: start;
+}
+
+.mobile-carousel__more {
+  width: 6.75rem;
+  aspect-ratio: 2 / 3;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  color: var(--accent);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  scroll-snap-align: start;
+}
+
+.mobile-carousel__more svg {
+  font-size: 1.25rem;
+}
+
+/* Information: a book's cover and title over what the Library knows of it. */
+.mobile-book-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.mobile-book-info__book {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.mobile-book-info__book .library-book__cover {
+  width: 3rem;
+  height: auto;
+  flex: none;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.3125rem;
+}
+
+.mobile-book-info__rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-book-info__rows > div {
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.mobile-book-info__rows dt {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.mobile-book-info__rows dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.mobile-book-info__link {
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: end;
+  cursor: pointer;
+}
+
+button.mobile-group-heading .mobile-select-mark {
+  position: static;
+  flex: none;
+  background: none;
+  border-color: var(--border-medium);
+  box-shadow: none;
+}
+
+/* The header while selecting: Done, the count, and Select all or Clear, staying at the top of
+   the page however far it scrolls. */
+.mobile-selection-header {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  margin: calc(-1 * (var(--safe-area-top) + 0.75rem))
+    calc(-1 * (var(--safe-area-right) + var(--mobile-gutter))) 0
+    calc(-1 * (var(--safe-area-left) + var(--mobile-gutter)));
+  padding: calc(var(--safe-area-top) + 0.75rem) calc(var(--safe-area-right) + var(--mobile-gutter))
+    0.5rem calc(var(--safe-area-left) + var(--mobile-gutter));
+  background: var(--surface-main);
+}
+
+.mobile-selection-header h1 {
+  font-size: 1.25rem;
+}
+
+.mobile-selection-header__all {
+  height: var(--mobile-control);
+  padding: 0 1rem;
+  flex: none;
+  color: var(--accent-ink);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* What can be done with the selection floats where the dock is, over it. */
+.mobile-selection-bar {
+  position: fixed;
+  right: calc(var(--safe-area-right) + 0.75rem);
+  bottom: calc(var(--safe-area-bottom) + var(--mobile-dock-gap));
+  left: calc(var(--safe-area-left) + 0.75rem);
+  z-index: 30;
+  padding: 0.3125rem;
+  display: flex;
+  gap: 0.125rem;
+  overflow-x: auto;
+  background: color-mix(in srgb, var(--surface-card) 96%, transparent);
+  border: 1px solid var(--border-soft);
+  border-radius: 1.375rem;
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(16px);
+  scrollbar-width: none;
+}
+
+.mobile-selection-bar__action {
+  min-width: 2.625rem;
+  height: 2.75rem;
+  padding: 0;
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  border-radius: 1.0625rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-selection-bar__action:active {
+  background: var(--surface-subtle);
+}
+
+.mobile-selection-bar__action:disabled {
+  opacity: 0.5;
+}
+
+.mobile-selection-bar__action svg {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+.mobile-selection-bar__action--danger {
+  color: var(--danger);
+}

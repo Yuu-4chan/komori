@@ -20,7 +20,7 @@ import {
 import { sentenceAt } from "../reader/textSelection";
 import { AppearanceProvider, useAppearance } from "../appearance/AppearanceProvider";
 import { normalizeAppearancePreferences } from "../appearance/appearancePreferences";
-import { listDictionaries } from "../dictionary/dictionaryApi";
+import { listDictionaries, type TermGroup } from "../dictionary/dictionaryApi";
 vi.mock("../dictionary/dictionaryApi", () => ({ listDictionaries: vi.fn() }));
 
 vi.mock("./ankiApi", async (importOriginal) => ({
@@ -375,6 +375,86 @@ it("reports the affected field and accepts large multi-dictionary glossary check
   expect(vi.mocked(api.noteStatus).mock.calls[0][1]).toEqual([{ type: "text", text: "読む" }]);
 });
 
+it("fills every Lapis field from a long multi-dictionary lookup within Anki's limits", () => {
+  // A long entry as real dictionaries send it: nested structured content beside plain text.
+  const sense = (index: number) => ({
+    tag: "li",
+    content: [
+      { tag: "span", data: { content: "part-of-speech-info" }, content: "verb" },
+      {
+        tag: "ul",
+        content: Array.from({ length: 6 }, (_, n) => ({
+          tag: "li",
+          content: `meaning ${index}.${n}: to take something into one's hand`,
+        })),
+      },
+    ],
+  });
+  const term = { definitionTags: "", rules: "", score: 0, termTags: "", tags: [] };
+  const group: TermGroup = {
+    expression: "取る",
+    reading: "とる",
+    text: "取る",
+    deinflection: null,
+    terms: [
+      {
+        ...term,
+        dictionaryId: 1,
+        dictionaryTitle: "Structured",
+        sequence: 1,
+        glossary: [
+          {
+            type: "structured-content",
+            content: { tag: "ol", content: Array.from({ length: 60 }, (_, i) => sense(i)) },
+          },
+        ],
+      },
+      {
+        ...term,
+        dictionaryId: 2,
+        dictionaryTitle: "Plain",
+        sequence: 2,
+        glossary: ["手に持つ。自分のものにする。".repeat(300)],
+      },
+    ],
+    frequencies: [],
+    pitches: [],
+    transcriptions: [],
+  };
+  const mapping = lapisDefaults([
+    "Expression",
+    "ExpressionFurigana",
+    "ExpressionReading",
+    "ExpressionAudio",
+    "SelectionText",
+    "MainDefinition",
+    "DefinitionPicture",
+    "Sentence",
+    "SentenceFurigana",
+    "SentenceAudio",
+    "Picture",
+    "Glossary",
+    "Hint",
+    "IsWordAndSentenceCard",
+    "IsClickCard",
+    "IsSentenceCard",
+    "IsAudioCard",
+    "PitchPosition",
+    "PitchCategories",
+    "Frequency",
+    "FreqSort",
+    "MiscInfo",
+  ]);
+  const content = cardFields(mapping, termCardSources(group));
+  expect(Object.keys(content.fields).sort()).toEqual([...mapping.fields].sort());
+  expect(validFields(content.fields, mapping.fields)).toBe(true);
+  expect(content.fields.Expression).toBe("取る");
+  const glossary = content.fields.Glossary;
+  expect(new TextEncoder().encode(glossary).length).toBeGreaterThan(16 * 1024);
+  expect(glossary).toContain("meaning 59.5: to take something into one's hand");
+  expect(glossary).toContain("手に持つ。");
+});
+
 describe("One-click Anki actions", () => {
   it("disables the action with its reason instead of a message, and rechecks on focus", async () => {
     vi.mocked(api.noteStatus).mockRejectedValueOnce("timeout");
@@ -393,6 +473,18 @@ describe("One-click Anki actions", () => {
       expect(screen.getByRole("button", { name: "Add 読む to Anki" })).toBeEnabled(),
     );
     expect(api.createNote).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["notInstalled", "AnkiDroid is not installed."],
+    ["notAllowed", "Komori is not allowed to use AnkiDroid."],
+    ["notReady", "Open AnkiDroid once to finish setting it up."],
+  ])("disables the action, without a message, when AnkiDroid is %s", async (problem, reason) => {
+    vi.mocked(api.noteStatus).mockRejectedValueOnce(problem);
+    view(<AnkiAction sources={sources} />);
+    const button = await screen.findByRole("button", { name: "Add 読む to Anki" });
+    await waitFor(() => expect(button).toHaveAttribute("aria-description", reason));
+    expect(button).toBeDisabled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
   it("keeps the action usable while a focus recheck runs, so the first click adds", async () => {
     vi.mocked(api.createNote).mockResolvedValue({ status: "created", id: 9 });
@@ -534,15 +626,25 @@ describe("One-click Anki actions", () => {
     result.unmount();
     await act(() => resolve(prefs));
     expect(api.createNote).not.toHaveBeenCalled();
-    vi.mocked(api.loadAnki).mockResolvedValue({ ...prefs, mappings: {} });
-    view(<AnkiAction sources={sources} />);
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Add 読む to Anki" })).toHaveAttribute(
-        "aria-description",
-        expect.stringMatching(/Settings → Anki/),
-      ),
-    );
-    expect(screen.getByRole("button", { name: "Add 読む to Anki" })).toBeDisabled();
+    // A chosen note type without its fields changed; none chosen means Anki was never set up.
+    for (const [saved, reason] of [
+      [{ ...prefs, mappings: {} }, /note type or fields changed/],
+      [
+        { ...prefs, deck: "", model: "", mappings: {} },
+        /^Choose a deck and note type in Settings → Anki/,
+      ],
+    ] as const) {
+      vi.mocked(api.loadAnki).mockResolvedValue(saved);
+      const shown = view(<AnkiAction sources={sources} />);
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Add 読む to Anki" })).toHaveAttribute(
+          "aria-description",
+          expect.stringMatching(reason),
+        ),
+      );
+      expect(screen.getByRole("button", { name: "Add 読む to Anki" })).toBeDisabled();
+      shown.unmount();
+    }
     expect(api.createNote).not.toHaveBeenCalled();
   });
   it("blocks an existing note, offers Browser editing, and resets on a new lookup", async () => {

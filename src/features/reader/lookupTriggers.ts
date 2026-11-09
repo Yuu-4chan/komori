@@ -48,7 +48,7 @@ export interface LookupTriggerPreferences {
 }
 
 export type LookupTrigger =
-  "pointer" | "keyboard" | "shift" | "shortcut" | "click" | "hover" | "menu";
+  "pointer" | "keyboard" | "shift" | "shortcut" | "click" | "hover" | "menu" | "tap";
 export const defaultLookupTriggers: LookupTriggerPreferences = {
   readerPopupEnabled: true,
   readerPopupMouseSelection: false,
@@ -116,6 +116,8 @@ export function triggerEnabled(
       return settings.readerPopupHoverLookup;
     case "menu":
       return true; // Asked for by name from the text menu.
+    case "tap":
+      return true; // The phone's way to look up, with no setting of its own.
   }
 }
 

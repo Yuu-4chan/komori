@@ -179,6 +179,17 @@ export function resolveReaderTheme(
   );
 }
 
+/** Whether the theme sets darker text on a lighter page. */
+export function isLightTheme({ background, text }: ReaderThemeColors): boolean {
+  const lightness = (color: string) =>
+    [0.2126, 0.7152, 0.0722].reduce(
+      (sum, weight, index) =>
+        sum + weight * Number.parseInt(color.slice(1 + index * 2, 3 + index * 2), 16),
+      0,
+    );
+  return lightness(background) > lightness(text);
+}
+
 /** Just the colors of a theme. */
 export function themeColors(theme: ReaderThemeColors): ReaderThemeColors {
   const { background, text, selection, highlight, footerText } = theme;

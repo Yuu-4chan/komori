@@ -42,22 +42,6 @@
   --stat-pink: #ef7f9e;
   --stat-violet: #a77ddd;
   --stat-teal: #4fb3bf;
-  /* The dictionary format's tag category colors: Yomitan's hue per category. Header tags mix
-     each into a readable ink toward --tag-ink-toward on a tint of the card, at least 4.5:1 in
-     each theme. */
-  --tag-name: #5cb85c;
-  --tag-expression: #f0ad4e;
-  --tag-popular: #0275d8;
-  --tag-frequent: #5bc0de;
-  --tag-archaism: #d9534f;
-  --tag-dictionary: #aa66cc;
-  --tag-frequency: #5cb85c;
-  --tag-part-of-speech: #565656;
-  --tag-search: #8a8a91;
-  --tag-pronunciation-dictionary: #6640be;
-  --tag-ink-toward: #0f1a3d;
-  --tag-ink-share: 50%;
-  --tag-tint-share: 16%;
   /* The Reader's page takes the Reader theme's colors in both application themes; the
      Reader sets them from the chosen theme. These are Paper's. */
   --reader-page: #fbfaf6;

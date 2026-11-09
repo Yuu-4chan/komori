@@ -128,6 +128,15 @@ export const createNote = (
     request: { requestId, preferences, fields, ...content },
   });
 export const browseNote = (id: number) => command<void>("browse_anki_note", { id });
+/** On the phone: asks to use AnkiDroid; whether Komori now may. */
+export const allowAnkiDroid = () => command<boolean>("allow_ankidroid");
+/** On the phone: AnkiDroid's page in the Play Store. */
+export const openAnkiDroidStore = () => command<void>("open_ankidroid_store");
+/** Why AnkiDroid cannot take cards, as discovery and every action report it on the phone. */
+export const ankiDroidProblems = ["notInstalled", "notAllowed", "notReady"] as const;
+export type AnkiDroidProblem = (typeof ankiDroidProblems)[number];
+export const isAnkiDroidProblem = (error: unknown): error is AnkiDroidProblem =>
+  (ankiDroidProblems as readonly unknown[]).includes(error);
 function withCheckTimeout<T>(work: Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => reject("timeout"), 6000);
@@ -232,6 +241,8 @@ export function ankiError(error: unknown): string {
       return t("ankiError.pending");
     case "changed":
       return t("ankiError.changed");
+    case "notSetUp":
+      return t("ankiError.notSetUp");
     case "invalid":
       return t("ankiError.invalid");
     case "contentTooLarge":
@@ -246,6 +257,12 @@ export function ankiError(error: unknown): string {
       return t("ankiError.protocol");
     case "busy":
       return t("ankiError.busy");
+    case "notInstalled":
+      return t("ankiError.notInstalled");
+    case "notAllowed":
+      return t("ankiError.notAllowed");
+    case "notReady":
+      return t("ankiError.notReady");
     default:
       return t("ankiError.unreachable");
   }

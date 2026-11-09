@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
 
-import { KanjiCard } from "./DictionaryResults";
+import { KanjiCard } from "./KanjiCard";
 
 it("offers no Anki action for a kanji", () => {
   render(

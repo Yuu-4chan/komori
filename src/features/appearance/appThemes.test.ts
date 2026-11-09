@@ -64,6 +64,7 @@ describe("Application themes", () => {
       background: "#000000",
       surface: "#111111",
       text: "#eeeeee",
+      logo: "#f08a9b",
     };
     expect(resolveAppTheme("custom", custom)).toBe(custom);
     expect(resolveAppTheme("sakura", custom).surface).toBe("#fdf9f7");
@@ -89,7 +90,22 @@ describe("Application themes", () => {
       "--text-muted",
       "--border-soft",
       "--border-medium",
+      "--logo-base",
     ]);
+    expect(tokens["--logo-base"]).toBe("#b49cf0");
+  });
+
+  it("gives each preset a logo color of its own, Hojicha's its accent", () => {
+    expect(Object.fromEntries(appPresetThemes.map((theme) => [theme.id, theme.logo]))).toEqual({
+      light: "#ee657e",
+      dark: "#f08a9b",
+      sakura: "#ee657e",
+      matcha: "#e5788c",
+      hojicha: "#b8743c",
+      midnight: "#b49cf0",
+      ember: "#e8a26a",
+      forest: "#f08a9b",
+    });
   });
 
   it("keeps a saved custom theme only when every color is valid", () => {
@@ -100,7 +116,31 @@ describe("Application themes", () => {
         surface: "#111111",
         text: "#eeeeee",
       }),
-    ).toEqual({ base: "dark", background: "#abcdef", surface: "#111111", text: "#eeeeee" });
+    ).toEqual({
+      base: "dark",
+      background: "#abcdef",
+      surface: "#111111",
+      text: "#eeeeee",
+      logo: "#b8743c",
+    });
+    expect(
+      normalizeAppCustomTheme({
+        base: "dark",
+        background: "#abcdef",
+        surface: "#111111",
+        text: "#eeeeee",
+        logo: "#F08A9B",
+      })?.logo,
+    ).toBe("#f08a9b");
+    expect(
+      normalizeAppCustomTheme({
+        base: "dark",
+        background: "#abcdef",
+        surface: "#111111",
+        text: "#eeeeee",
+        logo: "pink",
+      }),
+    ).toBeUndefined();
     expect(
       normalizeAppCustomTheme({
         base: "sepia",
@@ -138,7 +178,13 @@ describe("Application themes", () => {
       }),
     ).toEqual({
       theme: "forest",
-      appCustomTheme: { base: "light", background: "#f0f0f0", surface: "#ffffff", text: "#101010" },
+      appCustomTheme: {
+        base: "light",
+        background: "#f0f0f0",
+        surface: "#ffffff",
+        text: "#101010",
+        logo: "#b8743c",
+      },
       libraryView: "list",
       librarySortReversed: true,
       libraryFilter: "reading",

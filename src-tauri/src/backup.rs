@@ -30,7 +30,7 @@ use crate::{
     bookmarks::{text_valid, BookmarkLocator},
     library::{open_catalog, storage_error, BookProgress, CatalogState},
     reading_position::ReadingPosition,
-    reading_sessions::{ReadingSession, SessionAdjustment},
+    reading_sessions::{ReadingDevice, ReadingSession, SessionAdjustment},
 };
 
 const FORMAT: &str = "komori-backup";
@@ -125,6 +125,9 @@ struct Backup {
     dictionaries: Option<Vec<BackupDictionary>>,
     books: Vec<BackupBook>,
     sessions: Vec<BackupSession>,
+    /// The other devices (a synced PC or phone) that read some of the sessions, by name.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    devices: Vec<ReadingDevice>,
 }
 
 /// A dictionary's local ID with the title and revision that name it on any computer.
@@ -244,10 +247,13 @@ struct BackupSession {
     session: ReadingSession,
     #[serde(default)]
     adjustment: Option<SessionAdjustment>,
+    /// The device that read it, when another one did.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    device: Option<String>,
 }
 
 /// SQLite's `strftime('%Y-%m-%dT%H:%M:%fZ')`, the only timestamp form Komori stores.
-fn valid_timestamp(value: &str) -> bool {
+pub(crate) fn valid_timestamp(value: &str) -> bool {
     let bytes = value.as_bytes();
     let digits = |range: std::ops::Range<usize>| bytes[range].iter().all(u8::is_ascii_digit);
     bytes.len() == 24
@@ -375,8 +381,14 @@ impl Backup {
                         .as_ref()
                         .is_none_or(SessionAdjustment::is_valid)
                     && stored.book_title.as_deref().is_none_or(plain_text)
+                    && stored
+                        .device
+                        .as_deref()
+                        .is_none_or(|device| Uuid::parse_str(device).is_ok())
                     && session_ids.insert(stored.session.id.as_str())
             })
+            && self.devices.len() <= MAX_SESSIONS
+            && self.devices.iter().all(ReadingDevice::is_valid)
     }
 }
 
@@ -529,7 +541,7 @@ pub async fn export_backup(catalog: State<'_, CatalogState>) -> Result<ExportRes
         interface_text::text(language, Text::BackupFileName),
         local_date()
     );
-    let selected = rfd::AsyncFileDialog::new()
+    let selected = crate::file_dialog::AsyncFileDialog::new()
         .set_title(interface_text::text(language, Text::ExportBackup))
         .add_filter(
             interface_text::text(language, Text::KomoriBackup),
@@ -584,7 +596,7 @@ pub async fn open_backup_file(
     backups: State<'_, BackupState>,
 ) -> Result<BackupPreview, String> {
     let language = interface_text::language(&catalog.database);
-    let selected = rfd::AsyncFileDialog::new()
+    let selected = crate::file_dialog::AsyncFileDialog::new()
         .set_title(interface_text::text(language, Text::ImportBackup))
         .add_filter(
             interface_text::text(language, Text::KomoriBackup),
@@ -918,10 +930,16 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
         .map(|value| AppearancePreferences::from_stored(&value))
         .map(|preferences| serde_json::to_value(preferences).map_err(|error| error.to_string()))
         .transpose()?;
-    let anki = record("anki")?.filter(|value| {
-        serde_json::from_value::<anki::Preferences>(value.clone())
-            .is_ok_and(|preferences| preferences.validate().is_ok())
-    });
+    // The AnkiConnect key stays on this computer: a backup shared for help would hand it out.
+    let anki = record("anki")?
+        .filter(|value| {
+            serde_json::from_value::<anki::Preferences>(value.clone())
+                .is_ok_and(|preferences| preferences.validate().is_ok())
+        })
+        .map(|mut value| {
+            value["key"] = Value::String(String::new());
+            value
+        });
     let backup = record(SETTINGS_RECORD)?.map(|value| BackupSettings::from_stored(&value));
     let startup = record(crate::startup::RECORD)?
         .map(|value| crate::startup::Preferences::from_stored(&value));
@@ -1114,7 +1132,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
             .prepare(
                 "SELECT id, book_id, started_at, ended_at, active_ms, unit, units_read,
                         start_units, end_units, total_units, book_title, finish_cleared,
-                        units_adjustment, active_adjustment
+                        units_adjustment, active_adjustment, device
                    FROM reading_sessions ORDER BY started_at, id",
             )
             .map_err(storage_error)?;
@@ -1139,12 +1157,16 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
                         units_delta: row.get(12)?,
                         active_ms_delta: row.get(13)?,
                     }),
+                    device: row.get(14)?,
                 })
             })
             .map_err(storage_error)?;
         for row in rows {
             let Ok(mut stored) = row else { continue };
             stored.book_title = stored.book_title.filter(|title| plain_text(title));
+            stored.device = stored
+                .device
+                .filter(|device| Uuid::parse_str(device).is_ok());
             if stored.session.is_valid()
                 && Uuid::parse_str(&stored.book_id).is_ok()
                 && stored
@@ -1156,6 +1178,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
             }
         }
     }
+    let devices = crate::reading_sessions::devices_from(&transaction)?;
     transaction.commit().map_err(storage_error)?;
     Ok(Backup {
         format: FORMAT.into(),
@@ -1172,6 +1195,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
         dictionaries: None,
         books,
         sessions,
+        devices,
     })
 }
 
@@ -1542,6 +1566,19 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
         .transpose()
         .map_err(|error| error.to_string())?;
     write_record(&transaction, "appearance", appearance.as_deref())?;
+    // Backups leave the AnkiConnect key out, so the one saved here is kept; one from an
+    // earlier Komori's backup still restores.
+    let saved_key = transaction
+        .query_row(
+            "SELECT value FROM preferences WHERE name = 'anki'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(storage_error)?
+        .and_then(|text| serde_json::from_str::<anki::Preferences>(&text).ok())
+        .map(|preferences| preferences.key)
+        .unwrap_or_default();
     let anki = backup
         .preferences
         .anki
@@ -1549,6 +1586,9 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
         .and_then(|value| serde_json::from_value::<anki::Preferences>(value.clone()).ok())
         .map(|mut preferences| {
             preferences.remap_dictionaries(dictionary);
+            if preferences.key.is_empty() {
+                preferences.key = saved_key;
+            }
             serde_json::to_string(&preferences)
         })
         .transpose()
@@ -1667,6 +1707,9 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                 .map_err(storage_error)?;
         }
     }
+    for device in &backup.devices {
+        crate::reading_sessions::save_device(&transaction, device)?;
+    }
     for stored in &backup.sessions {
         let session = &stored.session;
         let book_id = moved
@@ -1678,8 +1721,8 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                 "INSERT INTO reading_sessions
                    (id, book_id, started_at, ended_at, active_ms, unit, units_read,
                     start_units, end_units, total_units, book_title, finish_cleared,
-                    units_adjustment, active_adjustment)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                    units_adjustment, active_adjustment, device)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
                  ON CONFLICT(id) DO UPDATE SET
                    book_id = excluded.book_id, started_at = excluded.started_at,
                    ended_at = excluded.ended_at, active_ms = excluded.active_ms,
@@ -1688,7 +1731,8 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                    total_units = excluded.total_units, book_title = excluded.book_title,
                    finish_cleared = excluded.finish_cleared,
                    units_adjustment = excluded.units_adjustment,
-                   active_adjustment = excluded.active_adjustment",
+                   active_adjustment = excluded.active_adjustment,
+                   device = excluded.device",
                 params![
                     session.id,
                     book_id,
@@ -1703,7 +1747,8 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                     stored.book_title,
                     stored.finish_cleared,
                     stored.adjustment.as_ref().map_or(0, |a| a.units_delta),
-                    stored.adjustment.as_ref().map_or(0, |a| a.active_ms_delta)
+                    stored.adjustment.as_ref().map_or(0, |a| a.active_ms_delta),
+                    stored.device
                 ],
             )
             .map_err(storage_error)?;

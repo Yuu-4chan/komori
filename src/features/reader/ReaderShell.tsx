@@ -17,6 +17,8 @@ import { availableFontWeights, resolveFontWeight } from "./fontWeights";
 import {
   type CSSProperties,
   type FocusEvent,
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useRef,
@@ -26,6 +28,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { copyText, guardDocument } from "../../app/nativeSurfaces";
+import { isAndroid } from "../../app/platform";
 import { AutoscrollController } from "../../app/autoscroll";
 import { WindowControls } from "../../components/layout/WindowControls";
 import type { StepperSource } from "../../components/ui/Stepper";
@@ -58,17 +61,20 @@ import type {
   ReaderLocator,
   ReaderPositionStore,
   ReaderProgressUnit,
+  ReaderRect,
   ReaderRendererFactory,
   ReaderSelection,
   ReaderStatus,
 } from "./renderer";
 import { ReaderLookupPopup, type ChildLookupRequest } from "./ReaderLookupPopup";
 import { useDefinitionSources } from "../dictionary/definitionSources";
+import { lookupLanguageOf } from "../dictionary/lookupLanguage";
 import { ReaderReadingStatus, ReadingSpeedValue, useReadingSpeed } from "./ReaderReadingStatus";
 import type { ReadingSpeed } from "../statistics/readingSession";
 import type { ReaderFooterPreferences } from "./footerPreferences";
 import { ReaderScrollbar } from "./ReaderScrollbar";
 import { flattenContents, ReaderSidebar, type ReaderSidebarView } from "./ReaderSidebar";
+import type { ReaderAppearancePanelProps } from "./ReaderAppearancePanel";
 import { ReaderViewport } from "./ReaderViewport";
 import { ReaderBackgroundSurface } from "./ReaderBackground";
 import { ReaderImageViewer, type ImageViewerSession } from "./ReaderImageViewer";
@@ -81,7 +87,10 @@ import type { ReadingSession } from "../statistics/readingSession";
 import { useBookmarks } from "./useBookmarks";
 import type { BookmarkStore } from "./bookmarks";
 import { useNotes } from "./useNotes";
-import { NoteEditor } from "./ReaderNotesPanel";
+import type { ReaderBookmarksPanelProps } from "./ReaderBookmarksPanel";
+import type { ReaderImagesPanelProps } from "./ReaderImagesPanel";
+import { NoteEditor, type ReaderNotesPanelProps } from "./ReaderNotesPanel";
+import type { ReaderSearchPanelProps } from "./ReaderSearchPanel";
 import { ContextMenu, type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { copyBookImage, imageBlob, saveBookImage } from "./bookImageActions";
 import {
@@ -105,8 +114,18 @@ interface Lookup {
   trigger: LookupTrigger;
   /** The root lookup's highlight of its match in the book. */
   onMatch?: (length: number) => void;
+  /** The root lookup's text in the book, which the phone's sheet keeps clear of. */
+  rect?: ReaderRect;
   placement: { left: number; top: number; width: number; height: number; above?: boolean };
 }
+
+// On the phone, the book is read by touch, without the sidebar or the window's controls.
+const MobileReader =
+  import.meta.env.TAURI_ENV_PLATFORM === "android"
+    ? lazy(() =>
+        import("../../mobile/MobileReader").then((module) => ({ default: module.MobileReader })),
+      )
+    : null;
 
 interface ReaderShellProps {
   identity?: ReaderIdentity;
@@ -186,6 +205,9 @@ export function ReaderShell({
     | null
   >(null);
   const [focusNote, setFocusNote] = useState<{ id: string } | undefined>();
+  // How many times the image viewer has gone to an image's page, which the phone's
+  // Images sheet closes for.
+  const [imageJumps, setImageJumps] = useState(0);
   const bookContextMenu = useRef<(event: MouseEvent, document: Document) => void>(() => {});
   const bookNoteMenu = useRef<(event: MouseEvent, document: Document, id: string) => void>(
     () => {},
@@ -287,8 +309,15 @@ export function ReaderShell({
   const [lookups, setLookups] = useState<Lookup[]>([]);
   // Read once for the book's popups rather than once per lookup.
   const definitionSources = useDefinitionSources(true, lookupLanguage);
+  // A book in another lookup language than lookups read, with no dictionary of its own.
+  const bookLookupLanguage = lookupLanguageOf(bookLanguage);
+  const otherLanguage = bookLookupLanguage !== lookupLanguage ? bookLookupLanguage : undefined;
+  const otherDefinitions = useDefinitionSources(otherLanguage !== undefined, otherLanguage);
+  const bookWithoutDictionary = otherDefinitions === false ? otherLanguage : undefined;
   const lookup = lookups[0] ?? null;
   const lookupOpen = useRef(false);
+  // When a press last closed the lookup, so the phone's tap that did reads on no further.
+  const lookupPressClosedAt = useRef(Number.NEGATIVE_INFINITY);
   lookupOpen.current = lookup !== null;
   const lookupIds = useRef(0);
   const popupRef = useRef<HTMLElement>(null);
@@ -364,7 +393,10 @@ export function ReaderShell({
         !lookupTextAllowed(triggersRef.current, query)
       )
         return;
-      const shown = placeLookupPopup(selection.rect, area, selection.writingMode, {
+      // On the phone the popup shows above or below the word, as across horizontal text: the
+      // narrow screen leaves no room beside a vertical line.
+      const flow = isAndroid ? "horizontal" : selection.writingMode;
+      const shown = placeLookupPopup(selection.rect, area, flow, {
         width: readerPopupWidth,
         height: readerPopupHeight,
       });
@@ -378,6 +410,7 @@ export function ReaderShell({
           query,
           sentence: selection.sentence,
           trigger,
+          rect: selection.rect,
           onMatch: (length) => {
             if (
               triggerEnabled(triggersRef.current, trigger) &&
@@ -391,7 +424,7 @@ export function ReaderShell({
             top: shown.top - origin.top,
             width: shown.right - shown.left,
             height: shown.bottom - shown.top,
-            above: selection.writingMode === "horizontal" && shown.bottom <= selection.rect.top,
+            above: flow === "horizontal" && shown.bottom <= selection.rect.top,
           },
         },
       ]);
@@ -462,6 +495,8 @@ export function ReaderShell({
     turnQueued: () => boolean;
   }>({ key: () => {}, wheel: () => {}, turnQueued: () => false });
   const contentCleanups = useRef(new Map<Document, () => void>());
+  const touchRef = useRef<(event: TouchEvent) => void>(() => {});
+  const selectionRef = useRef<(document: Document) => void>(() => {});
   // `P` starts, pauses and resumes the reading session.
   const sessionToggle = useRef(() => {});
   // Paginated wheel steps turn one page each, queued behind the turn in progress.
@@ -491,8 +526,10 @@ export function ReaderShell({
       const pointer = () => {
         clearEscape();
         closingLookup = lookupOpen.current;
-        if (lookupOpen.current && triggersRef.current.readerPopupCloseBehavior !== "persistent")
+        if (lookupOpen.current && triggersRef.current.readerPopupCloseBehavior !== "persistent") {
+          lookupPressClosedAt.current = performance.now();
           closeLookup();
+        }
       };
       // A plain click on a saved passage offers to open it in Notes or delete it.
       const noteClick = (event: MouseEvent) => {
@@ -554,11 +591,32 @@ export function ReaderShell({
       document.addEventListener("wheel", wheel, { passive: false });
       document.addEventListener("pointerdown", pointer);
       const contextMenu = (event: MouseEvent) => bookContextMenu.current(event, document);
-      document.addEventListener("click", noteClick);
-      const unhover = noteHoverCursor(document);
-      document.addEventListener("click", imageClick);
+      const touch = (event: TouchEvent) => touchRef.current(event);
+      let removePlatformListeners: () => void;
+      if (import.meta.env.TAURI_ENV_PLATFORM === "android") {
+        // The end of a tap may cancel its click.
+        for (const type of touchTypes)
+          document.addEventListener(type, touch, { passive: type === "touchstart" });
+        // A long press selects; the phone's toolbar follows the selection.
+        const selection = () => selectionRef.current(document);
+        document.addEventListener("selectionchange", selection);
+        removePlatformListeners = () => {
+          for (const type of touchTypes) document.removeEventListener(type, touch);
+          document.removeEventListener("selectionchange", selection);
+        };
+      } else {
+        document.addEventListener("click", noteClick);
+        const unhover = noteHoverCursor(document);
+        document.addEventListener("click", imageClick);
+        document.addEventListener("contextmenu", contextMenu);
+        removePlatformListeners = () => {
+          document.removeEventListener("click", noteClick);
+          unhover();
+          document.removeEventListener("click", imageClick);
+          document.removeEventListener("contextmenu", contextMenu);
+        };
+      }
       document.addEventListener("click", vnClick);
-      document.addEventListener("contextmenu", contextMenu);
       const blur = () => clearEscape();
       document.defaultView?.addEventListener("blur", blur);
       // The book's tooltips, menus and browser keys are Komori's too.
@@ -571,11 +629,8 @@ export function ReaderShell({
         document.removeEventListener("keydown", key);
         document.removeEventListener("wheel", wheel);
         document.removeEventListener("pointerdown", pointer);
-        document.removeEventListener("click", noteClick);
-        unhover();
-        document.removeEventListener("click", imageClick);
+        removePlatformListeners();
         document.removeEventListener("click", vnClick);
-        document.removeEventListener("contextmenu", contextMenu);
       });
     },
     [closeLookup, clearEscape],
@@ -589,6 +644,7 @@ export function ReaderShell({
     turnPage,
     scrollBy,
     scrollWithin,
+    chapterEdge,
     scrolledNatively,
     scrollTrack,
     contents,
@@ -598,6 +654,8 @@ export function ReaderShell({
     captureBookmark,
     captureNote,
     goToBookmark,
+    goToOffset,
+    goToPosition,
     searchBook,
     goToSearchResult,
     searchMatchRect,
@@ -613,6 +671,8 @@ export function ReaderShell({
     revealVnText,
     measureReadingHeight,
     highlightPointerMatch,
+    lookupAt,
+    vnGroupAt,
     setNoteHighlights,
   } = useReaderRenderer(
     rendererFactory,
@@ -1496,8 +1556,10 @@ export function ReaderShell({
       if (
         triggersRef.current.readerPopupCloseBehavior !== "persistent" &&
         !insidePopup(event.target)
-      )
+      ) {
+        lookupPressClosedAt.current = performance.now();
         closeLookup();
+      }
     };
     document.addEventListener("pointerdown", outside, true);
     return () => document.removeEventListener("pointerdown", outside, true);
@@ -1522,10 +1584,210 @@ export function ReaderShell({
     return () => media.removeEventListener("change", closeOnCompact);
   }, []);
 
+  // The lookup popups, deepest last.
+  const lookupPopups = lookups.map((shown, depth) => (
+    <ReaderLookupPopup
+      key={shown.id}
+      onMatch={shown.onMatch}
+      onSearchTerm={(term) => navigate(`/dictionary?q=${encodeURIComponent(term)}`)}
+      onChildLookup={
+        depth < readerPopupChildLevels ? (request) => openChildLookup(depth, request) : undefined
+      }
+      // A press in a parent popup closes the child popups above it.
+      onPointerDown={() =>
+        setLookups((current) =>
+          current.length > depth + 1 ? current.slice(0, depth + 1) : current,
+        )
+      }
+      placement={shown.placement}
+      definitionSources={definitionSources}
+      bookWithoutDictionary={bookWithoutDictionary}
+      query={shown.query}
+      readerContext={{
+        sentence: lookup?.sentence,
+        bookTitle: identity.status === "book" ? (identity.book.title ?? "") : "",
+        bookId: identity.status === "book" ? identity.book.id : undefined,
+      }}
+      ref={depth === 0 ? popupRef : undefined}
+    />
+  ));
+
+  // The tools the sidebar shows, which the phone shows in sheets.
+  const imagesPanel: ReaderImagesPanelProps = {
+    ready: status === "ready",
+    session: rendererFactory,
+    listImages,
+    loadImage,
+    releaseImage,
+    onOpen: (items, index, signal) => {
+      bookImageRequest.current?.abort();
+      stopWheelTurns();
+      closeLookup();
+      // Beside the sidebar when there is room, where another image shows in it at once.
+      setImageViewer((current) =>
+        current?.docked &&
+        current.factory === rendererFactory &&
+        current.session.items === items &&
+        !current.session.signal.aborted
+          ? { ...current, pick: { index } }
+          : {
+              factory: rendererFactory,
+              session: { items, index, signal },
+              docked: roomBesideBook,
+            },
+      );
+    },
+    current: dockedViewer ? imageViewer?.shown : undefined,
+  };
+  const searchPanel: ReaderSearchPanelProps = {
+    ready: status === "ready",
+    navigationBusy: turning,
+    session: rendererFactory,
+    onSearch: searchBook,
+    onExit: () => {
+      clearEscape();
+      viewportRef.current?.focus({ preventScroll: true });
+    },
+    onJump: (id, signal, settled) => {
+      stopWheelTurns();
+      closeLookup();
+      const origin = document.activeElement;
+      void jumpRemembering(
+        (done) => goToSearchResult(id, signal, done),
+        (success) => {
+          settled(success);
+          if (!success || signal.aborted) return;
+          // A floating sidebar over the marked match steps aside, keeping its results.
+          const match = searchMatchRect();
+          const sidebar = document.getElementById("reader-sidebar")?.getBoundingClientRect();
+          if (
+            !sidebarPinned &&
+            (compactLayout() ||
+              (match &&
+                sidebar &&
+                match.left < sidebar.right &&
+                match.right > sidebar.left &&
+                match.top < sidebar.bottom &&
+                match.bottom > sidebar.top))
+          ) {
+            pointerOverSidebar.current = false;
+            setSidebarShown(false);
+          }
+          const focused = document.activeElement;
+          if (focused !== origin && focused !== document.body) return;
+          viewportRef.current?.focus({ preventScroll: true });
+        },
+      ).then((started) => {
+        if (!started && !signal.aborted) settled(false);
+      });
+      return true;
+    },
+  };
+  const bookmarksPanel: ReaderBookmarksPanelProps = {
+    bookmarks,
+    canCreate: status === "ready",
+    navigationBusy: turning,
+    onCreate: (label) => bookmarks.create(captureBookmark, label),
+    place,
+    onJump: (bookmark, settled) => {
+      stopWheelTurns();
+      const origin = document.activeElement;
+      return goToBookmark(bookmark.locator, (success) => {
+        settled(success);
+        const focused = document.activeElement;
+        if (!success || (focused !== origin && focused !== document.body)) return;
+        if (compactLayout() && !sidebarPinned) setSidebarShown(false);
+        viewportRef.current?.focus({ preventScroll: true });
+      });
+    },
+  };
+  const notesPanel: ReaderNotesPanelProps = {
+    notes,
+    ready: status === "ready",
+    navigationBusy: turning,
+    focus: focusNote,
+    place,
+    onJump: (note, settled) => {
+      stopWheelTurns();
+      closeLookup();
+      const origin = document.activeElement;
+      return goToBookmark(note.locator, (success) => {
+        settled(success);
+        const focused = document.activeElement;
+        if (!success || (focused !== origin && focused !== document.body)) return;
+        if (compactLayout() && !sidebarPinned) setSidebarShown(false);
+        viewportRef.current?.focus({ preventScroll: true });
+      });
+    },
+  };
+
+  // The Appearance panel, in the sidebar on the PC and in the Reader's sheet on the phone.
+  const appearancePanel: ReaderAppearancePanelProps = {
+    footer: appearance,
+    onFooterChange: appearance.setReaderFooter,
+    fontSize: readerFontSize,
+    onFontSizeChange: setReaderFontSize,
+    lineHeight: readerLineHeight,
+    onLineHeightChange: setReaderLineHeight,
+    letterSpacing: readerLetterSpacing,
+    onLetterSpacingChange: setReaderLetterSpacing,
+    wordSpacing: readerWordSpacing,
+    onWordSpacingChange: setReaderWordSpacing,
+    paragraphIndent: readerParagraphIndent,
+    onParagraphIndentChange: setReaderParagraphIndent,
+    paragraphMargin: readerParagraphMargin,
+    onParagraphMarginChange: setReaderParagraphMargin,
+    pageMargin: readerPageMargin,
+    onPageMarginChange: setReaderPageMargin,
+    maxWidth: readerMaxWidth,
+    onMaxWidthChange: setReaderMaxWidth,
+    monitor,
+    pageLayout: readerPageLayout,
+    onPageLayoutChange: setReaderPageLayout,
+    maxHeight: readerMaxHeight,
+    onMaxHeightChange: changeMaxHeight,
+    writingMode: readerWritingMode,
+    onWritingModeChange: setReaderWritingMode,
+    textOrientation: readerTextOrientation,
+    onTextOrientationChange: setReaderTextOrientation,
+    textJustification: readerTextJustification,
+    onTextJustificationChange: setReaderTextJustification,
+    prettyTextWrap: readerPrettyTextWrap,
+    onPrettyTextWrapChange: setReaderPrettyTextWrap,
+    hideFurigana: readerHideFurigana,
+    onHideFuriganaChange: setReaderHideFurigana,
+    furiganaStyle: readerFuriganaStyle,
+    onFuriganaStyleChange: setReaderFuriganaStyle,
+    blurImage: readerBlurImage,
+    onBlurImageChange: setReaderBlurImage,
+    blurMode: readerBlurMode,
+    onBlurModeChange: setReaderBlurMode,
+    imageBlurBoundary: status === "ready" ? imageBlurBoundary : undefined,
+    vnNotice: pageTurns.vnNotice,
+    asianFont,
+    onAsianFontChange: (font: ReaderFontChoice) =>
+      fontLanguage
+        ? appearance.setReaderAsianFontForLanguage(fontLanguage, font)
+        : appearance.setReaderAsianFont(font),
+    viewMode: readerViewMode,
+    onViewModeChange: setReaderViewMode,
+    wheelStep: readerWheelStep,
+    onWheelStepChange: setReaderWheelStep,
+    theme: readerTheme,
+    customThemes: readerCustomThemes,
+    onThemeChange: setReaderTheme,
+    onCreateCustomTheme: createReaderCustomTheme,
+    onCustomThemeChange: updateReaderCustomTheme,
+    onDeleteCustomTheme: deleteReaderCustomTheme,
+  };
   return (
     <div
       ref={shellRef}
-      className={`reader-shell reader-shell--${sidebarPinned && !sidebarHidden ? "pinned" : "floating"}`}
+      className={
+        MobileReader
+          ? "reader-shell reader-shell--mobile"
+          : `reader-shell reader-shell--${sidebarPinned && !sidebarHidden ? "pinned" : "floating"}`
+      }
       style={{ "--reader-page": colors.background } as CSSProperties}
     >
       <ReaderBackgroundSurface />
@@ -1534,8 +1796,10 @@ export function ReaderShell({
       </a>
       <h1 className="visually-hidden">{t("reader.title")}</h1>
       {/* The window has no system frame: the top edge drags it. */}
-      <div aria-hidden="true" className="reader-drag-strip" data-tauri-drag-region />
-      {(!sidebarPinned || sidebarHidden) && (
+      {!MobileReader && (
+        <div aria-hidden="true" className="reader-drag-strip" data-tauri-drag-region />
+      )}
+      {!MobileReader && (!sidebarPinned || sidebarHidden) && (
         // A hover strip along the window's left edge brings the sidebar back;
         // a tap does too. Keyboard focus reaches the sidebar itself.
         <div
@@ -1552,246 +1816,89 @@ export function ReaderShell({
         />
       )}
       {/* Before the book, so Shift+Tab from the book reaches the contents. */}
-      <ReaderSidebar
-        identity={identity}
-        pinned={sidebarPinned}
-        shown={!sidebarHidden && (sidebarPinned || sidebarShown || dockedViewer)}
-        status={status}
-        progress={status === "ready" ? progress : null}
-        contents={contents}
-        currentEntryId={currentEntryId}
-        navigationBusy={turning}
-        navigationError={navigationError}
-        onSelectEntry={(id) => {
-          stopWheelTurns();
-          const origin = document.activeElement;
-          void jumpRemembering(
-            (settled) => goToContentsEntry(id, settled),
-            (succeeded) => {
-              // Hand page-turn keys to the book after a jump, unless the reader has
-              // already moved focus elsewhere. A failed jump leaves focus on the entry.
-              const focused = document.activeElement;
-              if (!succeeded || (focused !== origin && focused !== document.body)) return;
-              if (compactLayout() && !sidebarPinned) setSidebarShown(false);
-              viewportRef.current?.focus({ preventScroll: true });
-            },
-          );
-        }}
-        view={sidebarView}
-        // A second press returns to the reader controls.
-        onToggleAppearance={() =>
-          setSidebarView((current) => (current === "appearance" ? "main" : "appearance"))
-        }
-        onCloseAppearance={() => {
-          const previous = sidebarView;
-          setSidebarView("main");
-          if (previous === "bookmarks") requestAnimationFrame(() => bookmarksRef.current?.focus());
-          else if (previous === "search") requestAnimationFrame(() => searchRef.current?.focus());
-          else if (previous === "images") requestAnimationFrame(() => imagesRef.current?.focus());
-          else if (previous === "notes") requestAnimationFrame(() => notesRef.current?.focus());
-          else appearanceRef.current?.focus();
-        }}
-        appearanceRef={appearanceRef}
-        searchRef={searchRef}
-        onOpenSearch={openSearch}
-        imagesRef={imagesRef}
-        onOpenImages={() => setSidebarView("images")}
-        images={{
-          ready: status === "ready",
-          session: rendererFactory,
-          listImages,
-          loadImage,
-          releaseImage,
-          onOpen: (items, index, signal) => {
-            bookImageRequest.current?.abort();
+      {!MobileReader && (
+        <ReaderSidebar
+          identity={identity}
+          pinned={sidebarPinned}
+          shown={!sidebarHidden && (sidebarPinned || sidebarShown || dockedViewer)}
+          status={status}
+          progress={status === "ready" ? progress : null}
+          contents={contents}
+          currentEntryId={currentEntryId}
+          navigationBusy={turning}
+          navigationError={navigationError}
+          onSelectEntry={(id) => {
             stopWheelTurns();
-            closeLookup();
-            // Beside the sidebar when there is room, where another image shows in it at once.
-            setImageViewer((current) =>
-              current?.docked &&
-              current.factory === rendererFactory &&
-              current.session.items === items &&
-              !current.session.signal.aborted
-                ? { ...current, pick: { index } }
-                : {
-                    factory: rendererFactory,
-                    session: { items, index, signal },
-                    docked: roomBesideBook,
-                  },
-            );
-          },
-          current: dockedViewer ? imageViewer?.shown : undefined,
-        }}
-        search={{
-          ready: status === "ready",
-          navigationBusy: turning,
-          session: rendererFactory,
-          onSearch: searchBook,
-          onExit: () => {
-            clearEscape();
-            viewportRef.current?.focus({ preventScroll: true });
-          },
-          onJump: (id, signal, settled) => {
-            stopWheelTurns();
-            closeLookup();
             const origin = document.activeElement;
             void jumpRemembering(
-              (done) => goToSearchResult(id, signal, done),
-              (success) => {
-                settled(success);
-                if (!success || signal.aborted) return;
-                // A floating sidebar over the marked match steps aside, keeping its results.
-                const match = searchMatchRect();
-                const sidebar = document.getElementById("reader-sidebar")?.getBoundingClientRect();
-                if (
-                  !sidebarPinned &&
-                  (compactLayout() ||
-                    (match &&
-                      sidebar &&
-                      match.left < sidebar.right &&
-                      match.right > sidebar.left &&
-                      match.top < sidebar.bottom &&
-                      match.bottom > sidebar.top))
-                ) {
-                  pointerOverSidebar.current = false;
-                  setSidebarShown(false);
-                }
+              (settled) => goToContentsEntry(id, settled),
+              (succeeded) => {
+                // Hand page-turn keys to the book after a jump, unless the reader has
+                // already moved focus elsewhere. A failed jump leaves focus on the entry.
                 const focused = document.activeElement;
-                if (focused !== origin && focused !== document.body) return;
+                if (!succeeded || (focused !== origin && focused !== document.body)) return;
+                if (compactLayout() && !sidebarPinned) setSidebarShown(false);
                 viewportRef.current?.focus({ preventScroll: true });
               },
-            ).then((started) => {
-              if (!started && !signal.aborted) settled(false);
-            });
-            return true;
-          },
-        }}
-        bookmarksRef={bookmarksRef}
-        onOpenBookmarks={() => setSidebarView("bookmarks")}
-        bookmarks={{
-          bookmarks,
-          canCreate: status === "ready",
-          navigationBusy: turning,
-          onCreate: (label) => bookmarks.create(captureBookmark, label),
-          place,
-          onJump: (bookmark, settled) => {
-            stopWheelTurns();
-            const origin = document.activeElement;
-            return goToBookmark(bookmark.locator, (success) => {
-              settled(success);
-              const focused = document.activeElement;
-              if (!success || (focused !== origin && focused !== document.body)) return;
-              if (compactLayout() && !sidebarPinned) setSidebarShown(false);
-              viewportRef.current?.focus({ preventScroll: true });
-            });
-          },
-        }}
-        notesRef={notesRef}
-        onOpenNotes={() => setSidebarView("notes")}
-        notes={{
-          notes,
-          ready: status === "ready",
-          navigationBusy: turning,
-          focus: focusNote,
-          place,
-          onJump: (note, settled) => {
-            stopWheelTurns();
-            closeLookup();
-            const origin = document.activeElement;
-            return goToBookmark(note.locator, (success) => {
-              settled(success);
-              const focused = document.activeElement;
-              if (!success || (focused !== origin && focused !== document.body)) return;
-              if (compactLayout() && !sidebarPinned) setSidebarShown(false);
-              viewportRef.current?.focus({ preventScroll: true });
-            });
-          },
-        }}
-        onTogglePin={
-          roomBesideBook
-            ? () => {
-                setReaderSidebarPinned(!sidebarPinned);
-                setSidebarShown(true);
-              }
-            : undefined
-        }
-        onPointerEnter={() => {
-          pointerOverSidebar.current = true;
-          setSidebarShown(true);
-        }}
-        onPointerLeave={() => {
-          pointerOverSidebar.current = false;
-          if (!sidebarPinned) setSidebarShown(false);
-        }}
-        onFocus={() => {
-          setSidebarHidden(false);
-          setSidebarShown(true);
-        }}
-        onBlur={(event: FocusEvent<HTMLElement>) => {
-          // Focus moving on to the book, such as after a contents jump, hides it.
-          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-          if (event.relatedTarget && !pointerOverSidebar.current && !sidebarPinned)
-            setSidebarShown(false);
-        }}
-        appearance={{
-          footer: appearance,
-          onFooterChange: appearance.setReaderFooter,
-          fontSize: readerFontSize,
-          onFontSizeChange: setReaderFontSize,
-          lineHeight: readerLineHeight,
-          onLineHeightChange: setReaderLineHeight,
-          letterSpacing: readerLetterSpacing,
-          onLetterSpacingChange: setReaderLetterSpacing,
-          wordSpacing: readerWordSpacing,
-          onWordSpacingChange: setReaderWordSpacing,
-          paragraphIndent: readerParagraphIndent,
-          onParagraphIndentChange: setReaderParagraphIndent,
-          paragraphMargin: readerParagraphMargin,
-          onParagraphMarginChange: setReaderParagraphMargin,
-          pageMargin: readerPageMargin,
-          onPageMarginChange: setReaderPageMargin,
-          maxWidth: readerMaxWidth,
-          onMaxWidthChange: setReaderMaxWidth,
-          monitor,
-          pageLayout: readerPageLayout,
-          onPageLayoutChange: setReaderPageLayout,
-          maxHeight: readerMaxHeight,
-          onMaxHeightChange: changeMaxHeight,
-          writingMode: readerWritingMode,
-          onWritingModeChange: setReaderWritingMode,
-          textOrientation: readerTextOrientation,
-          onTextOrientationChange: setReaderTextOrientation,
-          textJustification: readerTextJustification,
-          onTextJustificationChange: setReaderTextJustification,
-          prettyTextWrap: readerPrettyTextWrap,
-          onPrettyTextWrapChange: setReaderPrettyTextWrap,
-          hideFurigana: readerHideFurigana,
-          onHideFuriganaChange: setReaderHideFurigana,
-          furiganaStyle: readerFuriganaStyle,
-          onFuriganaStyleChange: setReaderFuriganaStyle,
-          blurImage: readerBlurImage,
-          onBlurImageChange: setReaderBlurImage,
-          blurMode: readerBlurMode,
-          onBlurModeChange: setReaderBlurMode,
-          imageBlurBoundary: status === "ready" ? imageBlurBoundary : undefined,
-          vnNotice: pageTurns.vnNotice,
-          asianFont,
-          onAsianFontChange: (font: ReaderFontChoice) =>
-            fontLanguage
-              ? appearance.setReaderAsianFontForLanguage(fontLanguage, font)
-              : appearance.setReaderAsianFont(font),
-          viewMode: readerViewMode,
-          onViewModeChange: setReaderViewMode,
-          wheelStep: readerWheelStep,
-          onWheelStepChange: setReaderWheelStep,
-          theme: readerTheme,
-          customThemes: readerCustomThemes,
-          onThemeChange: setReaderTheme,
-          onCreateCustomTheme: createReaderCustomTheme,
-          onCustomThemeChange: updateReaderCustomTheme,
-          onDeleteCustomTheme: deleteReaderCustomTheme,
-        }}
-      />
+            );
+          }}
+          view={sidebarView}
+          // A second press returns to the reader controls.
+          onToggleAppearance={() =>
+            setSidebarView((current) => (current === "appearance" ? "main" : "appearance"))
+          }
+          onCloseAppearance={() => {
+            const previous = sidebarView;
+            setSidebarView("main");
+            if (previous === "bookmarks")
+              requestAnimationFrame(() => bookmarksRef.current?.focus());
+            else if (previous === "search") requestAnimationFrame(() => searchRef.current?.focus());
+            else if (previous === "images") requestAnimationFrame(() => imagesRef.current?.focus());
+            else if (previous === "notes") requestAnimationFrame(() => notesRef.current?.focus());
+            else appearanceRef.current?.focus();
+          }}
+          appearanceRef={appearanceRef}
+          searchRef={searchRef}
+          onOpenSearch={openSearch}
+          imagesRef={imagesRef}
+          onOpenImages={() => setSidebarView("images")}
+          images={imagesPanel}
+          search={searchPanel}
+          bookmarksRef={bookmarksRef}
+          onOpenBookmarks={() => setSidebarView("bookmarks")}
+          bookmarks={bookmarksPanel}
+          notesRef={notesRef}
+          onOpenNotes={() => setSidebarView("notes")}
+          notes={notesPanel}
+          onTogglePin={
+            roomBesideBook
+              ? () => {
+                  setReaderSidebarPinned(!sidebarPinned);
+                  setSidebarShown(true);
+                }
+              : undefined
+          }
+          onPointerEnter={() => {
+            pointerOverSidebar.current = true;
+            setSidebarShown(true);
+          }}
+          onPointerLeave={() => {
+            pointerOverSidebar.current = false;
+            if (!sidebarPinned) setSidebarShown(false);
+          }}
+          onFocus={() => {
+            setSidebarHidden(false);
+            setSidebarShown(true);
+          }}
+          onBlur={(event: FocusEvent<HTMLElement>) => {
+            // Focus moving on to the book, such as after a contents jump, hides it.
+            if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+            if (event.relatedTarget && !pointerOverSidebar.current && !sidebarPinned)
+              setSidebarShown(false);
+          }}
+          appearance={appearancePanel}
+        />
+      )}
       <div
         className="reader-reading-area"
         ref={readingAreaRef}
@@ -1806,20 +1913,111 @@ export function ReaderShell({
       >
         {/* In the space kept free above the book's pages, in the Reader theme's colors;
             a docked image viewer covers the book and shows its own. */}
-        {!dockedViewer && <WindowControls className="reader-window-controls" />}
+        {!MobileReader && !dockedViewer && <WindowControls className="reader-window-controls" />}
         <ReaderViewport
           hostRef={hostRef}
           viewportRef={viewportRef}
           identity={identity}
           status={status}
         />
-        {status === "ready" && pageTurns.scrollAxis && (
+        {!MobileReader && status === "ready" && pageTurns.scrollAxis && (
           <ReaderScrollbar track={scrollTrack} refresh={pageTurns} />
         )}
-        {status === "ready" && pageTurns.vnRevealing && (
-          <button type="button" className="reader-vn-reveal" onClick={revealVnText}>
-            {t("reader.showAllText")}
-          </button>
+        {MobileReader && (
+          <Suspense fallback={null}>
+            <MobileReader
+              identity={identity}
+              appearance={appearancePanel}
+              ready={status === "ready" && !reflowing}
+              turning={turning}
+              progress={status === "ready" ? progress : null}
+              pageTurns={pageTurns}
+              contents={contents}
+              currentEntryId={currentEntryId}
+              session={session}
+              speed={speed}
+              bookmarks={bookmarks}
+              captureBookmark={captureBookmark}
+              tools={{
+                images: imagesPanel,
+                search: searchPanel,
+                bookmarks: bookmarksPanel,
+                notes: notesPanel,
+              }}
+              selectionRef={selectionRef}
+              onSelectionAction={(action, contentDocument, note) => {
+                const clear = () => contentDocument.getSelection()?.removeAllRanges();
+                if (action === "delete") {
+                  clear();
+                  if (note)
+                    void notes.remove(note).then((removed) => {
+                      if (removed) showFeedback(i18n().t("notes.removed"));
+                    });
+                  return;
+                }
+                if (action === "note" || action === "highlight") {
+                  void createSelectedNote(action).finally(clear);
+                  return;
+                }
+                if (action === "copy") {
+                  copyText(contentDocument.getSelection()?.toString() ?? "");
+                  clear();
+                  showFeedback(i18n().t("textMenu.copied"));
+                  return;
+                }
+                const lookup = selectionLookup(
+                  contentDocument,
+                  viewportRef.current ?? undefined,
+                  "menu",
+                  triggersRef.current.lookupLanguage,
+                );
+                clear();
+                if (lookup) onSelectionChanged(lookup);
+              }}
+              image={{
+                viewing: imageOpen.current && !!imageViewer,
+                jumps: imageJumps,
+                close: () => {
+                  setImageViewer(null);
+                  bookImageRequest.current?.abort();
+                },
+              }}
+              touchRef={touchRef}
+              viewportRef={viewportRef}
+              onTurn={(direction) => {
+                closeLookup();
+                turnPage(direction);
+              }}
+              onLookUp={(x, y) => triggersRef.current.readerPopupEnabled && lookupAt(x, y)}
+              lookup={{
+                open: !!lookup,
+                closedAt: () => lookupPressClosedAt.current,
+                back: () => (lookups.length > 1 ? closeDeepestLookup() : closeLookup()),
+              }}
+              onScroll={scrolledNatively}
+              onChapterEdge={chapterEdge}
+              onReadOn={(advance) => vnStep.current?.(advance) ?? false}
+              onVnGroupAt={vnGroupAt}
+              onGoToEntry={(id) => {
+                closeLookup();
+                void jumpRemembering((settled) => goToContentsEntry(id, settled));
+              }}
+              onGoToOffset={(offset, settled) => {
+                closeLookup();
+                void jumpRemembering((done) => goToOffset(offset, done), settled).then(
+                  (started) => {
+                    if (!started) settled(false);
+                  },
+                );
+              }}
+              onGoToPosition={(locator, settled) => {
+                closeLookup();
+                if (!goToPosition(locator, settled)) settled(false);
+              }}
+              onBack={() => navigate(libraryCache.lastPage(), { state: libraryReturn })}
+              onFeedback={showFeedback}
+            />
+          </Suspense>
         )}
         {status === "ready" && reflowing && (
           <p className="reader-layout-status" role="status">
@@ -1829,7 +2027,7 @@ export function ReaderShell({
         <span className="visually-hidden" role="status">
           {t(footerLabel(identity, status))}
         </span>
-        {status === "ready" && !reflowing && (
+        {!MobileReader && status === "ready" && !reflowing && (
           <ReaderReadingStatus
             clock={appearance.readerShowClock}
             readingTime={appearance.readerShowReadingTime}
@@ -1856,41 +2054,17 @@ export function ReaderShell({
             }}
           />
         )}
-        <BookProgress
-          progress={status === "ready" ? progress : null}
-          visibility={appearance}
-          speed={speed}
-        />
+        {!MobileReader && (
+          <BookProgress
+            progress={status === "ready" ? progress : null}
+            visibility={appearance}
+            speed={speed}
+          />
+        )}
         <p className="reader-floating-feedback" role="status" aria-live="polite">
           {escapeWarning ? t("reader.escapeAgain") : feedback}
         </p>
-        {lookups.map((shown, depth) => (
-          <ReaderLookupPopup
-            key={shown.id}
-            onMatch={shown.onMatch}
-            onSearchTerm={(term) => navigate(`/dictionary?q=${encodeURIComponent(term)}`)}
-            onChildLookup={
-              depth < readerPopupChildLevels
-                ? (request) => openChildLookup(depth, request)
-                : undefined
-            }
-            // A press in a parent popup closes the child popups above it.
-            onPointerDown={() =>
-              setLookups((current) =>
-                current.length > depth + 1 ? current.slice(0, depth + 1) : current,
-              )
-            }
-            placement={shown.placement}
-            definitionSources={definitionSources}
-            query={shown.query}
-            readerContext={{
-              sentence: lookup?.sentence,
-              bookTitle: identity.status === "book" ? (identity.book.title ?? "") : "",
-              bookId: identity.status === "book" ? identity.book.id : undefined,
-            }}
-            ref={depth === 0 ? popupRef : undefined}
-          />
-        ))}
+        {lookupPopups}
       </div>
       {noteDraft && noteDraft.store === noteStore && (
         <NoteEditor
@@ -1903,6 +2077,8 @@ export function ReaderShell({
             void notes.create(noteDraft.place, body).then((saved) => {
               if (saved) {
                 setNoteDraft(null);
+                // The phone has no sidebar to show it in: it says so and reads on.
+                if (MobileReader) showFeedback(i18n().t("notes.saved"));
                 setSidebarHidden(false);
                 setSidebarView("notes");
                 setSidebarShown(true);
@@ -1947,6 +2123,7 @@ export function ReaderShell({
           onClose={(jumped) => {
             setImageViewer(null);
             bookImageRequest.current?.abort();
+            if (jumped) setImageJumps((count) => count + 1);
             if (jumped)
               requestAnimationFrame(() => viewportRef.current?.focus({ preventScroll: true }));
           }}
@@ -2063,6 +2240,8 @@ function ProgressValues({
     </span>
   );
 }
+
+const touchTypes = ["touchstart", "touchend", "touchcancel"] as const;
 
 const narrowQuery = "(max-width: 1080px)";
 

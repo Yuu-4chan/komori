@@ -50,19 +50,6 @@ describe("popup preset readability", () => {
               `${foreground} on ${surface}: ${background}, ${tag}`,
             ).toBeGreaterThanOrEqual(4.5);
         }
-        for (const category of [
-          "name",
-          "expression",
-          "popular",
-          "frequent",
-          "archaism",
-          "dictionary",
-          "frequency",
-          "part-of-speech",
-          "search",
-          "pronunciation-dictionary",
-        ])
-          expect(contrast(tokens[`--tag-${category}`], background)).toBeGreaterThanOrEqual(4.5);
         expect(
           contrast(tokens["--text-on-accent"], tokens["--accent-action"]),
         ).toBeGreaterThanOrEqual(4.5);

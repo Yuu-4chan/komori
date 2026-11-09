@@ -199,7 +199,12 @@ pub(crate) struct DictionaryArchive {
 
 impl DictionaryArchive {
     pub(crate) fn open(path: &Path) -> Result<Self, DictionaryArchiveError> {
-        let file = File::open(path).map_err(|_| DictionaryArchiveError::Unreadable)?;
+        Self::read(File::open(path).map_err(|_| DictionaryArchiveError::Unreadable)?)
+    }
+
+    /// Reads an archive from a file already open for reading, such as a document the phone's
+    /// picker granted.
+    pub(crate) fn read(file: File) -> Result<Self, DictionaryArchiveError> {
         let mut archive = ZipArchive::new(file).map_err(|error| match error {
             zip::result::ZipError::Io(_) => DictionaryArchiveError::Unreadable,
             _ => DictionaryArchiveError::NotArchive,

@@ -3,6 +3,7 @@
  * content access). EPUB.js reads it in place of JSZip, so opening a book transfers the
  * entries it reads rather than its whole archive.
  */
+import { isAndroid } from "../../app/platform";
 import { EpubResourceLimit, InvalidEpubDocument } from "./epubTolerance";
 
 /** Bundle frames the native side writes for an entry over its entry limit and for damage. */
@@ -140,12 +141,15 @@ export class NativeZip {
     return read;
   }
 
-  /** One bundle: the entries' little-endian u32 numbers in, length-framed entries out. */
+  /** One bundle: the entries' little-endian u32 numbers in, length-framed entries out. Android's
+   * WebView passes no request bodies, so there the numbers are listed in the path instead. */
   private async bundle(numbers: number[]) {
     const request = new DataView(new ArrayBuffer(numbers.length * 4));
     numbers.forEach((number, index) => request.setUint32(index * 4, number, true));
     // A body without a content type keeps this a simple request, with no CORS preflight.
-    const bytes = await this.fetch(this.url, { method: "POST", body: request.buffer });
+    const bytes = await (isAndroid
+      ? this.fetch(`${this.url}/bundle/${numbers.join(",")}`)
+      : this.fetch(this.url, { method: "POST", body: request.buffer }));
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const frames: (Uint8Array | Error)[] = [];
     let at = 0;

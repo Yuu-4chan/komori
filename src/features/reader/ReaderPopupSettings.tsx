@@ -1,4 +1,5 @@
 import { ChatTextIcon, CursorClickIcon, ListMagnifyingGlassIcon } from "@phosphor-icons/react";
+import { isAndroid } from "../../app/platform";
 import { PopupSourceSettings } from "./PopupSourceSettings";
 import { ReaderLookupPreview } from "./ReaderLookupPreview";
 import { PopupAppearanceSettings } from "./PopupAppearanceSettings";
@@ -50,6 +51,8 @@ export function ReaderPopupSettings({
     readerPopupStyle,
     setReaderPopupStyle,
     lookupLanguage,
+    readerTapLookup,
+    setReaderTapLookup,
   } = useAppearance();
   // The dictionary style shows none of the voice, pitch, frequency or Anki its switches add.
   const dictionaryStyle = readerPopupStyle === "dictionary";
@@ -72,6 +75,13 @@ export function ReaderPopupSettings({
             checked={readerPopupEnabled}
             onChange={setReaderPopupEnabled}
           />
+          {isAndroid && (
+            <ToggleSetting
+              label={t("popupSettings.tapLookup")}
+              checked={readerTapLookup}
+              onChange={setReaderTapLookup}
+            />
+          )}
           <div className="settings-field">
             <Select
               label={t("popupSettings.style")}
@@ -123,87 +133,93 @@ export function ReaderPopupSettings({
         </div>
       </Card>
       <PopupAppearanceSettings />
-      <ReaderLookupPreview />
+      {/* The phone looks words up by touch, in its own sheet. */}
+      {!isAndroid && <ReaderLookupPreview />}
       <PopupSourceSettings onDictionarySettings={onDictionarySettings} />
-      <Card className="settings-card settings-card--wide">
-        <div className="settings-card__heading">
-          <span className="settings-card__icon">
-            <CursorClickIcon aria-hidden="true" weight="duotone" />
-          </span>
-          <div>
-            <h2>{t("popupSettings.triggers")}</h2>
-            <p>{t("popupSettings.triggersDescription")}</p>
+      {!isAndroid && (
+        <Card className="settings-card settings-card--wide">
+          <div className="settings-card__heading">
+            <span className="settings-card__icon">
+              <CursorClickIcon aria-hidden="true" weight="duotone" />
+            </span>
+            <div>
+              <h2>{t("popupSettings.triggers")}</h2>
+              <p>{t("popupSettings.triggersDescription")}</p>
+            </div>
           </div>
-        </div>
-        <div className="settings-list" role="group" aria-label={t("popupSettings.triggers")}>
-          <ToggleSetting
-            label={t("popupSettings.keyboard")}
-            description={t("popupSettings.keyboardHint")}
-            checked={triggers.readerPopupKeyboardShortcut}
-            onChange={(value) => setReaderPopupTriggers({ readerPopupKeyboardShortcut: value })}
-          />
-          <ToggleSetting
-            label={t("popupSettings.mouseSelection")}
-            description={t("popupSettings.mouseSelectionHint")}
-            checked={readerPopupMouseSelection}
-            onChange={setReaderPopupMouseSelection}
-          />
-          <ToggleSetting
-            label={t("popupSettings.click")}
-            description={t("popupSettings.clickHint")}
-            checked={triggers.readerPopupClickLookup}
-            onChange={(value) => setReaderPopupTriggers({ readerPopupClickLookup: value })}
-          />
-          <ToggleSetting
-            label={t("popupSettings.hover")}
-            description={t("popupSettings.hoverHint")}
-            checked={triggers.readerPopupHoverLookup}
-            onChange={(value) => setReaderPopupTriggers({ readerPopupHoverLookup: value })}
-          />
-          <ToggleSetting
-            label={t("popupSettings.shift")}
-            description={t("popupSettings.shiftHint")}
-            checked={triggers.readerPopupShiftLookup}
-            onChange={(value) => setReaderPopupTriggers({ readerPopupShiftLookup: value })}
-          />
-          <div className="settings-field">
-            <Select
-              label={t("popupSettings.shortcutPreset")}
-              value={triggers.readerPopupShortcutPreset}
-              options={shortcutPresets}
-              onChange={(value) => setReaderPopupTriggers({ readerPopupShortcutPreset: value })}
+          <div className="settings-list" role="group" aria-label={t("popupSettings.triggers")}>
+            <ToggleSetting
+              label={t("popupSettings.keyboard")}
+              description={t("popupSettings.keyboardHint")}
+              checked={triggers.readerPopupKeyboardShortcut}
+              onChange={(value) => setReaderPopupTriggers({ readerPopupKeyboardShortcut: value })}
             />
-            <p className="settings-field__hint">{t("popupSettings.shortcutPresetHint")}</p>
-          </div>
-          <div className="settings-field">
-            <Stepper
-              label={t("popupSettings.scanDelay")}
-              value={triggers.readerPopupHoverDelay}
-              {...hoverDelayRange}
-              unit={t("unit.ms")}
-              onChange={(value) => setReaderPopupTriggers({ readerPopupHoverDelay: value })}
+            <ToggleSetting
+              label={t("popupSettings.mouseSelection")}
+              description={t("popupSettings.mouseSelectionHint")}
+              checked={readerPopupMouseSelection}
+              onChange={setReaderPopupMouseSelection}
             />
-            <p className="settings-field__hint">{t("popupSettings.scanDelayHint")}</p>
-          </div>
-          <div className="settings-field">
-            <Select
-              label={t("popupSettings.mouseTrigger")}
-              value={triggers.readerPopupMouseTrigger}
-              options={mouseTriggers.map((option) => ({ ...option, label: t(option.label) }))}
-              onChange={(value) => setReaderPopupTriggers({ readerPopupMouseTrigger: value })}
+            <ToggleSetting
+              label={t("popupSettings.click")}
+              description={t("popupSettings.clickHint")}
+              checked={triggers.readerPopupClickLookup}
+              onChange={(value) => setReaderPopupTriggers({ readerPopupClickLookup: value })}
             />
-            <p className="settings-field__hint">{t("popupSettings.mouseTriggerHint")}</p>
-          </div>
-          <div className="settings-field">
-            <Select
-              label={t("popupSettings.closeBehavior")}
-              value={triggers.readerPopupCloseBehavior}
-              options={popupCloseBehaviors.map((option) => ({ ...option, label: t(option.label) }))}
-              onChange={(value) => setReaderPopupTriggers({ readerPopupCloseBehavior: value })}
+            <ToggleSetting
+              label={t("popupSettings.hover")}
+              description={t("popupSettings.hoverHint")}
+              checked={triggers.readerPopupHoverLookup}
+              onChange={(value) => setReaderPopupTriggers({ readerPopupHoverLookup: value })}
             />
+            <ToggleSetting
+              label={t("popupSettings.shift")}
+              description={t("popupSettings.shiftHint")}
+              checked={triggers.readerPopupShiftLookup}
+              onChange={(value) => setReaderPopupTriggers({ readerPopupShiftLookup: value })}
+            />
+            <div className="settings-field">
+              <Select
+                label={t("popupSettings.shortcutPreset")}
+                value={triggers.readerPopupShortcutPreset}
+                options={shortcutPresets}
+                onChange={(value) => setReaderPopupTriggers({ readerPopupShortcutPreset: value })}
+              />
+              <p className="settings-field__hint">{t("popupSettings.shortcutPresetHint")}</p>
+            </div>
+            <div className="settings-field">
+              <Stepper
+                label={t("popupSettings.scanDelay")}
+                value={triggers.readerPopupHoverDelay}
+                {...hoverDelayRange}
+                unit={t("unit.ms")}
+                onChange={(value) => setReaderPopupTriggers({ readerPopupHoverDelay: value })}
+              />
+              <p className="settings-field__hint">{t("popupSettings.scanDelayHint")}</p>
+            </div>
+            <div className="settings-field">
+              <Select
+                label={t("popupSettings.mouseTrigger")}
+                value={triggers.readerPopupMouseTrigger}
+                options={mouseTriggers.map((option) => ({ ...option, label: t(option.label) }))}
+                onChange={(value) => setReaderPopupTriggers({ readerPopupMouseTrigger: value })}
+              />
+              <p className="settings-field__hint">{t("popupSettings.mouseTriggerHint")}</p>
+            </div>
+            <div className="settings-field">
+              <Select
+                label={t("popupSettings.closeBehavior")}
+                value={triggers.readerPopupCloseBehavior}
+                options={popupCloseBehaviors.map((option) => ({
+                  ...option,
+                  label: t(option.label),
+                }))}
+                onChange={(value) => setReaderPopupTriggers({ readerPopupCloseBehavior: value })}
+              />
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
       <Card className="settings-card settings-card--wide">
         <div className="settings-card__heading">
           <span className="settings-card__icon">

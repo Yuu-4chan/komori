@@ -6,6 +6,7 @@
 //! owns the choices, the pipe and the idle timer; the Reader reports only display text and its
 //! position, and the other pages only which one is open and a count of the reader's actions.
 //! Nothing goes over the network from Komori: the Discord app shares the status.
+#![cfg_attr(mobile, allow(dead_code))]
 
 use crate::interface_text::{self, Text};
 use crate::library::{open_catalog, storage_error, CatalogState};

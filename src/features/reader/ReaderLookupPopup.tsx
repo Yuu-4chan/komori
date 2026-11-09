@@ -2,13 +2,13 @@ import { useI18n } from "../../i18n/i18n";
 import { ArrowSquareOutIcon, TranslateIcon } from "@phosphor-icons/react";
 import { type Ref, type CSSProperties, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { isAndroid } from "../../app/platform";
 import { useDictionaryRevision } from "../dictionary/useDictionaryRevision";
 
 import { EmptyState } from "../../components/ui/EmptyState";
 import { IconButton } from "../../components/ui/IconButton";
 import {
   groupKey,
-  KanjiCard,
   lookupDictionary,
   useWordAudioAvailable,
   type DictionaryLookup,
@@ -16,6 +16,7 @@ import {
 import { useAppearance } from "../appearance/AppearanceProvider";
 import { popupThemeStyle } from "./popupThemes";
 import { resolveReaderTheme } from "./readerThemes";
+import { KanjiCard } from "../dictionary/KanjiCard";
 import { DictionaryLookupEntry, LookupEntry } from "../dictionary/LookupEntry";
 import { type ReaderCardContext } from "../anki/AnkiAction";
 import { lookupPopupFontSize, lookupQuery } from "./lookupPopup";
@@ -24,12 +25,12 @@ import { characterAtPoint, textFromCharacter, wordStart } from "./textSelection"
 import type { ReaderRect } from "./renderer";
 import { activateExpression } from "./popupShortcuts";
 import { usePopupFont } from "./popupFont";
+import type { LookupLanguage } from "../dictionary/lookupLanguage";
 
 /** The popup's box: the preview keeps the saved height, a lookup shrinks to its content. */
-function fitted(
-  { left, top, width, height, above }: ReaderLookupPopupProps["placement"],
-  preview?: boolean,
-): CSSProperties {
+function fitted(placement: ReaderLookupPopupProps["placement"], preview?: boolean): CSSProperties {
+  if (!placement) return {};
+  const { left, top, width, height, above } = placement;
   if (preview) return { left, top, width, height };
   if (above) return { left, width, maxHeight: height, bottom: `calc(100% - ${top + height}px)` };
   return { left, top, width, maxHeight: height };
@@ -54,9 +55,11 @@ interface ReaderLookupPopupProps {
   /**
    * Where the popup shows, in its container's CSS pixels. Outside the preview the height is a
    * maximum: a short entry gets a shorter popup, kept against the selection, so one placed
-   * `above` it keeps its bottom edge.
+   * `above` it keeps its bottom edge. Without it, the popup fills the sheet holding it.
    */
-  placement: { left: number; top: number; width: number; height: number; above?: boolean };
+  placement?: { left: number; top: number; width: number; height: number; above?: boolean };
+  /** A lookup kept under the one a sheet shows, until Back returns to it. */
+  hidden?: boolean;
   /** Successful longest matched start in Unicode characters; zero for failure/no match. */
   onMatch?: (length: number) => void;
   /** Search the Dictionary page, as a headword kanji or glossary term link does there. */
@@ -76,6 +79,11 @@ interface ReaderLookupPopupProps {
    * Reader for all its popups. The settings preview sits beside its own source settings.
    */
   definitionSources?: boolean | null;
+  /**
+   * The book's language when lookups read another and no imported dictionary of the book's
+   * language supplies definitions: a lookup that matches nothing says so.
+   */
+  bookWithoutDictionary?: LookupLanguage;
 }
 
 /**
@@ -87,6 +95,7 @@ export function ReaderLookupPopup({
   query,
   readerContext,
   placement,
+  hidden,
   onMatch,
   onSearchTerm,
   onChildLookup,
@@ -95,9 +104,13 @@ export function ReaderLookupPopup({
   preview = false,
   retry = 0,
   definitionSources = null,
+  bookWithoutDictionary,
 }: ReaderLookupPopupProps) {
   const appearance = useAppearance();
-  const { t } = useI18n();
+  const i18n = useI18n();
+  const { t } = i18n;
+  const noDictionaryFor = (language: LookupLanguage) =>
+    t("popup.noLanguageDictionary", { language: i18n.languageName(language) ?? language });
   const {
     readerPopupDefinitionSources,
     readerPopupFrequencySources,
@@ -200,7 +213,8 @@ export function ReaderLookupPopup({
         if (typeof ref === "function") ref(element);
         else if (ref) ref.current = element;
       }}
-      role={preview ? "region" : "dialog"}
+      role={preview || !placement ? "region" : "dialog"}
+      hidden={hidden}
       data-popup-theme={readerPopupTheme}
       onPointerDown={(event) => {
         const expression = (event.target as Element).closest("[data-popup-expression]");
@@ -219,7 +233,7 @@ export function ReaderLookupPopup({
             resolveReaderTheme(readerTheme, readerCustomThemes),
           ),
           ...fitted(placement, preview),
-          borderRadius: `${readerPopupRadius}px`,
+          ...(placement && { borderRadius: `${readerPopupRadius}px` }),
           "--scroll-radius": `${readerPopupRadius}px`,
           "--popup-zoom": readerPopupFontSize / lookupPopupFontSize.default,
           "--popup-line-height": readerPopupLineHeight,
@@ -245,7 +259,11 @@ export function ReaderLookupPopup({
             <EmptyState
               icon={TranslateIcon}
               title={t("dictionaryPage.noDictionaries")}
-              description={t("dictionaryPage.noDictionariesHint")}
+              description={
+                lookupLanguage === "ja"
+                  ? t("dictionaryPage.noDictionariesHint")
+                  : noDictionaryFor(lookupLanguage)
+              }
             />
             <Link className="button button--secondary" to="/settings?section=dictionary">
               {t("dictionaryPage.getDictionaries")}
@@ -257,9 +275,19 @@ export function ReaderLookupPopup({
             <EmptyState
               icon={TranslateIcon}
               title={t("dictionaryPage.noMatches")}
-              description={t("popup.noMatches")}
+              description={
+                bookWithoutDictionary
+                  ? noDictionaryFor(bookWithoutDictionary)
+                  : t("popup.noMatches")
+              }
             />
-            {!dictionaryStyle && <OpenInDictionary term={query} onOpen={onSearchTerm} />}
+            {bookWithoutDictionary ? (
+              <Link className="button button--secondary" to="/settings?section=dictionary">
+                {t("dictionaryPage.getDictionaries")}
+              </Link>
+            ) : (
+              !dictionaryStyle && <OpenInDictionary term={query} onOpen={onSearchTerm} />
+            )}
           </div>
         )}
         {lookup && entryCount > 0 && (
@@ -298,6 +326,7 @@ export function ReaderLookupPopup({
                 ) : (
                   <LookupEntry
                     readerContext={readerContext}
+                    // The phone has no Anki connection yet.
                     showAnkiAction={readerPopupAnkiAction}
                     showPitch={readerPopupShowPitch}
                     showFrequency={readerPopupShowFrequency}
@@ -337,9 +366,16 @@ function OpenInDictionary({ term, onOpen }: { term: string; onOpen: (term: strin
 
 /**
  * Lookups from inside a popup, with the Reader's own trigger settings: Shift over its text, hover
- * after the scan delay, and releasing a mouse selection. Scans read up to the scan length from
- * the character under the pointer (or its word's start), as the book does.
+ * after the scan delay, and releasing a mouse selection; on the phone, a tap on its text. Scans
+ * read up to the scan length from the character under the pointer (or its word's start), as the
+ * book does.
  */
+// A touch moving more than this, in CSS pixels, or held longer, in milliseconds, is not a tap.
+const tapSlop = 10;
+const tapTime = 500;
+// The popup's own controls, which a tap presses rather than looks up.
+const tapControls = "a, button, summary, input, select, textarea, [role='button']";
+
 function usePopupScanning(
   root: { current: HTMLElement | null },
   onScan: ((request: ChildLookupRequest) => void) | undefined,
@@ -355,7 +391,8 @@ function usePopupScanning(
     let scanned: { node: Node; offset: number } | null = null;
     let hoverTimer: ReturnType<typeof setTimeout> | undefined;
     const body = () => element.querySelector(".reader-lookup__body");
-    const scan = (origin: "shift" | "hover") => {
+    let touch: { id: number; x: number; y: number; at: number } | null = null;
+    const scan = (origin: "shift" | "hover" | "tap") => {
       const { onScan, settings } = latest.current;
       if (!pointer || !onScan || !triggerEnabled(settings, origin)) return;
       const range = wordStart(characterAtPoint(document, pointer.x, pointer.y), settings);
@@ -404,16 +441,39 @@ function usePopupScanning(
           onScan({ query, rect: range.getBoundingClientRect() });
       }, 0);
     };
+    // A tap: a touch that stays within a few pixels and lifts soon, away from the popup's controls.
+    const touchStart = (event: PointerEvent) => {
+      touch =
+        event.pointerType === "touch" && event.isPrimary
+          ? { id: event.pointerId, x: event.clientX, y: event.clientY, at: event.timeStamp }
+          : null;
+    };
+    const touchEnd = (event: PointerEvent) => {
+      const start = touch;
+      touch = null;
+      if (!start || event.pointerId !== start.id || event.timeStamp - start.at > tapTime) return;
+      if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > tapSlop) return;
+      if (event.target instanceof Element && event.target.closest(tapControls)) return;
+      pointer = { x: event.clientX, y: event.clientY };
+      scanned = null;
+      scan("tap");
+    };
     element.addEventListener("pointermove", move);
     element.addEventListener("pointerleave", leave);
     element.addEventListener("pointerup", release);
     window.addEventListener("keydown", key);
+    if (isAndroid) {
+      element.addEventListener("pointerdown", touchStart);
+      element.addEventListener("pointerup", touchEnd);
+    }
     return () => {
       cancelHover();
       element.removeEventListener("pointermove", move);
       element.removeEventListener("pointerleave", leave);
       element.removeEventListener("pointerup", release);
       window.removeEventListener("keydown", key);
+      element.removeEventListener("pointerdown", touchStart);
+      element.removeEventListener("pointerup", touchEnd);
     };
   }, [enabled, root]);
 }

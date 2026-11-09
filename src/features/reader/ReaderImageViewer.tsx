@@ -11,7 +11,7 @@ import {
   CopyIcon,
   DownloadSimpleIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DialogCaption } from "../../components/layout/WindowControls";
 import { useBackdropDismiss } from "../../components/ui/backdropDismiss";
@@ -66,6 +66,12 @@ export function ReaderImageViewer({
   const [imageNotice, setImageNotice] = useState("");
   const [area, setArea] = useState({ width: 920, height: 610 });
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  /** The fingers on the image, by pointer, for a pinch. */
+  const fingers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ distance: number; zoom: number } | null>(null);
+  /** The point between the fingers, in the stage and as a share of the image scrolled, kept
+   * under them as the zoom changes. */
+  const pinchAnchor = useRef<{ x: number; y: number; shareX: number; shareY: number } | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const backdrop = useBackdropDismiss(onClose);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -202,6 +208,23 @@ export function ReaderImageViewer({
   };
   const changeZoom = (delta: number) =>
     setZoom((value) => Math.max(0.5, Math.min(4, value + delta)));
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    const anchor = pinchAnchor.current;
+    if (!stage || !anchor) return;
+    pinchAnchor.current = null;
+    stage.scrollLeft = anchor.shareX * stage.scrollWidth - anchor.x;
+    stage.scrollTop = anchor.shareY * stage.scrollHeight - anchor.y;
+  }, [zoom]);
+  const fingerSpread = () => {
+    const [first, second] = [...fingers.current.values()];
+    return Math.hypot(second.x - first.x, second.y - first.y);
+  };
+  const releaseFinger = (pointer: number) => {
+    fingers.current.delete(pointer);
+    if (fingers.current.size < 2) pinch.current = null;
+    drag.current = null;
+  };
   return createPortal(
     <dialog
       ref={dialogRef}
@@ -323,29 +346,53 @@ export function ReaderImageViewer({
             aria-label={t("viewer.panArea")}
             onPointerDown={(event) => {
               if (event.button !== 0 || !resource) return;
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+              if (event.pointerType === "touch") {
+                fingers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+                // A second finger pinches to zoom, as the zoom buttons do.
+                if (fingers.current.size === 2) {
+                  drag.current = null;
+                  pinch.current = { distance: Math.max(1, fingerSpread()), zoom };
+                  return;
+                }
+                if (fingers.current.size > 2) return;
+              }
               drag.current = {
                 x: event.clientX,
                 y: event.clientY,
                 left: event.currentTarget.scrollLeft,
                 top: event.currentTarget.scrollTop,
               };
-              event.currentTarget.setPointerCapture?.(event.pointerId);
             }}
             onPointerMove={(event) => {
+              if (fingers.current.has(event.pointerId))
+                fingers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+              const pinching = pinch.current;
+              if (pinching && fingers.current.size >= 2) {
+                const stage = event.currentTarget;
+                const box = stage.getBoundingClientRect();
+                const [first, second] = [...fingers.current.values()];
+                const x = (first.x + second.x) / 2 - box.left;
+                const y = (first.y + second.y) / 2 - box.top;
+                pinchAnchor.current = {
+                  x,
+                  y,
+                  shareX: (stage.scrollLeft + x) / Math.max(1, stage.scrollWidth),
+                  shareY: (stage.scrollTop + y) / Math.max(1, stage.scrollHeight),
+                };
+                setZoom(
+                  Math.max(0.5, Math.min(4, (pinching.zoom * fingerSpread()) / pinching.distance)),
+                );
+                return;
+              }
               const start = drag.current;
               if (!start) return;
               event.currentTarget.scrollLeft = start.left + start.x - event.clientX;
               event.currentTarget.scrollTop = start.top + start.y - event.clientY;
             }}
-            onPointerUp={() => {
-              drag.current = null;
-            }}
-            onPointerCancel={() => {
-              drag.current = null;
-            }}
-            onLostPointerCapture={() => {
-              drag.current = null;
-            }}
+            onPointerUp={(event) => releaseFinger(event.pointerId)}
+            onPointerCancel={(event) => releaseFinger(event.pointerId)}
+            onLostPointerCapture={(event) => releaseFinger(event.pointerId)}
           >
             {resource ? (
               <div

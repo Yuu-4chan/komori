@@ -1,6 +1,7 @@
 import { PaintBrushIcon } from "@phosphor-icons/react";
 import type { CSSProperties } from "react";
 
+import { isAndroid } from "../../app/platform";
 import { appIcons, appIconSvg } from "../../brand/appIcons";
 import logo from "../../brand/komori.svg?raw";
 import { Card } from "../../components/ui/Card";
@@ -79,8 +80,8 @@ export function AppThemeSettings() {
   function startFrom(id: AppThemeId) {
     const preset = appPresetThemes.find((candidate) => candidate.id === id);
     if (!preset) return;
-    const { base, background, surface, text } = preset;
-    updateAppCustomTheme({ base, background, surface, text });
+    const { base, background, surface, text, logo } = preset;
+    updateAppCustomTheme({ base, background, surface, text, logo });
     setAccentColor(preset.accent);
   }
 
@@ -108,27 +109,30 @@ export function AppThemeSettings() {
               onChange={setInterfaceLanguage}
             />
           </div>
-          <div className="settings-field app-icon-field">
-            <span className="app-icon-field__label" id="app-icon-label">
-              {t("appearance.appIcon")}
-            </span>
-            <div className="app-icon-grid" role="radiogroup" aria-labelledby="app-icon-label">
-              {appIcons.map(({ id }) => (
-                <button
-                  aria-checked={appIcon === id}
-                  aria-label={t(`appIcon.${id}`)}
-                  className="app-icon-option"
-                  key={id}
-                  onClick={() => setAppIcon(id)}
-                  role="radio"
-                  title={t(`appIcon.${id}`)}
-                  type="button"
-                >
-                  <img alt="" src={appIconImages.get(id)} />
-                </button>
-              ))}
+          {/* The phone's launcher keeps the icon the APK was installed with. */}
+          {isAndroid ? null : (
+            <div className="settings-field app-icon-field">
+              <span className="app-icon-field__label" id="app-icon-label">
+                {t("appearance.appIcon")}
+              </span>
+              <div className="app-icon-grid" role="radiogroup" aria-labelledby="app-icon-label">
+                {appIcons.map(({ id }) => (
+                  <button
+                    aria-checked={appIcon === id}
+                    aria-label={t(`appIcon.${id}`)}
+                    className="app-icon-option"
+                    key={id}
+                    onClick={() => setAppIcon(id)}
+                    role="radio"
+                    title={t(`appIcon.${id}`)}
+                    type="button"
+                  >
+                    <img alt="" src={appIconImages.get(id)} />
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="app-theme-grid" role="radiogroup" aria-label={t("appearance.theme")}>
           {appPresetThemes.map((preset) => (
@@ -198,6 +202,11 @@ export function AppThemeSettings() {
                 label={t("appearance.accent")}
                 onChange={setAccentColor}
                 value={accentColor}
+              />
+              <ColorField
+                label={t("appearance.logo")}
+                onChange={(logo) => updateAppCustomTheme({ logo })}
+                value={appCustomTheme.logo}
               />
             </div>
             <div className="app-theme-editor__row app-theme-editor__row--wrap">

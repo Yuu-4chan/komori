@@ -1,4 +1,5 @@
 import { i18n } from "../../i18n/i18n";
+import { openExternalLink } from "../dictionary/dictionaryApi";
 import {
   isReaderFontChoice,
   fontPairStack,
@@ -11,6 +12,7 @@ import {
   type ReaderFontPair,
 } from "./fontChoices";
 import { isFaceWeight } from "./fontWeights";
+import { keepFontFiles, keptFontFiles } from "./fontFiles";
 import ePub, { type Book, type Rendition } from "epubjs";
 import {
   installEpubTolerance,
@@ -156,6 +158,36 @@ interface DisplayedPosition {
   pageEnd?: PagePoint;
 }
 
+const WEB_LINK = /^https?:\/\//iu;
+const SCHEME = /^[a-z][a-z\d+.-]*:/iu;
+
+/**
+ * A book's web link opens in the browser. EPUB.js marks it for a new window, which the
+ * section frame's sandbox blocks. A link to anything else outside the book (mail, an app,
+ * a script) does nothing; EPUB.js would look for it as a chapter or let the frame follow it.
+ * The browser listener runs after the Reader's own, so a click on a VN page still finishes
+ * the reveal.
+ */
+function followBookLinks(section: Document): void {
+  for (const link of section.querySelectorAll<HTMLElement>("a[href]")) {
+    const href = link.getAttribute("href")?.trim() ?? "";
+    if (SCHEME.test(href) && !WEB_LINK.test(href)) link.onclick = () => false;
+  }
+  (section.defaultView ?? section).addEventListener("click", (event) => {
+    if (event.defaultPrevented) return;
+    const href = (event.target as Element | null)?.closest?.("a[href]")?.getAttribute("href");
+    if (!href || !WEB_LINK.test(href.trim())) return;
+    event.preventDefault();
+    let url: string;
+    try {
+      url = new URL(href.trim()).href;
+    } catch {
+      return;
+    }
+    void openExternalLink(url).catch(() => {});
+  });
+}
+
 /** A point in a displayed section document. */
 interface PagePoint extends TextPoint {
   spineIndex: number;
@@ -204,11 +236,13 @@ interface EpubManager {
   layout: {
     height: number;
     delta?: number;
-    /** One page's width without its gap. */
+    /** A column's width: a page's without its gap two pages across, the whole page's on one. */
     columnWidth?: number;
+    /** The space between pages, which one page across is its two margins. */
+    gap?: number;
     /** Pages in a spread: 2 when a double layout has room for two, else 1. */
     divisor?: number;
-    /** One page's width, a column and its gap. */
+    /** One page's width, its margins included. */
     pageWidth?: number;
     _spread?: boolean;
     _minSpreadWidth?: number;
@@ -353,6 +387,16 @@ interface EpubView {
   offset?(): { left: number; top: number };
   /** Where a CFI or fragment lies in the view's section. */
   locationOf?(target: string): { left: number; top: number };
+}
+
+/**
+ * The width inside a paginated page's margins, which images fit in. Two pages across,
+ * EPUB.js's columnWidth excludes the gap; one page across it is the whole page.
+ */
+export function pageInnerWidth(layout: EpubManager["layout"]): number | undefined {
+  if (layout.pageWidth !== undefined && layout.gap !== undefined)
+    return Math.max(1, layout.pageWidth - layout.gap);
+  return layout.columnWidth;
 }
 
 /** EPUB.js's layout, which formats each section for the view manager. */
@@ -590,6 +634,7 @@ class EpubRenderer implements ReaderRenderer {
     const document =
       start && this.rendition && sectionContents(this.rendition, start.spineIndex)?.document;
     if (!this.vnView || !document || !start || !this.host) {
+      this.vnShownGroup = undefined;
       this.vnReveal.clear();
       return;
     }
@@ -602,14 +647,73 @@ class EpubRenderer implements ReaderRenderer {
         end?.spineIndex === start.spineIndex ? end.blockIndex : undefined,
       )
       .map((block) => block.element);
+    this.vnShownGroup = elements.length ? { document, elements } : undefined;
+    this.keepSelectionInGroup(document);
+    // A selection made in the group before belongs to it, not to the one now shown.
+    this.clampSelectionToGroup(document);
     this.vnReveal.start(
       `${start.spineIndex}:${start.blockIndex ?? 0}`,
       elements,
       this.presentation.vnTextSpeed,
       this.host.ownerDocument,
     );
-    // The Reader's Show all text, click and Space follow the reveal at once.
+    // The Reader's click and Space follow the reveal at once.
     if (this.vnReveal.revealing !== revealing) void this.refreshPageTurns();
+  }
+  /** The blocks VN view shows, as the reveal last started on them. */
+  private vnShownGroup?: { document: Document; elements: Element[] };
+  private groupSelectionDocuments = new WeakSet<Document>();
+  /**
+   * In VN view a selection stays within the group shown: a selection handle dragged past the
+   * group's end would otherwise take in the text hidden around it, which the reader cannot see.
+   */
+  private keepSelectionInGroup(document: Document): void {
+    if (this.groupSelectionDocuments.has(document)) return;
+    this.groupSelectionDocuments.add(document);
+    document.addEventListener("selectionchange", () => this.clampSelectionToGroup(document));
+  }
+
+  /** Trims the book's selection to the VN group shown, and clears one wholly outside it. */
+  private clampSelectionToGroup(document: Document): void {
+    const group = this.vnShownGroup;
+    if (!this.vnView || group?.document !== document) return;
+    const selection = document.getSelection();
+    if (!selection?.rangeCount || selection.isCollapsed) return;
+    const first = group.elements[0];
+    const last = group.elements.at(-1);
+    if (!first?.isConnected || !last?.isConnected) return;
+    const range = selection.getRangeAt(0);
+    const groupStart = document.createRange();
+    groupStart.setStartBefore(first);
+    const groupEnd = document.createRange();
+    groupEnd.setStartAfter(last);
+    const startsBefore = range.compareBoundaryPoints(Range.START_TO_START, groupStart) < 0;
+    const endsAfter = range.compareBoundaryPoints(Range.END_TO_END, groupEnd) > 0;
+    if (!startsBefore && !endsAfter) return;
+    const kept = range.cloneRange();
+    if (startsBefore) kept.setStart(groupStart.startContainer, groupStart.startOffset);
+    if (endsAfter) kept.setEnd(groupEnd.startContainer, groupEnd.startOffset);
+    if (kept.collapsed || !kept.toString().trim()) {
+      selection.removeAllRanges();
+      return;
+    }
+    // Keep the end the reader drags as the selection's focus.
+    const backward =
+      selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
+    if (backward)
+      selection.setBaseAndExtent(
+        kept.endContainer,
+        kept.endOffset,
+        kept.startContainer,
+        kept.startOffset,
+      );
+    else
+      selection.setBaseAndExtent(
+        kept.startContainer,
+        kept.startOffset,
+        kept.endContainer,
+        kept.endOffset,
+      );
   }
   /** Where the book's chapters begin, found once per book, and once found. */
   private chapterStarts?: Promise<ChapterStart[]>;
@@ -619,6 +723,8 @@ class EpubRenderer implements ReaderRenderer {
   /** Sections collapsed outside the shown chapter, and how much of each is clipped before it. */
   private collapsedViews = new WeakSet<Element>();
   private clippedStarts = new WeakMap<Element, number>();
+  /** Section views kept from scrolling themselves while a chapter view clips them. */
+  private pinnedViews = new WeakSet<Element>();
   /** Each section's shown extent along the reading order as last measured. */
   private sectionExtents = new WeakMap<Element, number>();
   /** The views a continuous book lays out again, which fit their text once all are sized. */
@@ -758,7 +864,11 @@ class EpubRenderer implements ReaderRenderer {
       });
       this.book = book;
       installNativeArchive(book as unknown as Parameters<typeof installNativeArchive>[0]);
-      installEpubTolerance(book as unknown as Parameters<typeof installEpubTolerance>[0]);
+      installEpubTolerance(
+        book as unknown as Parameters<typeof installEpubTolerance>[0],
+        undefined,
+        i18n().t("reader.unreadableChapter"),
+      );
       await book.open(access.url, "epub");
       await book.opened;
       if (signal.aborted || this.disposed) return "error";
@@ -857,33 +967,47 @@ class EpubRenderer implements ReaderRenderer {
       // EPUB.js waits for the book's font-weight and text-indent rules before it
       // serializes the section.
       const opened = book;
+      const styleSection = (
+        document: Document,
+        section?: { url?: string; index?: number; document?: Document },
+      ) => {
+        const headingImages = this.fixedLayout
+          ? []
+          : applyHeadingCentering(document, this.headingTargets.get(section));
+        if (!this.fixedLayout) applyBookImageLayout(document);
+        else fillFixedSvgPage(document);
+        // A touch flashes no box over what it touched: Android draws one over the paragraph
+        // a tap reads on from, and keeps it for a whole long press.
+        document.documentElement.style.setProperty("-webkit-tap-highlight-color", "transparent");
+        applyPresentation(document, this.sectionPresentation());
+        let index = section?.index ?? -1;
+        if (index < 0) {
+          let ordinal = -1;
+          book!.spine.each((candidate: { document?: Document }) => {
+            ordinal++;
+            if (candidate === section || candidate.document === document) index = ordinal;
+          });
+        }
+        this.blurDocument(document, index);
+        this.furiganaDocument(document, index);
+        this.styleSectionDocument(document, index);
+        return Promise.all([
+          this.collectStyleRules(opened, document, section?.url).then((rules) => {
+            if (this.disposed) return;
+            this.styleRules.set(document, rules);
+            applyBookStyles(document, rules, this.sectionPresentation());
+          }),
+          this.centerHeadingInk(opened, headingImages, section?.url),
+        ]);
+      };
       book.spine.hooks.content.register(
         (document: Document, section?: { url?: string; index?: number; document?: Document }) => {
-          const headingImages = this.fixedLayout
-            ? []
-            : applyHeadingCentering(document, this.headingTargets.get(section));
-          if (!this.fixedLayout) applyBookImageLayout(document);
-          else fillFixedSvgPage(document);
-          applyPresentation(document, this.sectionPresentation());
-          let index = section?.index ?? -1;
-          if (index < 0) {
-            let ordinal = -1;
-            book!.spine.each((candidate: { document?: Document }) => {
-              ordinal++;
-              if (candidate === section || candidate.document === document) index = ordinal;
-            });
-          }
-          this.blurDocument(document, index);
-          this.furiganaDocument(document, index);
-          this.styleSectionDocument(document, index);
-          return Promise.all([
-            this.collectStyleRules(opened, document, section?.url).then((rules) => {
-              if (this.disposed) return;
-              this.styleRules.set(document, rules);
-              applyBookStyles(document, rules, this.sectionPresentation());
-            }),
-            this.centerHeadingInk(opened, headingImages, section?.url),
-          ]);
+          // On the phone the font files are fetched once, before the first section asks.
+          const pair = this.sectionPresentation().fontPair;
+          const fonts = pair ? keepFontFiles(fontPairFaces(pair)) : undefined;
+          return fonts
+            ? fonts.then(() => styleSection(document, section))
+            : styleSection(document, section);
         },
       );
       this.sectionHooks = [...sectionHookList(book)];
@@ -1004,6 +1128,7 @@ class EpubRenderer implements ReaderRenderer {
     this.applyHostInset();
     rendition.hooks?.content?.register(async (contents: EpubPageContents) => {
       if (this.disposed) return;
+      followBookLinks(contents.document);
       if (!this.continuous && !this.fixedLayout) pageTextWidth(contents);
       this.restyleIfStale(contents, false);
       await waitForReaderFonts(contents.document, this.sectionPresentation());
@@ -1779,6 +1904,47 @@ class EpubRenderer implements ReaderRenderer {
     }
   }
 
+  async goToOffset(offset: number): Promise<boolean> {
+    if (this.sectionsLoading) await this.sectionsLoaded();
+    const counts = this.progressCounts;
+    return this.goToLocator(counts && offsetLocator(counts, offset));
+  }
+
+  async goToPosition(value: ReaderLocator): Promise<boolean> {
+    if (this.sectionsLoading) await this.sectionsLoaded();
+    return this.goToLocator(normalizeReaderLocator(value));
+  }
+
+  private async goToLocator(locator: ReaderLocator | null | undefined): Promise<boolean> {
+    const rendition = this.rendition;
+    const book = this.book;
+    if (
+      !locator ||
+      !rendition ||
+      !book ||
+      !this.ready ||
+      this.disposed ||
+      this.turnPending ||
+      this.layoutPending
+    )
+      return false;
+    this.turnPending = true;
+    this.onPageTurnsChanged?.(unavailable);
+    try {
+      this.jumpedEntryId = undefined;
+      this.reflowAnchor = undefined;
+      if (!(await this.restore(rendition, book, locator)) || this.disposed) return false;
+      await this.refreshPageTurns();
+      await this.publishLocation();
+      return !this.disposed;
+    } catch {
+      return false;
+    } finally {
+      this.turnPending = false;
+      if (!this.disposed) await this.refreshPageTurns();
+    }
+  }
+
   async goToContentsEntry(entryId: string): Promise<boolean> {
     // A jump finds the rest of a continuous book laid out, as a book always shows whole.
     if (this.sectionsLoading) await this.sectionsLoaded();
@@ -1914,6 +2080,11 @@ class EpubRenderer implements ReaderRenderer {
         // The chapter is found again at the reading point; until then the book shows whole.
         this.shownChapter = undefined;
         this.applyChapterBounds();
+      }
+      const fonts = next.fontPair ? keepFontFiles(fontPairFaces(next.fontPair)) : undefined;
+      if (fonts) {
+        await fonts;
+        if (this.disposed) return;
       }
       const displayed = this.restyleSections(book, rendition);
       this.registerContentDocuments();
@@ -2128,8 +2299,10 @@ class EpubRenderer implements ReaderRenderer {
       this.continuous && !this.fixedLayout ? area?.clientWidth : undefined,
       this.continuous && !this.fixedLayout ? area?.clientHeight : undefined,
     );
-    // EPUB.js's horizontal columnWidth already excludes the gap. Its adjustImages()
-    // subtracts body padding (the same gap) again, collapsing large-margin images.
+    // The width inside a page's margins. Two pages across, EPUB.js's columnWidth already
+    // excludes the gap and its adjustImages() subtracts body padding (the same gap) again,
+    // collapsing large-margin images; one page across, columnWidth is the whole page, the
+    // margins included. A page is pageWidth wide either way, the gap its two margins.
     // Correct this width limit; fixed pages keep EPUB.js's sizing.
     const manager = this.manager();
     const width =
@@ -2137,7 +2310,7 @@ class EpubRenderer implements ReaderRenderer {
       !this.fixedLayout &&
       manager?.settings?.axis === "horizontal" &&
       this.presentation.sideMargin !== undefined
-        ? manager.layout.columnWidth
+        ? pageInnerWidth(manager.layout)
         : undefined;
     if (!this.fixedLayout) {
       const horizontal = !document.documentElement.style.writingMode.startsWith("vertical");
@@ -3732,6 +3905,12 @@ class EpubRenderer implements ReaderRenderer {
     return true;
   }
 
+  chapterEdge(direction: "advance" | "retreat"): boolean {
+    if (!this.continuous || !this.ready || this.disposed) return false;
+    if (this.turnPending || this.layoutPending) return false;
+    return this.atChapterEdge(direction);
+  }
+
   /** Scroll a continuous book by a distance along its reading order. */
   private scrollReading(distance: number): void {
     const manager = this.manager();
@@ -4332,6 +4511,21 @@ class EpubRenderer implements ReaderRenderer {
     }
     if (clip === "collapsed") this.collapsedViews.add(element);
     else this.collapsedViews.delete(element);
+    // A section's view never scrolls itself, but a selection handle dragged past its clip
+    // scrolls it, bringing text outside the chapter or VN group into view and selecting it.
+    if (clip && !this.pinnedViews.has(element)) {
+      this.pinnedViews.add(element);
+      element.addEventListener(
+        "scroll",
+        () => {
+          const clipped = CHAPTER_CLIP_PROPERTIES.some((property) =>
+            element.style.getPropertyValue(property),
+          );
+          if (clipped && (element.scrollLeft || element.scrollTop)) element.scrollTo(0, 0);
+        },
+        { passive: true },
+      );
+    }
     if (clip && clip !== "collapsed" && clip.from > 0) this.clippedStarts.set(element, clip.from);
     else this.clippedStarts.delete(element);
   }
@@ -5267,6 +5461,53 @@ class EpubRenderer implements ReaderRenderer {
     this.onSelectionChanged?.(null);
   }
 
+  lookupAt(x: number, y: number): boolean {
+    // The frames run on under the margins, holding text the page hides.
+    const page = (this.scrollContainer ?? this.manager()?.container)?.getBoundingClientRect();
+    if (page && (x < page.left || x >= page.right || y < page.top || y >= page.bottom))
+      return false;
+    for (const [document, watch] of this.selectionWatches) {
+      const element = document.defaultView?.frameElement;
+      const frame = element?.getBoundingClientRect();
+      if (!frame || x < frame.left || x >= frame.right || y < frame.top || y >= frame.bottom)
+        continue;
+      if (!shownAt(element!, x, y)) continue;
+      if (watch.scanAt(x - frame.left, y - frame.top)) return true;
+    }
+    return false;
+  }
+
+  vnGroupAt(x: number, y: number): boolean {
+    const group = this.vnShownGroup;
+    const element = this.vnView && group?.document.defaultView?.frameElement;
+    if (!group || !element || !shownAt(element, x, y)) return false;
+    const frame = element.getBoundingClientRect();
+    // The group's box, lines and the gaps between them alike, with a finger's slop around it.
+    const slop = 12;
+    let box: { left: number; top: number; right: number; bottom: number } | undefined;
+    for (const block of group.elements) {
+      const rect = block.getBoundingClientRect();
+      if (!rect.width && !rect.height) continue;
+      box = box
+        ? {
+            left: Math.min(box.left, rect.left),
+            top: Math.min(box.top, rect.top),
+            right: Math.max(box.right, rect.right),
+            bottom: Math.max(box.bottom, rect.bottom),
+          }
+        : { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+    }
+    if (!box) return false;
+    const localX = x - frame.left;
+    const localY = y - frame.top;
+    return (
+      localX >= box.left - slop &&
+      localX <= box.right + slop &&
+      localY >= box.top - slop &&
+      localY <= box.bottom + slop
+    );
+  }
+
   highlightPointerMatch(scanId: number | null, length = 0): void {
     if (scanId !== null && this.pointerScan?.id !== scanId) return;
     this.clearPointerPaint?.();
@@ -5904,6 +6145,19 @@ function fractionOffset(
   return Math.min(counts.total, before + Math.min(length, Math.round(progress * length)));
 }
 
+/** The linear section holding a book offset and how far into it the offset lies. */
+function offsetLocator(counts: BookProgressCounts, offset: number): ReaderLocator | undefined {
+  let spineIndex: number | undefined;
+  counts.lengths.forEach((length, index) => {
+    const before = counts.before[index];
+    if (length > 0 && before !== undefined && before <= offset) spineIndex = index;
+  });
+  if (spineIndex === undefined) return undefined;
+  const length = counts.lengths[spineIndex]!;
+  const into = offset - counts.before[spineIndex]!;
+  return { spineIndex, progress: Math.min(1, Math.max(0, into / length)) };
+}
+
 /** A displayed section's point from an EPUB.js page CFI: its range start or end. */
 function pagePoint(
   rendition: Rendition,
@@ -5942,8 +6196,12 @@ function pagePoint(
  * area, the offset moves to the first displayed character (or just past the last). A
  * page start whose node has characters from it rendered outside the reading area and
  * none inside is undefined.
+ *
+ * A node's characters before the reading area lie on one side of it and those after it
+ * on the other, so the first (or last) displayed one is found by halving: a long
+ * paragraph without spaces would otherwise be measured a character at a time.
  */
-function displayedTextOffset(
+export function displayedTextOffset(
   host: HTMLElement,
   document: Document,
   node: Node,
@@ -5956,32 +6214,77 @@ function displayedTextOffset(
   const origin = frame.getBoundingClientRect();
   const area = host.getBoundingClientRect();
   const probe = document.createRange();
-  // Whether the character at an index is rendered, and if so, within the reading area.
-  const place = (index: number, length: number) => {
+  const length = (index: number) => ((text.codePointAt(index) ?? 0) > 0xffff ? 2 : 1);
+  // The character holding an index, at the start of a surrogate pair.
+  const character = (index: number) =>
+    index > 0 && (text.codePointAt(index - 1) ?? 0) > 0xffff ? index - 1 : index;
+  // Whether the character at an index is rendered, and if so, within the reading area or
+  // on which side of it along each axis.
+  const place = (index: number): "hidden" | "inside" | { x: number; y: number } => {
     probe.setStart(node, index);
-    probe.setEnd(node, index + length);
+    probe.setEnd(node, index + length(index));
     const box = probe.getClientRects?.()[0];
     if (!box?.width && !box?.height) return "hidden";
-    return withinArea(origin, area, box) ? "inside" : "outside";
+    if (withinArea(origin, area, box)) return "inside";
+    const top = origin.top + box.top;
+    const left = origin.left + box.left;
+    return {
+      x: left + box.width <= area.left ? -1 : left >= area.right ? 1 : 0,
+      y: top + box.height <= area.top ? -1 : top >= area.bottom ? 1 : 0,
+    };
   };
-  let outside = false;
+  const beside = (found: ReturnType<typeof place>, side: { x: number; y: number }) =>
+    typeof found === "object" &&
+    ((!!side.x && found.x === side.x) || (!!side.y && found.y === side.y));
+  // The first rendered character from an index before a limit, if any.
+  const rendered = (from: number, limit: number) => {
+    for (let index = from; index < limit; index += length(index)) {
+      const found = place(index);
+      if (found !== "hidden") return { index, found };
+    }
+    return undefined;
+  };
   if (edge === "start") {
-    for (let index = offset; index < text.length;) {
-      const length = (text.codePointAt(index) ?? 0) > 0xffff ? 2 : 1;
-      const found = place(index, length);
-      if (found === "inside") return outside ? index : offset;
-      if (found === "outside") outside = true;
-      index += length;
+    const first = rendered(offset, text.length);
+    if (!first || first.found === "inside") return offset;
+    const side = first.found;
+    // Every rendered character before `low` lies on the earlier side; the first one
+    // from `low` that does not is at or before `high`.
+    let low = first.index + length(first.index);
+    let high = text.length;
+    while (low < high) {
+      const middle = Math.max(low, character(Math.floor((low + high) / 2)));
+      const next = rendered(middle, high);
+      if (!next) high = middle;
+      else if (beside(next.found, side)) low = next.index + length(next.index);
+      else high = next.index;
     }
-    if (outside) return undefined;
-  } else {
-    for (let index = offset; index > 0;) {
-      const length = index > 1 && (text.codePointAt(index - 2) ?? 0) > 0xffff ? 2 : 1;
-      index -= length;
-      const found = place(index, length);
-      if (found === "inside") return outside ? index + length : offset;
-      if (found === "outside") outside = true;
-    }
+    const shown = rendered(low, text.length);
+    return shown?.found === "inside" ? shown.index : undefined;
+  }
+  let last: { index: number; found: Exclude<ReturnType<typeof place>, "hidden"> } | undefined;
+  for (let index = offset; index > 0 && !last;) {
+    index = character(index - 1);
+    const found = place(index);
+    if (found !== "hidden") last = { index, found };
+  }
+  if (!last || last.found === "inside") return offset;
+  const side = last.found;
+  // The smallest index from which every rendered character before the last one lies on
+  // the later side.
+  let low = 0;
+  let high = last.index;
+  while (low < high) {
+    const middle = Math.max(low, character(Math.floor((low + high) / 2)));
+    const next = rendered(middle, high);
+    if (!next || beside(next.found, side)) high = middle;
+    else low = next.index + length(next.index);
+  }
+  for (let index = low; index > 0;) {
+    index = character(index - 1);
+    const found = place(index);
+    if (found === "hidden") continue;
+    return found === "inside" ? index + length(index) : offset;
   }
   return offset;
 }
@@ -6376,7 +6679,7 @@ function applyFontFamilies(
     (document.head ?? document.documentElement).prepend(style);
   }
   style.textContent =
-    (pair ? fontPairFaces(pair) : group2 === "inter" ? readerInterFace : "") +
+    keptFontFiles(pair ? fontPairFaces(pair) : group2 === "inter" ? readerInterFace : "") +
     `@layer komori-fonts { :root, :root body, :root body * { font-family: ${stack} !important; } }`;
 }
 
@@ -6387,15 +6690,21 @@ async function waitForReaderFonts(
 ): Promise<void> {
   if (!document.fonts || (!presentation.fontPair && presentation.fontFamilyGroup2 !== "inter"))
     return;
+  let loading: Promise<unknown> | undefined;
+  try {
+    loading = document.fonts.load(
+      `${presentation.fontWeight ?? 400} ${presentation.fontSize ?? readerFontSize.default}px ${presentation.fontPair ? fontPairStack(presentation.fontPair) : '"Komori Reader Inter"'}`,
+      "Reader日本語漢字한글中文",
+    );
+  } catch {
+    return;
+  }
+  // A section's frame already gone, as when the Reader closes while it loads, answers with nothing.
+  if (!loading) return;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
-      document.fonts
-        .load(
-          `${presentation.fontWeight ?? 400} ${presentation.fontSize ?? readerFontSize.default}px ${presentation.fontPair ? fontPairStack(presentation.fontPair) : '"Komori Reader Inter"'}`,
-          "Reader日本語漢字한글中文",
-        )
-        .catch(() => undefined),
+      loading.catch(() => undefined),
       new Promise<void>((resolve) => {
         timeout = setTimeout(resolve, 1500);
       }),
@@ -7434,7 +7743,7 @@ function applyBookStyles(
     const style = document.querySelector(`style[${FONT_FAMILY_STYLE}]`);
     if (style)
       style.textContent =
-        fontPairFaces(presentation.fontPair, [...weights]) +
+        keptFontFiles(fontPairFaces(presentation.fontPair, [...weights])) +
         `@layer komori-fonts { :root, :root body, :root body * { font-family: ${fontPairStack(presentation.fontPair)} !important; } }`;
   }
 }
@@ -7856,4 +8165,47 @@ async function firstDisplayableSection(book: Book, signal: AbortSignal): Promise
     }
   }
   return null;
+}
+
+/** Overflow values that clip what runs past an element's box. */
+const clips = new Set(["hidden", "clip", "auto", "scroll"]);
+
+/**
+ * Whether a book frame is shown at a point of the app's window: not hidden, inside every
+ * ancestor that clips it, and inside the inset clip path a VN group's view hides the text
+ * before the group with. A chapter shown alone squeezes its neighbours' views to no width,
+ * and their frames still report their whole size, holding text under the page that cannot be
+ * seen.
+ */
+function shownAt(frame: Element, x: number, y: number): boolean {
+  const view = frame.ownerDocument.defaultView;
+  if (!view || view.getComputedStyle(frame).visibility !== "visible") return false;
+  for (let element: Element | null = frame; element; element = element.parentElement) {
+    const style = view.getComputedStyle(element);
+    if (style.display === "none") return false;
+    const box = element.getBoundingClientRect();
+    const inset = insetClip(style.clipPath);
+    if (
+      inset &&
+      (x < box.left + inset[3] ||
+        x >= box.right - inset[1] ||
+        y < box.top + inset[0] ||
+        y >= box.bottom - inset[2])
+    )
+      return false;
+    if (element === frame) continue;
+    if (![style.overflow, style.overflowX, style.overflowY].some((value) => clips.has(value)))
+      continue;
+    if (x < box.left || x >= box.right || y < box.top || y >= box.bottom) return false;
+  }
+  return true;
+}
+
+/** An `inset()` clip path's top, right, bottom and left in pixels; null for any other. */
+function insetClip(clipPath: string | undefined): [number, number, number, number] | null {
+  const values = /^inset\(([^)]*)\)$/.exec(clipPath?.trim() ?? "")?.[1].split(/\s+/);
+  if (!values?.length || values.length > 4 || values.some((value) => !/^-?[\d.]+px$/.test(value)))
+    return null;
+  const [top, right = top, bottom = top, left = right] = values.map(parseFloat);
+  return [top, right, bottom, left];
 }

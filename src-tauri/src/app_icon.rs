@@ -1,9 +1,13 @@
 //! The app icon chosen in Settings, shown on the window (taskbar, Alt+Tab) and the tray. The
 //! executable, its shortcuts and a pinned button while Komori is closed keep the built-in
 //! default, `beige`. `scripts/app-icons.mjs` renders these from `src/brand/appIcons.ts`.
+//! Android's launcher icon comes from the package, so only the list of choices applies there.
+#![cfg_attr(mobile, allow(dead_code))]
 use std::path::Path;
 
-use tauri::{image::Image, AppHandle, Manager};
+#[cfg(desktop)]
+use tauri::Manager;
+use tauri::{image::Image, AppHandle};
 
 macro_rules! icons {
     ($($id:literal),* $(,)?) => {
@@ -37,6 +41,7 @@ pub(crate) fn saved(database: &Path) -> Option<String> {
 }
 
 /// Shows `id` (or the default) on the main window and the tray, when there is one.
+#[cfg(desktop)]
 pub(crate) fn apply(app: &AppHandle, id: Option<&str>) {
     let Some(icon) = image(id) else {
         return;
@@ -50,6 +55,9 @@ pub(crate) fn apply(app: &AppHandle, id: Option<&str>) {
         let _ = tray.set_icon(Some(icon));
     }
 }
+
+#[cfg(mobile)]
+pub(crate) fn apply(_app: &AppHandle, _id: Option<&str>) {}
 
 /// Tauri sets only the window's small icon; the taskbar and Alt+Tab show the big one, which
 /// would otherwise stay the executable's.

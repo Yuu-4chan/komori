@@ -14,6 +14,8 @@ import { spacesWords, type LookupLanguage } from "../dictionary/lookupLanguage";
 export type SelectionWatch = (() => void) & {
   cancelPending: () => void;
   setSettings: (settings: LookupTriggerPreferences) => void;
+  /** Looks up the word at a tapped point of the document; false when no text is there. */
+  scanAt: (x: number, y: number) => boolean;
 };
 
 /**
@@ -145,6 +147,10 @@ export function watchTextSelection(
         clearTimeout(timer);
         stopScanning.setSettings(next);
       },
+      scanAt: (x: number, y: number) => {
+        clearTimeout(timer);
+        return stopScanning.scanAt(x, y);
+      },
     },
   );
 }
@@ -216,7 +222,7 @@ function watchPointerScan(
     press = null;
     pressing = false;
   };
-  const scan = (origin: "shift" | "click" | "hover", deduplicate = true) => {
+  const scan = (origin: "shift" | "click" | "hover" | "tap", deduplicate = true) => {
     if (!pointer || !triggerEnabled(settings, origin)) return false;
     const range = wordStart(characterAtPoint(document, pointer.x, pointer.y), settings);
     if (!range) {
@@ -411,6 +417,11 @@ function watchPointerScan(
       setSettings: (next: LookupTriggerPreferences) => {
         cancelPending();
         settings = next;
+      },
+      scanAt: (x: number, y: number) => {
+        cancelHover();
+        pointer = { x, y };
+        return scan("tap", false);
       },
     },
   );

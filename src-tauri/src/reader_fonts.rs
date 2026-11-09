@@ -136,7 +136,12 @@ impl FontState {
     }
 }
 /// The folders that may hold the installer's fonts: beside the executable, and in a development
-/// build the folder the build fetches them into.
+/// build the folder the build fetches them into. On Android they are among the APK's assets.
+#[cfg(target_os = "android")]
+fn bundled_roots(_: &tauri::AppHandle) -> Vec<PathBuf> {
+    vec![PathBuf::from("reader-fonts")]
+}
+#[cfg(not(target_os = "android"))]
 fn bundled_roots(app: &tauri::AppHandle) -> Vec<PathBuf> {
     let mut roots: Vec<PathBuf> = app
         .path()
@@ -214,8 +219,15 @@ fn installed_bytes(root: &Path, f: &Font) -> Result<Vec<u8>, String> {
     safe_directory(root)?;
     let dir = root.join(&f.id);
     safe_directory(&dir)?;
-    let license = read_bounded(&dir.join("OFL.txt"), 16384)?;
-    let bytes = read_bounded(&dir.join("font.ttf"), MAX_BYTES)?;
+    checked(f, |name, limit| read_bounded(&dir.join(name), limit))
+}
+/// The font's file, when it and its license, read by `read`, are the catalog's.
+fn checked(
+    f: &Font,
+    read: impl Fn(&str, usize) -> Result<Vec<u8>, String>,
+) -> Result<Vec<u8>, String> {
+    let license = read("OFL.txt", 16384)?;
+    let bytes = read("font.ttf", MAX_BYTES)?;
     if bytes.len() != f.size || !verified(&bytes, &f.hash) || !verified(&license, &f.license_hash) {
         return Err("Font files failed verification. Download again.".into());
     }
@@ -226,7 +238,16 @@ fn bundled_bytes(roots: &[PathBuf], f: &Font) -> Option<Vec<u8>> {
     if !f.bundled {
         return None;
     }
-    roots.iter().find_map(|root| installed_bytes(root, f).ok())
+    roots.iter().find_map(|root| {
+        #[cfg(target_os = "android")]
+        return checked(f, |name, limit| {
+            crate::android::read_asset(&root.join(&f.id).join(name), limit)
+                .map_err(|_| "Font file is unavailable.".to_owned())
+        })
+        .ok();
+        #[cfg(not(target_os = "android"))]
+        installed_bytes(root, f).ok()
+    })
 }
 fn clean_stage(dir: &Path) -> Result<(), String> {
     if !dir.exists() {
@@ -262,7 +283,7 @@ fn list(root: &Path, bundled: &[PathBuf]) -> Vec<DownloadedFont> {
         .map(|f| {
             let included = bundled_bytes(bundled, f).is_some();
             let available = included || installed_bytes(root, f).is_ok();
-            let scheme = if cfg!(windows) {
+            let scheme = if cfg!(any(windows, target_os = "android")) {
                 "http://komori-font.localhost"
             } else {
                 "komori-font://localhost"
@@ -890,9 +911,42 @@ fn fetch(path: &str, limit: usize, progress: &dyn Fn(usize)) -> Result<Vec<u8>, 
         Ok(result)
     }
 }
+/// Elsewhere, as on the phone, the same fixed host, limits, timeouts and no redirects through
+/// Komori's HTTP client.
 #[cfg(not(windows))]
-fn fetch(_: &str, _: usize, _: &dyn Fn(usize)) -> Result<Vec<u8>, String> {
-    Err("Font downloads require Windows.".into())
+fn fetch(path: &str, limit: usize, progress: &dyn Fn(usize)) -> Result<Vec<u8>, String> {
+    use reqwest::{redirect::Policy, StatusCode};
+    use std::time::{Duration, Instant};
+    let error = || "Could not download font. Check your connection and retry.".to_string();
+    let client = crate::http::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .read_timeout(Duration::from_secs(15))
+        .redirect(Policy::none())
+        .build()
+        .map_err(|_| error())?;
+    let started = Instant::now();
+    tauri::async_runtime::block_on(async {
+        let mut response = client
+            .get(format!("https://raw.githubusercontent.com{path}"))
+            .send()
+            .await
+            .map_err(|_| error())?;
+        if response.status() != StatusCode::OK {
+            return Err(error());
+        }
+        let mut result = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(|_| error())? {
+            if started.elapsed().as_secs() > 90 {
+                return Err(error());
+            }
+            if result.len() + chunk.len() > limit {
+                return Err("Font download exceeded its size limit.".into());
+            }
+            result.extend_from_slice(&chunk);
+            progress(result.len());
+        }
+        Ok(result)
+    })
 }
 
 pub(crate) fn serve_font(

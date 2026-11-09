@@ -92,7 +92,9 @@ import {
 } from "../reader/readerThemes";
 import {
   isLibraryCardSize,
+  isLibraryPlace,
   type LibraryFilter,
+  type LibraryPlace,
   type LibraryGroup,
   type LibrarySort,
   type LibraryView,
@@ -137,6 +139,8 @@ export interface LibraryDisplay {
   groupSort: LibrarySort;
   groupSortReversed: boolean;
   filter: LibraryFilter;
+  /** The phone's All / On this phone / On PC. */
+  place: LibraryPlace;
   group: LibraryGroup;
   cardSeries: boolean;
   cardLanguage: boolean;
@@ -174,6 +178,13 @@ interface AppearanceContextValue
   setReaderPopupMouseSelection: (enabled: boolean) => void;
   readerPopupEnabled: boolean;
   setReaderPopupEnabled: (enabled: boolean) => void;
+  /** The phone: where a lookup shows, a tap on a word looks it up, and touch turns pages. */
+  readerTapLookup: boolean;
+  setReaderTapLookup: (enabled: boolean) => void;
+  readerTouchPageTurns: boolean;
+  setReaderTouchPageTurns: (enabled: boolean) => void;
+  readerVolumePageTurns: boolean;
+  setReaderVolumePageTurns: (enabled: boolean) => void;
   readerPopupCustomPalette: ReaderPopupPalette;
   setReaderPopupCustomPalette: (palette: ReaderPopupPalette) => void;
   readerPopupRadius: number;
@@ -451,6 +462,9 @@ export function AppearanceProvider({
     readerPopupShowDictionaryNames,
     readerPopupEnabled,
     readerPopupMouseSelection,
+    readerTapLookup,
+    readerTouchPageTurns,
+    readerVolumePageTurns,
     readerPopupCustomPalette,
     readerPopupRadius,
     readerPopupFontSize,
@@ -473,6 +487,7 @@ export function AppearanceProvider({
     libraryGroupSort,
     libraryGroupSortReversed,
     libraryFilter,
+    libraryPlace,
     libraryCardSeries,
     libraryCardLanguage,
     libraryCardLastRead,
@@ -599,6 +614,18 @@ export function AppearanceProvider({
       setReaderPopupEnabled: (enabled: boolean) => {
         if (typeof enabled === "boolean") update({ readerPopupEnabled: enabled });
       },
+      readerTapLookup,
+      setReaderTapLookup: (enabled: boolean) => {
+        if (typeof enabled === "boolean") update({ readerTapLookup: enabled });
+      },
+      readerTouchPageTurns,
+      setReaderTouchPageTurns: (enabled: boolean) => {
+        if (typeof enabled === "boolean") update({ readerTouchPageTurns: enabled });
+      },
+      readerVolumePageTurns,
+      setReaderVolumePageTurns: (enabled: boolean) => {
+        if (typeof enabled === "boolean") update({ readerVolumePageTurns: enabled });
+      },
       readerPopupCustomPalette,
       setReaderPopupCustomPalette: (palette: ReaderPopupPalette) => {
         const valid = normalizePopupPalette(palette);
@@ -675,6 +702,7 @@ export function AppearanceProvider({
         groupSort: libraryGroupSort,
         groupSortReversed: libraryGroupSortReversed,
         filter: libraryFilter,
+        place: libraryPlace,
         group: libraryGroup,
         cardSeries: libraryCardSeries,
         cardLanguage: libraryCardLanguage,
@@ -693,6 +721,7 @@ export function AppearanceProvider({
             libraryGroupSortReversed: patch.groupSortReversed,
           }),
           ...(patch.filter !== undefined && { libraryFilter: patch.filter }),
+          ...(isLibraryPlace(patch.place) && { libraryPlace: patch.place }),
           ...(patch.group !== undefined && { libraryGroup: patch.group }),
           ...(patch.cardKanji !== undefined && { libraryCardKanji: patch.cardKanji }),
           ...(patch.cardSeries !== undefined && { libraryCardSeries: patch.cardSeries }),
@@ -893,6 +922,9 @@ export function AppearanceProvider({
       readerPopupShowFrequency,
       readerPopupEnabled,
       readerPopupMouseSelection,
+      readerTapLookup,
+      readerTouchPageTurns,
+      readerVolumePageTurns,
       readerPopupCustomPalette,
       readerPopupRadius,
       readerPopupFontSize,
@@ -916,6 +948,7 @@ export function AppearanceProvider({
       libraryGroupSort,
       libraryGroupSortReversed,
       libraryFilter,
+      libraryPlace,
       libraryCardSeries,
       libraryCardLanguage,
       libraryCardLastRead,

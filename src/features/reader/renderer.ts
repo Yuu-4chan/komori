@@ -49,6 +49,11 @@ export interface ReaderRenderer {
    */
   scrollBy?(distance: number): boolean;
   /**
+   * Whether a book scrolling one chapter at a time is at the end (or start) of its chapter
+   * with another chapter after (or before) it, where reading on turns to that chapter.
+   */
+  chapterEdge?(direction: "advance" | "retreat"): boolean;
+  /**
    * A continuously displayed book's scroll position along its reading order, for the
    * Reader's own scrollbar at the window's edge. Null while the book turns pages.
    */
@@ -73,6 +78,10 @@ export interface ReaderRenderer {
   setNoteHighlights?(notes: readonly import("./notes").ReaderNote[]): void;
   /** Resolve a saved place, checking its section content before moving. No fallback jump. */
   goToBookmark?(locator: ReaderBookmarkLocator): Promise<boolean>;
+  /** Show the page at a book offset in the book's progress unit, once the book is counted. */
+  goToOffset?(offset: number): Promise<boolean>;
+  /** Show a saved reading position, as when another device's place is chosen. */
+  goToPosition?(locator: ReaderLocator): Promise<boolean>;
   /** Literal readable-text search. Destinations remain session-local and adapter-owned. */
   searchBook?(
     query: string,
@@ -106,6 +115,13 @@ export interface ReaderRenderer {
    * Scan IDs are session-local; obsolete IDs are ignored. No DOM range crosses this boundary.
    */
   highlightPointerMatch?(scanId: number | null, length?: number): void;
+  /**
+   * Look up the word at a tapped point, in the Reader window's CSS pixels, as a `tap` scan
+   * reported like any other; false when no text of the book is there.
+   */
+  lookupAt?(x: number, y: number): boolean;
+  /** Whether a point, in the Reader window's CSS pixels, is on the group VN view shows. */
+  vnGroupAt?(x: number, y: number): boolean;
   /** Idempotently release DOM, listeners, subscriptions, and pending work. */
   dispose(): void;
 }

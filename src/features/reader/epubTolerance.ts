@@ -14,6 +14,19 @@ function valid(document: Document) {
   return !document.getElementsByTagName("parsererror").length;
 }
 
+/** Marks the page shown in place of a spine document that cannot be read. */
+const UNREADABLE = "data-komori-unreadable";
+
+/** A one-line page saying a spine document could not be shown. */
+function unreadablePage(message: string) {
+  const document = new DOMParser().parseFromString(
+    `<html xmlns="http://www.w3.org/1999/xhtml" ${UNREADABLE}=""><head><title></title></head><body><p></p></body></html>`,
+    "application/xhtml+xml",
+  );
+  document.querySelector("p")!.textContent = message;
+  return document;
+}
+
 function recoverXhtml(text: string) {
   if (text.endsWith("\u0010".repeat(16))) text = text.slice(0, -16);
   return text.replace(/<html\s[^>]*>/, (root) =>
@@ -82,6 +95,7 @@ interface RecoverableBook {
   archive?: Archive;
   resources?: Resources;
   spine?: {
+    each?(callback: (section: { url: string }) => void): void;
     hooks: {
       serialize: {
         register(
@@ -93,6 +107,9 @@ interface RecoverableBook {
   replacements?(): Promise<unknown>;
   unarchive(input: unknown, encoding?: unknown): Promise<unknown>;
   loadNavigation(packaging: Record<string, unknown>): Promise<unknown>;
+  rendition?: { q?: { stop(): void } };
+  loading?: unknown;
+  destroy(): void;
 }
 
 /** Inflation budgets. The read-only corpus (5,091 books) peaks at a 5.7 MiB image,
@@ -326,8 +343,19 @@ function replaceAssetsOnDemand(book: RecoverableBook, reserve: (url: string) => 
   })();
 }
 
-/** Install before open: EPUB.js loads its package/navigation during unarchive/unpack. */
-export function installEpubTolerance(book: RecoverableBook, limits = ARCHIVE_LIMITS) {
+/** Install before open: EPUB.js loads its package/navigation during unarchive/unpack.
+ * A spine document that is damaged or does not parse shows `unreadable` as its page,
+ * so one broken chapter leaves the rest of the book readable.
+ */
+export function installEpubTolerance(
+  book: RecoverableBook,
+  limits = ARCHIVE_LIMITS,
+  unreadable = "This chapter could not be shown.",
+) {
+  let destroyed = false;
+  /** Replacements made after the book is destroyed lead nowhere (see `destroy` below). */
+  const unlessDestroyed = (replace: () => Promise<unknown>) => (): Promise<unknown> =>
+    replace().then((made) => (destroyed ? new Promise<never>(() => {}) : made));
   const unarchive = book.unarchive.bind(book);
   book.unarchive = async (...args) => {
     const result = await unarchive(...args);
@@ -338,7 +366,7 @@ export function installEpubTolerance(book: RecoverableBook, limits = ARCHIVE_LIM
     const limited = archive.createUrl ? limitArchiveReads(archive, limits) : undefined;
     // EPUB.js prepares asset URLs as it unpacks the package, after unarchiving.
     if (limited && book.replacements)
-      book.replacements = () => replaceAssetsOnDemand(book, limited.reserve);
+      book.replacements = unlessDestroyed(() => replaceAssetsOnDemand(book, limited.reserve));
     archive.request = async (url, type) => {
       const extension = url.split(".").at(-1);
       const kind = type === "xml" ? extension : (type ?? extension);
@@ -347,14 +375,39 @@ export function installEpubTolerance(book: RecoverableBook, limits = ARCHIVE_LIM
       // Check the declared size before reading, then the actual UTF-8 bytes.
       const entry = archive.zip?.file(decodeURIComponent(url.replace(/^\//, "")));
       if ((entry?._data?.uncompressedSize ?? 0) > XML_BYTES) throw new EpubResourceLimit();
-      const text = await archive.getText(url);
-      if (text === undefined) throw new InvalidEpubDocument();
-      const document = parseEpubXml(text, kind);
+      let document: Document;
+      try {
+        const text = await archive.getText(url);
+        if (text === undefined) throw new InvalidEpubDocument();
+        document = parseEpubXml(text, kind);
+      } catch (error) {
+        if (!(error instanceof InvalidEpubDocument) || (kind !== "xhtml" && kind !== "svg"))
+          throw error;
+        let inSpine = false;
+        book.spine?.each?.((section) => {
+          if (section.url === url) inSpine = true;
+        });
+        if (!inSpine) throw error;
+        return unreadablePage(unreadable);
+      }
       // EPUB.js reads only an SVG spine document this way, which it would take as text.
       return kind === "svg" ? svgPageDocument(document) : document;
     };
     return result;
   };
+  const destroy = book.destroy.bind(book);
+  // EPUB.js still runs a rendition's queued start, resolves each loading step as it
+  // finishes, and reads the loaded display options once its replacements are made, for a
+  // book destroyed meanwhile, as one closed while it opens is. Each would then throw (the
+  // last only into its own log). The queue stops, late steps resolve into nothing, and
+  // replacements made too late lead nowhere.
+  book.destroy = () => {
+    destroyed = true;
+    book.rendition?.q?.stop();
+    destroy();
+    book.loading = new Proxy({}, { get: () => ({ resolve() {}, reject() {} }) });
+  };
+  if (book.replacements) book.replacements = unlessDestroyed(book.replacements.bind(book));
   const navigation = book.loadNavigation.bind(book);
   // Navigation is optional. EPUB.js otherwise leaves loaded.navigation pending when
   // a declared file is missing or unreadable. Its own empty parser keeps that honest.
@@ -368,7 +421,8 @@ export function installEpubTolerance(book: RecoverableBook, limits = ARCHIVE_LIM
 }
 
 /** Check linear documents before rendering, so a parser error cannot become a page
- * or overwrite a saved position. Documents remain session-local, read-only reads.
+ * or overwrite a saved position. Documents remain session-local, read-only reads. A book
+ * whose every linear document is unreadable is refused.
  */
 export async function validateEpubSpine(
   book: {
@@ -390,11 +444,14 @@ export async function validateEpubSpine(
   if (!signal.aborted && sizes.reduce((total, size) => total + size, 0) <= SPINE_BYTES)
     zip.prefetch?.(names);
   let bytes = 0;
+  let readable = 0;
   for (const [index, url] of sections.entries()) {
     if (signal.aborted) return;
     bytes += sizes[index]!;
     if (bytes > SPINE_BYTES) throw new EpubResourceLimit();
     const document = (await book.archive.request(url)) as Document;
     if (!document?.documentElement || !valid(document)) throw new InvalidEpubDocument();
+    if (!document.documentElement.hasAttribute(UNREADABLE)) readable += 1;
   }
+  if (sections.length && !readable) throw new InvalidEpubDocument();
 }

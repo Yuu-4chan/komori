@@ -14,6 +14,42 @@ scrolling page. Application pages switch with Ctrl+D/S/G from Library,
 Dictionary, Settings and Statistics; Ctrl+B returns to the Library from the latter
 three, while the Reader keeps it for bookmarks.
 
+## Android
+
+Komori on an Android phone (Android 10 and later) has its own frame: page headers with the
+brand and the gear to Settings, a floating dock (Dictionary, Library, Statistics) above the
+gesture bar, and Back closing an open sheet before it leaves the page. Pages open at their top,
+Back, the dock and the Reader's Back return to where a page was left, tapping the open page's dock item scrolls it to the top,
+and the page keeps still under an open sheet, which a swipe down closes. The Library shows the
+count of books, search, Add books (the system document picker, several EPUBs at once), the
+books to continue and the books as a grid of covers or a list with progress and the
+characters or words read, with the PC's status filter, grouping (series, language, author, each
+group a row that scrolls sideways under a heading opening the group's page), sort and direction
+in its view sheet; books stay where they are, and a moved or deleted one offers Relink and Remove.
+A long press selects a book or a group's books, then taps select more, with Done and Select all
+staying at the top as the page scrolls, and a bar of icons (each named for screen readers) offers Information for one book (its details, the series opening its page), Series…
+(which also renames or removes a series), Edit…, Mark as completed and
+Remove, or Keep on this phone and Remove from this phone for the PC's books. The Reader is read by touch: in paginated and VN
+views tap the sides to turn a page (in the book's page progression), tap the paragraph in VN
+view to read on, swipe in paginated view,
+scroll in continuous views, where a tap anywhere shows the controls, optionally turn pages with
+the volume keys, start or pause counting the reading session from the play button between the
+clock and the session time in the top pill, and tap the middle, the clock or the footer for the controls: two rows of a pill between round
+buttons, Back, the title and Search at the top, Appearance (theme, font size, line height,
+page margin, writing and view mode), the chapter and a bookmark toggle at the bottom. Either
+pill opens Contents: Images, Bookmarks, Notes, the chapters and a position slider. A footer
+too wide for one line takes two. The status and navigation bars hide
+while reading. A tap on a word looks it up in the PC's popup, below a word high on the
+screen and above one low on it, tap a word in it for the next lookup, and Back closes the
+deepest one. A long press selects text for Komori's toolbar (note, highlight, copy, look up,
+search); on a highlight or note it offers Delete instead of Highlight. Reopening Komori after
+Android ends it opens the last book where it was. Dictionary searches from the keyboard, its
+sources a row of chips. Statistics is the PC page in two columns. Settings has General
+(language, application theme, Restore last book, Automatic series), Reader popup (appearance and scanning),
+Dictionary (ZIPs imported from the phone, starter downloads, order, removal and word audio),
+Anki, Statistics (recording, session start Auto, First character read or Manual, jump and
+idle limits), Sync and About.
+
 ## Library
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;
@@ -82,12 +118,12 @@ back. The search stays in the top bar even in an empty Library.
 - **Scrollbar.** A continuous book's scrollbar runs along the window's right edge, or
   its bottom edge for vertical text, however narrow the text column.
 - **VN.** Centered groups of the chosen number of paragraphs; images alone and at once.
-  Show all text, a click in the book or Space finishes the reveal, then reads on.
+  A click in the book or Space finishes the reveal, then reads on.
 - **Footer.** Book and chapter position and percentage in a lower pill with reading speed;
   clock and session reading time in an upper pill; both center over the available
   reading area, including while the sidebar is pinned. Empty pills disappear.
 - **Images.** The book's illustrations as cards and a modal viewer with zoom, rotation,
-  reset, panning and Go to location; clicking an unblurred book image opens it.
+  reset, panning, pinch to zoom on a touch screen and Go to location; clicking an unblurred book image opens it.
 - **Find in book.** Whole book or this chapter, up to 100 results with excerpts.
 - **Bookmarks and Notes.** Optional labels, B quick bookmarks, N notes from selected
   text, editing, removal, note search and order; saved passages use the theme's
@@ -109,13 +145,15 @@ back. The search stays in the top bar even in an empty Library.
 
 A lookup trigger (by default Shift scan, the Shift+Enter shortcut and a middle click on a
 word; mouse selection and hover can be turned on in Settings > Reader popup) opens a borderless floating sheet beside the text with the
-Dictionary's result entries: headword (kept close to its definitions' size), reading
-(beside, or above as furigana spread over each kanji run), tags,
-frequency chips, pitch, and numbered, source-labelled collapsible definitions.
+Dictionary's result entries, compact: headword (kept close to its definitions' size), reading
+(beside, or above as furigana spread over each kanji run) with the pitch accent drawn on
+it, ★ beside it for a common word, every frequency in small boxes, a Pitch row with each pattern drawn on the reading, then each dictionary's name (which
+folds its definitions) with its tags in small italics and its numbered definitions.
 Headword kanji and dictionary links open child popups up to the saved level. Each entry
 has Voice (a recorded pronunciation from the word audio sources) and, left to right, Open in Dictionary, Open card in Anki (when a card
-exists), and the one-click Anki + action on its headword row; kanji cards have no Anki action
-and centre the character under their Kanji label.
+exists), and the one-click Anki + action on its headword row, as identical plain icons; a
+single kanji is an ordinary entry with its On/Kun readings, frequencies, meanings and stats,
+and no Anki action.
 With click lookup on, the mouse trigger can also be a middle click, which scans text and
 leaves blank space to autoscroll.
 Alt+wheel reveals the beginning of a tall selected entry.
@@ -136,8 +174,8 @@ Microsoft JhengHei or Malgun Gothic when looking up Chinese or Korean.
 A search bar and a source rail listing only dictionaries with matches, in the Settings
 order. Lookup is exact, or the longest matching start (with deinflection chains named in
 the header and on each entry), followed by shorter matching starts. Single kanji show a
-Kanji card first. Pitch positions merge across agreeing sources, with nasal, devoiced
-and tag marks. Until an installed dictionary can supply definitions, this page and the Reader's
+kanji entry first. Pitch positions merge across agreeing sources, each drawn on the reading in the
+Pitch row with nasal and devoiced marks, then its position and tags, its sources on hover. Until an installed dictionary can supply definitions, this page and the Reader's
 lookup popup (and its Settings preview) offer Get dictionaries, linking to Settings; the
 Dictionary page says it has no dictionaries only in that offer.
 
@@ -152,7 +190,7 @@ endings (먹었어요 → 먹다). Chinese lookups read on from the character un
 in traditional or simplified characters as the dictionary lists them, and its readings (pinyin) show
 beside the headword.
 Entries show the word's pronunciation when a dictionary with IPA data is on, and Anki can use it as a field.
-Only look up Japanese/CJK text, the Kanji card and JapanesePod101 are for Japanese.
+Only look up Japanese/CJK text, the kanji entry and JapanesePod101 are for Japanese.
 
 ## Statistics
 
@@ -228,7 +266,8 @@ the action itself, and Edit in Anki Browser hands off manual editing.
 ## Themes
 
 Application themes: Light, Dark, Sakura, Matcha, Hojicha, Midnight, Ember, Forest and one
-custom theme (Light/Dark base, Background, Surface, Text, Accent). Reader themes are
+custom theme (Light/Dark base, Background, Surface, Text, Accent, Logo). Each preset colors the
+logo its own way (Hojicha in its accent); the custom theme's logo color is chosen. Reader themes are
 separate: Paper, Sepia, Night, Sakura, Matcha, Hojicha, Solarized, Nord, Gruvbox, Rosé
 Pine, Tokyo Night and Catppuccin Latte, Frappé, Macchiato and Mocha, plus named custom
 themes, each deleted from its swatch's context menu. Custom Reader themes are structured values, never arbitrary CSS.

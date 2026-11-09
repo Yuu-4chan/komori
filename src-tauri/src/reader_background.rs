@@ -178,7 +178,7 @@ pub async fn choose_reader_background(
 ) -> Result<Option<Background>, String> {
     let changing = Changing::begin()?;
     let language = interface_text::language(&catalog.database);
-    let selected = rfd::AsyncFileDialog::new()
+    let selected = crate::file_dialog::AsyncFileDialog::new()
         .set_title(interface_text::text(language, Text::ChooseReaderBackground))
         .add_filter(
             interface_text::text(language, Text::BackgroundImages),

@@ -2,6 +2,16 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 2.1.0
+
+- Komori now runs on Android phones (Android 10 and later, 64-bit): install `Komori_2.1.0_android-arm64.apk` from the release. The phone has the Library, Reader, lookup popup, Dictionary, Statistics and Settings, made for touch: tap a word to look it up, long press to select text or books, tap or swipe to turn pages, and add looked-up words to AnkiDroid.
+- Connect the phone to Komori on your PC: turn on Allow phones to connect in Settings > Integrations > Devices and enter the PC's code in the phone's Settings > Sync. The phone then lists the PC's books with its own, opens them without copying files by hand, can copy the PC's dictionaries, and keeps reading positions, bookmarks, notes and reading statistics in step both ways. Phones connect only over your own network, and the code cannot be guessed from it.
+- Lookup entries are more compact: the pitch accent is drawn on the reading, every frequency and dictionary tag is shown, and the stars sit by the headword.
+- A lookup says when no dictionary for the book's language is imported.
+- Web links in books and dictionaries open in the browser.
+- One broken chapter no longer makes a whole book unopenable, and one unreadable dictionary entry no longer fails the whole lookup.
+- Backups no longer include the AnkiConnect key, and a dictionary's title can no longer put script into Anki cards.
+
 ## 2.0.0
 
 - Dictionary lookup now works in English, Spanish, French, Portuguese, Italian, German, Russian, Korean and Chinese, besides Japanese. Each language has its own dictionaries, inflection rules, word audio and Anki deck. Choose the lookup language in Settings > Dictionary.

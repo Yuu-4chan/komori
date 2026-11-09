@@ -9,6 +9,7 @@ import { listLibrary, type LibraryBook } from "../features/library/libraryApi";
 import { libraryCache } from "../features/library/libraryCache";
 import {
   listLibraryKanji,
+  listReadingDevices,
   listReadingSessions,
   editDailyActivity,
   type StoredReadingSession,
@@ -23,6 +24,7 @@ vi.mock("../features/library/libraryApi", () => ({
 vi.mock("../features/statistics/statisticsApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../features/statistics/statisticsApi")>()),
   listReadingSessions: vi.fn(),
+  listReadingDevices: vi.fn(async () => []),
   listLibraryKanji: vi.fn(),
   editDailyActivity: vi.fn(),
 }));
@@ -424,6 +426,47 @@ describe("Statistics", () => {
     ).toBeInTheDocument();
     // No sessions before September.
     expect(within(calendar).getByRole("button", { name: "Previous month" })).toBeDisabled();
+  });
+
+  it("splits a day's reading between this PC and a phone that synced", async () => {
+    const phone = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    vi.mocked(listReadingDevices).mockResolvedValue([{ id: phone, name: "Galaxy S24" }]);
+    vi.mocked(listReadingSessions).mockResolvedValue([
+      session(JA, new Date(2026, 9, 14, 9), 60, 18_000),
+      session(JA, new Date(2026, 9, 15, 7), 10, 2_000, { device: phone }),
+      // A book only the phone has.
+      session("cccccccc-cccc-4ccc-8ccc-cccccccccccc", new Date(2026, 9, 15, 6), 5, 500, {
+        device: phone,
+        bookTitle: "Phone book",
+      }),
+      session(EN, new Date(2026, 9, 15, 8), 20, 6_000, {
+        unit: "words",
+        startUnits: 182_000,
+        endUnits: 188_000,
+        totalUnits: 188_000,
+      }),
+    ]);
+    renderPage();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const calendar = await screen.findByRole("region", { name: "Daily activity" });
+    const details = within(calendar).getByRole("complementary", { name: "Day details" });
+    expect(details).toHaveTextContent("35m reading");
+    const devices = within(details).getByRole("list", { name: "Reading by device" });
+    expect(
+      within(devices)
+        .getAllByRole("listitem")
+        .map((row) => row.textContent),
+    ).toEqual(["This PC20m", "Galaxy S2415m"]);
+    expect(screen.getByText("Phone and PC")).toBeInTheDocument();
+    // Named by the phone, not as removed from the Library.
+    const phoneBook = within(within(calendar).getByRole("complementary", { name: "Books read" }))
+      .getAllByText("Phone book")[0]
+      .closest("li")!;
+    expect(phoneBook).toHaveTextContent("Galaxy S24");
+    expect(phoneBook).not.toHaveTextContent("Removed from library");
+    // A day read on one device alone lists none.
+    await user.click(within(calendar).getByRole("button", { name: "October 14: 1h 00m read" }));
+    expect(within(details).queryByRole("list")).toBeNull();
   });
 
   it("explores the Library's kanji with search, preview and Dictionary lookup", async () => {

@@ -10,7 +10,7 @@
 //! book's own, which title cleaning never rewrites. All are additive tables keyed by catalog ID that cascade with removal, so an
 //! older Komori still opens the catalog. Sources are only read.
 
-use std::{fs::File, path::Path, time::Instant, time::UNIX_EPOCH};
+use std::{path::Path, time::Instant, time::UNIX_EPOCH};
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -135,9 +135,12 @@ fn reshow_languages(connection: &Connection) -> Result<(), String> {
     Ok(())
 }
 
-/// The source file's size and modified time, which change when the file is rewritten.
-pub(crate) fn source_stamp(path: &Path) -> Option<String> {
-    let metadata = std::fs::metadata(path).ok()?;
+/// The source's size and modified time, which change when the file is rewritten.
+pub(crate) fn source_stamp(source: &str) -> Option<String> {
+    stamp(&crate::book_source::metadata(source).ok()?)
+}
+
+pub(crate) fn stamp(metadata: &std::fs::Metadata) -> Option<String> {
     let modified = metadata
         .modified()
         .ok()?
@@ -213,7 +216,7 @@ pub(crate) fn build_missing(database: &Path, app: Option<&AppHandle>) -> Result<
     let pending = rows
         .into_iter()
         .filter_map(|(id, source_path, version, stored)| {
-            let stamp = source_stamp(Path::new(&source_path))?;
+            let stamp = source_stamp(&source_path)?;
             let current = version.is_some_and(|version| version >= DETAILS_VERSION)
                 && stored.as_deref() == Some(stamp.as_str());
             (!current).then_some((id, source_path, stamp))
@@ -226,7 +229,7 @@ pub(crate) fn build_missing(database: &Path, app: Option<&AppHandle>) -> Result<
     let mut built = 0;
     let mut last_notice = Instant::now();
     for (id, source_path, stamp) in pending {
-        let Ok(source) = File::open(&source_path) else {
+        let Ok(source) = crate::book_source::open(&source_path) else {
             continue;
         };
         let details = epub::read_details(source).unwrap_or_else(|_| BookDetails {
@@ -457,6 +460,7 @@ mod tests {
     use super::*;
     use crate::library::{import_paths, list_from_catalog, relink_one};
     use serde_json::Value;
+    use std::fs::File;
     use std::io::Write;
     use tempfile::tempdir;
     use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};

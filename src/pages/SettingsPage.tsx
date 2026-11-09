@@ -9,6 +9,7 @@ import {
   HardDrivesIcon,
   TranslateIcon,
   KeyboardIcon,
+  DevicesIcon,
 } from "@phosphor-icons/react";
 
 import { PageHeader } from "../components/layout/PageHeader";
@@ -18,6 +19,7 @@ import { DictionarySources } from "../features/dictionary/DictionarySources";
 import { AnkiIcon } from "../features/anki/AnkiIcon";
 import { DiscordIcon } from "../features/discord/DiscordIcon";
 import { DiscordSettings } from "../features/discord/DiscordSettings";
+import { DevicesSettings } from "../features/devices/DevicesSettings";
 import { WordAudioSettings } from "../features/dictionary/WordAudioSettings";
 import { LibrarySettings } from "../features/library/LibrarySettings";
 import { ReaderPopupSettings } from "../features/reader/ReaderPopupSettings";
@@ -76,6 +78,12 @@ const sections = [
     description: "settings.discordDescription",
     icon: DiscordIcon,
   },
+  {
+    id: "devices",
+    label: "settings.devices",
+    description: "settings.devicesDescription",
+    icon: DevicesIcon,
+  },
 ] as const;
 
 type SectionId = (typeof sections)[number]["id"];
@@ -83,7 +91,7 @@ type SectionId = (typeof sections)[number]["id"];
 const groups = [
   { label: "settings.groupApplication", ids: ["general", "storage", "shortcuts"] },
   { label: "settings.groupReading", ids: ["popup", "dictionary", "statistics"] },
-  { label: "settings.groupIntegrations", ids: ["anki", "discord"] },
+  { label: "settings.groupIntegrations", ids: ["anki", "discord", "devices"] },
 ] as const;
 
 /** Categories that were folded into others still open where their settings now live. */
@@ -199,6 +207,7 @@ export function SettingsPage() {
           )}
           {section === "anki" && <AnkiSettings lookupLanguage={lookupLanguage} />}
           {section === "discord" && <DiscordSettings />}
+          {section === "devices" && <DevicesSettings />}
           {section === "dictionary" && (
             <>
               <p className="settings-note">

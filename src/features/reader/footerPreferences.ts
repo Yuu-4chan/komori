@@ -1,3 +1,5 @@
+import { isAndroid } from "../../app/platform";
+
 /** Chrome-only visibility choices; none change the book's presentation. */
 export interface ReaderFooterPreferences {
   readerShowReadingPosition: boolean;
@@ -15,7 +17,8 @@ export const defaultReaderFooter: ReaderFooterPreferences = {
   readerShowChapterPosition: false,
   readerShowChapterPercentage: false,
   readerShowClock: true,
-  readerShowReadingTime: false,
+  // The phone's status has shown the session's reading time beside the clock from the start.
+  readerShowReadingTime: isAndroid,
   readerShowReadingSpeed: false,
 };
 

@@ -39,12 +39,14 @@ export function AppShell() {
   const navigate = useNavigate();
   const imports = useLibraryImport();
   const onLibrary = pathname === "/library" || pathname === "/";
+  // The Library and the Dictionary page scroll long lists with the middle button.
+  const autoscrolls = onLibrary || pathname === "/dictionary";
   const { middleClickAutoscroll } = useAppearance();
   const { t } = useI18n();
   useDiscordBrowsing(discordPages[pathname] ?? null);
 
   useEffect(() => {
-    if (!onLibrary || !middleClickAutoscroll) return;
+    if (!autoscrolls || !middleClickAutoscroll) return;
     const controller = new AutoscrollController(document, (event) => {
       const boundary = contentRef.current;
       if (
@@ -58,7 +60,7 @@ export function AppShell() {
     });
     controller.addDocument(document);
     return () => controller.dispose();
-  }, [onLibrary, routeKey, middleClickAutoscroll]);
+  }, [autoscrolls, routeKey, middleClickAutoscroll]);
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {

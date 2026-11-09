@@ -22,6 +22,8 @@ export interface AppThemeColors {
   /** The page content area. */
   surface: string;
   text: string;
+  /** The logo's color, which its other colors are mixed from; the accent is for controls. */
+  logo: string;
 }
 
 export interface AppPresetTheme extends AppThemeColors {
@@ -40,6 +42,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#fbfcfe",
     text: "#162340",
     accent: "#5874df",
+    logo: "#ee657e",
   },
   {
     id: "dark",
@@ -49,6 +52,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#1b1c26",
     text: "#e6e8f2",
     accent: "#7b93f0",
+    logo: "#f08a9b",
   },
   {
     id: "sakura",
@@ -58,6 +62,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#fdf9f7",
     text: "#3b2429",
     accent: "#e0606b",
+    logo: "#ee657e",
   },
   {
     id: "matcha",
@@ -67,6 +72,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#f9fbf6",
     text: "#1e2b20",
     accent: "#4f9a62",
+    logo: "#e5788c",
   },
   {
     id: "hojicha",
@@ -76,6 +82,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#fbf7f1",
     text: "#34291f",
     accent: "#b8743c",
+    logo: "#b8743c",
   },
   {
     id: "midnight",
@@ -85,6 +92,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#181a24",
     text: "#c9d1f2",
     accent: "#7aa2f7",
+    logo: "#b49cf0",
   },
   {
     id: "ember",
@@ -94,6 +102,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#1f1a17",
     text: "#f0e5db",
     accent: "#e58b5c",
+    logo: "#e8a26a",
   },
   {
     id: "forest",
@@ -103,6 +112,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#151f1b",
     text: "#dbe9e1",
     accent: "#5bbd8b",
+    logo: "#f08a9b",
   },
 ];
 
@@ -114,6 +124,7 @@ export const defaultAppCustomTheme: AppThemeColors = {
   background: "#f1eadf",
   surface: "#fbf7f1",
   text: "#34291f",
+  logo: "#b8743c",
 };
 
 const presetById = new Map<string, AppPresetTheme>(
@@ -129,17 +140,22 @@ const isAppThemeBase = (value: unknown): value is AppThemeBase =>
 export const isAppThemeId = (value: unknown): value is AppThemeId =>
   value === "custom" || (typeof value === "string" && presetById.has(value));
 
-/** A saved custom theme's valid colors, lowercase, or undefined when any is invalid. */
+/**
+ * A saved custom theme's valid colors, lowercase, or undefined when any is invalid. A theme
+ * saved before the logo had a color of its own takes the default custom theme's.
+ */
 export function normalizeAppCustomTheme(value: unknown): AppThemeColors | undefined {
   if (!value || typeof value !== "object") return undefined;
-  const { base, background, surface, text } = value as Record<string, unknown>;
+  const { base, background, surface, text, logo } = value as Record<string, unknown>;
   if (!isAppThemeBase(base) || !isHexColor(background) || !isHexColor(surface)) return undefined;
   if (!isHexColor(text)) return undefined;
+  if (logo !== undefined && !isHexColor(logo)) return undefined;
   return {
     base,
     background: background.toLowerCase(),
     surface: surface.toLowerCase(),
     text: text.toLowerCase(),
+    logo: (logo ?? defaultAppCustomTheme.logo).toLowerCase(),
   };
 }
 
@@ -152,9 +168,9 @@ export function resolveAppAccent(id: string, customAccent: string): string {
 
 export function resolveAppTheme(id: string, custom: AppThemeColors): AppThemeColors {
   if (id === "custom") return custom;
-  const { base, background, surface, text } =
+  const { base, background, surface, text, logo } =
     presetById.get(id) ?? presetById.get(defaultAppTheme)!;
-  return { base, background, surface, text };
+  return { base, background, surface, text, logo };
 }
 
 const mix = (first: string, share: number, second: string) =>
@@ -166,7 +182,7 @@ const mix = (first: string, share: number, second: string) =>
  * softened into the surface, so any custom colors stay coherent.
  */
 export function appThemeTokens(colors: AppThemeColors): Record<string, string> {
-  const { base, background, surface, text } = colors;
+  const { base, background, surface, text, logo } = colors;
   const light = base === "light";
   const card = light ? mix(surface, 45, "#ffffff") : mix(text, 5, surface);
   return {
@@ -181,5 +197,6 @@ export function appThemeTokens(colors: AppThemeColors): Record<string, string> {
     "--text-muted": mix(text, 68, surface),
     "--border-soft": mix(text, light ? 9 : 10, surface),
     "--border-medium": mix(text, light ? 15 : 16, surface),
+    "--logo-base": logo,
   };
 }

@@ -11,6 +11,14 @@ export interface StoredReadingSession extends ReadingSession {
   /** The book was marked unread since, so this session no longer finishes it. */
   finishCleared: boolean;
   adjustment?: { unitsDelta: number; activeMsDelta: number };
+  /** The device that read it, when another one did: a phone on the PC, the PC on a phone. */
+  device?: string;
+}
+
+/** A device whose reading sessions this one holds, by the name it last had. */
+export interface ReadingDevice {
+  id: string;
+  name: string;
 }
 
 /** One script's kanji across the Library's Japanese or Chinese books. */
@@ -110,7 +118,7 @@ export function normalizeSession(value: unknown): StoredReadingSession | null {
   if (!value || typeof value !== "object") return null;
   const session = value as Record<string, unknown>;
   const { bookId, id, startedAt, endedAt, activeMs, unit, bookTitle, finishCleared } = session;
-  const { unitsRead, startUnits, endUnits, totalUnits } = session;
+  const { unitsRead, startUnits, endUnits, totalUnits, device } = session;
   if (typeof bookId !== "string" || !uuid.test(bookId)) return null;
   if (typeof id !== "string" || !uuid.test(id)) return null;
   if (unit !== "characters" && unit !== "words") return null;
@@ -137,6 +145,7 @@ export function normalizeSession(value: unknown): StoredReadingSession | null {
     ...n,
     bookTitle: typeof bookTitle === "string" && bookTitle.trim() ? bookTitle : null,
     finishCleared: finishCleared === true,
+    ...(typeof device === "string" && uuid.test(device) ? { device } : {}),
     ...(adjustment
       ? {
           adjustment: {
@@ -155,9 +164,31 @@ export async function listReadingSessions(): Promise<StoredReadingSession[]> {
   return listed.flatMap((value) => normalizeSession(value) ?? []);
 }
 
-export async function listLibraryKanji(): Promise<LibraryKanji[]> {
+/** The other devices that read here, as their sessions name them. */
+export async function listReadingDevices(): Promise<ReadingDevice[]> {
+  if (!isTauri()) return [];
+  const listed = await invoke<unknown>("list_reading_devices");
+  if (!Array.isArray(listed)) return [];
+  return listed.flatMap((value): ReadingDevice[] => {
+    const device = value as Partial<ReadingDevice> | null;
+    return device &&
+      typeof device.id === "string" &&
+      uuid.test(device.id) &&
+      typeof device.name === "string" &&
+      device.name.trim()
+      ? [{ id: device.id, name: device.name }]
+      : [];
+  });
+}
+
+export const listLibraryKanji = () => kanjiOf("list_library_kanji");
+
+/** On a paired phone: its books' kanji with the PC's, the phone's copies counted as the PC's. */
+export const listPcLibraryKanji = () => kanjiOf("list_pc_library_kanji");
+
+async function kanjiOf(command: string): Promise<LibraryKanji[]> {
   if (!isTauri()) throw new Error(i18n().t("statistics.desktopOnly"));
-  const listed = await invoke<unknown>("list_library_kanji");
+  const listed = await invoke<unknown>(command);
   if (!Array.isArray(listed)) return [];
   return listed.flatMap((value): LibraryKanji[] => {
     const group = value as Partial<LibraryKanji> | null;

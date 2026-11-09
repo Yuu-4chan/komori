@@ -24,10 +24,10 @@ const startHints = {
 
 /**
  * Settings > Statistics: whether and how the Reader records reading sessions, and deleting
- * what was recorded. Every choice saves at once with the appearance record; deletions are
- * confirmed and done by native code.
+ * what was recorded (left out with `recorded` false, as on the phone). Every choice saves at
+ * once with the appearance record; deletions are confirmed and done by native code.
  */
-export function StatisticsSettings() {
+export function StatisticsSettings({ recorded = true }: { recorded?: boolean } = {}) {
   const {
     statisticsEnabled,
     statisticsSessionStart,
@@ -44,13 +44,14 @@ export function StatisticsSettings() {
   const [error, setError] = useState<MessageKey | null>(null);
 
   const readCounts = useCallback(async () => {
+    if (!recorded) return;
     try {
       setCounts(await getStatisticsCounts());
       setError(null);
     } catch {
       setError("statisticsSettings.readFailed");
     }
-  }, []);
+  }, [recorded]);
   useEffect(() => {
     void readCounts();
   }, [readCounts]);
@@ -124,97 +125,101 @@ export function StatisticsSettings() {
         </div>
       </Card>
 
-      <Card className="settings-card settings-card--wide">
-        <div className="settings-card__heading">
-          <span className="settings-card__icon">
-            <TrashIcon aria-hidden="true" weight="duotone" />
-          </span>
-          <div>
-            <h2>{t("statisticsSettings.recordedTitle")}</h2>
-            <p>
-              {counts
-                ? tp("statisticsSettings.holds", counts.sessions)
-                : t("statisticsSettings.keeps")}{" "}
-              {t("statisticsSettings.neverDeleted")}
-            </p>
-          </div>
-        </div>
-        {error ? (
-          <div className="library-notice library-notice--error" role="alert">
-            <WarningCircleIcon aria-hidden="true" weight="duotone" />
-            <span>{t(error)}</span>
-          </div>
-        ) : null}
-        {deleted !== null ? (
-          <div className="library-notice" role="status">
-            <span>{tp("statisticsSettings.deleted", deleted)}</span>
-          </div>
-        ) : null}
-        <div className="settings-list">
-          <div className="settings-row">
-            <div>
-              <strong>{t("statisticsSettings.deleteOrphans")}</strong>
-              <span>
-                {orphans > 0
-                  ? tp("statisticsSettings.orphans", counts?.orphanBooks ?? 0, {
-                      sessions: tp("statisticsSettings.sessions", orphans),
-                    })
-                  : t("statisticsSettings.noOrphans")}
+      {recorded ? (
+        <>
+          <Card className="settings-card settings-card--wide">
+            <div className="settings-card__heading">
+              <span className="settings-card__icon">
+                <TrashIcon aria-hidden="true" weight="duotone" />
               </span>
+              <div>
+                <h2>{t("statisticsSettings.recordedTitle")}</h2>
+                <p>
+                  {counts
+                    ? tp("statisticsSettings.holds", counts.sessions)
+                    : t("statisticsSettings.keeps")}{" "}
+                  {t("statisticsSettings.neverDeleted")}
+                </p>
+              </div>
             </div>
-            <Button
-              disabled={orphans === 0}
-              icon={<TrashIcon aria-hidden="true" weight="bold" />}
-              onClick={() => {
-                setDialogError(null);
-                setConfirming("orphans");
-              }}
-              tone="secondary"
-            >
-              {t("common.delete")}
-            </Button>
-          </div>
-          <div className="settings-row">
-            <div>
-              <strong>{t("statisticsSettings.deleteAll")}</strong>
-              <span>{t("statisticsSettings.deleteAllHint")}</span>
+            {error ? (
+              <div className="library-notice library-notice--error" role="alert">
+                <WarningCircleIcon aria-hidden="true" weight="duotone" />
+                <span>{t(error)}</span>
+              </div>
+            ) : null}
+            {deleted !== null ? (
+              <div className="library-notice" role="status">
+                <span>{tp("statisticsSettings.deleted", deleted)}</span>
+              </div>
+            ) : null}
+            <div className="settings-list">
+              <div className="settings-row">
+                <div>
+                  <strong>{t("statisticsSettings.deleteOrphans")}</strong>
+                  <span>
+                    {orphans > 0
+                      ? tp("statisticsSettings.orphans", counts?.orphanBooks ?? 0, {
+                          sessions: tp("statisticsSettings.sessions", orphans),
+                        })
+                      : t("statisticsSettings.noOrphans")}
+                  </span>
+                </div>
+                <Button
+                  disabled={orphans === 0}
+                  icon={<TrashIcon aria-hidden="true" weight="bold" />}
+                  onClick={() => {
+                    setDialogError(null);
+                    setConfirming("orphans");
+                  }}
+                  tone="secondary"
+                >
+                  {t("common.delete")}
+                </Button>
+              </div>
+              <div className="settings-row">
+                <div>
+                  <strong>{t("statisticsSettings.deleteAll")}</strong>
+                  <span>{t("statisticsSettings.deleteAllHint")}</span>
+                </div>
+                <Button
+                  disabled={!counts?.sessions}
+                  icon={<TrashIcon aria-hidden="true" weight="bold" />}
+                  onClick={() => {
+                    setDialogError(null);
+                    setConfirming("all");
+                  }}
+                  tone="danger"
+                >
+                  {t("statisticsSettings.deleteAllButton")}
+                </Button>
+              </div>
             </div>
-            <Button
-              disabled={!counts?.sessions}
-              icon={<TrashIcon aria-hidden="true" weight="bold" />}
-              onClick={() => {
-                setDialogError(null);
-                setConfirming("all");
-              }}
-              tone="danger"
-            >
-              {t("statisticsSettings.deleteAllButton")}
-            </Button>
-          </div>
-        </div>
-      </Card>
+          </Card>
 
-      <ConfirmDialog
-        busy={deleting}
-        busyLabel={t("statisticsSettings.deleting")}
-        confirmLabel={
-          confirming === "all" ? t("statisticsSettings.deleteAllConfirm") : t("common.delete")
-        }
-        description={
-          confirming === "all"
-            ? tp("statisticsSettings.deleteAllDescription", counts?.sessions ?? 0)
-            : tp("statisticsSettings.deleteOrphansDescription", orphans)
-        }
-        error={dialogError && t(dialogError)}
-        onCancel={() => setConfirming(null)}
-        onConfirm={() => void confirmDelete()}
-        open={confirming !== null}
-        title={
-          confirming === "all"
-            ? t("statisticsSettings.deleteAllTitle")
-            : t("statisticsSettings.deleteOrphansTitle")
-        }
-      />
+          <ConfirmDialog
+            busy={deleting}
+            busyLabel={t("statisticsSettings.deleting")}
+            confirmLabel={
+              confirming === "all" ? t("statisticsSettings.deleteAllConfirm") : t("common.delete")
+            }
+            description={
+              confirming === "all"
+                ? tp("statisticsSettings.deleteAllDescription", counts?.sessions ?? 0)
+                : tp("statisticsSettings.deleteOrphansDescription", orphans)
+            }
+            error={dialogError && t(dialogError)}
+            onCancel={() => setConfirming(null)}
+            onConfirm={() => void confirmDelete()}
+            open={confirming !== null}
+            title={
+              confirming === "all"
+                ? t("statisticsSettings.deleteAllTitle")
+                : t("statisticsSettings.deleteOrphansTitle")
+            }
+          />
+        </>
+      ) : null}
     </>
   );
 }

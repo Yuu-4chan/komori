@@ -6,6 +6,10 @@
  * one host, which shows Komori's own tooltip, menu, or list instead.
  */
 
+import { invoke } from "@tauri-apps/api/core";
+
+import { isAndroid } from "./platform";
+
 export type EditableField = HTMLInputElement | HTMLTextAreaElement;
 
 export interface MenuRequest {
@@ -157,7 +161,8 @@ export function guardDocument(document: Document): () => void {
   const contextMenu = (event: MouseEvent) => {
     leaveTitled();
     // Komori's own menus (a Library card's) and the Reader's lookup have answered already.
-    if (event.defaultPrevented) return;
+    // A phone's long press is Android's: it selects with its handles and shows its toolbar.
+    if (event.defaultPrevented || isAndroid) return;
     event.preventDefault();
     const field = editableField(event.target);
     const selection = field ? "" : (document.getSelection()?.toString() ?? "");
@@ -297,8 +302,15 @@ export function setControlValue(
   element.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-/** Copies plain text, falling back to the editing command where the clipboard API is missing. */
+/**
+ * Copies plain text, falling back to the editing command where the clipboard API is missing.
+ * Android's WebView refuses to write the clipboard, so the phone copies through Android.
+ */
 export function copyText(text: string) {
+  if (isAndroid) {
+    void invoke("copy_text", { text }).catch(() => {});
+    return;
+  }
   const fallback = () => {
     const scratch = document.createElement("textarea");
     scratch.value = text;

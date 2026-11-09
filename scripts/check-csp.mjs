@@ -42,7 +42,17 @@ const approved = new Map([
   // Word audio: recordings native code fetched, played from in-memory blobs.
   ["media-src", ["blob:"]],
   // Native IPC and catalog-scoped EPUB content, without general remote fetch authority.
-  ["connect-src", ["ipc:", "http://ipc.localhost", "komori-book:", "http://komori-book.localhost"]],
+  [
+    "connect-src",
+    [
+      "ipc:",
+      "http://ipc.localhost",
+      "komori-book:",
+      "http://komori-book.localhost",
+      "komori-font:",
+      "http://komori-font.localhost",
+    ],
+  ],
   ["script-src", ["'self'"]],
 ]);
 

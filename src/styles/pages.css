@@ -1258,3 +1258,39 @@
   font: inherit;
   font-weight: 650;
 }
+
+/* Settings > Devices: the PC's address and pairing code read as values, not labels. */
+.devices-value {
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+  font-variant-numeric: tabular-nums;
+  user-select: text;
+}
+
+.devices-value--code {
+  font-size: var(--font-size-4);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+
+.devices-code {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.devices-heading {
+  margin: var(--space-5) 0 var(--space-2);
+  color: var(--text-primary);
+  font-size: var(--font-size-2);
+  font-weight: 650;
+}
+
+.devices-device__icon {
+  margin-right: var(--space-2);
+  vertical-align: -0.15em;
+}
+
+.devices-problem {
+  color: var(--danger);
+}

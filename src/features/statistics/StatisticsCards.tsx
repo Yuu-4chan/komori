@@ -6,7 +6,9 @@ import {
   CaretRightIcon,
   CaretUpIcon,
   CheckCircleIcon,
+  DeviceMobileIcon,
   MagnifyingGlassIcon,
+  MonitorIcon,
   PencilSimpleIcon,
   TranslateIcon,
 } from "@phosphor-icons/react";
@@ -210,7 +212,23 @@ export function ActivityCalendar({
   );
 }
 
-export function DailyDetail({ date, summary }: { date: Date; summary: ActivitySummary }) {
+/** This device's name in Statistics. */
+const ownDevice =
+  import.meta.env.TAURI_ENV_PLATFORM === "android" ? "sync.thisPhone" : "statistics.thisPc";
+/** Phones read on a PC, and the PC on a phone. */
+const OwnIcon = import.meta.env.TAURI_ENV_PLATFORM === "android" ? DeviceMobileIcon : MonitorIcon;
+const OtherIcon = import.meta.env.TAURI_ENV_PLATFORM === "android" ? MonitorIcon : DeviceMobileIcon;
+
+export function DailyDetail({
+  date,
+  summary,
+  deviceName,
+}: {
+  date: Date;
+  summary: ActivitySummary;
+  /** The name of another device that read, by its ID. */
+  deviceName: (id: string) => string | undefined;
+}) {
   const { t, tp } = useI18n();
   const amounts = [
     summary.characters > 0 ? t("librarySummary.characters", { count: summary.characters }) : null,
@@ -228,6 +246,24 @@ export function DailyDetail({ date, summary }: { date: Date; summary: ActivitySu
         <span>{amounts.length ? amounts.join(" · ") : t("statisticsCards.noReading")}</span>
         <span>{tp("statisticsSettings.sessions", summary.sessions)}</span>
       </div>
+      {summary.devices.length > 1 ? (
+        <ul className="statistics-day-detail__devices" aria-label={t("statistics.byDevice")}>
+          {summary.devices.map(({ device, activeMs }) => {
+            const Icon = device === null ? OwnIcon : OtherIcon;
+            return (
+              <li key={device ?? ""}>
+                <Icon aria-hidden="true" />
+                <span>
+                  {device === null
+                    ? t(ownDevice)
+                    : (deviceName(device) ?? t("statistics.otherDevice"))}
+                </span>
+                <strong>{formatDuration(activeMs)}</strong>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
       <dl className="statistics-day-detail__rows">
         <div>
           <dt>{t("statistics.readingTime")}</dt>
@@ -317,9 +353,16 @@ export function DailyBooks({
           aria-expanded={showAll}
           onClick={() => setShowAll((value) => !value)}
         >
-          {showAll
-            ? t("statisticsCards.showPreview")
-            : t("statisticsCards.showAllBooks", { count: available.length })}
+          <span>
+            {showAll
+              ? t("statisticsCards.showPreview")
+              : t("statisticsCards.showAllBooks", { count: available.length })}
+          </span>
+          {showAll ? (
+            <CaretUpIcon aria-hidden="true" size={16} />
+          ) : (
+            <CaretDownIcon aria-hidden="true" size={16} />
+          )}
         </button>
       ) : null}
     </aside>

@@ -10,6 +10,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import { isAndroid } from "../../app/platform";
 import { IconButton } from "../../components/ui/IconButton";
 import { Select } from "../../components/ui/Select";
 import { ChoiceCheck } from "../../components/ui/SelectionBox";
@@ -312,6 +313,11 @@ export function FontPicker({
               aria-activedescendant={open && options[active] ? `${listId}-${active}` : undefined}
               value={draft}
               spellCheck={false}
+              // On the phone the field only opens the list: a keyboard would cover the fonts
+              // below it, and closing the keyboard closes the list.
+              readOnly={isAndroid}
+              inputMode={isAndroid ? "none" : undefined}
+              onClick={isAndroid ? () => (open ? close() : show()) : undefined}
               onChange={(event) => {
                 navigated.current = false;
                 setDraft(event.target.value);

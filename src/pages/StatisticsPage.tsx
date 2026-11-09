@@ -11,20 +11,17 @@ import {
   GaugeIcon,
   TextAaIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { i18n, useI18n } from "../i18n/i18n";
 
+import { MobileHeaderContext } from "../components/layout/mobileHeader";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import { MenuButton } from "../components/ui/MenuButton";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
-import {
-  listLibrary,
-  onLibraryDetailsUpdated,
-  type LibraryBook,
-} from "../features/library/libraryApi";
+import { onLibraryDetailsUpdated, type LibraryBook } from "../features/library/libraryApi";
 import { libraryCache } from "../features/library/libraryCache";
 import { formatDuration } from "../features/statistics/readingSession";
 import {
@@ -47,11 +44,13 @@ import {
   type StatisticsRange,
 } from "../features/statistics/statistics";
 import {
-  listLibraryKanji,
+  listReadingDevices,
   listReadingSessions,
   type LibraryKanji,
+  type ReadingDevice,
   type StoredReadingSession,
 } from "../features/statistics/statisticsApi";
+import { StatisticsSourceContext } from "../features/statistics/statisticsSource";
 import {
   ActivityCalendar,
   CharacterExplorer,
@@ -74,10 +73,16 @@ const rangeOptions = [
   { value: "all", label: "statistics.all", description: "statistics.allHint" },
 ] as const;
 
-type Loaded = { books: LibraryBook[]; sessions: StoredReadingSession[] };
+type Loaded = {
+  books: LibraryBook[];
+  sessions: StoredReadingSession[];
+  devices: ReadingDevice[];
+};
 
 export function StatisticsPage() {
   const navigate = useNavigate();
+  const MobileHeader = useContext(MobileHeaderContext);
+  const source = useContext(StatisticsSourceContext);
   const { statisticsEnabled } = useAppearance();
   const { t, tp, language } = useI18n();
   const [range, setRange] = useState<StatisticsRange>("month");
@@ -95,22 +100,25 @@ export function StatisticsPage() {
     const cached = libraryCache.books();
     setData((current) => (current === "failed" || !cached ? "loading" : current));
     try {
-      const [books, sessions] = await Promise.all([listLibrary(), listReadingSessions()]);
+      const [books, sessions, devices] = await Promise.all([
+        source.books(),
+        listReadingSessions(),
+        listReadingDevices().catch(() => []),
+      ]);
       if (version !== loadVersion.current) return;
-      libraryCache.setBooks(books);
-      setData({ books, sessions });
+      setData({ books, sessions, devices });
     } catch {
       if (version === loadVersion.current) setData("failed");
     }
-  }, []);
+  }, [source]);
   const loadKanji = useCallback(async () => {
     setKanji(null);
     try {
-      setKanji(await listLibraryKanji());
+      setKanji(await source.kanji());
     } catch {
       setKanji("failed");
     }
-  }, []);
+  }, [source]);
   useEffect(() => {
     void load();
     void loadKanji();
@@ -122,15 +130,27 @@ export function StatisticsPage() {
   }, [load, loadKanji]);
 
   const loaded = typeof data === "object" ? data : null;
-  // Books removed from the Library keep their sessions, shown by the title they had.
+  const devices = useMemo(
+    () => new Map((loaded?.devices ?? []).map((device) => [device.id, device.name])),
+    [loaded],
+  );
+  // Books removed from the Library keep their sessions, shown by the title they had; a book
+  // only another device has is shown with that device's name.
   const library = useMemo(() => {
     const known = new Map((loaded?.books ?? []).map((book) => [book.id, book]));
+    const readHere = new Set(
+      (loaded?.sessions ?? []).filter((session) => !session.device).map((s) => s.bookId),
+    );
     for (const session of loaded?.sessions ?? [])
-      if (!known.has(session.bookId))
-        known.set(session.bookId, removedBook(session.bookId, session.bookTitle));
+      if (!known.has(session.bookId)) {
+        const elsewhere = readHere.has(session.bookId)
+          ? undefined
+          : (devices.get(session.device ?? "") ?? i18n().t("statistics.otherDevice"));
+        known.set(session.bookId, removedBook(session.bookId, session.bookTitle, elsewhere));
+      }
     return known;
     // Removed books are named in the interface language.
-  }, [loaded, language]);
+  }, [loaded, devices, language]);
   const sessions = useMemo(() => loaded?.sessions ?? [], [loaded]);
   const periods = useMemo(() => rangePeriods(range, now), [range, now]);
   const summary = useMemo(() => summarize(sessions, periods.current), [sessions, periods]);
@@ -145,7 +165,22 @@ export function StatisticsPage() {
   );
   const selected = days.find((day) => dayKey(day.date) === selectedDay) ?? days[0];
 
-  const header = (
+  const rangeMenu = (
+    <MenuButton
+      icon={<CalendarBlankIcon aria-hidden="true" size={17} />}
+      label={t("statistics.range")}
+      onChange={setRange}
+      options={rangeOptions.map((option) => ({
+        value: option.value,
+        label: t(option.label),
+        description: t(option.description),
+      }))}
+      value={range}
+    />
+  );
+  const header = MobileHeader ? (
+    <MobileHeader title={t("shell.statistics")} />
+  ) : (
     <header className="statistics-header">
       <div className="statistics-header__identity">
         <button
@@ -161,17 +196,7 @@ export function StatisticsPage() {
           <p>{t("statistics.description")}</p>
         </div>
       </div>
-      <MenuButton
-        icon={<CalendarBlankIcon aria-hidden="true" size={17} />}
-        label={t("statistics.range")}
-        onChange={setRange}
-        options={rangeOptions.map((option) => ({
-          value: option.value,
-          label: t(option.label),
-          description: t(option.description),
-        }))}
-        value={range}
-      />
+      {rangeMenu}
     </header>
   );
 
@@ -219,16 +244,28 @@ export function StatisticsPage() {
             })
           : t("statistics.allTracked");
 
+  const activityHeading = (
+    <SectionHeading
+      description={rangeDescription}
+      id="statistics-activity"
+      title={t("statistics.activity")}
+    />
+  );
+
   return (
     <div className="page page--statistics">
       {header}
 
       <section className="statistics-section" aria-labelledby="statistics-activity">
-        <SectionHeading
-          description={rangeDescription}
-          id="statistics-activity"
-          title={t("statistics.activity")}
-        />
+        {MobileHeader ? (
+          // On the phone the range sits beside the heading it changes.
+          <div className="mobile-statistics-heading">
+            {activityHeading}
+            {rangeMenu}
+          </div>
+        ) : (
+          activityHeading
+        )}
         {statisticsEnabled ? null : (
           <p className="statistics-note statistics-note--off" role="note">
             {t("statistics.off")}{" "}
@@ -251,7 +288,11 @@ export function StatisticsPage() {
             label={t("statistics.sessions")}
             note={
               comparison(summary.sessions, previous?.sessions, range) ??
-              t("statistics.recordedSessions")
+              t(
+                summary.devices.length > 1
+                  ? "statistics.phoneAndPc"
+                  : "statistics.recordedSessions",
+              )
             }
             tone="blue"
             value={numbers.format(summary.sessions)}
@@ -290,7 +331,8 @@ export function StatisticsPage() {
         <div className="statistics-card__heading statistics-card__heading--activity">
           <div>
             <h2 id="daily-activity">{t("statistics.daily")}</h2>
-            <span>{t("statistics.dailyHint")}</span>
+            {/* A day's activity is edited by right-click, which the phone does not offer. */}
+            {MobileHeader ? null : <span>{t("statistics.dailyHint")}</span>}
           </div>
           <MonthSwitcher
             first={firstMonth}
@@ -314,7 +356,11 @@ export function StatisticsPage() {
           />
           {selected ? (
             <div className="statistics-daily-side">
-              <DailyDetail date={selected.date} summary={selected.summary} />
+              <DailyDetail
+                date={selected.date}
+                deviceName={(id) => devices.get(id)}
+                summary={selected.summary}
+              />
               <DailyBooks
                 key={dayKey(selected.date)}
                 books={selected.summary.books}
@@ -485,12 +531,12 @@ function daysRead(summary: ActivitySummary): string {
   return i18n().t(summary.sessions ? "statistics.activeOnly" : "statistics.idleExcluded");
 }
 
-/** A book removed from the Library, by the title its sessions kept. */
-function removedBook(id: string, title: string | null): LibraryBook {
+/** A book removed from the Library, or only on `device`, by the title its sessions kept. */
+function removedBook(id: string, title: string | null, device?: string): LibraryBook {
   return {
     id,
     title: title ?? i18n().t("statistics.removedBook"),
-    author: i18n().t("statistics.removedFromLibrary"),
+    author: device ?? i18n().t("statistics.removedFromLibrary"),
     fileName: "",
     importedAt: "",
     availability: "missing",

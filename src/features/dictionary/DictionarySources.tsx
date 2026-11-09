@@ -19,6 +19,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+import { isAndroid } from "../../app/platform";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
@@ -398,9 +399,14 @@ export function DictionarySources({
           <div className="settings-row">
             <div>
               <strong>{t("dictionarySources.installed")}</strong>
-              <span>
-                {importing ? t("dictionarySources.importingHint") : t("dictionarySources.addHint")}
-              </span>
+              {/* The phone's settings are rows without explanations. */}
+              {!isAndroid && (
+                <span>
+                  {importing
+                    ? t("dictionarySources.importingHint")
+                    : t("dictionarySources.addHint")}
+                </span>
+              )}
             </div>
             <Button
               disabled={busy}
@@ -418,7 +424,8 @@ export function DictionarySources({
 
           {dictionaries.length > 0 ? (
             <div className="settings-source-toolbar">
-              <p id={moveHintId}>{t("dictionarySources.moveHint")}</p>
+              {/* The phone has no keys to move a row with. */}
+              {!isAndroid && <p id={moveHintId}>{t("dictionarySources.moveHint")}</p>}
               {selecting ? (
                 <div
                   className="library-selection-toolbar"
@@ -737,8 +744,8 @@ function DictionaryList({
         const selected = isSelected(dictionary.id);
         return (
           <li
-            aria-describedby={moveHintId}
-            aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+            aria-describedby={isAndroid ? undefined : moveHintId}
+            aria-keyshortcuts={isAndroid ? undefined : "Alt+ArrowUp Alt+ArrowDown"}
             className={[
               "settings-source-row",
               movable ? "settings-source-row--movable" : null,
@@ -790,7 +797,13 @@ function DictionaryList({
   );
 }
 
-function rowCounts(dictionary: DictionarySummary): string {
+/** "61,240 terms · 12 kanji": what a dictionary holds. */
+export function rowCounts(
+  dictionary: Pick<
+    DictionarySummary,
+    "termCount" | "termMetaCount" | "kanjiCount" | "kanjiMetaCount"
+  >,
+): string {
   const { t, tp } = i18n();
   const parts = [
     [dictionary.termCount, "dictionarySources.terms"],

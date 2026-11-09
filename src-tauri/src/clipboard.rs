@@ -3,6 +3,7 @@
 //! chooses Paste. Writing (Cut and Copy) stays with the page's own editing commands.
 
 /// Clipboard text longer than this is cut, as a text field holds no more.
+#[cfg_attr(not(windows), allow(dead_code))]
 const MAX_CHARS: usize = 1 << 20;
 
 #[tauri::command]
@@ -13,6 +14,7 @@ pub fn read_clipboard_text() -> Result<String, String> {
 /// Decodes UTF-16 text up to its first NUL or `max_chars` characters, whichever comes first,
 /// without looking further. A surrogate pair is one character and is never split; a lone
 /// surrogate becomes U+FFFD, as `String::from_utf16_lossy` makes it.
+#[cfg_attr(not(windows), allow(dead_code))]
 fn decode_prefix(units: &[u16], max_chars: usize) -> String {
     char::decode_utf16(units.iter().copied().take_while(|&unit| unit != 0))
         .take(max_chars)

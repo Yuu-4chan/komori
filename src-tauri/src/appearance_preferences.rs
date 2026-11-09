@@ -167,6 +167,8 @@ const APP_THEMES: [&str; 9] = [
 ];
 /// The Library's saved view choices. Keep in step with `src/features/library/libraryView.ts`.
 const LIBRARY_VIEWS: [&str; 2] = ["grid", "list"];
+/// Which books the phone's Library shows while paired with a PC.
+const LIBRARY_PLACES: [&str; 3] = ["all", "phone", "pc"];
 const LIBRARY_SORTS: [&str; 7] = [
     "recent",
     "added",
@@ -205,7 +207,8 @@ pub struct ReaderCustomTheme {
     footer_text: String,
 }
 
-/// The application's custom theme: a light or dark base and `#rrggbb` colors, never CSS.
+/// The application's custom theme: a light or dark base and `#rrggbb` colors, never CSS. The
+/// logo's color is absent from themes saved before it had one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppCustomTheme {
@@ -213,6 +216,8 @@ pub struct AppCustomTheme {
     background: String,
     surface: String,
     text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    logo: Option<String>,
 }
 
 impl AppCustomTheme {
@@ -221,6 +226,7 @@ impl AppCustomTheme {
             && [&self.background, &self.surface, &self.text]
                 .iter()
                 .all(|color| valid_accent(color))
+            && self.logo.as_deref().is_none_or(valid_accent)
     }
 }
 
@@ -309,6 +315,14 @@ pub struct AppearancePreferences {
     reader_popup_enabled: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_mouse_selection: Option<bool>,
+    /// The phone: a tap on a word looks it up, taps and swipes turn pages, and so do the
+    /// volume keys.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_tap_lookup: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_touch_page_turns: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_volume_page_turns: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_popup_anki_action: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -354,6 +368,8 @@ pub struct AppearancePreferences {
     library_sort: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     library_sort_reversed: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    library_place: Option<String>,
     /// A group's own page sorts apart from the Library.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     library_group_sort: Option<String>,
@@ -705,6 +721,10 @@ impl AppearancePreferences {
                 .as_deref()
                 .is_none_or(|sort| LIBRARY_SORTS.contains(&sort))
             && self
+                .library_place
+                .as_deref()
+                .is_none_or(|place| LIBRARY_PLACES.contains(&place))
+            && self
                 .library_group_sort
                 .as_deref()
                 .is_none_or(|sort| LIBRARY_SORTS.contains(&sort))
@@ -862,6 +882,9 @@ impl AppearancePreferences {
             reader_popup_font: FontChoice::from_stored(value.get("readerPopupFont"), None),
             reader_popup_enabled: flag("readerPopupEnabled"),
             reader_popup_mouse_selection: flag("readerPopupMouseSelection"),
+            reader_tap_lookup: flag("readerTapLookup"),
+            reader_touch_page_turns: flag("readerTouchPageTurns"),
+            reader_volume_page_turns: flag("readerVolumePageTurns"),
             reader_popup_anki_action: flag("readerPopupAnkiAction"),
             reader_popup_voice_action: flag("readerPopupVoiceAction"),
             reader_popup_show_dictionary_names: flag("readerPopupShowDictionaryNames"),
@@ -897,6 +920,7 @@ impl AppearancePreferences {
             library_view: choice("libraryView", &LIBRARY_VIEWS),
             library_sort: choice("librarySort", &LIBRARY_SORTS),
             library_sort_reversed: flag("librarySortReversed"),
+            library_place: choice("libraryPlace", &LIBRARY_PLACES),
             library_group_sort: choice("libraryGroupSort", &LIBRARY_SORTS),
             library_group_sort_reversed: flag("libraryGroupSortReversed"),
             library_filter: choice("libraryFilter", &LIBRARY_FILTERS),
@@ -1623,6 +1647,9 @@ mod tests {
             reader_popup_font: None,
             reader_popup_enabled: None,
             reader_popup_mouse_selection: None,
+            reader_tap_lookup: None,
+            reader_touch_page_turns: None,
+            reader_volume_page_turns: None,
             reader_popup_anki_action: None,
             reader_popup_voice_action: None,
             reader_popup_show_dictionary_names: None,
@@ -1639,6 +1666,7 @@ mod tests {
             library_view: None,
             library_sort: None,
             library_sort_reversed: None,
+            library_place: None,
             library_group_sort: None,
             library_group_sort_reversed: None,
             library_filter: None,
@@ -2297,6 +2325,47 @@ mod tests {
                 None
             );
         }
+    }
+
+    #[test]
+    fn phone_touch_and_volume_turns_persist_and_refuse_other_values() {
+        let directory = tempdir().unwrap();
+        let database = directory.path().join("library.sqlite3");
+        let mut saved = preferences("dark", "#2f8f83", 200, 20);
+        for enabled in [false, true] {
+            saved.reader_tap_lookup = Some(enabled);
+            saved.reader_touch_page_turns = Some(!enabled);
+            saved.reader_volume_page_turns = Some(enabled);
+            assert!(save(&database, &saved).unwrap());
+            assert_eq!(load(&database).unwrap(), saved);
+            let stored = serde_json::to_value(&saved).unwrap();
+            assert_eq!(stored["readerTapLookup"], enabled);
+            assert_eq!(stored["readerTouchPageTurns"], !enabled);
+            assert_eq!(stored["readerVolumePageTurns"], enabled);
+        }
+        for (key, invalid) in [
+            ("readerTapLookup", serde_json::json!("true")),
+            ("readerTouchPageTurns", serde_json::json!(0)),
+            ("readerVolumePageTurns", serde_json::json!("on")),
+        ] {
+            let mut value = serde_json::to_value(&saved).unwrap();
+            value[key] = invalid;
+            let kept = AppearancePreferences::from_stored(&value);
+            match key {
+                "readerTapLookup" => assert_eq!(kept.reader_tap_lookup, None),
+                "readerTouchPageTurns" => assert_eq!(kept.reader_touch_page_turns, None),
+                _ => assert_eq!(kept.reader_volume_page_turns, None),
+            }
+            assert_eq!(kept.theme, saved.theme);
+        }
+        // The phone's lookup sheet is gone: a choice of it saved before is dropped.
+        let mut value = serde_json::to_value(&saved).unwrap();
+        value["readerLookupDisplay"] = serde_json::json!("sheet");
+        assert_eq!(AppearancePreferences::from_stored(&value), saved);
+        let legacy = AppearancePreferences::from_stored(&serde_json::json!({}));
+        assert_eq!(legacy.reader_tap_lookup, None);
+        assert_eq!(legacy.reader_touch_page_turns, None);
+        assert_eq!(legacy.reader_volume_page_turns, None);
     }
 
     #[test]
@@ -3189,12 +3258,14 @@ mod tests {
             background: "#101820".into(),
             surface: "#18222c".into(),
             text: "#f0e6d2".into(),
+            logo: Some("#f08a9b".into()),
         };
         let chosen = AppearancePreferences {
             app_custom_theme: Some(custom.clone()),
             library_view: Some("list".into()),
             library_sort: Some("progress".into()),
             library_sort_reversed: Some(true),
+            library_place: Some("pc".into()),
             library_group_sort: Some("added".into()),
             library_group_sort_reversed: Some(false),
             library_filter: Some("reading".into()),
@@ -3238,7 +3309,18 @@ mod tests {
                 ..chosen.clone()
             },
             AppearancePreferences {
+                app_custom_theme: Some(AppCustomTheme {
+                    logo: Some("pink".into()),
+                    ..custom.clone()
+                }),
+                ..chosen.clone()
+            },
+            AppearancePreferences {
                 library_view: Some("shelf".into()),
+                ..chosen.clone()
+            },
+            AppearancePreferences {
+                library_place: Some("tablet".into()),
                 ..chosen.clone()
             },
             AppearancePreferences {
@@ -3289,6 +3371,7 @@ mod tests {
                         },
                         "libraryView": "list",
                         "librarySort": "publisher",
+                        "libraryPlace": "everywhere",
                         "libraryGroupSort": "publisher",
                         "libraryGroupSortReversed": "yes",
                         "libraryFilter": "completed",
@@ -3309,6 +3392,7 @@ mod tests {
         assert_eq!(loaded.app_custom_theme, None);
         assert_eq!(loaded.library_view.as_deref(), Some("list"));
         assert_eq!(loaded.library_sort, None);
+        assert_eq!(loaded.library_place, None);
         assert_eq!(loaded.library_group_sort, None);
         assert_eq!(loaded.library_group_sort_reversed, None);
         assert_eq!(loaded.library_filter.as_deref(), Some("completed"));

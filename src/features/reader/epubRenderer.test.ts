@@ -6,7 +6,7 @@ import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prepareReaderContent } from "./contentApi";
-import { epubRendererFactory } from "./epubRenderer";
+import { displayedTextOffset, epubRendererFactory } from "./epubRenderer";
 import { EpubResourceLimit, InvalidEpubDocument } from "./epubTolerance";
 import { NativeZip } from "./nativeArchive";
 import { svgPageDocument } from "./svgPage";
@@ -14,10 +14,15 @@ import { imageInkShift } from "./imageInk";
 import { renderBookImage } from "./bookImages";
 import type { ReaderPresentation } from "./renderer";
 import { defaultLookupTriggers } from "./lookupTriggers";
+import { openExternalLink } from "../dictionary/dictionaryApi";
 
 vi.mock("epubjs", () => ({ default: vi.fn() }));
 vi.mock("./contentApi", () => ({ prepareReaderContent: vi.fn() }));
 vi.mock("./imageInk", () => ({ imageInkShift: vi.fn(async () => undefined) }));
+vi.mock("../dictionary/dictionaryApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../dictionary/dictionaryApi")>()),
+  openExternalLink: vi.fn(async () => undefined),
+}));
 vi.mock("./bookImages", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./bookImages")>()),
   renderBookImage: vi.fn(async () => ({
@@ -2320,6 +2325,87 @@ describe("EPUB.js renderer adapter", () => {
     },
   );
 
+  it("finishes a section whose frame no longer loads fonts", async () => {
+    const { rendition } = mockBook();
+    const register = vi.fn();
+    Object.assign(rendition, { hooks: { content: { register } } });
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 20, fontFamilyGroup2: "inter", viewMode: "paginated" },
+    );
+    // A frame already gone answers with nothing; a broken one throws.
+    for (const load of [
+      () => undefined,
+      () => {
+        throw new Error("gone");
+      },
+    ]) {
+      const section = document.implementation.createHTMLDocument("");
+      Object.defineProperty(section, "fonts", { value: { load } });
+      const contents = { document: section, textWidth: () => 600, resizeCheck: vi.fn() };
+      for (const [hook] of register.mock.calls) await hook(contents);
+      expect(contents.resizeCheck).toHaveBeenCalled();
+    }
+    renderer.dispose();
+  });
+
+  it("opens a book's web links in the browser and nothing else outside the book", async () => {
+    const open = vi.mocked(openExternalLink);
+    open.mockClear();
+    const { rendition } = mockBook();
+    const register = vi.fn();
+    Object.assign(rendition, { hooks: { content: { register } } });
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 20, viewMode: "paginated" },
+    );
+    const section = document.implementation.createHTMLDocument("");
+    Object.defineProperty(section, "fonts", { value: { load: () => undefined } });
+    section.body.innerHTML =
+      '<a id="web" href=" https://example.com/a b?q=1" target="_blank"><span>web</span></a>' +
+      '<a id="mail" href="mailto:someone@example.com">mail</a>' +
+      '<a id="app" href="ms-settings:display">app</a>' +
+      '<a id="script" href="javascript:void 0">script</a>' +
+      '<a id="chapter" href="chapter2.xhtml#n1">chapter</a>';
+    // EPUB.js looks for every link without "://" in the book, and leaves "mailto:" alone.
+    const findInBook = vi.fn(() => false);
+    for (const id of ["app", "script", "chapter"]) section.getElementById(id)!.onclick = findInBook;
+    const contents = { document: section, textWidth: () => 600, resizeCheck: vi.fn() };
+    for (const [hook] of register.mock.calls) await hook(contents);
+    const click = (target: Element) => {
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event;
+    };
+
+    expect(click(section.querySelector("#web span")!).defaultPrevented).toBe(true);
+    expect(open).toHaveBeenCalledExactlyOnceWith("https://example.com/a%20b?q=1");
+    for (const id of ["mail", "app", "script"])
+      expect(click(section.getElementById(id)!).defaultPrevented).toBe(true);
+    expect(findInBook).not.toHaveBeenCalled();
+    click(section.getElementById("chapter")!);
+    expect(findInBook).toHaveBeenCalledOnce();
+    // A click the Reader already took, such as on a saved passage or an image, stays its own.
+    section.body.addEventListener("click", (event) => event.preventDefault(), { once: true });
+    click(section.getElementById("web")!);
+    expect(open).toHaveBeenCalledOnce();
+    renderer.dispose();
+  });
+
   it("counts a page's side padding once when a paginated section's text starts at its edge", async () => {
     const { rendition } = mockBook();
     const register = vi.fn();
@@ -3832,6 +3918,34 @@ describe("EPUB.js renderer adapter", () => {
     renderer.dispose();
   });
 
+  it.each([
+    ["one page across, whose column is the whole page", 1, 412, 412, 332],
+    ["two pages across, whose column excludes the gap", 2, 584, 664, 584],
+  ])("fits images inside the margins %s", async (_case, divisor, columnWidth, pageWidth, inner) => {
+    const item = section("one.xhtml", "", true, '<p>Text</p><img src="wide.png"/>');
+    const { book, rendition } = mockBook([item]);
+    Object.assign(rendition.manager.layout, { columnWidth, pageWidth, gap: 80, divisor });
+    rendition.display.mockImplementation(async () => {
+      for (const [hook] of book.spine.hooks.content.register.mock.calls)
+        await (hook as (document: Document) => unknown)(item.document);
+    });
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 16, writingMode: "horizontal", sideMargin: 40 },
+    );
+    expect(
+      item.document.querySelector("style[data-komori-page-image-width]")?.textContent,
+    ).toContain(`max-width: ${inner}px !important`);
+    renderer.dispose();
+  });
+
   describe("semi-continuous view", () => {
     /**
      * A continuous book laid out whole in a 100px reading area, where each character of a
@@ -4119,7 +4233,57 @@ describe("EPUB.js renderer adapter", () => {
       expect(book.views[0].element.style.getPropertyValue("clip-path")).toBe(
         "inset(40px 0px 0px 0px)",
       );
+      // A selection handle dragged past the group scrolls its view, which goes back at once.
+      const view = book.views[0].element;
+      view.scrollTo = vi.fn((_x: number, _y: number) => {
+        view.scrollTop = 0;
+      }) as unknown as typeof view.scrollTo;
+      view.scrollTop = 120;
+      view.dispatchEvent(new Event("scroll"));
+      expect(view.scrollTo).toHaveBeenCalledWith(0, 0);
+      expect(view.scrollTop).toBe(0);
       expect(book.book.renderTo).toHaveBeenCalledTimes(1);
+      renderer.dispose();
+    });
+
+    it("keeps a selection in VN view within the group shown", async () => {
+      const book = chapterBook([], "vertical", ["<p>ab</p><p>cd</p><p>ef</p>"]);
+      const { renderer } = await mountChapters(book, {
+        fontSize: 16,
+        viewMode: "vn",
+        vnParagraphs: 1,
+        vnTextSpeed: 0,
+      });
+      await renderer.advancePage();
+      const document = book.views[0].contents.document;
+      const [ab, cd, ef] = Array.from(document.querySelectorAll("p"), (p) => p.firstChild!);
+      const selection = document.getSelection()!;
+      // A handle dragged past the group's end into the hidden text after it.
+      selection.setBaseAndExtent(cd, 1, ef, 1);
+      document.dispatchEvent(new Event("selectionchange"));
+      expect(selection.toString()).toBe("d");
+      expect(selection.focusNode).not.toBe(ef);
+      // And backward, past its start, keeping the dragged end as the focus.
+      selection.setBaseAndExtent(cd, 1, ab, 0);
+      document.dispatchEvent(new Event("selectionchange"));
+      expect(selection.toString()).toBe("c");
+      expect(selection.anchorNode).toBe(cd);
+      expect(selection.anchorOffset).toBe(1);
+      // A selection only in the hidden text goes.
+      selection.setBaseAndExtent(ef, 0, ef, 2);
+      document.dispatchEvent(new Event("selectionchange"));
+      expect(selection.isCollapsed || selection.rangeCount === 0).toBe(true);
+      // A selection in the group shown goes when the next group shows, with no handle moved.
+      selection.setBaseAndExtent(cd, 0, cd, 2);
+      document.dispatchEvent(new Event("selectionchange"));
+      expect(selection.toString()).toBe("cd");
+      await renderer.advancePage();
+      expect(selection.isCollapsed || selection.rangeCount === 0).toBe(true);
+      // Outside VN view a selection is left alone.
+      await renderer.setPresentation?.({ fontSize: 16, viewMode: "continuous" });
+      selection.setBaseAndExtent(ab, 0, ef, 2);
+      document.dispatchEvent(new Event("selectionchange"));
+      expect(selection.toString()).toBe("abcdef");
       renderer.dispose();
     });
 
@@ -9375,6 +9539,8 @@ describe("EPUB.js renderer adapter", () => {
           const { rendition, book, display } = mockBook(sections, [
             { label: "Chapter", href: "Text/chapter.xhtml" },
           ]);
+          // Opening wraps destroy, so keep the engine's own.
+          const destroy = book.destroy;
           const shown = section("shown", "", true, sections[2].document.body.innerHTML).document;
           rendition.getContents.mockReturnValue([
             { document: shown, sectionIndex: 2, cfiFromRange: vi.fn(), resizeCheck: vi.fn() },
@@ -9443,7 +9609,7 @@ describe("EPUB.js renderer adapter", () => {
             .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
           expect(late.querySelectorAll("[data-komori-image-blurred]")).toHaveLength(2);
           renderer.dispose();
-          expect(book.destroy).toHaveBeenCalled();
+          expect(destroy).toHaveBeenCalled();
         }
       },
     );
@@ -11622,6 +11788,82 @@ describe("EPUB.js renderer adapter", () => {
       }
     });
 
+    it("looks up a tapped word on the page, but not text the page hides under its margins", async () => {
+      const view = await mountSelectable("<p>本を読む</p>");
+      const page = document.createElement("div");
+      page.getBoundingClientRect = () => domRect({ left: 40, top: 30, right: 480, bottom: 400 });
+      (view.rendition.manager as { container?: HTMLElement }).container = page;
+      try {
+        const node = view.contentDocument.querySelector("p")!.firstChild!;
+        pointAt(view, node, 2);
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(true);
+        expect(view.selected).toHaveBeenLastCalledWith(
+          expect.objectContaining({ origin: "tap", text: "読む" }),
+        );
+        // The frame runs on past the page's right edge, where the next column is clipped.
+        vi.mocked(view.contentDocument.createRange).mockImplementation(() => {
+          const range = view.contentDocument.implementation.createHTMLDocument().createRange();
+          range.getClientRects = () =>
+            [domRect({ left: 450, top: 5, right: 470, bottom: 29 })] as unknown as DOMRectList;
+          return range;
+        });
+        expect(view.renderer.lookupAt?.(500, 45)).toBe(false);
+        expect(view.selected).toHaveBeenCalledTimes(1);
+      } finally {
+        view.renderer.dispose();
+        view.iframe.remove();
+      }
+    });
+
+    it("looks up nothing in a frame its view squeezes away, as a chapter shown alone does its neighbours", async () => {
+      const view = await mountSelectable("<p>本を読む</p>");
+      const body = document.body;
+      const clipped = body.getBoundingClientRect;
+      try {
+        const node = view.contentDocument.querySelector("p")!.firstChild!;
+        pointAt(view, node, 2);
+        // The frame keeps its whole size, but the view holding it shows none of it.
+        body.style.overflow = "hidden";
+        body.getBoundingClientRect = () => domRect({ left: 40, top: 30, right: 40, bottom: 430 });
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(false);
+        expect(view.selected).not.toHaveBeenCalled();
+        // Shown again, its word is looked up.
+        body.getBoundingClientRect = () => domRect({ left: 40, top: 30, right: 1540, bottom: 430 });
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(true);
+        view.iframe.style.visibility = "hidden";
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(false);
+        expect(view.selected).toHaveBeenCalledTimes(1);
+      } finally {
+        body.style.overflow = "";
+        body.getBoundingClientRect = clipped;
+        view.renderer.dispose();
+        view.iframe.remove();
+      }
+    });
+
+    it("looks up nothing under the clip path that hides the text before a VN group", async () => {
+      const view = await mountSelectable("<p>本を読む</p>");
+      const body = document.body;
+      const clipped = body.getBoundingClientRect;
+      try {
+        const node = view.contentDocument.querySelector("p")!.firstChild!;
+        pointAt(view, node, 2);
+        body.getBoundingClientRect = () => domRect({ left: 40, top: 30, right: 1540, bottom: 430 });
+        // The part above y 50 shows the blank page, not the text the view still holds there.
+        body.style.setProperty("clip-path", "inset(20px 0px 0px 0px)");
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(false);
+        expect(view.selected).not.toHaveBeenCalled();
+        body.style.setProperty("clip-path", "inset(10px 0px 0px)");
+        expect(view.renderer.lookupAt?.(60, 45)).toBe(true);
+        expect(view.selected).toHaveBeenCalledTimes(1);
+      } finally {
+        body.style.removeProperty("clip-path");
+        body.getBoundingClientRect = clipped;
+        view.renderer.dispose();
+        view.iframe.remove();
+      }
+    });
+
     it("starts at the touched character when the nearest caret is after it, including supplementary characters", async () => {
       const view = await mountSelectable('<p style="writing-mode: vertical-rl">本𠮷読む</p>');
       try {
@@ -11843,5 +12085,114 @@ describe("EPUB.js renderer adapter", () => {
       view.renderer.dispose();
       view.iframe.remove();
     });
+  });
+});
+
+describe("the displayed text offset of a page edge", () => {
+  // Pages of 40 characters, 20 px each; every 13th character (a collapsed space) has no box.
+  type Layout = "pages" | "pages-rtl" | "scroll";
+  function frameText(text: string, layout: Layout) {
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    const frameDocument = iframe.contentDocument!;
+    frameDocument.body.textContent = text;
+    vi.spyOn(iframe, "getBoundingClientRect").mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 0,
+      height: 0,
+      right: 0,
+      bottom: 0,
+    } as DOMRect);
+    const view = frameDocument.defaultView as unknown as { Range: typeof Range };
+    const probes = { count: 0 };
+    Object.defineProperty(view.Range.prototype, "getClientRects", {
+      configurable: true,
+      value(this: Range) {
+        probes.count++;
+        const index = this.startOffset;
+        if (index % 13 === 12) return [{ top: 0, left: 0, width: 0, height: 0 }];
+        const page = Math.floor(index / 40);
+        const along = (index % 40) * 0.4;
+        if (layout === "scroll")
+          return [{ top: page * 500 + along, left: 5, width: 0.4, height: 10 }];
+        const left = layout === "pages" ? page * 500 + along : -page * 500 + along;
+        return [{ top: 10, left, width: 0.4, height: 10 }];
+      },
+    });
+    const node = frameDocument.body.firstChild!;
+    const host = (page: number) => {
+      const element = document.createElement("div");
+      const start = layout === "pages-rtl" ? -page * 500 : page * 500;
+      vi.spyOn(element, "getBoundingClientRect").mockReturnValue(
+        (layout === "scroll"
+          ? { top: start, bottom: start + 500, left: 0, right: 500, width: 500, height: 500 }
+          : {
+              top: 0,
+              bottom: 500,
+              left: start,
+              right: start + 500,
+              width: 500,
+              height: 500,
+            }) as DOMRect,
+      );
+      return element;
+    };
+    return { frameDocument, node, host, probes, remove: () => iframe.remove() };
+  }
+
+  // The former character-by-character walk, which the halving search must match.
+  function walked(text: string, page: number, offset: number, edge: "start" | "end") {
+    const box = (index: number) =>
+      index % 13 === 12 ? "hidden" : Math.floor(index / 40) === page ? "inside" : "outside";
+    let outside = false;
+    if (edge === "start") {
+      for (let index = offset; index < text.length; index++) {
+        const found = box(index);
+        if (found === "inside") return outside ? index : offset;
+        if (found === "outside") outside = true;
+      }
+      return outside ? undefined : offset;
+    }
+    for (let index = offset; index > 0;) {
+      index--;
+      const found = box(index);
+      if (found === "inside") return outside ? index + 1 : offset;
+      if (found === "outside") outside = true;
+    }
+    return offset;
+  }
+
+  it.each(["pages", "pages-rtl", "scroll"] as const)(
+    "finds the first and last displayed characters as a character walk does (%s)",
+    (layout) => {
+      const text = "あ".repeat(400);
+      const frame = frameText(text, layout);
+      for (const page of [0, 1, 4, 9])
+        for (const offset of [0, 1, 39, 40, 41, 77, 120, 200, 399, 400])
+          for (const edge of ["start", "end"] as const)
+            expect([
+              page,
+              offset,
+              edge,
+              displayedTextOffset(frame.host(page), frame.frameDocument, frame.node, offset, edge),
+            ]).toEqual([page, offset, edge, walked(text, page, offset, edge)]);
+      frame.remove();
+    },
+  );
+
+  it("measures a long paragraph's page edge in a few probes", () => {
+    const text = "あ".repeat(20_000);
+    const frame = frameText(text, "pages");
+    expect(displayedTextOffset(frame.host(300), frame.frameDocument, frame.node, 0, "start")).toBe(
+      12_000,
+    );
+    expect(frame.probes.count).toBeLessThan(60);
+    frame.probes.count = 0;
+    expect(
+      displayedTextOffset(frame.host(300), frame.frameDocument, frame.node, 20_000, "end"),
+    ).toBe(12_040);
+    expect(frame.probes.count).toBeLessThan(60);
+    frame.remove();
   });
 });

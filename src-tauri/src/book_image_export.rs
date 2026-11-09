@@ -79,7 +79,7 @@ pub async fn save_book_image(
             .and_then(|value| value.to_str().ok()),
     );
     let language = interface_text::language(&catalog.database);
-    let selected = rfd::AsyncFileDialog::new()
+    let selected = crate::file_dialog::AsyncFileDialog::new()
         .set_title(interface_text::text(language, Text::SaveImage))
         .add_filter(interface_text::text(language, Text::Images), &[extension])
         .set_file_name(format!("{stem}.{extension}"))

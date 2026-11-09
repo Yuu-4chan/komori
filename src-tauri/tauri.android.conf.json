@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "title": "Komori",
+        "create": false
+      }
+    ]
+  },
+  "bundle": {
+    "android": {
+      "minSdkVersion": 29
+    },
+    "resources": {
+      "fonts": "reader-fonts"
+    }
+  },
+  "plugins": {
+    "updater": null
+  }
+}

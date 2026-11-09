@@ -1089,20 +1089,6 @@
   animation: reader-layout-status-in 150ms ease-out 300ms both;
 }
 
-.reader-vn-reveal {
-  position: absolute;
-  z-index: 2;
-  right: 20px;
-  bottom: 18px;
-  padding: 6px 12px;
-  border: 1px solid color-mix(in srgb, var(--reader-ink) 16%, transparent);
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--reader-page) 92%, transparent);
-  color: var(--reader-footer-text);
-  font-size: 12px;
-  cursor: pointer;
-}
-
 .reader-view-choice .segmented-control {
   grid-auto-flow: row;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1143,35 +1129,6 @@
     transform: translateY(4px);
   }
 }
-.reader-lookup .anki-action,
-.lookup-entry__actions .anki-action,
-.lookup-entry__actions .icon-button {
-  width: 30px;
-  height: 30px;
-  min-height: 0;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-}
-.lookup-entry__actions .icon-button:not(:disabled):hover {
-  color: var(--text-primary);
-  background: var(--surface-subtle);
-}
-.lookup-entry__actions {
-  margin-left: auto;
-  display: flex;
-  flex: none;
-  gap: 2px;
-  align-items: center;
-}
-.lookup-entry__actions .anki-action-group {
-  display: flex;
-  gap: 2px;
-}
-.reader-lookup .anki-action--blocked:disabled,
-.lookup-entry__actions .anki-action--blocked:disabled {
-  opacity: 0.45;
-}
 .reader-lookup__action.icon-button {
   width: 30px;
   height: 30px;
@@ -1188,7 +1145,7 @@
 .reader-lookup__body {
   min-height: 0;
   flex: 1 1 auto;
-  padding: 4px 14px 18px 22px;
+  padding: 0 6px 12px 14px;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -1216,31 +1173,27 @@
   display: flex;
   flex-direction: column;
 }
-/* A one-kanji lookup's Kanji card keeps the Dictionary page's card, flattened into the sheet. */
-.reader-lookup__entries > [data-popup-expression] > .dictionary-kanji-card {
-  margin-bottom: var(--space-3);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-/* One headword. */
+/* One headword, compact: the headword row, a row of frequency boxes, then each dictionary's
+   numbered definitions under its name, with one rule between headwords. */
 .reader-lookup__entries > [data-popup-expression] + [data-popup-expression] {
-  margin-top: 6px;
   border-top: 1px solid var(--border-medium);
 }
-.lookup-entry__header {
+.lookup-entry {
   padding: 14px 0 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-bottom: 1px solid var(--border-soft);
+  gap: 8px;
 }
-/* The headword, its reading, voice and tags, with the entry's actions on the same row: the
-   actions center on the headword's own line, also when tags wrap or furigana sits above. */
+.lookup-entry__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* The headword, its reading with the pitch and its notes, with the entry's actions on the same
+   row: the actions center on the headword's own line, also when the notes wrap or furigana sits
+   above. */
 .lookup-entry__headline {
-  --lookup-headword-line: 42px;
+  --lookup-headword-line: 38px;
   --lookup-reading-line: 0px;
   display: flex;
   align-items: flex-start;
@@ -1251,16 +1204,22 @@
   color: var(--text-secondary);
 }
 .lookup-entry--furigana .lookup-entry__headline {
-  --lookup-reading-line: 16px;
+  --lookup-reading-line: 15px;
 }
 .lookup-entry__word {
   min-width: 0;
   min-height: calc(var(--lookup-headword-line) + var(--lookup-reading-line));
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  align-content: center;
   flex-wrap: wrap;
-  gap: 8px 12px;
+  gap: 2px 10px;
   padding-top: var(--lookup-reading-line);
+}
+/* What follows the headword (its reading, a common word's stars, the matched start and the
+   inflections) is centered on the headword's own line rather than sitting on its baseline. */
+.lookup-entry__word > :not(.lookup-entry__expression) {
+  line-height: var(--lookup-headword-line);
 }
 .lookup-entry__headline > .lookup-entry__actions {
   height: var(--lookup-headword-line);
@@ -1270,9 +1229,9 @@
 .lookup-entry__expression {
   color: var(--text-primary);
   font-family: var(--popup-font, var(--font-lookup));
-  font-size: 38px;
+  font-size: 32px;
   font-weight: 600;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 .lookup-entry__expression .dictionary-result-card__kanji {
   text-decoration-thickness: 1.5px;
@@ -1294,7 +1253,8 @@
   white-space: nowrap;
 }
 /* The reading spans its whole kanji run with its kana spread evenly across it; a reading wider
-   than its run stays centered over it. */
+   than its run stays centered over it. Kana carrying the pitch sit together, so its line runs
+   unbroken over them. */
 .lookup-entry__expression rt {
   position: absolute;
   bottom: 100%;
@@ -1305,7 +1265,7 @@
   margin-bottom: 1px;
   transform: translateX(-50%);
   color: var(--text-muted);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   line-height: 1;
   white-space: nowrap;
@@ -1313,301 +1273,312 @@
 .lookup-entry__reading {
   color: var(--text-muted);
   font-family: var(--popup-font, var(--font-lookup));
-  font-size: 20px;
+  font-size: 16px;
 }
-.lookup-entry .dictionary-audio-button {
+/* A common word's stars, beside the headword. */
+.lookup-entry__stars {
+  display: inline-flex;
+  gap: 3px;
+  color: color-mix(in srgb, #d49b00 72%, var(--text-primary));
+  font-size: 14px;
+  font-weight: 700;
+}
+.lookup-entry__stars [title] {
+  cursor: help;
+}
+.lookup-entry__note {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Voice, Dictionary and Anki: the same plain icons, no box around them. */
+.lookup-entry__actions {
+  margin-left: auto;
+  display: flex;
+  flex: none;
+  gap: 2px;
+  align-items: center;
+}
+.lookup-entry__actions .anki-action-group {
+  display: flex;
+  gap: 2px;
+}
+.lookup-entry__actions .anki-action,
+.lookup-entry__actions .icon-button,
+.lookup-entry__actions .dictionary-audio-button {
   width: 30px;
   height: 30px;
-}
-.lookup-entry .dictionary-result-card__tags {
-  margin: 0;
-  gap: 6px;
-}
-.lookup-entry .dictionary-result-card__tags span {
-  padding: 4px 11px;
-  color: var(--accent-ink);
-  background: var(--popup-tag, color-mix(in srgb, var(--accent-base) 17%, var(--surface-card)));
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 650;
-}
-.lookup-entry .dictionary-result-card__tags span[data-category] {
-  color: color-mix(in srgb, var(--tag-color) var(--tag-ink-share), var(--tag-ink-toward));
-  background: color-mix(in srgb, var(--tag-color) var(--tag-tint-share), var(--surface-card));
-}
-.lookup-entry__notes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.lookup-entry__notes > span {
-  padding: 2px 9px;
+  min-height: 0;
   color: var(--text-muted);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-pill);
-  font-size: 12px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
 }
+.lookup-entry__actions .icon-button:not(:disabled):hover,
+.lookup-entry__actions .dictionary-audio-button:hover:not(:disabled),
+.lookup-entry__actions .dictionary-audio-button--playing {
+  color: var(--accent-ink);
+  background: transparent;
+}
+.lookup-entry__actions .anki-action--saved {
+  color: var(--accent-ink);
+}
+.reader-lookup .anki-action--blocked:disabled,
+.lookup-entry__actions .anki-action--blocked:disabled {
+  opacity: 0.45;
+}
+
+/* Frequencies as small boxes close together, a common word's star first. */
 .lookup-entry__frequencies {
   margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   list-style: none;
 }
 .lookup-entry__frequencies li {
   max-width: 100%;
+  padding: 0 6px;
   display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
   overflow: hidden;
-  border: 1px solid var(--border-medium);
-  border-radius: 8px;
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
   font-size: 12.5px;
-  line-height: 1.5;
+  line-height: 1.6;
+  white-space: nowrap;
 }
-.lookup-entry__frequencies span {
+.lookup-entry__frequencies span:not(.visually-hidden) {
   max-width: 11rem;
-  padding: 2px 8px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-secondary);
-  background: var(--surface-subtle);
-  border-right: 1px solid var(--border-soft);
 }
 .lookup-entry__frequencies strong {
-  padding: 2px 8px;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  white-space: nowrap;
-}
-.lookup-entry__frequencies .lookup-entry__more {
-  border-style: dashed;
-}
-.lookup-entry__more button {
-  padding: 2px 9px;
-  color: var(--accent-ink);
-  background: transparent;
-  font-size: 12.5px;
-  font-weight: 650;
-  cursor: pointer;
-}
-.lookup-entry__more button:hover {
-  background: var(--accent-faint);
-}
-.lookup-entry .dictionary-pitch {
-  padding-top: 0;
-}
-.lookup-entry .dictionary-pitch h3 {
-  margin-bottom: 4px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
-/* Each dictionary's definitions: a numbered, collapsible section. */
-.lookup-entry__definitions {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.lookup-definition + .lookup-definition {
-  border-top: 1px solid var(--border-soft);
-}
-.lookup-definition__toggle {
-  width: 100%;
-  padding: 12px 2px 8px 0;
+/* The Pitch row: each pattern drawn on the reading, as accent dictionaries draw it, a line over
+   each high mora and a step down after the mora where it falls (a devoiced mora ringed, a nasal
+   one marked), then its position and tags; the patterns are separated by commas, and each
+   one's sources show in its tooltip. */
+.lookup-entry__pitch {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  text-align: left;
-  color: var(--text-primary);
-  background: transparent;
-  cursor: pointer;
-}
-.lookup-definition__toggle:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 2px;
-  border-radius: 8px;
-}
-.lookup-definition__index {
-  min-width: 32px;
-  height: 26px;
-  padding: 0 8px;
-  display: grid;
-  place-items: center;
-  flex: none;
-  color: var(--accent-ink);
-  background: color-mix(in srgb, var(--accent-base) 14%, var(--surface-card));
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 750;
-  font-variant-numeric: tabular-nums;
-}
-.lookup-definition__source {
-  min-width: 0;
-  padding: 3px 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--accent-ink);
-  background: color-mix(in srgb, var(--accent-base) 14%, var(--surface-card));
-  border-radius: 8px;
-  font-size: 13.5px;
-  font-weight: 650;
-}
-.lookup-definition__caret {
-  margin-left: auto;
-  flex: none;
-  color: var(--text-muted);
-  transition: transform var(--duration-fast) var(--ease-out);
-}
-.lookup-definition__toggle:hover .lookup-definition__caret {
-  color: var(--text-primary);
-}
-.lookup-definition--closed .lookup-definition__caret {
-  transform: rotate(-90deg);
-}
-.lookup-definition--closed .lookup-definition__toggle {
-  padding-bottom: 12px;
-}
-.lookup-definition__body {
-  padding: 0 4px 14px 44px;
-  font-size: 15px;
-  line-height: 1.65;
-}
-.lookup-definition__body .dictionary-glossary {
-  max-width: none;
-  margin-top: 4px;
-}
-.lookup-definition__body .dictionary-glossary:first-child {
-  margin-top: 0;
-}
-/* Numbered senses in soft circles. */
-.lookup-definition__body .dictionary-glossary ol {
-  padding-inline-start: 2rem;
-  list-style: none;
-  counter-reset: lookup-sense;
-}
-.lookup-definition__body .dictionary-glossary ol > li {
-  position: relative;
-  counter-increment: lookup-sense;
-}
-/* A dictionary that numbers its own senses (①, ②…) keeps its markers instead of the circles. */
-.lookup-definition__body .dictionary-glossary ol > li[style*="list-style-type"],
-.lookup-definition__body .dictionary-glossary ol[style*="list-style-type"] > li {
-  list-style-position: outside;
-}
-.lookup-definition__body .dictionary-glossary ol > li[style*="list-style-type"]::before,
-.lookup-definition__body .dictionary-glossary ol[style*="list-style-type"] > li::before {
-  content: none;
-}
-.lookup-definition__body .dictionary-glossary ol > li::before {
-  content: counter(lookup-sense);
-  position: absolute;
-  top: 0.18em;
-  left: -2rem;
-  width: 1.4rem;
-  height: 1.4rem;
-  display: grid;
-  place-items: center;
-  color: var(--text-secondary);
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-soft);
-  border-radius: 50%;
-  font-size: 11.5px;
-  font-weight: 650;
-  line-height: 1;
-}
-
-/* In the popup the headword and its labels stay near the definitions' size, so the meaning
-   leads: a headword under twice the definitions' size, and one small label size for the
-   dictionary names, section numbers, tags, notes and frequency chips. */
-.reader-lookup .lookup-entry__header {
-  padding: 10px 0 9px;
+  align-items: baseline;
   gap: 8px;
 }
+.lookup-entry__row-label,
+.lookup-entry__kanji-readings dt {
+  flex: none;
+  color: var(--accent-ink);
+  font-family: var(--font-interface);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.lookup-entry__pitch ul {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  list-style: none;
+}
+.lookup-entry__pitch li {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: help;
+}
+.lookup-entry__pitch li:not(:last-child)::after {
+  content: ",";
+  margin-inline-start: -5px;
+}
+.lookup-entry__pitch-reading {
+  padding-top: 2px;
+  color: var(--text-secondary);
+  font-family: var(--popup-font, var(--font-lookup));
+  font-size: 15px;
+}
+.lookup-entry__pitch-position {
+  font-variant-numeric: tabular-nums;
+}
+.lookup-entry__pitch-tags {
+  font-style: italic;
+  font-synthesis-style: auto;
+}
+.pitch-kana--high,
+.pitch-kana--drop {
+  border-top: 1.5px solid var(--accent-ink);
+}
+.pitch-kana--drop {
+  padding-right: 1px;
+  border-right: 1.5px solid var(--accent-ink);
+}
+.pitch-kana--devoiced {
+  border-radius: 50%;
+  outline: 1px dashed var(--text-muted);
+  outline-offset: -1px;
+}
+.pitch-kana--nasal::after {
+  content: "°";
+  color: var(--accent-ink);
+}
+
+/* A kanji's On and Kun readings, on one line under the character. */
+.lookup-entry__kanji-readings {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  color: var(--text-secondary);
+  font-family: var(--popup-font, var(--font-lookup));
+  font-size: 15px;
+}
+.lookup-entry__kanji-readings div {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.lookup-entry__kanji-readings dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Each dictionary's part: its name, which folds it, and its tags in small italics, then its
+   definitions, numbered when it has more than one. */
+.lookup-source {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.lookup-source__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+.lookup-source__name {
+  max-width: 100%;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: var(--accent-ink);
+  background: var(--popup-tag, color-mix(in srgb, var(--accent-base) 14%, var(--surface-card)));
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.lookup-source__name:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+.lookup-source__caret {
+  flex: none;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.lookup-source--closed .lookup-source__caret {
+  transform: rotate(-90deg);
+}
+.lookup-source__tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-style: italic;
+  /* The included Inter has no italic face, so this slant is drawn. */
+  font-synthesis-style: auto;
+}
+.lookup-source__tags > span + :is(span, button)::before {
+  content: "·";
+  margin-inline: 5px;
+  font-style: normal;
+  opacity: 0.6;
+}
+.lookup-source__tag--noted {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+}
+.lookup-source__senses,
+.lookup-source__meanings {
+  margin: 0;
+  padding-inline-start: 1.35em;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.lookup-source__senses > li + li {
+  margin-top: 2px;
+}
+.lookup-source__senses > li::marker {
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.lookup-source__senses--single {
+  padding-inline-start: 0;
+  list-style: none;
+}
+.lookup-source__senses .dictionary-glossary {
+  max-width: none;
+  margin: 0;
+}
+/* A kanji's meanings are short, so they flow as one comma-separated line that wraps. */
+.lookup-source__meanings {
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+.lookup-source__meanings li:not(:last-child)::after {
+  content: ",";
+  margin-inline-end: 0.35em;
+}
+.lookup-source__body > .dictionary-kanji__stats {
+  margin-top: 6px;
+}
+
+/* In the popup the headword stays under twice the definitions' size, so the meaning leads. */
+.reader-lookup .lookup-entry {
+  padding: 8px 0;
+  gap: 6px;
+}
 .reader-lookup .lookup-entry__headline {
-  --lookup-headword-line: 32px;
+  --lookup-headword-line: 34px;
 }
 .reader-lookup .lookup-entry--furigana .lookup-entry__headline {
   --lookup-reading-line: 13px;
 }
 .reader-lookup .lookup-entry__expression {
-  font-size: 27px;
+  font-size: 28px;
 }
 .reader-lookup .lookup-entry__expression rt {
   font-size: 12px;
 }
-.reader-lookup .lookup-entry__reading {
-  font-size: 16px;
-}
-.reader-lookup .lookup-entry .dictionary-audio-button {
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-}
-.reader-lookup .lookup-entry .dictionary-audio-button svg {
-  width: 14px;
-  height: 14px;
-}
-.reader-lookup .lookup-entry .dictionary-result-card__tags,
-.reader-lookup .lookup-entry__notes,
-.reader-lookup .lookup-entry__frequencies {
-  gap: 4px;
-}
-.reader-lookup .lookup-entry .dictionary-result-card__tags span {
-  padding: 1px 7px;
-  border-radius: 6px;
-  font-size: 11.5px;
-}
-.reader-lookup .lookup-entry__notes > span {
-  padding: 0 7px;
-  font-size: 11.5px;
-}
-.reader-lookup .lookup-entry__frequencies li {
-  border-radius: 6px;
-  font-size: 11.5px;
-  line-height: 1.45;
-}
-.reader-lookup .lookup-entry__frequencies :is(span, strong),
-.reader-lookup .lookup-entry__more button {
-  padding: 1px 6px;
-}
-.reader-lookup .lookup-entry__more button {
-  font-size: 11.5px;
-}
-/* Pitch lines read as notes beside the contour, its own 11 px mora labels setting the size. */
-.reader-lookup .lookup-entry .dictionary-pitch li {
-  font-size: 12px;
-}
-.reader-lookup .lookup-entry .dictionary-pitch__position {
-  color: var(--text-muted);
-}
-.reader-lookup .lookup-entry .dictionary-pitch__source {
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-.reader-lookup .lookup-definition__toggle {
-  padding: 10px 2px 6px 0;
-  gap: 8px;
-}
-.reader-lookup .lookup-definition--closed .lookup-definition__toggle {
-  padding-bottom: 10px;
-}
-.reader-lookup .lookup-definition__index {
-  min-width: 22px;
-  height: 20px;
-  padding: 0 6px;
-  font-size: 11.5px;
-}
-.reader-lookup .lookup-definition__source {
-  padding: 1px 7px;
-  border-radius: 6px;
-  font-size: 11.5px;
-}
-.reader-lookup .lookup-definition__body {
-  padding: 0 4px 12px 30px;
+.reader-lookup .lookup-entry__actions :is(.anki-action, .icon-button, .dictionary-audio-button) {
+  width: 28px;
+  height: 28px;
 }
 
 /* The dictionary style: each headword with its furigana over a rule, then each
@@ -1619,7 +1590,7 @@
   fallback: decimal;
 }
 .reader-lookup--dictionary .reader-lookup__body {
-  padding: 14px 20px 20px 22px;
+  padding: 10px 10px 14px 14px;
 }
 .reader-lookup--dictionary .reader-lookup__entries {
   gap: 14px;
@@ -1631,12 +1602,6 @@
   + [data-popup-expression] {
   margin-top: 0;
   padding-top: 14px;
-}
-.reader-lookup--dictionary
-  .reader-lookup__entries
-  > [data-popup-expression]
-  > .dictionary-kanji-card {
-  margin-bottom: 0;
 }
 .dictionary-entry {
   display: flex;

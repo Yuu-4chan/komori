@@ -124,11 +124,13 @@ import {
 import {
   isLibraryCardSize,
   isLibraryFilter,
+  isLibraryPlace,
   isLibraryGroup,
   isLibrarySort,
   isLibraryView,
   libraryCardSize,
   type LibraryFilter,
+  type LibraryPlace,
   type LibraryGroup,
   type LibrarySort,
   type LibraryView,
@@ -165,6 +167,12 @@ export interface AppearancePreferences
   readerPopupDefinitionSources: SourceSelection;
   readerPopupEnabled: boolean;
   readerPopupMouseSelection: boolean;
+  /** The phone: a tap on a word looks it up (a long press still offers Look up). */
+  readerTapLookup: boolean;
+  /** The phone: taps on the page's sides and swipes turn pages. */
+  readerTouchPageTurns: boolean;
+  /** The phone: the volume keys turn pages, and in VN view read on. */
+  readerVolumePageTurns: boolean;
   readerPopupAnkiAction: boolean;
   readerPopupVoiceAction: boolean;
   readerPopupShowDictionaryNames: boolean;
@@ -205,6 +213,8 @@ export interface AppearancePreferences
   libraryGroupSortReversed: boolean;
   /** The Library's reading-status filter. */
   libraryFilter: LibraryFilter;
+  /** On the phone paired with a PC: all books, those on the phone, or the PC's. */
+  libraryPlace: LibraryPlace;
   /** Optional details the Library's book cards show. */
   libraryCardSeries: boolean;
   libraryCardLanguage: boolean;
@@ -290,6 +300,9 @@ export const defaultAppearance: AppearancePreferences = {
   readerPopupDefinitionSources: allSources,
   readerPopupEnabled: true,
   readerPopupMouseSelection: defaultLookupTriggers.readerPopupMouseSelection,
+  readerTapLookup: true,
+  readerTouchPageTurns: true,
+  readerVolumePageTurns: false,
   readerPopupAnkiAction: true,
   readerPopupVoiceAction: true,
   readerPopupShowDictionaryNames: true,
@@ -317,6 +330,7 @@ export const defaultAppearance: AppearancePreferences = {
   libraryGroupSort: "title",
   libraryGroupSortReversed: false,
   libraryFilter: "all",
+  libraryPlace: "all",
   libraryCardSeries: true,
   libraryCardLanguage: true,
   libraryCardLastRead: true,
@@ -389,6 +403,9 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
   const {
     readerPopupEnabled,
     readerPopupMouseSelection,
+    readerTapLookup,
+    readerTouchPageTurns,
+    readerVolumePageTurns,
     readerPopupAnkiAction,
     readerPopupVoiceAction,
     readerPopupShowDictionaryNames,
@@ -416,6 +433,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     libraryGroupSort,
     libraryGroupSortReversed,
     libraryFilter,
+    libraryPlace,
     libraryCardSeries,
     libraryCardLanguage,
     libraryCardLastRead,
@@ -500,6 +518,9 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     }),
     ...(typeof readerPopupEnabled === "boolean" && { readerPopupEnabled }),
     ...(typeof readerPopupMouseSelection === "boolean" && { readerPopupMouseSelection }),
+    ...(typeof readerTapLookup === "boolean" && { readerTapLookup }),
+    ...(typeof readerTouchPageTurns === "boolean" && { readerTouchPageTurns }),
+    ...(typeof readerVolumePageTurns === "boolean" && { readerVolumePageTurns }),
     ...(typeof readerPopupAnkiAction === "boolean" && { readerPopupAnkiAction }),
     ...(typeof readerPopupVoiceAction === "boolean" && { readerPopupVoiceAction }),
     ...(typeof readerPopupShowDictionaryNames === "boolean" && { readerPopupShowDictionaryNames }),
@@ -529,6 +550,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(isLibrarySort(libraryGroupSort) && { libraryGroupSort }),
     ...(typeof libraryGroupSortReversed === "boolean" && { libraryGroupSortReversed }),
     ...(isLibraryFilter(libraryFilter) && { libraryFilter }),
+    ...(isLibraryPlace(libraryPlace) && { libraryPlace }),
     ...(typeof libraryCardSeries === "boolean" && { libraryCardSeries }),
     ...(typeof libraryCardLanguage === "boolean" && { libraryCardLanguage }),
     ...(typeof libraryCardLastRead === "boolean" && { libraryCardLastRead }),

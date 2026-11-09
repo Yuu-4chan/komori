@@ -1,6 +1,8 @@
 dist
 node_modules
 src-tauri/target
+# The Android project Tauri generates, with its build outputs.
+src-tauri/gen
 artifacts
 pnpm-lock.yaml
 # Pinned upstream source: preserve templates, styling and license byte-for-byte.

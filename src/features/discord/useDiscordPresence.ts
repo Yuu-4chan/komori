@@ -13,6 +13,9 @@ import {
 /** How often the open book is reported again, so the speed stays current. */
 export const discordRefreshMs = 15_000;
 
+/** Discord runs on the PC only; the phone reports nothing. */
+const reports = import.meta.env.TAURI_ENV_PLATFORM !== "android";
+
 const percent = (current: number, total: number) =>
   Math.floor((Math.min(current, total) / total) * 100);
 
@@ -43,7 +46,7 @@ export function useDiscordPresence(
       position: progress?.current ?? 0,
     };
   };
-  const id = book?.id ?? null;
+  const id = reports ? (book?.id ?? null) : null;
   const title = book?.title;
 
   useEffect(() => {
@@ -84,7 +87,7 @@ export function useDiscordBrowsing(page: DiscordPage | null) {
   }, []);
 
   useEffect(() => {
-    if (!page) return;
+    if (!page || !reports) return;
     const report = () => {
       reported.current = activity.current;
       reportDiscordBrowsing({ page, activity: activity.current });

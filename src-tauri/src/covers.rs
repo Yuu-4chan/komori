@@ -39,6 +39,12 @@ pub(crate) struct CoverImage {
 }
 
 /// The URL the webview loads a book's thumbnail from; the revision changes with the cover.
+/// Where the phone's webview loads a cover of the paired PC's book.
+#[cfg(mobile)]
+pub(crate) fn pc_cover_url(id: &str, revision: i64) -> String {
+    format!("http://{SCHEME}.localhost/pc/{id}/{revision}")
+}
+
 pub(crate) fn cover_url(id: &str, revision: i64) -> String {
     // WebView2 maps custom schemes to a localhost origin on Windows and Android.
     if cfg!(any(target_os = "windows", target_os = "android")) {
@@ -264,6 +270,26 @@ pub fn serve_cover(
     // The only current webview is the app-owned main window.
     if context.webview_label() != "main" {
         responder.respond(response(StatusCode::FORBIDDEN, None, false));
+        return;
+    }
+    // On the phone, `/pc/<book>/<revision>` is a cover of the paired PC's book.
+    #[cfg(mobile)]
+    if let Some((id, revision)) = request
+        .uri()
+        .path()
+        .strip_prefix("/pc")
+        .and_then(parse_path)
+        .filter(|_| request.method() == Method::GET && request.uri().query().is_none())
+    {
+        // Answered from the phone's cache at once: a cover not here yet is a miss the Library
+        // loads again when it arrives, never a request held open while the PC is asked.
+        let app = context.app_handle().clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            responder.respond(match crate::pc_link::pc_cover(&app, &id, revision) {
+                Some(cover) => response(StatusCode::OK, Some(cover), true),
+                None => response(StatusCode::NOT_FOUND, None, false),
+            })
+        });
         return;
     }
     let database = context

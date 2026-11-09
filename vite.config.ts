@@ -14,7 +14,10 @@ export default defineConfig({
   },
   envPrefix: ["VITE_", "TAURI_"],
   build: {
-    target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari13",
+    // WebView2 on Windows and Android System WebView are both Chromium.
+    target: ["windows", "android"].includes(process.env.TAURI_ENV_PLATFORM ?? "")
+      ? "chrome105"
+      : "safari13",
     minify: !process.env.TAURI_ENV_DEBUG,
     sourcemap: Boolean(process.env.TAURI_ENV_DEBUG),
   },

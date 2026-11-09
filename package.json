@@ -1,6 +1,6 @@
 {
   "name": "komori",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "author": "Yuu-4chan",
   "license": "GPL-3.0-or-later",
@@ -10,6 +10,8 @@
     "tauri": "node scripts/tauri.mjs",
     "tauri:build": "node scripts/tauri.mjs build --config src-tauri/tauri.release.conf.json",
     "tauri:dev": "node scripts/tauri.mjs dev",
+    "android:dev": "node scripts/tauri.mjs android dev",
+    "android:build": "node scripts/tauri.mjs android build --debug --apk --target aarch64 x86_64",
     "tauri:release": "node scripts/tauri.mjs build --config src-tauri/tauri.release.conf.json --config src-tauri/tauri.updater.conf.json && node scripts/release-manifest.mjs",
     "build": "node scripts/reader-fonts.mjs && tsc -b && vite build && node scripts/third-party-notices.mjs",
     "format": "prettier --write .",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isCustomTheme,
+  isLightTheme,
   normalizeCustomThemes,
   readerPresetThemes,
   themeColors,
@@ -56,4 +57,13 @@ describe("Reader Highlight colors", () => {
       expect(isCustomTheme({ ...legacy, highlight })).toBe(false);
     },
   );
+});
+
+describe("Reader theme lightness", () => {
+  it("tells a light page with dark text from a dark page with light text", () => {
+    const light = readerPresetThemes.filter(isLightTheme).map((theme) => theme.id);
+    expect(light).toEqual(expect.arrayContaining(["paper", "sepia", "solarized", "latte"]));
+    expect(light.some((id) => ["night", "nord", "gruvbox", "mocha"].includes(id))).toBe(false);
+    expect(isLightTheme({ ...legacy, highlight: legacy.selection })).toBe(false);
+  });
 });

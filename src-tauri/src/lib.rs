@@ -1,15 +1,19 @@
 #[cfg(windows)]
 mod alt_menu;
+#[cfg(mobile)]
+mod android;
 mod anki;
 mod app_icon;
 mod appearance_preferences;
 mod backup;
 mod book_details;
 mod book_image_export;
+mod book_source;
 mod bookmarks;
 mod bulk_progress;
 mod clipboard;
 mod covers;
+mod devices;
 mod dictionary;
 mod discord_presence;
 mod epub;
@@ -17,10 +21,16 @@ mod epub;
 mod event_target;
 mod external_link;
 mod failure;
+mod file_dialog;
+mod http;
 mod interface_text;
 mod library;
 mod library_drop;
 mod library_folders;
+#[cfg(mobile)]
+mod pc_link;
+#[cfg(any(mobile, test))]
+mod pc_listing;
 mod reader_background;
 mod reader_content;
 mod reader_fonts;
@@ -29,10 +39,12 @@ mod reader_notes;
 mod reading_position;
 mod reading_sessions;
 mod startup;
+mod sync;
 mod title_cleaning;
 mod title_series;
 mod updates;
 mod window_lifecycle;
+#[cfg(desktop)]
 mod window_size;
 mod word_audio;
 
@@ -40,13 +52,19 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        // One Komori at a time: opening it again, even from a shortcut while it waits in the
-        // tray, shows the running window instead of a second copy writing the same catalog.
+    let builder = tauri::Builder::default();
+    // One Komori at a time: opening it again, even from a shortcut while it waits in the tray,
+    // shows the running window instead of a second copy writing the same catalog. Android runs
+    // one Komori by itself and updates through the release, not in the app.
+    #[cfg(desktop)]
+    let builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             window_lifecycle::second_launch(app)
         }))
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build());
+    #[cfg(mobile)]
+    let builder = builder.plugin(android::init());
+    builder
         .manage(updates::UpdateState::default())
         .manage(reader_content::ReaderArchives::default())
         .register_asynchronous_uri_scheme_protocol("komori-book", reader_content::serve_book)
@@ -59,7 +77,25 @@ pub fn run() {
         .setup(|app| {
             let catalog = library::initialize_catalog(app.handle())?;
             #[cfg_attr(not(windows), allow(unused_variables))]
+            #[cfg(desktop)]
             let window = window_size::create_main_window(app.handle(), &catalog.database)?;
+            // The phone has one full-screen window; the system decides its size.
+            #[cfg(mobile)]
+            let window = tauri::WebviewWindowBuilder::from_config(
+                app.handle(),
+                app.config()
+                    .app
+                    .windows
+                    .first()
+                    .ok_or("Komori has no main window configuration")?,
+            )
+            .and_then(tauri::WebviewWindowBuilder::build)
+            .map_err(|error| format!("Komori window could not be created: {error}"))?;
+            // A dictionary copy cut short when Android ended Komori leaves its pack behind.
+            #[cfg(mobile)]
+            if let Ok(cache) = app.path().app_cache_dir() {
+                pc_listing::remove_dictionary_packs(&cache);
+            }
             app.manage(library_drop::LibraryDropState::default());
             library_drop::install(&window);
             window_lifecycle::install(app.handle(), &catalog.database);
@@ -92,11 +128,23 @@ pub fn run() {
             });
             // Automatic snapshots, when they are on, from shortly after startup.
             backup::start_automatic(catalog.database.clone());
+            // Discord runs on the PC only; the phone has no Discord app to tell.
+            #[cfg(desktop)]
             app.manage(discord_presence::start(catalog.database.clone()));
+            #[cfg(desktop)]
+            let catalog_database = catalog.database.clone();
             app.manage(catalog);
             app.manage(backup::BackupState::default());
             app.manage(reader_fonts::initialize(app.handle())?);
-            app.manage(dictionary::store::initialize_store(app.handle())?);
+            let dictionaries = dictionary::store::initialize_store(app.handle())?;
+            // Paired phones reach the Library and dictionaries through the PC's own server.
+            #[cfg(desktop)]
+            app.manage(devices::start(
+                catalog_database,
+                dictionaries.database().to_owned(),
+                app.handle().clone(),
+            ));
+            app.manage(dictionaries);
             app.manage(dictionary::starter::initialize(app.handle())?);
             Ok(())
         })
@@ -151,8 +199,11 @@ pub fn run() {
             reading_position::mark_books_completed,
             reading_sessions::save_reading_session,
             reading_sessions::list_reading_sessions,
+            reading_sessions::list_reading_devices,
             reading_sessions::edit_daily_activity,
             reading_sessions::list_library_kanji,
+            #[cfg(mobile)]
+            pc_link::list_pc_library_kanji,
             reading_sessions::get_statistics_counts,
             reading_sessions::delete_reading_sessions,
             reading_sessions::mark_book_unread,
@@ -170,11 +221,77 @@ pub fn run() {
             startup::save_startup_preferences,
             startup::get_startup_book,
             startup::remember_last_book,
+            #[cfg(desktop)]
             discord_presence::get_discord_preferences,
+            #[cfg(desktop)]
             discord_presence::save_discord_preferences,
+            #[cfg(desktop)]
             discord_presence::set_discord_activity,
+            #[cfg(desktop)]
             discord_presence::set_discord_browsing,
+            #[cfg(desktop)]
+            devices::get_devices,
+            #[cfg(desktop)]
+            devices::set_devices_allowed,
+            #[cfg(desktop)]
+            devices::set_devices_port,
+            #[cfg(desktop)]
+            devices::new_pairing_code,
+            #[cfg(desktop)]
+            devices::remove_device,
             window_lifecycle::finish_window_close,
+            #[cfg(mobile)]
+            pc_link::get_pc_link,
+            #[cfg(mobile)]
+            pc_link::set_pc_sync,
+            #[cfg(mobile)]
+            pc_link::pair_pc,
+            #[cfg(mobile)]
+            pc_link::set_pc_address,
+            #[cfg(mobile)]
+            pc_link::unpair_pc,
+            #[cfg(mobile)]
+            pc_link::check_pc,
+            #[cfg(mobile)]
+            pc_link::sync_pc,
+            #[cfg(mobile)]
+            pc_link::get_pc_conflict,
+            #[cfg(mobile)]
+            pc_link::resolve_pc_conflict,
+            #[cfg(mobile)]
+            pc_link::list_pc_library,
+            #[cfg(mobile)]
+            pc_link::cached_pc_library,
+            #[cfg(mobile)]
+            pc_link::pc_storage,
+            #[cfg(mobile)]
+            pc_link::clear_pc_covers,
+            #[cfg(mobile)]
+            pc_link::open_pc_book,
+            #[cfg(mobile)]
+            pc_link::keep_pc_book,
+            #[cfg(mobile)]
+            pc_link::remove_pc_book,
+            #[cfg(mobile)]
+            pc_link::list_pc_dictionaries,
+            #[cfg(mobile)]
+            pc_link::copy_pc_dictionary,
+            #[cfg(mobile)]
+            android::leave_app,
+            #[cfg(mobile)]
+            android::window_insets,
+            #[cfg(mobile)]
+            android::show_system_bars,
+            #[cfg(mobile)]
+            android::system_bar_icons,
+            #[cfg(mobile)]
+            android::book_selection,
+            #[cfg(mobile)]
+            android::copy_text,
+            #[cfg(mobile)]
+            android::allow_ankidroid,
+            #[cfg(mobile)]
+            android::open_ankidroid_store,
             backup::get_backup_settings,
             backup::save_backup_settings,
             backup::export_backup,
