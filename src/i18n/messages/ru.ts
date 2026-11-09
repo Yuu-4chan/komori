@@ -1558,6 +1558,7 @@ export const ru: MessageCatalog = {
   "dictionaryResults.position": "Позиция {position}",
   "lookupEntry.open": "Открыть {expression} в словаре",
   "lookupEntry.failed": "Не удалось показать {expression}.",
+  "lookupEntry.unreadable": "Не удалось показать это определение.",
   "lookupEntry.matched": "Совпадение: {text}",
   "lookupEntry.matchedLabel": "Совпадение:",
   "lookupEntry.inflected": "Словоформа: {inflections}",

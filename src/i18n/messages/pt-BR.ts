@@ -1464,6 +1464,7 @@ export const ptBR: MessageCatalog = {
   "dictionaryResults.position": "Posição {position}",
   "lookupEntry.open": "Abrir {expression} no dicionário",
   "lookupEntry.failed": "Não foi possível mostrar {expression}.",
+  "lookupEntry.unreadable": "Não foi possível mostrar esta definição.",
   "lookupEntry.matched": "Correspondência: {text}",
   "lookupEntry.matchedLabel": "Correspondência:",
   "lookupEntry.inflected": "Flexão: {inflections}",

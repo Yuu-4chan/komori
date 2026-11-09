@@ -1301,6 +1301,7 @@ export const zhTW: MessageCatalog = {
   "dictionaryResults.position": "位置{position}",
   "lookupEntry.open": "在詞典中開啟{expression}",
   "lookupEntry.failed": "無法顯示{expression}。",
+  "lookupEntry.unreadable": "無法顯示此釋義。",
   "lookupEntry.matched": "匹配：{text}",
   "lookupEntry.matchedLabel": "匹配：",
   "lookupEntry.inflected": "活用：{inflections}",

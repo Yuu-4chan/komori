@@ -1491,6 +1491,7 @@ export const en = {
   // Lookup entry
   "lookupEntry.open": "Open {expression} in dictionary",
   "lookupEntry.failed": "{expression} could not be shown.",
+  "lookupEntry.unreadable": "This definition could not be shown.",
   "lookupEntry.matched": "Matched: {text}",
   "lookupEntry.matchedLabel": "Matched:",
   "lookupEntry.inflected": "Inflected: {inflections}",

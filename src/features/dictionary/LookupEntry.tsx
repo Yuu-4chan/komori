@@ -225,9 +225,11 @@ function LookupEntryContent({
           >
             {terms.map(({ term, glossaries }, index) => (
               <li key={`${term.sequence}-${index}`}>
-                {glossaries.map((glossary, item) => (
-                  <GlossaryText key={item} onSearchTerm={onSearchTerm} value={glossary} />
-                ))}
+                <SenseGlossaries
+                  glossaries={glossaries}
+                  onSearchTerm={onSearchTerm}
+                  unreadable={term.unreadable}
+                />
               </li>
             ))}
           </ol>
@@ -344,6 +346,23 @@ function EntryPitch({ patterns, reading }: { patterns: PitchPattern[]; reading: 
       </ul>
     </div>
   );
+}
+
+/** A definition's glossaries, or that it cannot be shown when its dictionary's entry is broken. */
+function SenseGlossaries({
+  glossaries,
+  unreadable,
+  onSearchTerm,
+}: {
+  glossaries: unknown[];
+  unreadable?: boolean;
+  onSearchTerm: (term: string) => void;
+}) {
+  const { t } = useI18n();
+  if (unreadable) return t("lookupEntry.unreadable");
+  return glossaries.map((glossary, item) => (
+    <GlossaryText key={item} onSearchTerm={onSearchTerm} value={glossary} />
+  ));
 }
 
 /** A definition's glossaries, with its consecutive plain glosses run together on one line. */
@@ -517,9 +536,11 @@ function DictionaryLookupEntryContent({
           >
             {terms.map((term, index) => (
               <li key={`${term.sequence}-${index}`}>
-                {senseGlossaries(term).map((glossary, item) => (
-                  <GlossaryText key={item} onSearchTerm={onSearchTerm} value={glossary} />
-                ))}
+                <SenseGlossaries
+                  glossaries={senseGlossaries(term)}
+                  onSearchTerm={onSearchTerm}
+                  unreadable={term.unreadable}
+                />
               </li>
             ))}
           </ol>

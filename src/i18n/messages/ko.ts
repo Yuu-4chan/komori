@@ -1370,6 +1370,7 @@ export const ko: MessageCatalog = {
   "dictionaryResults.position": "위치 {position}",
   "lookupEntry.open": "사전에서 {expression} 열기",
   "lookupEntry.failed": "{expression}을(를) 표시할 수 없습니다.",
+  "lookupEntry.unreadable": "이 정의는 표시할 수 없습니다.",
   "lookupEntry.matched": "일치: {text}",
   "lookupEntry.matchedLabel": "일치:",
   "lookupEntry.inflected": "활용: {inflections}",

@@ -1381,6 +1381,7 @@ export const ja: MessageCatalog = {
   "dictionaryResults.position": "位置{position}",
   "lookupEntry.open": "{expression}を辞書で開く",
   "lookupEntry.failed": "{expression}を表示できませんでした。",
+  "lookupEntry.unreadable": "この定義は表示できません。",
   "lookupEntry.matched": "一致：{text}",
   "lookupEntry.matchedLabel": "一致：",
   "lookupEntry.inflected": "活用：{inflections}",

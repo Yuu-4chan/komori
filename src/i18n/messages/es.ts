@@ -1526,6 +1526,7 @@ export const es: MessageCatalog = {
   "dictionaryResults.position": "Posición {position}",
   "lookupEntry.open": "Abrir {expression} en el diccionario",
   "lookupEntry.failed": "No se pudo mostrar {expression}.",
+  "lookupEntry.unreadable": "No se pudo mostrar esta definición.",
   "lookupEntry.matched": "Coincidencia: {text}",
   "lookupEntry.matchedLabel": "Coincidencia:",
   "lookupEntry.inflected": "Flexionado: {inflections}",

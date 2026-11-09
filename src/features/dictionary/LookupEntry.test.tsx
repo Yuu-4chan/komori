@@ -70,6 +70,37 @@ describe("LookupEntry", () => {
     expect(reads).toBe(first + 1);
   });
 
+  it("says a definition its dictionary cannot show, keeping the other dictionaries'", () => {
+    const broken = group("深海", [
+      {
+        ...good.terms[0],
+        dictionaryId: 2,
+        dictionaryTitle: "Broken",
+        glossary: [],
+        unreadable: true,
+      },
+      { ...good.terms[0], glossary: ["deep sea"] },
+    ]);
+    const popup = render(
+      <LookupEntry
+        canPlayAudio={false}
+        group={broken}
+        onSearchTerm={() => {}}
+        showDictionaryNames
+        showFrequency
+        showPitch
+        showVoiceAction={false}
+        start={null}
+      />,
+    );
+    expect(screen.getByText("This definition could not be shown.")).toBeTruthy();
+    expect(screen.getByText("deep sea")).toBeTruthy();
+    popup.unmount();
+    render(<DictionaryLookupEntry group={broken} onSearchTerm={() => {}} showDictionaryNames />);
+    expect(screen.getByText("This definition could not be shown.")).toBeTruthy();
+    expect(screen.getByText("deep sea")).toBeTruthy();
+  });
+
   it("shows a one-line failure in place of an entry that cannot render, keeping the others", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     for (const entries of [

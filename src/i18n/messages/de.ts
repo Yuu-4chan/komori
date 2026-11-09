@@ -1479,6 +1479,7 @@ export const de: MessageCatalog = {
   "dictionaryResults.position": "Position {position}",
   "lookupEntry.open": "{expression} im Wörterbuch öffnen",
   "lookupEntry.failed": "{expression} konnte nicht angezeigt werden.",
+  "lookupEntry.unreadable": "Diese Definition kann nicht angezeigt werden.",
   "lookupEntry.matched": "Treffer: {text}",
   "lookupEntry.matchedLabel": "Treffer:",
   "lookupEntry.inflected": "Flektiert: {inflections}",

@@ -67,7 +67,6 @@ const MAX_GLOSSARY_BYTES: usize = 2 * 1024 * 1024;
 /// The most glossary text one lookup may return. An unlimited lookup of a common reading returns
 /// about 7.5 MiB.
 const MAX_LOOKUP_GLOSSARY_BYTES: usize = 32 * 1024 * 1024;
-const GLOSSARY_TOO_LARGE: &str = "A dictionary definition is too large to show.";
 const LOOKUP_TOO_LARGE: &str = "These dictionary results are too large to show.";
 
 /// How much glossary text a lookup reads: per glossary, and in all for the returned groups.
@@ -97,6 +96,10 @@ pub struct TermMatch {
     tags: Vec<TermTag>,
     /// Null until the lookup has chosen its groups; then the glossary read from `stored`.
     glossary: Value,
+    /// The stored glossary does not read back or is too large to show; `glossary` is then
+    /// empty, so the other entries still show.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    unreadable: bool,
     /// The deflated glossary, emptied once it is read.
     #[serde(skip)]
     stored: Vec<u8>,
@@ -564,7 +567,8 @@ fn add_form_lemmas(
     lemmas: &mut Vec<Deinflection>,
     limits: GlossaryLimits,
 ) -> Result<(), String> {
-    let glossary = parse_glossary(&term.stored, limits.glossary)?;
+    // A glossary that cannot be read names no forms.
+    let glossary = parse_glossary(&term.stored, limits.glossary).unwrap_or_default();
     for target in glossary.as_array().into_iter().flatten() {
         let Some(form) = target[0].as_str() else {
             continue;
@@ -661,32 +665,46 @@ fn lookup_filtered_with_sources(
 
 /// Inflates one stored glossary, or `None` when it reads back as more than `limit` bytes.
 fn inflate_glossary(compressed: &[u8], limit: usize) -> Result<Option<String>, String> {
-    let mut glossary = String::new();
+    let mut glossary = Vec::new();
     DeflateDecoder::new(compressed)
         .take(limit as u64 + 1)
-        .read_to_string(&mut glossary)
+        .read_to_end(&mut glossary)
         .map_err(|_| "Dictionary glossary could not be read.".to_string())?;
-    Ok((glossary.len() <= limit).then_some(glossary))
+    // Measured before decoding, so a cut inside a character still reads as too large.
+    if glossary.len() > limit {
+        return Ok(None);
+    }
+    String::from_utf8(glossary)
+        .map(Some)
+        .map_err(|_| "Dictionary glossary could not be read.".to_string())
 }
 
-fn parse_glossary(compressed: &[u8], limit: usize) -> Result<Value, String> {
-    let glossary = inflate_glossary(compressed, limit)?.ok_or(GLOSSARY_TOO_LARGE)?;
-    serde_json::from_str(&glossary).map_err(|_| "Dictionary glossary could not be read.".into())
+/// One stored glossary, or `None` when it cannot be shown: it does not inflate or parse (as when
+/// nested deeper than the parser follows), or it reads back as more than `limit` bytes.
+fn parse_glossary(compressed: &[u8], limit: usize) -> Option<Value> {
+    serde_json::from_str(&inflate_glossary(compressed, limit).ok()??).ok()
 }
 
-/// Reads the glossaries of the groups a lookup returns, in order, refusing the lookup when one
-/// glossary or all of them together read back as more than `limits` allow.
+/// Reads the glossaries of the groups a lookup returns, in order. One that cannot be shown is
+/// marked `unreadable` rather than failing the lookup, so one broken entry never hides the other
+/// dictionaries; all of them together reading back as more than `limits` allow refuses it.
 fn read_glossaries(groups: &mut [TermGroup], limits: GlossaryLimits) -> Result<(), String> {
     let mut total = 0usize;
     for term in groups.iter_mut().flat_map(|group| &mut group.terms) {
-        let glossary =
-            inflate_glossary(&term.stored, limits.glossary)?.ok_or(GLOSSARY_TOO_LARGE)?;
-        total += glossary.len();
+        let glossary = inflate_glossary(&term.stored, limits.glossary)
+            .ok()
+            .flatten();
+        total += glossary.as_ref().map_or(0, String::len);
         if total > limits.lookup {
             return Err(LOOKUP_TOO_LARGE.into());
         }
-        term.glossary = serde_json::from_str(&glossary)
-            .map_err(|_| "Dictionary glossary could not be read.".to_string())?;
+        match glossary.and_then(|glossary| serde_json::from_str(&glossary).ok()) {
+            Some(glossary) => term.glossary = glossary,
+            None => {
+                term.glossary = Value::Array(Vec::new());
+                term.unreadable = true;
+            }
+        }
         term.stored = Vec::new();
     }
     Ok(())
@@ -748,6 +766,7 @@ fn exact_groups(
             glossary: Value::Null,
             stored: row.get(7).map_err(storage_error)?,
             kana_marker: None,
+            unreadable: false,
             sequence: row.get(8).map_err(storage_error)?,
             term_tags,
             tags,
@@ -810,16 +829,19 @@ fn exact_groups(
                     },
                 )
                 .map_err(storage_error)?
-                .map(|result| {
-                    let (dictionary_id, dictionary_title, data, frequency_mode) =
-                        result.map_err(storage_error)?;
-                    Ok(FrequencyMatch {
+                .filter_map(|result| {
+                    let (dictionary_id, dictionary_title, data, frequency_mode) = match result {
+                        Ok(row) => row,
+                        Err(error) => return Some(Err(storage_error(error))),
+                    };
+                    // One that does not read back is left out, as an unreadable pitch is.
+                    let data = serde_json::from_str(&data).ok()?;
+                    Some(Ok(FrequencyMatch {
                         dictionary_id,
                         dictionary_title,
-                        data: serde_json::from_str(&data)
-                            .map_err(|_| "Dictionary frequency could not be read.".to_string())?,
+                        data,
                         frequency_mode,
-                    })
+                    }))
                 })
                 .collect::<Result<Vec<_>, String>>()?;
             frequency_cache.insert(group.expression.clone(), matches);
@@ -923,7 +945,8 @@ fn usually_kana(group: &mut TermGroup, limits: GlossaryLimits) -> Result<bool, S
         let marked = match term.kana_marker {
             Some(marked) => marked,
             None if term.stored.is_empty() => kana_marker(&term.glossary),
-            None => kana_marker(&parse_glossary(&term.stored, limits.glossary)?),
+            None => parse_glossary(&term.stored, limits.glossary)
+                .is_some_and(|glossary| kana_marker(&glossary)),
         };
         term.kana_marker = Some(marked);
         if marked {
@@ -1426,7 +1449,6 @@ fn lookup_kanji_bounded(
         return Ok(KanjiLookup::default());
     };
     let character = character.to_string();
-    let unreadable = |_: serde_json::Error| "Dictionary kanji could not be read.".to_string();
     let mut statement = connection
         .prepare(
             "SELECT d.id, d.title, k.character, k.onyomi, k.kunyomi, k.tags,
@@ -1444,12 +1466,18 @@ fn lookup_kanji_bounded(
     while let Some(row) = rows.next().map_err(storage_error)? {
         let dictionary_id: i64 = row.get(0).map_err(storage_error)?;
         let tags: String = row.get(5).map_err(storage_error)?;
+        // A row too large or that does not read back is left out, so the other dictionaries'
+        // entries still show.
         if row.get::<_, usize>(6).map_err(storage_error)? > limits.glossary {
-            return Err(GLOSSARY_TOO_LARGE.into());
+            continue;
         }
         let meanings: String = row.get(8).map_err(storage_error)?;
-        let stats: Value = serde_json::from_str(&row.get::<_, String>(7).map_err(storage_error)?)
-            .map_err(unreadable)?;
+        let (Ok(meanings), Ok(stats)) = (
+            serde_json::from_str::<Vec<String>>(&meanings),
+            serde_json::from_str::<Value>(&row.get::<_, String>(7).map_err(storage_error)?),
+        ) else {
+            continue;
+        };
         let resolved_tags = tag_resolver.resolve(dictionary_id, [&tags])?;
         // Stat names are whole object keys, never split.
         let stat_tags = tag_resolver.resolve_names(
@@ -1467,7 +1495,7 @@ fn lookup_kanji_bounded(
             onyomi: row.get(3).map_err(storage_error)?,
             kunyomi: row.get(4).map_err(storage_error)?,
             tags,
-            meanings: serde_json::from_str(&meanings).map_err(unreadable)?,
+            meanings,
             stats,
             resolved_tags,
             stat_tags,
@@ -1492,16 +1520,18 @@ fn lookup_kanji_bounded(
             ))
         })
         .map_err(storage_error)?
-        .map(|result| {
-            let (dictionary_id, dictionary_title, data, frequency_mode) =
-                result.map_err(storage_error)?;
-            Ok(FrequencyMatch {
+        .filter_map(|result| {
+            let (dictionary_id, dictionary_title, data, frequency_mode) = match result {
+                Ok(row) => row,
+                Err(error) => return Some(Err(storage_error(error))),
+            };
+            let data = serde_json::from_str(&data).ok()?;
+            Some(Ok(FrequencyMatch {
                 dictionary_id,
                 dictionary_title,
-                data: serde_json::from_str(&data)
-                    .map_err(|_| "Dictionary frequency could not be read.".to_string())?,
+                data,
                 frequency_mode,
-            })
+            }))
         })
         .collect::<Result<Vec<_>, String>>()?;
     Ok(KanjiLookup {
@@ -3314,16 +3344,26 @@ mod tests {
     }
 
     #[test]
-    fn an_oversized_glossary_or_kanji_row_is_refused_rather_than_read() {
+    fn an_entry_too_large_or_unreadable_shows_as_such_without_hiding_the_others() {
         let directory = tempdir().unwrap();
         let long = "x".repeat(5_000);
+        // Nested deeper than the JSON parser follows (128), as a hostile dictionary may be.
+        let nested = format!(
+            "{}\"deep\"{}",
+            r#"{"tag":"span","content":"#.repeat(130),
+            "}".repeat(130)
+        );
+        let deep = format!(r#"[{{"type":"structured-content","content":{nested}}}]"#);
         let terms = format!(
-            r#"[["長","ちょう","","",0,["{long}"],1,""],["短","たん","","",0,["short"],2,""]]"#
+            r#"[["長","ちょう","","",0,["{long}"],1,""],["深","しん","","",0,{deep},2,""],["短","たん","","",0,["short"],3,""]]"#
         );
         let kanji = format!(
-            r#"[["長","チョウ","なが","",["{long}"],{{}}],["短","タン","みじか","",["short"],{{}}]]"#
+            r#"[["長","チョウ","なが","",["{long}"],{{}}],["深","シン","ふか","",["deep"],{{"deep":{nested}}}],["短","タン","みじか","",["short"],{{}}]]"#
         );
-        let archive = fixture_with(
+        let meta = format!(
+            r#"[["深","freq",{{"value":1,"displayValue":"1","deep":{nested}}}],["深","freq",5]]"#
+        );
+        let large = fixture_with(
             directory.path(),
             "large.zip",
             &[
@@ -3333,22 +3373,73 @@ mod tests {
                 ),
                 ("term_bank_1.json", &terms),
                 ("kanji_bank_1.json", &kanji),
+                ("term_meta_bank_1.json", &meta),
+            ],
+        );
+        let good = fixture_with(
+            directory.path(),
+            "good.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Good","revision":"1","format":3}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["長","ちょう","","",0,["long"],1,""],["深","しん","","",0,["deep"],2,""]]"#,
+                ),
+                (
+                    "kanji_bank_1.json",
+                    r#"[["長","チョウ","なが","",["long"],{}],["深","シン","ふか","",["deep"],{}]]"#,
+                ),
             ],
         );
         let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
-        import_paths(&mut connection, &[archive]);
+        let imported = import_paths(&mut connection, &[large, good]);
+        assert!(imported
+            .iter()
+            .all(|result| result.status == ImportStatus::Imported));
         let limits = GlossaryLimits {
             glossary: 4_096,
             lookup: 1 << 20,
         };
         let sources = SourcePolicy::default();
+        for word in ["長", "深"] {
+            let lookup =
+                lookup_longest_start_bounded(&connection, word, &sources, None, limits).unwrap();
+            let terms = &lookup.groups[0].terms;
+            // The broken entry says it cannot be shown; the other dictionary's still shows.
+            assert_eq!(terms.len(), 2, "{word}");
+            assert!(terms[0].unreadable);
+            assert_eq!(terms[0].glossary, serde_json::json!([]));
+            assert!(!terms[1].unreadable);
+            assert_eq!(
+                terms[1].glossary,
+                serde_json::json!([if word == "長" { "long" } else { "deep" }])
+            );
+            assert_eq!(
+                serde_json::to_value(&terms[0]).unwrap()["unreadable"],
+                serde_json::json!(true)
+            );
+            assert!(serde_json::to_value(&terms[1])
+                .unwrap()
+                .get("unreadable")
+                .is_none());
+            // A kanji row too large or unreadable is left out.
+            let kanji = lookup_kanji_bounded(&connection, word, &sources, limits).unwrap();
+            assert_eq!(kanji.entries.len(), 1, "{word}");
+            assert_eq!(kanji.entries[0].dictionary_title, "Good");
+        }
+        // An unreadable frequency is left out; the readable one stays.
+        let deep_word =
+            lookup_longest_start_bounded(&connection, "深", &sources, None, limits).unwrap();
         assert_eq!(
-            lookup_longest_start_bounded(&connection, "長", &sources, Some(1), limits).unwrap_err(),
-            GLOSSARY_TOO_LARGE
-        );
-        assert_eq!(
-            lookup_kanji_bounded(&connection, "長", &sources, limits).unwrap_err(),
-            GLOSSARY_TOO_LARGE
+            deep_word.groups[0]
+                .frequencies
+                .iter()
+                .map(|item| item.data.clone())
+                .collect::<Vec<_>>(),
+            [serde_json::json!(5)]
         );
         assert_eq!(
             lookup_longest_start_bounded(&connection, "短", &sources, None, limits)
@@ -3365,6 +3456,9 @@ mod tests {
                 .meanings,
             ["short"]
         );
+        // A limit inside a character is still too large, not unreadable.
+        let wide = deflate(format!(r#"["{}"]"#, "あ".repeat(1_400)).as_bytes());
+        assert_eq!(inflate_glossary(&wide, 4_095).unwrap(), None);
         // Reading stops one byte past the limit; such a glossary is content, never an empty list.
         let stored = deflate(format!(r#"["{long}"]"#).as_bytes());
         assert_eq!(inflate_glossary(&stored, 4_096).unwrap(), None);

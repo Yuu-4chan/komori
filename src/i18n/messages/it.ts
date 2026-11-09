@@ -1523,6 +1523,7 @@ export const it: MessageCatalog = {
   "dictionaryResults.position": "Posizione {position}",
   "lookupEntry.open": "Apri {expression} nel dizionario",
   "lookupEntry.failed": "Impossibile mostrare {expression}.",
+  "lookupEntry.unreadable": "Impossibile mostrare questa definizione.",
   "lookupEntry.matched": "Corrispondenza: {text}",
   "lookupEntry.matchedLabel": "Corrispondenza:",
   "lookupEntry.inflected": "Flesso: {inflections}",
