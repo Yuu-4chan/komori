@@ -4,8 +4,8 @@
 //     port 47654 instead of the GitHub releases and trusts the release key, into
 //     artifacts/validation/update-rehearsal/;
 //   node scripts/update-rehearsal.mjs serve <folder>
-//     serves a release (the workflow's komori-release artifact: the installer, its .sig and
-//     latest.json) to it, with the installer address pointed at this server. The signature is
+//     serves a release (the workflow's komori-release artifact: the installer, its .sig,
+//     latest.json and the APK it ignores) to it, with the installer address pointed at this server. The signature is
 //     the release's own, so Install and restart in the rehearsal build installs that release.
 // Run the rehearsal build and the server on the same test machine, never on one whose Komori
 // you use: the update installs the real Komori.

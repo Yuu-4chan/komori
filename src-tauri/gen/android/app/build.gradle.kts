@@ -29,6 +29,21 @@ android {
     androidResources {
         noCompress += listOf("ttf", "txt")
     }
+    // Release builds are signed when KOMORI_ANDROID_KEYSTORE_FILE names the release keystore
+    // and KOMORI_ANDROID_KEYSTORE_PASSWORD unlocks it; without them the release APK is unsigned.
+    val releaseKeystore = System.getenv("KOMORI_ANDROID_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                val password = System.getenv("KOMORI_ANDROID_KEYSTORE_PASSWORD")
+                    ?: throw GradleException("KOMORI_ANDROID_KEYSTORE_PASSWORD is not set")
+                storeFile = file(releaseKeystore)
+                storePassword = password
+                keyAlias = System.getenv("KOMORI_ANDROID_KEY_ALIAS") ?: "komori"
+                keyPassword = password
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
@@ -43,6 +58,9 @@ android {
             }
         }
         getByName("release") {
+            if (releaseKeystore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             optimization {
                enable = true
             }

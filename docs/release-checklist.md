@@ -1,20 +1,21 @@
 # Release checklist
 
-How a Komori release is made, and the checks the owner runs on a fresh Windows virtual machine before the draft release is published. Automated checks run in the release workflow; the manual ones below cover what only a real installation shows.
+How a Komori release is made, and the checks the owner runs on a fresh Windows virtual machine and an Android phone before the draft release is published. Automated checks run in the release workflow; the manual ones below cover what only a real installation shows.
 
 ## What a release is
 
-| Item             | Value                                                                                                                                                                                                                 |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Version          | The same in `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `src-tauri/Cargo.lock`, with a `CHANGELOG.md` section (tests enforce both).                                                       |
-| App identifier   | `app.komori.reader`. It never changes: the data folders are named after it.                                                                                                                                           |
-| Application data | `%APPDATA%\app.komori.reader` (library, dictionaries, settings, snapshots) and `%LOCALAPPDATA%\app.komori.reader` (WebView2 data).                                                                                    |
-| Installation     | Per user, without administrator rights, in `%LOCALAPPDATA%\Komori`: `komori.exe`, `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES.txt`, `uninstall.exe`. Publisher `Yuu-4chan`.                                             |
-| Registry         | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Komori`, `HKCU\Software\Yuu-4chan\Komori`, and the `Komori` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` while Launch at startup is on. |
-| Update endpoint  | `https://github.com/Yuu-4chan/komori/releases/latest/download/latest.json`, signed with minisign key `C0F8C5BF2FD0BB7F`, with the signed version required to match.                                                   |
-| Release files    | `Komori_<version>_x64-setup.exe`, its `.sig`, `latest.json` and `SHA256SUMS.txt`.                                                                                                                                     |
-| Code signing     | None. The installer has no Authenticode signature, so SmartScreen warns about an unknown publisher. The updater's minisign signature is separate: it protects updates, not the first download.                        |
-| WebView2         | Required. The installer checks for it and downloads Microsoft's bootstrapper when it is missing (it then needs an internet connection; without one the installation stops with an error).                             |
+| Item             | Value                                                                                                                                                                                                                            |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Version          | The same in `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `src-tauri/Cargo.lock`, with a `CHANGELOG.md` section (tests enforce both).                                                                  |
+| App identifier   | `app.komori.reader`. It never changes: the data folders are named after it.                                                                                                                                                      |
+| Application data | `%APPDATA%\app.komori.reader` (library, dictionaries, settings, snapshots) and `%LOCALAPPDATA%\app.komori.reader` (WebView2 data).                                                                                               |
+| Installation     | Per user, without administrator rights, in `%LOCALAPPDATA%\Komori`: `komori.exe`, `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES.txt`, `uninstall.exe`. Publisher `Yuu-4chan`.                                                        |
+| Registry         | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Komori`, `HKCU\Software\Yuu-4chan\Komori`, and the `Komori` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` while Launch at startup is on.            |
+| Update endpoint  | `https://github.com/Yuu-4chan/komori/releases/latest/download/latest.json`, signed with minisign key `C0F8C5BF2FD0BB7F`, with the signed version required to match.                                                              |
+| Release files    | `Komori_<version>_x64-setup.exe`, its `.sig`, `latest.json`, `Komori_<version>_android-arm64.apk` and `SHA256SUMS.txt`.                                                                                                          |
+| Android app      | `app.komori.reader`, 64-bit Android 10 and later, `versionName` the release version. Signed with the Android release key (alias `komori`); Android installs an update only over an APK signed with the same key. No self-update. |
+| Code signing     | None. The installer has no Authenticode signature, so SmartScreen warns about an unknown publisher. The updater's minisign signature is separate: it protects updates, not the first download.                                   |
+| WebView2         | Required. The installer checks for it and downloads Microsoft's bootstrapper when it is missing (it then needs an internet connection; without one the installation stops with an error).                                        |
 
 ## Signing key
 
@@ -23,6 +24,8 @@ The updater signing key and its password never enter the repository, a build out
 - Locally, set them only in the shell that builds the release: `TAURI_SIGNING_PRIVATE_KEY` (the key file's path or its contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 - In the public repository, under Settings > Secrets and variables > Actions, create two repository secrets: `TAURI_SIGNING_PRIVATE_KEY` with the full contents of the key file, and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` with its password.
 - Keep an offline backup of the key file and the password. Installed copies trust only this key: without it no installed copy can be updated again.
+- The Android release keystore is separate. Locally, a release APK is signed only when `KOMORI_ANDROID_KEYSTORE_FILE` names the keystore and `KOMORI_ANDROID_KEYSTORE_PASSWORD` unlocks it (the key has the same password); otherwise `pnpm tauri android build --apk` leaves it unsigned. In the repository, the secrets are `KOMORI_ANDROID_KEYSTORE` with the keystore file base64-encoded and `KOMORI_ANDROID_KEYSTORE_PASSWORD`. The workflow writes the keystore to the runner's temporary folder only for the build and deletes it after.
+- Keep an offline backup of the keystore and its password too: without them no installed phone copy can be updated, only replaced after uninstalling, which deletes its data.
 - `pnpm tauri:release` refuses to write `latest.json` unless the installer's signature verifies against the public key in `tauri.conf.json`, so a wrong key is caught before anything is uploaded.
 
 ## Making a release
@@ -30,8 +33,8 @@ The updater signing key and its password never enter the repository, a build out
 1. Add the `CHANGELOG.md` section and set the version in the four files.
 2. Run `pnpm validate:full`, and `pnpm validate:release` when the Reader, the window lifecycle, the CSP or the updater changed.
 3. Optionally, run the Release workflow by hand (Actions > Release > Run workflow). It builds, checks and signs without releasing; the files are in its `komori-release` artifact.
-4. Tag and push: `git tag v<version>` and `git push origin v<version>`. The workflow checks that the tag names the version, runs `pnpm validate:release`, builds and signs with the secrets, runs `node scripts/check-release.mjs`, and attaches the release files to a draft release.
-5. Download the draft's files, compare them with `SHA256SUMS.txt`, and run the manual checks below with that installer.
+4. Tag and push: `git tag v<version>` and `git push origin v<version>`. The workflow checks that the tag names the version, runs `pnpm validate:release`, builds and signs with the secrets, runs `node scripts/check-release.mjs`, builds the signed arm64 APK on Linux and checks its signature, package, version and that it is not debuggable, and attaches the release files to a draft release.
+5. Download the draft's files, compare them with `SHA256SUMS.txt`, and run the manual checks below with that installer and APK.
 6. Publish the draft. Installed copies find the update on their next check.
 7. On a machine with the previous release installed, check that it finds and installs the update (check U2).
 
@@ -60,6 +63,18 @@ Use a virtual machine that has never run Komori, with a snapshot to return to. N
 | X1  | Uninstall from Installed apps, leaving "Delete the application data" unticked.                                                                                                                                                                                                                                                                                                  | `%LOCALAPPDATA%\Komori`, the Start menu entry, the uninstall entry and the `Run` value are gone; both data folders remain. Reinstalling shows the same library.                 |
 | X2  | Uninstall again with "Delete the application data" ticked.                                                                                                                                                                                                                                                                                                                      | Also gone: `%APPDATA%\app.komori.reader`, `%LOCALAPPDATA%\app.komori.reader` and `HKCU\Software\Yuu-4chan\Komori`. The synthetic books are untouched.                           |
 | X3  | Look for leftovers: `%LOCALAPPDATA%\Komori`, both data folders, `HKCU\Software\Yuu-4chan`, the `Run` value, `%TEMP%` (an update's downloaded installer), and `StartupApproved\Run` under Explorer if Launch at startup was turned off in Task Manager.                                                                                                                          | Only the last two may remain; they are Windows's own records and temporary files.                                                                                               |
+
+## Manual checks on an Android phone
+
+Use a phone or emulator without a Komori debug build: Android refuses to install the release APK over an APK signed with another key, and uninstalling the other one deletes its data.
+
+| ID  | Check                                                                                                                                                     | Expected                                                                                                   |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| A1  | Download the APK from the draft release, compare its SHA-256 with `SHA256SUMS.txt`, and install it.                                                       | The hash matches; Android asks to allow installing from the browser or file manager, then installs Komori. |
+| A2  | Open Komori, add an EPUB with Add books, open it, look up a word and close it.                                                                            | The Library shows the book; it reads, the popup finds the word, and it reopens at the same place.          |
+| A3  | Settings > About.                                                                                                                                         | The release version.                                                                                       |
+| A4  | Pair with a PC running the same release (Settings > Integrations > Devices on the PC, Settings > Sync on the phone), open a PC book and read a few pages. | The PC's books are listed; the book opens; after Sync now the PC shows the new place.                      |
+| A5  | If an earlier release is installed, install the new APK over it.                                                                                          | It installs as an update; the library, places and settings are unchanged.                                  |
 
 ## Results
 

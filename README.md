@@ -5,8 +5,8 @@
 <h1 align="center">Komori</h1>
 
 <p align="center">
-  A lightweight Windows EPUB reader for readers and language learners, with pop-up dictionary
-  lookup, reading statistics and one-click Anki cards.
+  A lightweight EPUB reader for Windows and Android, for readers and language learners, with
+  pop-up dictionary lookup, reading statistics and one-click Anki cards.
 </p>
 
 <p align="center">
@@ -70,6 +70,9 @@
   lookup language. The Lapis note type is bundled.
 - **Discord.** If you turn it on, your Discord status shows the book you're reading and your
   progress, or which part of Komori you're using.
+- **On your phone too.** The Android app has the same Library, Reader, lookup, Dictionary and
+  Statistics, made for touch, and adds words to AnkiDroid. Connect it to Komori on your PC to
+  read the PC's books on the phone and keep positions, bookmarks, notes and statistics in step.
 - **At home on Windows.** Application themes, sixteen app icons, launch at startup,
   minimize to the tray, reopen the last book and remember the window's place.
 - **Your data stays yours.** Automatic snapshots, backup export and import, signed
@@ -78,6 +81,8 @@
   Portuguese and Russian.
 
 ## Install
+
+### Windows
 
 1. Download the latest `Komori_<version>_x64-setup.exe` from the
    [Releases](https://github.com/Yuu-4chan/komori/releases) page.
@@ -90,6 +95,18 @@ whether to delete Komori's data as well.
 
 Komori runs on 64-bit Windows 10 and 11 and needs the Microsoft Edge WebView2 Runtime, which
 Windows 11 already includes; if it is missing, the installer downloads and installs it.
+
+### Android
+
+1. On the phone, download the latest `Komori_<version>_android-arm64.apk` from the
+   [Releases](https://github.com/Yuu-4chan/komori/releases) page.
+2. Open it and allow your browser or file manager to install apps when Android asks.
+
+Komori runs on 64-bit Android 10 and later. It does not update itself: install a newer APK
+over it the same way, which keeps your data. To read your PC's books on the phone, turn on
+**Allow phones to connect** in Komori's **Settings > Integrations > Devices** on the PC, then
+enter the address and code it shows in **Settings > Sync** on the phone; both must be on the
+same network.
 
 ## Dictionaries
 
@@ -110,7 +127,9 @@ Komori has no account, telemetry or analytics. Your library, reading history, no
 dictionaries stay in `%APPDATA%\app.komori.reader` on your computer. It uses the network
 only to check for updates (which you can turn off), to fetch word audio when you ask for it,
 and to download starter dictionaries or the Reader fonts you choose. It talks to Anki, and to
-Discord when you turn on the Discord status, only on your own computer. See [docs/privacy.md](docs/privacy.md) for details.
+Discord when you turn on the Discord status, only on your own computer. On Android, the same
+data stays in Komori's private app storage, and the phone talks to your PC only over your own
+network, after you connect them. See [docs/privacy.md](docs/privacy.md) for details.
 
 ## Build from source
 
@@ -151,6 +170,10 @@ The executable is `src-tauri/target/release/komori.exe`, and the installer is in
 Published releases are built by the Release workflow with `pnpm tauri:release`, which also
 signs the installer for the updater and writes `latest.json`; see
 [docs/release-checklist.md](docs/release-checklist.md).
+
+The Android app builds with `pnpm android:build` (debug APKs for arm64 phones and the x86_64
+emulator); it needs Android Studio's SDK with NDK 29 and the Rust targets
+`aarch64-linux-android` and `x86_64-linux-android`.
 
 `pnpm validate:full` runs formatting, lint, type, frontend and Rust checks and tests. More in
 [docs/workflow.md](docs/workflow.md); the [docs](docs/README.md) describe the architecture.
