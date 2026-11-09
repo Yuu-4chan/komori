@@ -734,7 +734,9 @@ readable linear document returns `invalid`, exceeded adapter bounds return
 `tooLarge` (an oversized chapter still refuses the book), and cancellation/book
 switches discard late results.
 An unreadable optional navigation document resolves to the existing empty
-contents state instead of leaving EPUB.js's navigation promise pending. Import
+contents state instead of leaving EPUB.js's navigation promise pending. A book
+closed while it opens or begins to render stops its rendition's queue, and
+EPUB.js's late loading steps resolve into nothing instead of throwing. Import
 continues to validate the package and extract metadata; a cataloged book whose
 chapters are all damaged receives the honest Reader refusal when opened. Failed opening
 does not overwrite its position or progress. All corrections are in memory:

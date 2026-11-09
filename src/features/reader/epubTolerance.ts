@@ -107,6 +107,9 @@ interface RecoverableBook {
   replacements?(): Promise<unknown>;
   unarchive(input: unknown, encoding?: unknown): Promise<unknown>;
   loadNavigation(packaging: Record<string, unknown>): Promise<unknown>;
+  rendition?: { q?: { stop(): void } };
+  loading?: unknown;
+  destroy(): void;
 }
 
 /** Inflation budgets. The read-only corpus (5,091 books) peaks at a 5.7 MiB image,
@@ -387,6 +390,15 @@ export function installEpubTolerance(
       return kind === "svg" ? svgPageDocument(document) : document;
     };
     return result;
+  };
+  const destroy = book.destroy.bind(book);
+  // EPUB.js still runs a rendition's queued start, and resolves each loading step as it
+  // finishes, for a book destroyed meanwhile, as one closed while it opens is. Both would
+  // then throw. The queue stops, and late steps resolve into nothing.
+  book.destroy = () => {
+    book.rendition?.q?.stop();
+    destroy();
+    book.loading = new Proxy({}, { get: () => ({ resolve() {}, reject() {} }) });
   };
   const navigation = book.loadNavigation.bind(book);
   // Navigation is optional. EPUB.js otherwise leaves loaded.navigation pending when

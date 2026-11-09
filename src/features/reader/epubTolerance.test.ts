@@ -59,6 +59,7 @@ describe("diagnosed EPUB XML tolerance", () => {
         if (packaging.ncxPath) throw new Error("missing optional navigation");
         return { toc: [] };
       }),
+      destroy: vi.fn(),
     };
     installEpubTolerance(book);
     await book.unarchive();
@@ -544,6 +545,54 @@ describe("archive reads with the pinned EPUB.js engine", () => {
     await expect(open(await epub({}), limits, { "OPS/chapter.xhtml": 413 })).rejects.toThrow(
       EpubResourceLimit,
     );
+  });
+
+  it("lets a book be destroyed at any point while it opens or starts to render", async () => {
+    const errors: unknown[] = [];
+    const record = (reason: unknown) => errors.push(reason);
+    const recordError = (event: ErrorEvent) => {
+      errors.push(event.error);
+      event.preventDefault();
+    };
+    process.on("unhandledRejection", record);
+    window.addEventListener("error", recordError);
+    /** A few frames and tasks, for EPUB.js's queued and late steps to run. */
+    const settle = async () => {
+      for (let frame = 0; frame < 5; frame++)
+        await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    };
+    try {
+      const bytes = await epub({ "style.css": "p { margin: 0 }" });
+      const start = async () => {
+        await serve(bytes, {});
+        const book = ePub({
+          replacements: "blobUrl",
+          requestMethod: (url: string) => openNativeArchive(url, new AbortController().signal),
+        });
+        installNativeArchive(book as unknown as Parameters<typeof installNativeArchive>[0]);
+        installEpubTolerance(book as unknown as Parameters<typeof installEpubTolerance>[0], limits);
+        void book.open(base, "epub").catch(() => undefined);
+        return book;
+      };
+      // Destroyed once its manifest is known, while its navigation still loads.
+      let book = await start();
+      await book.loaded.manifest;
+      book.destroy();
+      await settle();
+      // Destroyed just after rendering began, before the rendition's queued start.
+      book = await start();
+      await book.opened;
+      const host = document.createElement("div");
+      document.body.append(host);
+      book.renderTo(host, { width: 400, height: 600 });
+      book.destroy();
+      await settle();
+      host.remove();
+      expect(errors).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", record);
+      window.removeEventListener("error", recordError);
+    }
   });
 
   it("shows a chapter that cannot be read as a notice and refuses a book with none readable", async () => {

@@ -9484,6 +9484,8 @@ describe("EPUB.js renderer adapter", () => {
           const { rendition, book, display } = mockBook(sections, [
             { label: "Chapter", href: "Text/chapter.xhtml" },
           ]);
+          // Opening wraps destroy, so keep the engine's own.
+          const destroy = book.destroy;
           const shown = section("shown", "", true, sections[2].document.body.innerHTML).document;
           rendition.getContents.mockReturnValue([
             { document: shown, sectionIndex: 2, cfiFromRange: vi.fn(), resizeCheck: vi.fn() },
@@ -9552,7 +9554,7 @@ describe("EPUB.js renderer adapter", () => {
             .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
           expect(late.querySelectorAll("[data-komori-image-blurred]")).toHaveLength(2);
           renderer.dispose();
-          expect(book.destroy).toHaveBeenCalled();
+          expect(destroy).toHaveBeenCalled();
         }
       },
     );
