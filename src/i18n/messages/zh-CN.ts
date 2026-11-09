@@ -444,6 +444,7 @@ export const zhCN: MessageCatalog = {
   "ankiError.timeout": "Anki没有及时响应。请关闭所有打开的Anki对话框。",
   "ankiError.pending": "之前的请求结果仍不确定。再次创建此卡片前，请在设置→ Anki中检查中断的请求。",
   "ankiError.changed": "你的Anki牌组、笔记类型或字段已更改。请在设置→ Anki中检查并保存。",
+  "ankiError.notSetUp": "请在设置→ Anki中选择牌组和笔记类型以添加卡片。",
   "ankiError.invalid": "请检查端口、字段模板和字段长度。第一个字段必须包含文字。",
   "ankiError.contentTooLarge":
     "此卡片的词典内容过大。请在Anki设置中减少“释义”使用的词典，然后重试。",

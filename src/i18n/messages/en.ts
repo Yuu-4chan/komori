@@ -514,6 +514,7 @@ export const en = {
     "An earlier request is still uncertain. Check interrupted requests in Settings → Anki before creating this card again.",
   "ankiError.changed":
     "Your Anki deck, note type or fields changed. Review and save them in Settings → Anki.",
+  "ankiError.notSetUp": "Choose a deck and note type in Settings → Anki to add cards.",
   "ankiError.invalid":
     "Check the port, field templates and field lengths. The first field must contain text.",
   "ankiError.contentTooLarge":

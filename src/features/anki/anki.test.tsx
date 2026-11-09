@@ -546,15 +546,25 @@ describe("One-click Anki actions", () => {
     result.unmount();
     await act(() => resolve(prefs));
     expect(api.createNote).not.toHaveBeenCalled();
-    vi.mocked(api.loadAnki).mockResolvedValue({ ...prefs, mappings: {} });
-    view(<AnkiAction sources={sources} />);
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Add 読む to Anki" })).toHaveAttribute(
-        "aria-description",
-        expect.stringMatching(/Settings → Anki/),
-      ),
-    );
-    expect(screen.getByRole("button", { name: "Add 読む to Anki" })).toBeDisabled();
+    // A chosen note type without its fields changed; none chosen means Anki was never set up.
+    for (const [saved, reason] of [
+      [{ ...prefs, mappings: {} }, /note type or fields changed/],
+      [
+        { ...prefs, deck: "", model: "", mappings: {} },
+        /^Choose a deck and note type in Settings → Anki/,
+      ],
+    ] as const) {
+      vi.mocked(api.loadAnki).mockResolvedValue(saved);
+      const shown = view(<AnkiAction sources={sources} />);
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Add 読む to Anki" })).toHaveAttribute(
+          "aria-description",
+          expect.stringMatching(reason),
+        ),
+      );
+      expect(screen.getByRole("button", { name: "Add 読む to Anki" })).toBeDisabled();
+      shown.unmount();
+    }
     expect(api.createNote).not.toHaveBeenCalled();
   });
   it("blocks an existing note, offers Browser editing, and resets on a new lookup", async () => {

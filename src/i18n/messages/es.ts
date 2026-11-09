@@ -538,6 +538,7 @@ export const es: MessageCatalog = {
     "Una solicitud anterior sigue sin confirmarse. Revisa las solicitudes interrumpidas en Ajustes → Anki antes de volver a crear esta tarjeta.",
   "ankiError.changed":
     "Tu mazo, tipo de nota o campos de Anki cambiaron. Revísalos y guárdalos en Ajustes → Anki.",
+  "ankiError.notSetUp": "Elige un mazo y un tipo de nota en Ajustes → Anki para añadir tarjetas.",
   "ankiError.invalid":
     "Revisa el puerto, las plantillas de campos y su longitud. El primer campo debe contener texto.",
   "ankiError.contentTooLarge":

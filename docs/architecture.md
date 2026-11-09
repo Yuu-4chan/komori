@@ -2024,7 +2024,8 @@ Clicking + immediately loads saved settings, expands the
 chosen result and creates the card; it opens no review or configuration dialog.
 Setup, check and creation problems never show a message box: the action is disabled
 and dimmed, and its tooltip and accessible description give the reason and point to
-Settings → Anki. An uncertain creation turns the action into `Check whether <word>
+Settings → Anki. With no note type ever chosen the reason asks for a deck and note
+type; a chosen note type whose fields are no longer saved says the setup changed. An uncertain creation turns the action into `Check whether <word>
 was added to Anki`, which checks the original request without resending it. Popup actions are ordered Open in Dictionary, Open card in Anki Browser when available, then Add/Update/Check, for term entries (kanji entries have only Open in Dictionary). A confirmed/duplicate result disables repeated
 creation in that lookup and offers Edit in Anki Browser via native guiBrowse/nid.
 Changing a lookup/context disposes the action; double activation and late setup

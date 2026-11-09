@@ -511,6 +511,8 @@ export const de: MessageCatalog = {
     "Eine frühere Anfrage ist noch ungeklärt. Prüfe unterbrochene Anfragen unter Einstellungen → Anki, bevor du diese Karte erneut erstellst.",
   "ankiError.changed":
     "Dein Anki-Stapel, Notiztyp oder deine Felder haben sich geändert. Prüfe und speichere sie unter Einstellungen → Anki.",
+  "ankiError.notSetUp":
+    "Wähle unter Einstellungen → Anki einen Stapel und Notiztyp, um Karten hinzuzufügen.",
   "ankiError.invalid":
     "Prüfe Port, Feldvorlagen und Feldlängen. Das erste Feld muss Text enthalten.",
   "ankiError.contentTooLarge":

@@ -219,7 +219,8 @@ function CardAction({ sources }: { sources: CardSource[] }) {
         const prefs = await cachedAnki();
         if (!alive.current || version !== revision.current) return;
         const mapping = prefs.mappings[prefs.model];
-        if (!mapping) throw "changed";
+        // With no note type chosen, Anki was never set up; a chosen one without fields changed.
+        if (!mapping) throw prefs.model ? "changed" : "notSetUp";
         const first = firstFieldParts(mapping, current);
         if ("problem" in first) {
           setStatus(null);
@@ -286,7 +287,7 @@ function CardAction({ sources }: { sources: CardSource[] }) {
       const prefs = await cachedAnki();
       if (!alive.current) return;
       const mapping = prefs.mappings[prefs.model];
-      if (!mapping) throw "changed";
+      if (!mapping) throw prefs.model ? "changed" : "notSetUp";
       const selectionText = selection.current;
       const { fields, ...content } = cardFields(
         mapping,

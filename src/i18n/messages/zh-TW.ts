@@ -444,6 +444,7 @@ export const zhTW: MessageCatalog = {
   "ankiError.timeout": "Anki沒有及時響應。請關閉所有開啟的Anki對話方塊。",
   "ankiError.pending": "之前的請求結果仍不確定。再次建立此卡片前，請在設定→ Anki中檢查中斷的請求。",
   "ankiError.changed": "你的Anki牌組、筆記型別或欄位已更改。請在設定→ Anki中檢查並儲存。",
+  "ankiError.notSetUp": "請在設定→ Anki中選擇牌組和筆記型別以新增卡片。",
   "ankiError.invalid": "請檢查埠、欄位模板和欄位長度。第一個欄位必須包含文字。",
   "ankiError.contentTooLarge":
     "此卡片的詞典內容過大。請在Anki設定中減少「釋義」使用的詞典，然後重試。",

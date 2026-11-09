@@ -241,6 +241,8 @@ export function ankiError(error: unknown): string {
       return t("ankiError.pending");
     case "changed":
       return t("ankiError.changed");
+    case "notSetUp":
+      return t("ankiError.notSetUp");
     case "invalid":
       return t("ankiError.invalid");
     case "contentTooLarge":

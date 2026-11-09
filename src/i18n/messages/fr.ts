@@ -537,6 +537,8 @@ export const fr: MessageCatalog = {
     "Une requête précédente est encore incertaine. Vérifiez les requêtes interrompues dans Réglages → Anki avant de recréer cette carte.",
   "ankiError.changed":
     "Votre paquet, type de note ou vos champs Anki ont changé. Vérifiez-les et enregistrez-les dans Réglages → Anki.",
+  "ankiError.notSetUp":
+    "Choisissez un paquet et un type de note dans Réglages → Anki pour ajouter des cartes.",
   "ankiError.invalid":
     "Vérifiez le port, les modèles de champs et leur longueur. Le premier champ doit contenir du texte.",
   "ankiError.contentTooLarge":

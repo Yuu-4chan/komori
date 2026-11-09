@@ -464,6 +464,7 @@ export const ko: MessageCatalog = {
     "이전 요청의 결과가 아직 불확실합니다. 이 카드를 다시 만들기 전에 설정 → Anki에서 중단된 요청을 확인하세요.",
   "ankiError.changed":
     "Anki 덱, 노트 유형 또는 필드가 바뀌었습니다. 설정 → Anki에서 확인하고 저장하세요.",
+  "ankiError.notSetUp": "카드를 추가하려면 설정 → Anki에서 덱과 노트 유형을 선택하세요.",
   "ankiError.invalid":
     "포트, 필드 템플릿, 필드 길이를 확인하세요. 첫 필드에는 글자가 있어야 합니다.",
   "ankiError.contentTooLarge":

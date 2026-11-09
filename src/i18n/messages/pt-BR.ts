@@ -506,6 +506,8 @@ export const ptBR: MessageCatalog = {
     "Uma solicitação anterior ainda está incerta. Confira as solicitações interrompidas em Configurações → Anki antes de criar este cartão de novo.",
   "ankiError.changed":
     "Seu baralho, tipo de nota ou campos do Anki mudaram. Revise e salve em Configurações → Anki.",
+  "ankiError.notSetUp":
+    "Escolha um baralho e um tipo de nota em Configurações → Anki para adicionar cartões.",
   "ankiError.invalid":
     "Confira a porta, os modelos dos campos e o tamanho dos campos. O primeiro campo precisa conter texto.",
   "ankiError.contentTooLarge":

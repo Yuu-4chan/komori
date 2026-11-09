@@ -474,6 +474,7 @@ export const ja: MessageCatalog = {
     "以前のリクエストの結果がまだ不明です。このカードをもう一度作る前に、設定→ Ankiの中断されたリクエストを確認してください。",
   "ankiError.changed":
     "Ankiのデッキ、ノートタイプ、またはフィールドが変わりました。設定→ Ankiで確認して保存してください。",
+  "ankiError.notSetUp": "カードを追加するには、設定→ Ankiでデッキとノートタイプを選んでください。",
   "ankiError.invalid":
     "ポート、フィールドのテンプレート、フィールドの長さを確認してください。最初のフィールドには文字が必要です。",
   "ankiError.contentTooLarge":

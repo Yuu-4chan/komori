@@ -533,6 +533,8 @@ export const it: MessageCatalog = {
     "Una richiesta precedente è ancora incerta. Controlla le richieste interrotte in Impostazioni → Anki prima di creare di nuovo questa carta.",
   "ankiError.changed":
     "Il mazzo, il tipo di nota o i campi di Anki sono cambiati. Controllali e salvali in Impostazioni → Anki.",
+  "ankiError.notSetUp":
+    "Scegli un mazzo e un tipo di nota in Impostazioni → Anki per aggiungere carte.",
   "ankiError.invalid":
     "Controlla la porta, i modelli dei campi e la loro lunghezza. Il primo campo deve contenere testo.",
   "ankiError.contentTooLarge":
