@@ -38,6 +38,16 @@ const absolutePath =
 const sourcePath =
   /(?<![\w./-])(?:src-tauri[\\/]|src[\\/](?:features|app|components)[\\/])[\w./\\-]+/gu;
 
+/** The source files and folders the notices name on purpose, as the GPL and font licenses ask. */
+export const namedSources = [
+  "src-tauri/src/dictionary/deinflect.rs",
+  "src-tauri/src/dictionary/deinflect/ja.rs",
+  "src-tauri/src/dictionary/deinflect/en.rs",
+  "src-tauri/src/dictionary/deinflect/de.rs",
+  "src-tauri/vendor/",
+  "src-tauri/fonts",
+];
+
 /** Paths in text a user reads, other than those `allowed` names on purpose. */
 export function pathsIn(text, allowed = []) {
   return [...text.matchAll(absolutePath), ...text.matchAll(sourcePath)]
@@ -155,12 +165,9 @@ function main(root = process.cwd(), args = process.argv.slice(2)) {
   const shown = [...files(join(root, "dist")), ...notices.map(([name]) => join(release, name))]
     .filter((path) => /\.(js|html|css|json|txt)$|LICENSE$|NOTICE$/u.test(path) && existsSync(path))
     .flatMap((path) =>
-      pathsIn(readFileSync(path, "utf8"), [
-        "src-tauri/src/dictionary/deinflect.rs",
-        "src-tauri/src/dictionary/deinflect/ja.rs",
-        "src-tauri/src/dictionary/deinflect/en.rs",
-        "src-tauri/vendor/",
-      ]).map((found) => `${relative(root, path)}: ${found}`),
+      pathsIn(readFileSync(path, "utf8"), namedSources).map(
+        (found) => `${relative(root, path)}: ${found}`,
+      ),
     );
   check(
     shown.length === 0,
