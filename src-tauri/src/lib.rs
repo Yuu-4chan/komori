@@ -91,6 +91,11 @@ pub fn run() {
             )
             .and_then(tauri::WebviewWindowBuilder::build)
             .map_err(|error| format!("Komori window could not be created: {error}"))?;
+            // A dictionary copy cut short when Android ended Komori leaves its pack behind.
+            #[cfg(mobile)]
+            if let Ok(cache) = app.path().app_cache_dir() {
+                pc_listing::remove_dictionary_packs(&cache);
+            }
             app.manage(library_drop::LibraryDropState::default());
             library_drop::install(&window);
             window_lifecycle::install(app.handle(), &catalog.database);

@@ -1,8 +1,12 @@
 //! What the phone keeps of the paired PC's Library between visits (`pc_link`): its listing,
 //! saved after each time it is listed so the Library shows it at once, and the covers, one file
-//! per book and cover revision, of which only those the listing names are kept.
+//! per book and cover revision, of which only those the listing names are kept. A dictionary
+//! copied from the PC passes through a pack file in the cache, which none outlives.
 
-use std::{collections::HashSet, path::Path};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 
 use rusqlite::{Connection, OptionalExtension};
 
@@ -200,6 +204,31 @@ pub(crate) fn remove_stale_covers(directory: &Path, wanted: &[(String, i64)]) {
     }
 }
 
+/// The name every dictionary pack copied from the PC, and its partial download, starts with.
+const DICTIONARY_PACK: &str = "pc-dictionary-";
+
+/// A new file in `cache` for a dictionary pack copied from the PC, removed once imported.
+pub(crate) fn dictionary_pack(cache: &Path) -> PathBuf {
+    cache.join(format!("{DICTIONARY_PACK}{}.sqlite3", uuid::Uuid::new_v4()))
+}
+
+/// Removes the packs and partial downloads that copies cut short left in `cache`, as when
+/// Android ends Komori mid-copy. Run at start, before any copy can begin.
+pub(crate) fn remove_dictionary_packs(cache: &Path) {
+    let Ok(entries) = std::fs::read_dir(cache) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let pack = entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| name.starts_with(DICTIONARY_PACK));
+        if pack && entry.file_type().is_ok_and(|kind| kind.is_file()) {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
 /// The bytes the files under `path` take, or 0 when it does not exist.
 pub(crate) fn size_of(path: &Path) -> u64 {
     let Ok(metadata) = std::fs::symlink_metadata(path) else {
@@ -342,5 +371,33 @@ mod tests {
         assert_eq!(left, ["a-2", "b-5"]);
         assert_eq!(size_of(&covers), 2 * 13);
         assert_eq!(size_of(&directory.path().join("missing")), 0);
+    }
+
+    #[test]
+    fn packs_left_by_copies_cut_short_are_removed_and_nothing_else() {
+        let directory = tempdir().unwrap();
+        let cache = directory.path();
+        let pack = dictionary_pack(cache);
+        assert!(pack
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with(DICTIONARY_PACK));
+        // A download cut short, and a finished one whose import never ran.
+        std::fs::write(pack.with_extension("part"), b"partial").unwrap();
+        std::fs::write(dictionary_pack(cache), b"whole").unwrap();
+        std::fs::create_dir_all(cache.join("pc-covers")).unwrap();
+        std::fs::write(cache.join("pc-covers").join("a-1"), b"image").unwrap();
+        std::fs::write(cache.join("other.part"), b"kept").unwrap();
+
+        remove_dictionary_packs(cache);
+        let mut left: Vec<String> = std::fs::read_dir(cache)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        left.sort();
+        assert_eq!(left, ["other.part", "pc-covers"]);
+        assert!(cache.join("pc-covers").join("a-1").exists());
+        remove_dictionary_packs(&cache.join("missing"));
     }
 }

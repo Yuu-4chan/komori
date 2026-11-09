@@ -1032,11 +1032,11 @@ pub async fn copy_pc_dictionary(
     let database = catalog_path(&catalog);
     let link = blocking(move || read_link(&database)).await?;
     let client = link.client()?;
-    let pack = app
-        .path()
-        .app_cache_dir()
-        .map_err(|error| error.to_string())?
-        .join(format!("pc-dictionary-{}.sqlite3", uuid::Uuid::new_v4()));
+    let pack = pc_listing::dictionary_pack(
+        &app.path()
+            .app_cache_dir()
+            .map_err(|error| error.to_string())?,
+    );
     let label = id.to_string();
     client
         .download(
