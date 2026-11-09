@@ -1977,6 +1977,8 @@ export const fr: MessageCatalog = {
   "devices.failed": "Komori n'a pas pu écouter sur le port {port}.",
   "devices.code": "Code d'association",
   "devices.newCode": "Nouveau code",
+  "devices.pairingLocked":
+    "L'association s'est arrêtée après trop de codes incorrects. Cliquez sur Nouveau code pour associer un téléphone.",
   "devices.paired": "Téléphones associés",
   "devices.none": "Aucun téléphone associé",
   "devices.lastConnected": "Dernière connexion {time}",
@@ -2021,6 +2023,8 @@ export const fr: MessageCatalog = {
   "sync.error.otherVersion": "Mettez Komori à jour vers la même version sur les deux appareils.",
   "sync.error.notFound": "Cet élément n'est plus sur le PC.",
   "sync.error.wrongCode": "Code d'association incorrect.",
+  "sync.error.pairingLocked":
+    "Le PC a arrêté l'association après trop de codes incorrects. Cliquez sur Nouveau code sur le PC.",
   "sync.error.failed": "Une erreur s'est produite. Réessayez.",
   "sync.lastSynced": "Dernière synchronisation {time}",
   "sync.syncedShort": "Synchronisé {time}",

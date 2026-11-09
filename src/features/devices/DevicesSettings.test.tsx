@@ -20,6 +20,7 @@ const listening: api.DevicesView = {
   port: 39_217,
   address: "192.168.0.10",
   code: "482913",
+  pairingLocked: false,
   status: "listening",
   devices: [
     {
@@ -67,6 +68,20 @@ describe("Settings > Devices", () => {
     await userEvent.click(within(phone).getByRole("button", { name: "Remove" }));
     expect(api.removeDevice).toHaveBeenCalledWith("phone-1");
     expect(await screen.findByText("No phones paired")).toBeTruthy();
+  });
+
+  it("says when pairing stopped after too many wrong codes, until a new code", async () => {
+    vi.mocked(api.getDevices).mockResolvedValue({ ...listening, code: null, pairingLocked: true });
+    vi.mocked(api.newPairingCode).mockResolvedValue({ ...listening, code: "105377" });
+    render(<DevicesSettings />);
+
+    const row = (await screen.findByText("––– –––")).closest(".settings-row") as HTMLElement;
+    expect(within(row).getByRole("status").textContent).toBe(
+      "Pairing stopped after too many wrong codes. Press New code to pair a phone.",
+    );
+    await userEvent.click(within(row).getByRole("button", { name: "New code" }));
+    expect(await screen.findByText("105 377")).toBeTruthy();
+    expect(within(row).queryByRole("status")).toBeNull();
   });
 
   it("hides the code while phones may not connect, and says when the port is taken", async () => {

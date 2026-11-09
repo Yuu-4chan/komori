@@ -159,6 +159,15 @@ describe("Sync on the phone", () => {
     await userEvent.click(screen.getByRole("button", { name: "Pair" }));
     expect((await screen.findByRole("alert")).textContent).toBe("Wrong pairing code.");
     expect(screen.queryByText("Paired")).toBeNull();
+
+    // After too many wrong codes the PC stops pairing until it shows a new code.
+    vi.mocked(api.pairPc).mockRejectedValue("pairingLocked");
+    await userEvent.click(screen.getByRole("button", { name: "Pair" }));
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toBe(
+        "The PC stopped pairing after too many wrong codes. Press New code on the PC.",
+      ),
+    );
   });
 
   it("follows the PC to a new address, and unpairs after asking", async () => {

@@ -16,7 +16,7 @@ use spake2::{Ed25519Group, Identity, Password, Spake2};
 pub(crate) const PROTOCOL: u32 = 2;
 /// The port the PC listens on unless the reader changes it.
 pub(crate) const DEFAULT_PORT: u16 = 7461;
-/// Wrong codes before the PC replaces its code.
+/// Wrong codes before the PC stops pairing until it makes a new code.
 pub(crate) const PAIRING_ATTEMPTS: u32 = 5;
 
 const PHONE: &[u8] = b"komori-phone";

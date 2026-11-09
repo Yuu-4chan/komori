@@ -195,6 +195,7 @@ const problems: Record<PcProblem, MessageKey> = {
 export function pcErrorKey(error: unknown): MessageKey {
   const code = error instanceof Error ? error.message : String(error);
   if (code === "wrongCode") return "sync.error.wrongCode";
+  if (code === "pairingLocked") return "sync.error.pairingLocked";
   return problems[code as PcProblem] ?? "sync.error.failed";
 }
 

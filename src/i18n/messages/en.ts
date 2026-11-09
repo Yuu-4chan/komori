@@ -1944,6 +1944,8 @@ export const en = {
   "devices.failed": "Komori could not listen on port {port}.",
   "devices.code": "Pairing code",
   "devices.newCode": "New code",
+  "devices.pairingLocked":
+    "Pairing stopped after too many wrong codes. Press New code to pair a phone.",
   "devices.paired": "Paired phones",
   "devices.none": "No phones paired",
   "devices.lastConnected": "Last connected {time}",
@@ -1987,6 +1989,8 @@ export const en = {
   "sync.error.otherVersion": "Update Komori on both devices to the same version.",
   "sync.error.notFound": "That is no longer on the PC.",
   "sync.error.wrongCode": "Wrong pairing code.",
+  "sync.error.pairingLocked":
+    "The PC stopped pairing after too many wrong codes. Press New code on the PC.",
   "sync.error.failed": "Something went wrong. Try again.",
   "sync.lastSynced": "Last synced {time}",
   "sync.syncedShort": "Synced {time}",

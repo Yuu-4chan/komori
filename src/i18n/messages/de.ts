@@ -1918,6 +1918,8 @@ export const de: MessageCatalog = {
   "devices.failed": "Komori konnte Port {port} nicht öffnen.",
   "devices.code": "Kopplungscode",
   "devices.newCode": "Neuer Code",
+  "devices.pairingLocked":
+    "Nach zu vielen falschen Codes ist das Koppeln gestoppt. Klicke auf „Neuer Code“, um ein Telefon zu koppeln.",
   "devices.paired": "Gekoppelte Handys",
   "devices.none": "Keine Handys gekoppelt",
   "devices.lastConnected": "Zuletzt verbunden {time}",
@@ -1962,6 +1964,8 @@ export const de: MessageCatalog = {
   "sync.error.otherVersion": "Aktualisiere Komori auf beiden Geräten auf dieselbe Version.",
   "sync.error.notFound": "Das ist nicht mehr auf dem PC.",
   "sync.error.wrongCode": "Falscher Kopplungscode.",
+  "sync.error.pairingLocked":
+    "Der PC hat das Koppeln nach zu vielen falschen Codes gestoppt. Klicke dort auf „Neuer Code“.",
   "sync.error.failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
   "sync.lastSynced": "Zuletzt synchronisiert {time}",
   "sync.syncedShort": "Synchronisiert {time}",

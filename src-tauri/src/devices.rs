@@ -55,6 +55,11 @@ const REQUEST_WAIT: Duration = Duration::from_secs(2);
 const READ_WAIT: Duration = Duration::from_secs(20);
 /// How long a started pairing waits for its proof.
 const PAIRING_WAIT: Duration = Duration::from_secs(120);
+/// How long a wrong code waits for its answer, so codes cannot be tried quickly.
+#[cfg(not(test))]
+const WRONG_CODE_WAIT: Duration = Duration::from_secs(1);
+#[cfg(test)]
+const WRONG_CODE_WAIT: Duration = Duration::from_millis(200);
 /// A device's last connection is written at most this often.
 const SEEN_EVERY: Duration = Duration::from_secs(60);
 const DEVICE_NAME_LIMIT: usize = 64;
@@ -110,8 +115,11 @@ pub struct DevicesView {
     port: u16,
     /// The PC's address on its network, when it has one.
     address: Option<String>,
-    /// The code a phone pairs with, while devices are allowed and the server runs.
+    /// The code a phone pairs with, while devices are allowed, the server runs and pairing is
+    /// not stopped.
     code: Option<String>,
+    /// Whether pairing stopped after too many wrong codes, until a new code.
+    pairing_locked: bool,
     /// `off`, `listening`, `portInUse` or `failed`.
     status: &'static str,
     devices: Vec<DeviceView>,
@@ -161,10 +169,19 @@ struct Runtime {
     server: Option<Server>,
     failure: Option<&'static str>,
     code: String,
+    /// Wrong codes since the code was made.
     attempts: u32,
     pending: Option<Pending>,
     /// When each device's last connection was written.
     seen: Vec<(String, Instant)>,
+}
+
+impl Runtime {
+    /// Whether pairing stopped after too many wrong codes: it waits for a new code, so the code
+    /// cannot be guessed from the network.
+    fn locked(&self) -> bool {
+        self.attempts >= protocol::PAIRING_ATTEMPTS
+    }
 }
 
 pub(crate) struct Shared {
@@ -511,11 +528,13 @@ fn view(shared: &Shared) -> Result<DevicesView, String> {
     let settings = load_settings(&open_catalog(&shared.catalog)?)?;
     let runtime = shared.runtime();
     let listening = runtime.server.is_some();
+    let locked = listening && runtime.locked();
     Ok(DevicesView {
         allowed: settings.allowed,
         port: settings.port,
         address: local_address(),
-        code: listening.then(|| runtime.code.clone()),
+        code: (listening && !locked).then(|| runtime.code.clone()),
+        pairing_locked: locked,
         status: if !settings.allowed {
             "off"
         } else if listening {
@@ -833,6 +852,9 @@ fn pair_start(shared: &Shared, request: &http::Request, stream: &mut impl Write)
         return error(stream, 400, "malformed");
     };
     let mut runtime = shared.runtime();
+    if runtime.locked() {
+        return error(stream, 403, "pairingLocked");
+    }
     let (state, answer) = protocol::start_pc(&runtime.code);
     let Ok(key) = state.finish(&message) else {
         return error(stream, 400, "malformed");
@@ -878,6 +900,9 @@ fn pair_finish(
         return error(stream, 400, "malformed");
     };
     let mut runtime = shared.runtime();
+    if runtime.locked() {
+        return error(stream, 403, "pairingLocked");
+    }
     let pending = runtime.pending.take_if(|pending| {
         pending.session == finish.session && pending.started.elapsed() < PAIRING_WAIT
     });
@@ -885,13 +910,11 @@ fn pair_finish(
         return error(stream, 409, "noPairing");
     };
     if !protocol::phone_proof_matches(&pending.key, certificate, &proof) {
+        // The last wrong code stops pairing until the user asks for a new code.
         runtime.attempts += 1;
-        if runtime.attempts >= protocol::PAIRING_ATTEMPTS {
-            runtime.code = protocol::pairing_code();
-            runtime.attempts = 0;
-        }
         drop(runtime);
         shared.changed();
+        std::thread::sleep(WRONG_CODE_WAIT);
         return error(stream, 403, "wrongCode");
     }
     // A code pairs one phone; the next gets a new one.
@@ -998,18 +1021,22 @@ pub async fn set_devices_port(
     .await
 }
 
+/// A fresh code while the server runs, which also lets pairing start again after too many wrong
+/// codes.
+fn new_code(shared: &Shared) {
+    let mut runtime = shared.runtime();
+    if runtime.server.is_some() {
+        runtime.code = protocol::pairing_code();
+        runtime.attempts = 0;
+        runtime.pending = None;
+    }
+}
+
 #[tauri::command]
 pub async fn new_pairing_code(devices: State<'_, DevicesState>) -> Result<DevicesView, String> {
     let shared = devices.0.clone();
     blocking(move || {
-        {
-            let mut runtime = shared.runtime();
-            if runtime.server.is_some() {
-                runtime.code = protocol::pairing_code();
-                runtime.attempts = 0;
-                runtime.pending = None;
-            }
-        }
+        new_code(&shared);
         view(&shared)
     })
     .await

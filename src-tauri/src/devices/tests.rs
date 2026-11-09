@@ -143,18 +143,27 @@ fn a_phone_pairs_with_the_code_and_then_reads_the_library_without_paths() {
 }
 
 #[test]
-fn a_wrong_code_fails_and_five_replace_the_code() {
+fn five_wrong_codes_stop_pairing_until_a_new_code() {
     let pc = pc();
     let code = pc.shared.code();
     let wrong = if code == "000000" { "000001" } else { "000000" };
-    for _ in 0..protocol::PAIRING_ATTEMPTS - 1 {
+    for attempt in 1..=protocol::PAIRING_ATTEMPTS {
+        let start = std::time::Instant::now();
         assert_eq!(pair(&pc, wrong).unwrap_err(), LinkError::WrongCode);
-        assert_eq!(pc.shared.code(), code);
+        // Each wrong code waits for its answer.
+        assert!(start.elapsed() >= super::WRONG_CODE_WAIT);
+        let view = super::view(&pc.shared).unwrap();
+        let locked = attempt == protocol::PAIRING_ATTEMPTS;
+        assert_eq!(view.pairing_locked, locked);
+        assert_eq!(view.code.is_none(), locked);
     }
-    assert_eq!(pair(&pc, wrong).unwrap_err(), LinkError::WrongCode);
-    assert_ne!(pc.shared.code(), code);
-    // The old code no longer pairs; the new one does.
-    assert_eq!(pair(&pc, &code).unwrap_err(), LinkError::WrongCode);
+    // Stopped: even the right code no longer pairs, so the code cannot be guessed.
+    assert_eq!(pair(&pc, &code).unwrap_err(), LinkError::PairingLocked);
+    assert_eq!(pc.shared.code(), code);
+    assert!(pc.shared.device_names().is_empty());
+    // New code starts pairing again, with a code the wrong ones knew nothing of.
+    super::new_code(&pc.shared);
+    assert!(!super::view(&pc.shared).unwrap().pairing_locked);
     assert!(pair(&pc, &pc.shared.code()).is_ok());
     assert!(pc.shared.device_names().len() == 1);
 }

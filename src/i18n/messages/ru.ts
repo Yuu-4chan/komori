@@ -1991,6 +1991,8 @@ export const ru: MessageCatalog = {
   "devices.failed": "Komori не удалось открыть порт {port}.",
   "devices.code": "Код сопряжения",
   "devices.newCode": "Новый код",
+  "devices.pairingLocked":
+    "Сопряжение остановлено после слишком многих неверных кодов. Нажмите «Новый код», чтобы сопрячь телефон.",
   "devices.paired": "Сопряжённые телефоны",
   "devices.none": "Нет сопряжённых телефонов",
   "devices.lastConnected": "Последнее подключение {time}",
@@ -2035,6 +2037,8 @@ export const ru: MessageCatalog = {
   "sync.error.otherVersion": "Обновите Komori на обоих устройствах до одной версии.",
   "sync.error.notFound": "Этого больше нет на ПК.",
   "sync.error.wrongCode": "Неверный код сопряжения.",
+  "sync.error.pairingLocked":
+    "ПК остановил сопряжение после слишком многих неверных кодов. Нажмите «Новый код» на ПК.",
   "sync.error.failed": "Что-то пошло не так. Попробуйте ещё раз.",
   "sync.lastSynced": "Последняя синхронизация {time}",
   "sync.syncedShort": "Синхронизировано {time}",

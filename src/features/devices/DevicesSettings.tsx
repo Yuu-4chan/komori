@@ -140,6 +140,9 @@ export function DevicesSettings() {
         <div className="settings-row">
           <div>
             <strong>{t("devices.code")}</strong>
+            {listening && view?.pairingLocked && (
+              <span role="status">{t("devices.pairingLocked")}</span>
+            )}
           </div>
           <span className="devices-code">
             <span className="devices-value devices-value--code" aria-live="polite">

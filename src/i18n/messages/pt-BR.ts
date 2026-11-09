@@ -1896,6 +1896,8 @@ export const ptBR: MessageCatalog = {
   "devices.failed": "O Komori não conseguiu escutar na porta {port}.",
   "devices.code": "Código de pareamento",
   "devices.newCode": "Novo código",
+  "devices.pairingLocked":
+    "O pareamento parou após muitos códigos incorretos. Clique em Novo código para parear um celular.",
   "devices.paired": "Celulares pareados",
   "devices.none": "Nenhum celular pareado",
   "devices.lastConnected": "Última conexão {time}",
@@ -1940,6 +1942,8 @@ export const ptBR: MessageCatalog = {
   "sync.error.otherVersion": "Atualize o Komori para a mesma versão nos dois dispositivos.",
   "sync.error.notFound": "Isso não está mais no PC.",
   "sync.error.wrongCode": "Código de pareamento incorreto.",
+  "sync.error.pairingLocked":
+    "O PC parou o pareamento após muitos códigos incorretos. Clique em Novo código no PC.",
   "sync.error.failed": "Algo deu errado. Tente novamente.",
   "sync.lastSynced": "Última sincronização {time}",
   "sync.syncedShort": "Sincronizado {time}",

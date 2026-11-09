@@ -1785,6 +1785,8 @@ export const ko: MessageCatalog = {
   "devices.failed": "Komori가 포트 {port}에서 대기하지 못했습니다.",
   "devices.code": "페어링 코드",
   "devices.newCode": "새 코드",
+  "devices.pairingLocked":
+    "잘못된 코드가 너무 많아 페어링을 멈췄습니다. 휴대폰을 페어링하려면 새 코드를 누르세요.",
   "devices.paired": "페어링된 휴대폰",
   "devices.none": "페어링된 휴대폰 없음",
   "devices.lastConnected": "마지막 연결 {time}",
@@ -1829,6 +1831,8 @@ export const ko: MessageCatalog = {
   "sync.error.otherVersion": "두 기기의 Komori를 같은 버전으로 업데이트하세요.",
   "sync.error.notFound": "PC에 더 이상 없습니다.",
   "sync.error.wrongCode": "페어링 코드가 올바르지 않습니다.",
+  "sync.error.pairingLocked":
+    "잘못된 코드가 너무 많아 PC가 페어링을 멈췄습니다. PC에서 새 코드를 누르세요.",
   "sync.error.failed": "문제가 발생했습니다. 다시 시도하세요.",
   "sync.lastSynced": "마지막 동기화 {time}",
   "sync.syncedShort": "동기화 {time}",

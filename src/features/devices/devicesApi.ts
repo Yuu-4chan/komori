@@ -16,8 +16,10 @@ export interface DevicesView {
   port: number;
   /** The PC's address on its network, when it has one. */
   address: string | null;
-  /** The code a phone pairs with, while the PC listens. */
+  /** The code a phone pairs with, while the PC listens and pairing is not stopped. */
   code: string | null;
+  /** Pairing stopped after too many wrong codes, until a new code. */
+  pairingLocked: boolean;
   status: "off" | "listening" | "portInUse" | "failed";
   devices: PairedDevice[];
 }

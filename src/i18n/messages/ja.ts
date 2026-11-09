@@ -1800,6 +1800,8 @@ export const ja: MessageCatalog = {
   "devices.failed": "Komoriはポート{port}で待ち受けできませんでした。",
   "devices.code": "ペアリングコード",
   "devices.newCode": "新しいコード",
+  "devices.pairingLocked":
+    "間違ったコードが多すぎたため、ペアリングを停止しました。スマートフォンをペアリングするには「新しいコード」を押してください。",
   "devices.paired": "ペアリング済みのスマートフォン",
   "devices.none": "ペアリング済みのスマートフォンはありません",
   "devices.lastConnected": "最終接続{time}",
@@ -1844,6 +1846,8 @@ export const ja: MessageCatalog = {
   "sync.error.otherVersion": "両方のデバイスのKomoriを同じバージョンに更新してください。",
   "sync.error.notFound": "PCにはもうありません。",
   "sync.error.wrongCode": "ペアリングコードが違います。",
+  "sync.error.pairingLocked":
+    "間違ったコードが多すぎたため、PCがペアリングを停止しました。PCで「新しいコード」を押してください。",
   "sync.error.failed": "問題が発生しました。もう一度お試しください。",
   "sync.lastSynced": "最終同期{time}",
   "sync.syncedShort": "同期{time}",

@@ -114,6 +114,8 @@ pub(crate) enum LinkError {
     NotThePc,
     /// The code was wrong.
     WrongCode,
+    /// The PC stopped pairing after too many wrong codes, until it shows a new one.
+    PairingLocked,
     /// The PC no longer knows this phone.
     NotPaired,
     /// The PC is another version of Komori.
@@ -130,6 +132,7 @@ impl LinkError {
             Self::Unreachable => "unreachable".into(),
             Self::NotThePc => "notThePc".into(),
             Self::WrongCode => "wrongCode".into(),
+            Self::PairingLocked => "pairingLocked".into(),
             Self::NotPaired => "notPaired".into(),
             Self::OtherVersion => "otherVersion".into(),
             Self::NotFound => "notFound".into(),
@@ -230,10 +233,10 @@ impl Client {
             401 => Err(LinkError::NotPaired),
             403 => {
                 let body: serde_json::Value = response.json().await.unwrap_or_default();
-                Err(if body["error"] == "wrongCode" {
-                    LinkError::WrongCode
-                } else {
-                    LinkError::NotPaired
+                Err(match body["error"].as_str() {
+                    Some("wrongCode") => LinkError::WrongCode,
+                    Some("pairingLocked") => LinkError::PairingLocked,
+                    _ => LinkError::NotPaired,
                 })
             }
             404 => Err(LinkError::NotFound),
