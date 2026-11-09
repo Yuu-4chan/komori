@@ -6654,15 +6654,21 @@ async function waitForReaderFonts(
 ): Promise<void> {
   if (!document.fonts || (!presentation.fontPair && presentation.fontFamilyGroup2 !== "inter"))
     return;
+  let loading: Promise<unknown> | undefined;
+  try {
+    loading = document.fonts.load(
+      `${presentation.fontWeight ?? 400} ${presentation.fontSize ?? readerFontSize.default}px ${presentation.fontPair ? fontPairStack(presentation.fontPair) : '"Komori Reader Inter"'}`,
+      "Reader日本語漢字한글中文",
+    );
+  } catch {
+    return;
+  }
+  // A section's frame already gone, as when the Reader closes while it loads, answers with nothing.
+  if (!loading) return;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
-      document.fonts
-        .load(
-          `${presentation.fontWeight ?? 400} ${presentation.fontSize ?? readerFontSize.default}px ${presentation.fontPair ? fontPairStack(presentation.fontPair) : '"Komori Reader Inter"'}`,
-          "Reader日本語漢字한글中文",
-        )
-        .catch(() => undefined),
+      loading.catch(() => undefined),
       new Promise<void>((resolve) => {
         timeout = setTimeout(resolve, 1500);
       }),

@@ -2320,6 +2320,37 @@ describe("EPUB.js renderer adapter", () => {
     },
   );
 
+  it("finishes a section whose frame no longer loads fonts", async () => {
+    const { rendition } = mockBook();
+    const register = vi.fn();
+    Object.assign(rendition, { hooks: { content: { register } } });
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(
+      document.createElement("div"),
+      new AbortController().signal,
+      vi.fn(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { fontSize: 20, fontFamilyGroup2: "inter", viewMode: "paginated" },
+    );
+    // A frame already gone answers with nothing; a broken one throws.
+    for (const load of [
+      () => undefined,
+      () => {
+        throw new Error("gone");
+      },
+    ]) {
+      const section = document.implementation.createHTMLDocument("");
+      Object.defineProperty(section, "fonts", { value: { load } });
+      const contents = { document: section, textWidth: () => 600, resizeCheck: vi.fn() };
+      for (const [hook] of register.mock.calls) await hook(contents);
+      expect(contents.resizeCheck).toHaveBeenCalled();
+    }
+    renderer.dispose();
+  });
+
   it("counts a page's side padding once when a paginated section's text starts at its edge", async () => {
     const { rendition } = mockBook();
     const register = vi.fn();
