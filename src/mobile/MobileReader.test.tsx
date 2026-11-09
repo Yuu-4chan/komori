@@ -407,6 +407,52 @@ describe("the Reader by touch", () => {
     expect(onTurn).not.toHaveBeenCalled();
   });
 
+  it("turns the chapter after Chapter swipe threshold swipes in a row at its edge", async () => {
+    const semi = reader({
+      pageTurns: {
+        canAdvance: true,
+        canRetreat: true,
+        forwardArrow: "ArrowRight",
+        scrollAxis: "vertical",
+      },
+      preferences: { readerViewMode: "semi-continuous", readerChapterWheelThreshold: 2 },
+    });
+    await shown();
+    semi.onChapterEdge.mockReturnValue(true);
+    drag(semi.viewport, { x: 500, y: 600 }, { x: 505, y: 300 });
+    expect(semi.onTurn).not.toHaveBeenCalled();
+    // A swipe the other way starts the count again.
+    drag(semi.viewport, { x: 500, y: 300 }, { x: 505, y: 600 });
+    drag(semi.viewport, { x: 500, y: 600 }, { x: 505, y: 300 });
+    expect(semi.onTurn).not.toHaveBeenCalled();
+    drag(semi.viewport, { x: 500, y: 600 }, { x: 505, y: 300 });
+    expect(semi.onTurn.mock.calls).toEqual([["advance"]]);
+    cleanup();
+    document.body.replaceChildren();
+
+    // Pages turn at once; only the swipe from a chapter's last page waits for the count.
+    const paged = reader({ preferences: { readerChapterWheelThreshold: 2 } });
+    await shown();
+    swipe(paged.viewport, 700, 400);
+    expect(paged.onTurn).toHaveBeenCalledTimes(1);
+    cleanup();
+    document.body.replaceChildren();
+    const lastPage = reader({
+      pageTurns: {
+        canAdvance: true,
+        canRetreat: true,
+        forwardArrow: "ArrowRight",
+        advanceChapter: true,
+      },
+      preferences: { readerChapterWheelThreshold: 2 },
+    });
+    await shown();
+    swipe(lastPage.viewport, 700, 400);
+    expect(lastPage.onTurn).not.toHaveBeenCalled();
+    swipe(lastPage.viewport, 700, 400);
+    expect(lastPage.onTurn.mock.calls).toEqual([["advance"]]);
+  });
+
   it("turns a chapter shown alone by a swipe that reads on from its edge", async () => {
     const vertical: ReaderPageTurnAvailability = {
       canAdvance: true,
@@ -416,7 +462,8 @@ describe("the Reader by touch", () => {
     };
     const semi = reader({
       pageTurns: vertical,
-      preferences: { readerViewMode: "semi-continuous" },
+      // The phone's default: one swipe at the edge turns the chapter.
+      preferences: { readerViewMode: "semi-continuous", readerChapterWheelThreshold: 1 },
     });
     await shown();
     semi.onChapterEdge.mockImplementation((direction) => direction === "advance");
@@ -864,7 +911,7 @@ describe("the Reader by touch", () => {
     await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
   });
 
-  it("offers Delete in place of Highlight on a saved passage a long press selects", async () => {
+  it("offers Edit note and Delete on a saved passage a long press selects", async () => {
     const { selectionRef, onSelectionAction } = reader();
     const { page } = selectingPage("羅生門", "note-1");
     act(() => selectionRef.current(page));
@@ -873,9 +920,14 @@ describe("the Reader by touch", () => {
       within(toolbar)
         .getAllByRole("button")
         .map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["Add note", "Delete", "Copy", "Look up", "Search"]);
+    ).toEqual(["Edit note", "Delete", "Copy", "Look up", "Search"]);
     await userEvent.click(within(toolbar).getByRole("button", { name: "Delete" }));
     expect(onSelectionAction).toHaveBeenCalledWith("delete", page, "note-1");
+
+    act(() => selectionRef.current(page));
+    const again = await screen.findByRole("toolbar", { name: "Text" });
+    await userEvent.click(within(again).getByRole("button", { name: "Edit note" }));
+    expect(onSelectionAction).toHaveBeenCalledWith("note", page, "note-1");
   });
 
   it("searches the book for the selected text", async () => {

@@ -8,10 +8,12 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.webkit.WebView
 import androidx.activity.result.ActivityResult
+import androidx.core.content.FileProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
@@ -28,6 +30,7 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSArray
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
+import java.io.File
 import java.io.FileNotFoundException
 import java.util.concurrent.Executors
 
@@ -44,8 +47,20 @@ class DocumentArgs {
 }
 
 @InvokeArg
+class FolderArgs {
+  var uri: String = ""
+  var maxDepth: Int = 32
+  var maxFiles: Int = 100_000
+}
+
+@InvokeArg
 class LinkArgs {
   lateinit var url: String
+}
+
+@InvokeArg
+class ApkArgs {
+  lateinit var path: String
 }
 
 @InvokeArg
@@ -87,7 +102,9 @@ class KeepArgs {
  * Komori's own Android plugin, called only from the native core (`src-tauri/src/android.rs`).
  * Books are linked, never copied: the picker's read permission is kept, and each read opens the
  * original document read-only and hands its descriptor to the native core. Dictionary archives
- * are read the same way, once, without keeping their permission. Anki cards go to AnkiDroid.
+ * are read the same way, once, without keeping their permission. A book folder keeps the read
+ * permission of the folder picked, which reads every document under it. Anki cards go to
+ * AnkiDroid.
  */
 @TauriPlugin(permissions = [Permission(strings = [AnkiDroid.PERMISSION], alias = "ankidroid")])
 class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
@@ -95,6 +112,8 @@ class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
   private val ankiDroid by lazy { AnkiDroid(activity.applicationContext) }
   /** AnkiDroid answers off the main thread, one action at a time. */
   private val ankiWork = Executors.newSingleThreadExecutor()
+  /** Book folders are listed off the main thread, one at a time. */
+  private val folderWork = Executors.newSingleThreadExecutor()
 
   /**
    * Komori draws under the status bar, the display cutout and the gesture bar; the page keeps
@@ -244,6 +263,132 @@ class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
     })
   }
 
+  /** Android's folder picker for a book folder, whose read permission is kept. */
+  @Command
+  fun pickFolder(invoke: Invoke) {
+    startActivityForResult(invoke, Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), "pickedFolder")
+  }
+
+  @ActivityCallback
+  fun pickedFolder(invoke: Invoke, result: ActivityResult) {
+    val uri = result.data?.data
+    if (result.resultCode != Activity.RESULT_OK || uri == null) {
+      invoke.resolve(JSObject().apply { put("canceled", true) })
+      return
+    }
+    // A folder Komori cannot keep could not be checked again after a restart.
+    try {
+      activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    } catch (error: SecurityException) {
+      invoke.reject(error.message, "denied")
+      return
+    }
+    invoke.resolve(JSObject().apply {
+      put("canceled", false)
+      put("uri", uri.toString())
+    })
+  }
+
+  /**
+   * A book folder's name as the reader knows it (the path on the phone's storage, otherwise
+   * the provider's name for it) and whether it can be read: `available`, `missing` or
+   * `unreadable`.
+   */
+  @Command
+  fun folderInfo(invoke: Invoke) {
+    val tree = Uri.parse(invoke.parseArgs(FolderArgs::class.java).uri)
+    val treeId = try {
+      DocumentsContract.getTreeDocumentId(tree)
+    } catch (_: Exception) {
+      null
+    }
+    val kept = activity.contentResolver.persistedUriPermissions.any {
+      it.uri == tree && it.isReadPermission
+    }
+    var name: String? = null
+    val availability = if (!kept || treeId == null) "unreadable" else try {
+      activity.contentResolver.query(
+        DocumentsContract.buildDocumentUriUsingTree(tree, treeId),
+        arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+        null,
+        null,
+        null,
+      )?.use { cursor ->
+        if (cursor.moveToFirst()) {
+          name = cursor.getString(0)
+          "available"
+        } else "missing"
+      } ?: "missing"
+    } catch (_: SecurityException) {
+      "unreadable"
+    } catch (_: Exception) {
+      "missing"
+    }
+    val path = treeId?.substringAfter(':', "")
+    val label = when {
+      tree.authority == "com.android.externalstorage.documents" && !path.isNullOrEmpty() -> path
+      !name.isNullOrEmpty() -> name!!
+      else -> treeId ?: tree.toString()
+    }
+    invoke.resolve(JSObject().apply {
+      put("label", label)
+      put("availability", availability)
+    })
+  }
+
+  /**
+   * Every EPUB in a book folder and its subfolders, as `{ uri, name, size, modified }`, with
+   * links under the folder's own permission. Rejected as `missing` or `denied` when the folder
+   * cannot be read.
+   */
+  @Command
+  fun listFolder(invoke: Invoke) {
+    val args = invoke.parseArgs(FolderArgs::class.java)
+    folderWork.execute {
+      try {
+        val tree = Uri.parse(args.uri)
+        val files = JSArray()
+        var count = 0
+        val columns = arrayOf(
+          DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+          DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+          DocumentsContract.Document.COLUMN_MIME_TYPE,
+          DocumentsContract.Document.COLUMN_SIZE,
+          DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+        )
+        fun walk(folder: String, depth: Int) {
+          if (depth > args.maxDepth || count >= args.maxFiles) return
+          val subfolders = mutableListOf<String>()
+          val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, folder)
+          activity.contentResolver.query(children, columns, null, null, null)?.use { cursor ->
+            while (cursor.moveToNext() && count < args.maxFiles) {
+              val id = cursor.getString(0) ?: continue
+              val name = cursor.getString(1) ?: continue
+              if (cursor.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR) {
+                subfolders.add(id)
+              } else if (name.endsWith(".epub", ignoreCase = true)) {
+                files.put(JSObject().apply {
+                  put("uri", DocumentsContract.buildDocumentUriUsingTree(tree, id).toString())
+                  put("name", name)
+                  put("size", if (cursor.isNull(3)) -1 else cursor.getLong(3))
+                  put("modified", if (cursor.isNull(4)) 0 else cursor.getLong(4))
+                })
+                count++
+              }
+            }
+          }
+          for (subfolder in subfolders) walk(subfolder, depth + 1)
+        }
+        walk(DocumentsContract.getTreeDocumentId(tree), 0)
+        invoke.resolve(JSObject().apply { put("files", files) })
+      } catch (error: SecurityException) {
+        invoke.reject(error.message, "denied")
+      } catch (error: Exception) {
+        invoke.reject(error.message, "missing")
+      }
+    }
+  }
+
   @Command
   fun open(invoke: Invoke) {
     val args = invoke.parseArgs(DocumentArgs::class.java)
@@ -371,6 +516,39 @@ class KomoriPlugin(private val activity: Activity) : Plugin(activity) {
       invoke.resolve()
     } catch (_: ActivityNotFoundException) {
       invoke.reject("No app on this phone opens web links.")
+    }
+  }
+
+  /**
+   * Hands Komori's update APK, which Rust downloaded into the cache's `updates` folder and checked,
+   * to Android's installer; Android asks before replacing Komori and refuses an APK signed with
+   * another key. Until Komori may install apps, opens the setting that allows it instead and
+   * answers `allowed: false`.
+   */
+  @Command
+  fun installApk(invoke: Invoke) {
+    val apk = File(invoke.parseArgs(ApkArgs::class.java).path).canonicalFile
+    val updates = File(activity.cacheDir, "updates").canonicalFile
+    if (apk.parentFile != updates || !apk.isFile) {
+      invoke.reject("The update is not in Komori's updates folder.")
+      return
+    }
+    if (!activity.packageManager.canRequestPackageInstalls()) {
+      activity.startActivity(
+        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${activity.packageName}")),
+      )
+      invoke.resolve(JSObject().apply { put("allowed", false) })
+      return
+    }
+    val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", apk)
+    val install = Intent(Intent.ACTION_VIEW)
+      .setDataAndType(uri, "application/vnd.android.package-archive")
+      .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    try {
+      activity.startActivity(install)
+      invoke.resolve(JSObject().apply { put("allowed", true) })
+    } catch (_: ActivityNotFoundException) {
+      invoke.reject("Android's installer could not be opened.")
     }
   }
 

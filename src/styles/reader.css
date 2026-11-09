@@ -2532,15 +2532,16 @@ blockquote.reader-note-passage {
   height: 100%;
   object-fit: cover;
 }
-.reader-background--blur img {
-  filter: blur(var(--reader-background-blur, 16px));
-  transform: scale(1.05);
-}
+/* The blur is the tint's backdrop filter, which repeats the image's edges into the blur, so the
+   image keeps its size and framing with the blur on or off. */
 .reader-background::after {
   content: "";
   position: absolute;
   inset: 0;
   background: color-mix(in srgb, var(--reader-page) 90%, transparent);
+}
+.reader-background--blur::after {
+  backdrop-filter: blur(var(--reader-background-blur, 16px));
 }
 .reader-background-row {
   display: grid;

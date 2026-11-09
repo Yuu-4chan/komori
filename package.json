@@ -2,7 +2,7 @@
   "name": "komori",
   "version": "2.1.0",
   "private": true,
-  "author": "Yuu-4chan",
+  "author": "The Komori authors",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {

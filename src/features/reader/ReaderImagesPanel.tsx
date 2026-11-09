@@ -123,8 +123,10 @@ function ImageCard({
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     if (!ref.current || typeof IntersectionObserver === "undefined") return;
+    // Measured against the list's own scroller: the look-ahead margin then reaches past what it
+    // shows, and the phone sheet rising into place cannot leave cards it shows counted as hidden.
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), {
-      root: ref.current.closest(".reader-sidebar__content"),
+      root: ref.current.closest(".reader-sidebar__content, .mobile-sheet"),
       rootMargin: "240px",
     });
     observer.observe(ref.current);

@@ -56,6 +56,7 @@ export const ko: MessageCatalog = {
   "settings.devicesDescription": "라이브러리를 읽는 휴대폰",
   "settings.sync": "동기화",
   "settings.version": "Komori {version}",
+  "settings.released": "{date} 출시",
   "settings.about": "정보",
   "settings.sectionTitle": "{section} 설정",
   "settings.dictionarySourcesNote":
@@ -139,8 +140,10 @@ export const ko: MessageCatalog = {
   "updates.availableTitle": "Komori {version}을(를) 사용할 수 있습니다",
   "updates.availableDescription":
     "현재 버전은 {current}입니다. Komori가 닫힌 뒤 업데이트를 설치하고 다시 열립니다.",
+  "updates.availableDescriptionPhone": "현재 버전은 {current}입니다.",
   "updates.notes": "새로운 기능",
   "updates.install": "설치 후 다시 시작",
+  "updates.installPhone": "설치",
   "updates.installing": "다운로드 중…",
   "updates.later": "나중에",
   "autoscroll.label": "가운데 클릭 자동 스크롤",
@@ -1486,6 +1489,7 @@ export const ko: MessageCatalog = {
   "appearancePanel.vnParagraphs": "VN 문단 수",
   "appearancePanel.revealSpeed": "글자 표시 속도",
   "appearancePanel.chapterThreshold": "장 넘김 휠 한도",
+  "appearancePanel.chapterSwipeThreshold": "장 넘김 스와이프 횟수",
   "appearancePanel.vnFixed":
     "이 고정 레이아웃 책은 원래 페이지를 유지합니다. VN 설정은 저장됩니다.",
   "appearancePanel.vnWhole": "이 부분은 안전하게 나눌 문단이 없어 한꺼번에 표시됩니다.",
@@ -1518,6 +1522,7 @@ export const ko: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "자/초",
   "unit.steps": "단계",
+  "unit.swipes": "회",
   "unit.minutes": "분",
   "footerChoice.readingPosition": "읽는 위치",
   "footerChoice.percentage": "비율",
@@ -1777,6 +1782,7 @@ export const ko: MessageCatalog = {
   "failure.updateCheck": "업데이트를 확인할 수 없습니다. 연결을 확인한 뒤 다시 시도하세요.",
   "failure.updateInstall": "업데이트를 다운로드하거나 확인할 수 없습니다. 나중에 다시 시도하세요.",
   "failure.updateGone": "설치하기 전에 업데이트를 다시 확인하세요.",
+  "failure.updateAllow": "Komori의 앱 설치를 허용한 다음 설치를 다시 탭하세요.",
   "devices.title": "기기",
   "devices.description": "휴대폰과 이 PC의 라이브러리",
   "devices.readError": "기기를 불러오지 못했습니다.",

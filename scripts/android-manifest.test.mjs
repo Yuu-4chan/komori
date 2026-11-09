@@ -39,11 +39,14 @@ describe("Android activity", () => {
     }
   });
 
-  it("shares only AnkiDroid's media folder through its file provider", () => {
+  it("shares only AnkiDroid's media and downloaded updates through its file provider", () => {
     const paths = readFileSync(`${main}/res/xml/file_paths.xml`, "utf8");
     expect(
       [...paths.matchAll(/<([\w-]+-path)\s[^>]*path="([^"]*)"/gu)].map((m) => [m[1], m[2]]),
-    ).toEqual([["cache-path", "ankidroid/"]]);
+    ).toEqual([
+      ["cache-path", "ankidroid/"],
+      ["cache-path", "updates/"],
+    ]);
   });
 
   it("launches with Komori's icon, not the Android project's placeholder", () => {

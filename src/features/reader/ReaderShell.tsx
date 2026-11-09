@@ -156,8 +156,14 @@ export function ReaderShell({
   const [noteDraft, setNoteDraft] = useState<{ store?: NoteStore; place: NotePassage } | null>(
     null,
   );
+  // A saved note opened from the phone's selection toolbar, edited in place.
+  const [noteEditing, setNoteEditing] = useState<{ store?: NoteStore; id: string } | null>(null);
   const capturingNote = useRef(false);
   const notes = useNotes(noteStore);
+  const editingNote =
+    noteEditing && noteEditing.store === noteStore
+      ? notes.items.find((item) => item.id === noteEditing.id)
+      : undefined;
   const noteContext = useMemo(
     () => ({ store: noteStore, factory: rendererFactory, active: true }),
     [noteStore, rendererFactory],
@@ -1180,6 +1186,7 @@ export function ReaderShell({
   useEffect(() => {
     clearEscape();
     setNoteDraft(null);
+    setNoteEditing(null);
     setFeedback("");
   }, [rendererFactory, noteStore, clearEscape]);
 
@@ -1955,6 +1962,13 @@ export function ReaderShell({
                     });
                   return;
                 }
+                // Note on a saved passage opens its note rather than starting another.
+                if (action === "note" && note) {
+                  clear();
+                  closeLookup();
+                  setNoteEditing({ store: noteStore, id: note });
+                  return;
+                }
                 if (action === "note" || action === "highlight") {
                   void createSelectedNote(action).finally(clear);
                   return;
@@ -2083,6 +2097,22 @@ export function ReaderShell({
                 setSidebarView("notes");
                 setSidebarShown(true);
               }
+            });
+          }}
+        />
+      )}
+      {editingNote && (
+        <NoteEditor
+          key={editingNote.id}
+          title={t("notes.editTitle")}
+          passage={editingNote.passage}
+          initial={editingNote.body}
+          busy={notes.busy}
+          error={notes.error}
+          onCancel={() => setNoteEditing(null)}
+          onSave={(body) => {
+            void notes.edit(editingNote.id, body).then((saved) => {
+              if (saved) setNoteEditing(null);
             });
           }}
         />

@@ -296,9 +296,8 @@ export function FontPicker({
     <div className="reader-font-field">
       <div className="select-field">
         <div className="select-field__label">
-          <label id={labelId} htmlFor={`${listId}-field`}>
-            {label}
-          </label>
+          {/* Not a <label>: a press on the name must not open the list, as it would on the phone. */}
+          <span id={labelId}>{label}</span>
         </div>
         <div className="font-picker__controls">
           <div className="font-picker__input-control" ref={controlRef}>

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Only the media Komori hands AnkiDroid with a card (AnkiDroid.kt storeMedia). -->
+<!-- Only the media Komori hands AnkiDroid with a card (AnkiDroid.kt storeMedia) and the update
+     APK it hands Android's installer (KomoriPlugin.kt installApk). -->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
   <cache-path name="ankidroid" path="ankidroid/" />
+  <cache-path name="updates" path="updates/" />
 </paths>

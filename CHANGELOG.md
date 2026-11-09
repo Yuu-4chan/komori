@@ -2,6 +2,19 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 2.2.0
+
+- The phone updates itself: Settings > About checks for a new release and installs it, and can check automatically. The phone's About page also shows the version, its release date and a link to the project on GitHub.
+- The phone can keep book folders as the PC does: add one in Settings > Library, and new EPUBs in it (subfolders too) join the Library each time you open it. Android lets apps take folders inside Download or the phone's storage, not Download or the storage itself. Automatic series is now in Settings > Library on the phone.
+- Long pressing a saved note or highlight on the phone offers Edit note, which opens that note instead of adding another.
+- Links in a book's own contents page go to their chapter in the chapter-at-a-time and VN views.
+- Chapter swipe threshold sets how many swipes at a chapter's edge turn the chapter on the phone, as Chapter wheel threshold does for the wheel on the PC.
+- Pressing a setting's name no longer opens its dropdown, and the phone no longer flashes a blue box over tapped controls.
+- Swiping along Continue reading no longer starts a sync.
+- The Reader's Images sheet on the phone loads its pictures as soon as it opens.
+- A blurred background image keeps its size and framing instead of growing.
+- The installer and Windows name Komori as the publisher.
+
 ## 2.1.0
 
 - Komori now runs on Android phones (Android 10 and later, 64-bit): install `Komori_2.1.0_android-arm64.apk` from the release. The phone has the Library, Reader, lookup popup, Dictionary, Statistics and Settings, made for touch: tap a word to look it up, long press to select text or books, tap or swipe to turn pages, and add looked-up words to AnkiDroid.

@@ -56,6 +56,7 @@ export const ja: MessageCatalog = {
   "settings.devicesDescription": "ライブラリを読むスマートフォン",
   "settings.sync": "同期",
   "settings.version": "Komori {version}",
+  "settings.released": "{date}リリース",
   "settings.about": "このアプリについて",
   "settings.sectionTitle": "{section}の設定",
   "settings.dictionarySourcesNote":
@@ -142,8 +143,10 @@ export const ja: MessageCatalog = {
   "updates.availableTitle": "Komori {version}を利用できます",
   "updates.availableDescription":
     "現在のバージョンは{current}です。Komoriはアップデートをインストールするために閉じ、再び開きます。",
+  "updates.availableDescriptionPhone": "現在のバージョンは{current}です。",
   "updates.notes": "新機能と変更点",
   "updates.install": "インストールして再起動",
+  "updates.installPhone": "インストール",
   "updates.installing": "ダウンロード中…",
   "updates.later": "後で",
   "autoscroll.label": "中クリックで自動スクロール",
@@ -1498,6 +1501,7 @@ export const ja: MessageCatalog = {
   "appearancePanel.vnParagraphs": "VNの段落数",
   "appearancePanel.revealSpeed": "文字の表示速度",
   "appearancePanel.chapterThreshold": "章をまたぐホイール量",
+  "appearancePanel.chapterSwipeThreshold": "章をまたぐスワイプ回数",
   "appearancePanel.vnFixed":
     "この固定レイアウトの本は元のページのまま表示します。VNの設定は保存されます。",
   "appearancePanel.vnWhole": "この章は安全に分けられる段落がないため、まとめて表示します。",
@@ -1531,6 +1535,7 @@ export const ja: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "字/秒",
   "unit.steps": "段階",
+  "unit.swipes": "回",
   "unit.minutes": "分",
   "footerChoice.readingPosition": "読書位置",
   "footerChoice.percentage": "割合",
@@ -1792,6 +1797,8 @@ export const ja: MessageCatalog = {
   "failure.updateInstall":
     "アップデートをダウンロードまたは検証できませんでした。後でもう一度お試しください。",
   "failure.updateGone": "インストールする前に、もう一度アップデートを確認してください。",
+  "failure.updateAllow":
+    "Komoriにアプリのインストールを許可してから、もう一度「インストール」をタップしてください。",
   "devices.title": "デバイス",
   "devices.description": "スマートフォンとこのPCのライブラリ",
   "devices.readError": "デバイスを読み込めませんでした。",

@@ -1112,6 +1112,22 @@ fn import_documents_with_progress(
     results
 }
 
+/// Imports documents a book folder holds on the phone. Their folder's permission reads them,
+/// so none of their own is kept or given back.
+#[cfg(mobile)]
+pub(crate) fn import_documents(
+    connection: &mut Connection,
+    documents: &[crate::android::Document],
+) -> Vec<ImportResult> {
+    import_each(
+        connection,
+        documents,
+        &mut BatchProgress::silent(),
+        |document| document.name.clone(),
+        import_document,
+    )
+}
+
 fn import_each<T>(
     connection: &mut Connection,
     picked: &[T],
@@ -1143,11 +1159,12 @@ fn import_each<T>(
     results
 }
 
-/// Gives back the read permission of every phone document the catalog no longer links.
+/// Gives back the read permission of every phone document the catalog no longer links: neither
+/// a book's source nor a book folder.
 #[cfg(mobile)]
-fn release_unlinked(connection: &Connection) {
+pub(crate) fn release_unlinked(connection: &Connection) {
     let sources = connection
-        .prepare("SELECT source_path FROM books")
+        .prepare("SELECT source_path FROM books UNION ALL SELECT path FROM library_folders")
         .and_then(|mut statement| {
             statement
                 .query_map([], |row| row.get(0))?

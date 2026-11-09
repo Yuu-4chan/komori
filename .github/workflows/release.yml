@@ -1,7 +1,7 @@
 # Builds, checks and signs a Komori release: the Windows installer and the Android APK. Pushing a
-# tag v<version> attaches the signed installer, latest.json, the signed APK and SHA256SUMS.txt to a
-# draft GitHub release for that tag; installed Windows copies see the update once the draft is
-# published. Running it by hand builds and signs without releasing, and keeps the files as a
+# tag v<version> attaches the signed installer, latest.json, the signed APK with its updater
+# signature and SHA256SUMS.txt to a draft GitHub release for that tag; installed copies on Windows
+# and Android see the update once the draft is published. Running it by hand builds and signs without releasing, and keeps the files as a
 # workflow artifact.
 #
 # Repository secrets:
@@ -156,6 +156,20 @@ jobs:
           if echo "$badging" | grep -q "application-debuggable"; then echo "The APK is debuggable." >&2; exit 1; fi
           mkdir release
           cp "$apk" "release/Komori_${version}_android-arm64.apk"
+
+      # The phone installs an update only with the updater key's signature naming the APK.
+      - name: Sign the APK for the phone's updates
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "The TAURI_SIGNING_PRIVATE_KEY secret is not set." >&2
+            exit 1
+          fi
+          version=$(node -p "require('./package.json').version")
+          pnpm tauri signer sign "release/Komori_${version}_android-arm64.apk" > /dev/null
+          test -s "release/Komori_${version}_android-arm64.apk.sig"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

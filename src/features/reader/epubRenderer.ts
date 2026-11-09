@@ -1129,6 +1129,7 @@ class EpubRenderer implements ReaderRenderer {
     rendition.hooks?.content?.register(async (contents: EpubPageContents) => {
       if (this.disposed) return;
       followBookLinks(contents.document);
+      this.followInternalLinks(contents);
       if (!this.continuous && !this.fixedLayout) pageTextWidth(contents);
       this.restyleIfStale(contents, false);
       await waitForReaderFonts(contents.document, this.sectionPresentation());
@@ -1946,12 +1947,37 @@ class EpubRenderer implements ReaderRenderer {
   }
 
   async goToContentsEntry(entryId: string): Promise<boolean> {
+    const destination = this.destinations.get(entryId);
+    return destination ? this.goToDestination(destination, entryId) : false;
+  }
+
+  /**
+   * A link to another place in the book jumps there as a contents entry does. EPUB.js would
+   * display the place itself, which a chapter or VN view, showing only part of the book,
+   * leaves unseen.
+   */
+  private followInternalLinks(contents: EpubPageContents): void {
+    const emitter = contents as unknown as { emit?: (type: string, ...rest: unknown[]) => void };
+    const emit = emitter.emit?.bind(emitter);
+    if (!emit) return;
+    emitter.emit = (type, ...rest) => {
+      if (type !== "linkClicked") {
+        emit(type, ...rest);
+        return;
+      }
+      const book = this.book as unknown as
+        { path?: { relative(path: string): string } } | undefined;
+      const href = typeof rest[0] === "string" ? rest[0] : "";
+      const relative = href && book?.path ? book.path.relative(href) : href;
+      if (relative) void this.goToDestination(relative);
+    };
+  }
+
+  private async goToDestination(destination: string, entryId?: string): Promise<boolean> {
     // A jump finds the rest of a continuous book laid out, as a book always shows whole.
     if (this.sectionsLoading) await this.sectionsLoaded();
     const rendition = this.rendition;
-    const destination = this.destinations.get(entryId);
-    if (!rendition || !destination || this.disposed || this.turnPending || this.layoutPending)
-      return false;
+    if (!rendition || this.disposed || this.turnPending || this.layoutPending) return false;
     this.turnPending = true;
     this.jumpedEntryId = undefined;
     this.reflowAnchor = undefined;

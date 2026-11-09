@@ -107,8 +107,9 @@ Windows 11 already includes; if it is missing, the installer downloads and insta
    [Releases](https://github.com/Yuu-4chan/komori/releases) page.
 2. Open it and allow your browser or file manager to install apps when Android asks.
 
-Komori runs on 64-bit Android 10 and later. It does not update itself: install a newer APK
-over it the same way, which keeps your data. To read your PC's books on the phone, turn on
+Komori runs on 64-bit Android 10 and later. It checks for a newer release when it starts
+(which you can turn off in **Settings > About**) and offers to install it; Android asks once
+whether Komori may install apps. Updating keeps your data. To read your PC's books on the phone, turn on
 **Allow phones to connect** in Komori's **Settings > Integrations > Devices** on the PC, then
 enter the address and code it shows in **Settings > Sync** on the phone; both must be on the
 same network.

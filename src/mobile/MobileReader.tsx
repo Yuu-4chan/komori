@@ -218,6 +218,7 @@ export function MobileReader({
     readerTapLookup,
     readerTouchPageTurns,
     readerVolumePageTurns,
+    readerChapterWheelThreshold,
     readerViewMode,
     readerShowReadingPosition,
     readerShowPercentage,
@@ -321,10 +322,21 @@ export function MobileReader({
     // Taps turn only pages: a continuous book, whole or a chapter at a time, has none.
     tapTurns: readerViewMode === "paginated" || readerViewMode === "vn",
     chapterView: readerViewMode === "semi-continuous",
+    chapterSwipes: readerChapterWheelThreshold,
   };
   const latest = useRef(current);
   latest.current = current;
   useEffect(() => {
+    // Swipes in a row at a chapter's edge, toward its neighbour: the chosen number of them
+    // turns the chapter, as wheel steps do on the PC.
+    let edgeSwipes = { direction: "", count: 0 };
+    const swipedPastEdge = (direction: "advance" | "retreat") => {
+      if (edgeSwipes.direction !== direction) edgeSwipes = { direction, count: 0 };
+      edgeSwipes.count++;
+      if (edgeSwipes.count < latest.current.chapterSwipes) return false;
+      edgeSwipes = { direction: "", count: 0 };
+      return true;
+    };
     // `now` is on this window's clock: a book page's own events count from its frame's start.
     let start: {
       x: number;
@@ -422,11 +434,17 @@ export function MobileReader({
         const direction = (vertical ? along < 0 : leftAdvances === along > 0)
           ? "advance"
           : "retreat";
-        if (began.edges[direction]) onTurn(direction);
+        if (!began.edges[direction]) edgeSwipes = { direction: "", count: 0 };
+        else if (swipedPastEdge(direction)) onTurn(direction);
         return;
       }
       if (Math.abs(dx) < swipeDistance || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-      onTurn(leftAdvances === dx > 0 ? "advance" : "retreat");
+      const direction = leftAdvances === dx > 0 ? "advance" : "retreat";
+      const crossing =
+        direction === "advance" ? pageTurns.advanceChapter : pageTurns.retreatChapter;
+      if (!crossing) edgeSwipes = { direction: "", count: 0 };
+      else if (!swipedPastEdge(direction)) return;
+      onTurn(direction);
     };
     touchRef.current = touched;
     const viewport = viewportRef.current;
@@ -1104,7 +1122,8 @@ const screenGutter = 8;
 
 /**
  * Note, Highlight, Copy, Look up and Search beside the book's selection, above it where there
- * is room. On a saved passage, Delete removes it in place of Highlight.
+ * is room. On a saved passage, Edit note opens its note in place of adding another, and Delete
+ * removes it in place of Highlight.
  */
 function SelectionToolbar({
   rect,
@@ -1150,7 +1169,7 @@ function SelectionToolbar({
     window.innerWidth - toolbarWidth - screenGutter,
   );
   const actions = [
-    { action: "note", label: t("textMenu.note"), icon: NotePencilIcon },
+    { action: "note", label: t(saved ? "notes.editTitle" : "textMenu.note"), icon: NotePencilIcon },
     saved
       ? ({ action: "delete", label: t("noteMenu.delete"), icon: TrashIcon } as const)
       : ({ action: "highlight", label: t("textMenu.highlight"), icon: HighlighterIcon } as const),

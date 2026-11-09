@@ -182,6 +182,11 @@ function LibraryContent({ group }: { group: string | null }) {
   useEffect(() => {
     void refresh();
   }, [refresh, imports.version]);
+  // Each visit also looks for new books in the book folders, as on the PC.
+  const { scanFolders } = imports;
+  useEffect(() => {
+    void scanFolders();
+  }, [scanFolders]);
 
   const { link, settled: linkSettled } = usePcLinkState();
   const pcActive = link?.paired === true && link.syncOn;

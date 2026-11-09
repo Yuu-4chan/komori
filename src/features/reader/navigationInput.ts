@@ -1,3 +1,5 @@
+import { isAndroid } from "../../app/platform";
+
 export type TurnDirection = "advance" | "retreat";
 
 const EXCLUDED =
@@ -149,8 +151,16 @@ export class WheelStepCounter {
   }
 }
 
-/** Wheel steps required at a settled chapter edge, independently of page turns. */
-export const readerChapterWheelThreshold = { min: 1, max: 20, step: 1, default: 3 } as const;
+/**
+ * Wheel steps required at a settled chapter edge, independently of page turns; on the phone,
+ * swipes, where one turns the chapter unless more are chosen.
+ */
+export const readerChapterWheelThreshold = {
+  min: 1,
+  max: 20,
+  step: 1,
+  default: isAndroid ? 1 : 3,
+} as const;
 
 export function isChapterWheelThreshold(value: unknown): value is number {
   return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 20;

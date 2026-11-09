@@ -6,6 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 
 vi.mock("../app/platform", () => ({ isAndroid: true }));
+vi.mock("../features/dictionary/dictionaryApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../features/dictionary/dictionaryApi")>()),
+  openExternalLink: vi.fn(async () => {}),
+}));
 vi.mock("../features/startup/startupApi", async (importOriginal) => {
   const original = await importOriginal<typeof import("../features/startup/startupApi")>();
   let saved = { ...original.defaultStartupPreferences };
@@ -19,14 +23,38 @@ vi.mock("../features/startup/startupApi", async (importOriginal) => {
   };
 });
 
+vi.mock("../features/library/libraryApi", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../features/library/libraryApi")>();
+  const folders: import("../features/library/libraryApi").LibraryFolder[] = [];
+  return {
+    ...original,
+    listLibraryFolders: vi.fn(async () => [...folders]),
+    addLibraryFolder: vi.fn(async () => {
+      folders.push({ id: 1, path: "Books/Light novels", availability: "available", books: 2 });
+      return {
+        status: "added" as const,
+        message: null,
+        results: [
+          { fileName: "one.epub", status: "imported" as const, message: null },
+          { fileName: "two.epub", status: "imported" as const, message: null },
+        ],
+      };
+    }),
+  };
+});
+
 const { MobileSettingsPage } = await import("./MobileSettingsPage");
 const { saveStartupPreferences } = await import("../features/startup/startupApi");
+const { openExternalLink } = await import("../features/dictionary/dictionaryApi");
+const { UpdatesProvider } = await import("../features/updates/updates");
 
 function settings(section?: string) {
   render(
     <MemoryRouter initialEntries={[section ? `/settings?section=${section}` : "/settings"]}>
       <AppearanceProvider store={null}>
-        <MobileSettingsPage />
+        <UpdatesProvider>
+          <MobileSettingsPage />
+        </UpdatesProvider>
       </AppearanceProvider>
     </MemoryRouter>,
   );
@@ -46,6 +74,7 @@ describe("Settings on the phone", () => {
         .map((row) => row.textContent),
     ).toEqual([
       "General",
+      "Library",
       "Reader popup",
       "Dictionary",
       "AnkiAnkiDroid",
@@ -73,8 +102,18 @@ describe("Settings on the phone", () => {
     );
   });
 
+  it("adds book folders as the PC does, whose new books Komori imports", async () => {
+    settings("library");
+    expect(screen.getByRole("heading", { level: 1, name: "Library" })).toBeTruthy();
+    expect(await screen.findByText("No book folders yet.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Add folder" }));
+    expect(await screen.findByText("Books/Light novels")).toBeTruthy();
+    expect(screen.getByText("2 books added")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Remove Books/Light novels" })).toBeTruthy();
+  });
+
   it("makes series automatically by choice, as the PC does", async () => {
-    settings("general");
+    settings("library");
     const series = screen.getByRole("button", { name: /Automatic series/ });
     expect(series.getAttribute("aria-pressed")).toBe("true");
     await userEvent.click(series);
@@ -125,5 +164,21 @@ describe("Settings on the phone", () => {
     expect(screen.getByRole("button", { name: "Add dictionaries" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Word audio" })).toBeTruthy();
     expect(screen.queryByText(/Alt\+/)).toBeNull();
+  });
+  it("shows the version, its updates and the project's page in About", async () => {
+    vi.stubEnv("VITE_RELEASE_DATE", "2026-11-09");
+    settings("about");
+    expect(document.querySelector(".mobile-about__version")?.textContent).toMatch(
+      /^Komori \d+\.\d+\.\d+$/,
+    );
+    expect(screen.getByText("Released November 9, 2026")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Check for updates" })).toBeTruthy();
+    const automatic = screen.getByRole("button", { name: "Check for updates automatically" });
+    await waitFor(() => expect(automatic.getAttribute("aria-pressed")).toBe("true"));
+    await userEvent.click(automatic);
+    expect(saveStartupPreferences).toHaveBeenCalledWith({ checkForUpdates: false });
+    await userEvent.click(screen.getByRole("button", { name: /GitHub/ }));
+    expect(openExternalLink).toHaveBeenCalledWith("https://github.com/Yuu-4chan/komori");
+    vi.unstubAllEnvs();
   });
 });

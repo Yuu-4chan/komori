@@ -11,7 +11,9 @@ const appWindow = vi.hoisted(() => ({
   isMaximized: vi.fn(async () => false),
   onResized: vi.fn(async () => () => undefined),
 }));
+const platform = vi.hoisted(() => ({ isAndroid: false }));
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true }));
+vi.mock("../../app/platform", () => platform);
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => appWindow }));
 vi.mock("../startup/startupApi", async (original) => ({
   ...(await original<typeof import("../startup/startupApi")>()),
@@ -38,6 +40,7 @@ function renderUpdates() {
 describe("Updates", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    platform.isAndroid = false;
     vi.mocked(getStartupPreferences).mockResolvedValue(defaultStartupPreferences);
   });
   afterEach(() => {
@@ -137,5 +140,27 @@ describe("Updates", () => {
       "The update could not be downloaded or verified. Try again later.",
     );
     expect(within(dialog).getByRole("button", { name: "Install and restart" })).toBeEnabled();
+  });
+  it("hands the phone's update to Android and stays for another try, as when installing is not allowed yet", async () => {
+    platform.isAndroid = true;
+    vi.mocked(getStartupPreferences).mockResolvedValue({
+      ...defaultStartupPreferences,
+      checkForUpdates: false,
+    });
+    vi.mocked(checkForUpdate).mockResolvedValue(update);
+    vi.mocked(installUpdate)
+      .mockRejectedValueOnce("failure.updateAllow")
+      .mockResolvedValueOnce(undefined);
+    renderUpdates();
+    await userEvent.click(screen.getByRole("button", { name: "Check for updates" }));
+    const dialog = await screen.findByRole("dialog", { name: "Komori 1.1.0 is available" });
+    expect(dialog).toHaveAccessibleDescription("You have version 1.0.0.");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Install" }));
+    expect(
+      await within(dialog).findByText("Allow Komori to install apps, then tap Install again."),
+    ).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Install" }));
+    await waitFor(() => expect(installUpdate).toHaveBeenCalledTimes(2));
+    expect(within(dialog).getByRole("button", { name: "Install" })).toBeEnabled();
   });
 });
