@@ -124,6 +124,8 @@ struct Pending {
 
 struct Server {
     port: u16,
+    /// Where a connection reaches the listener, to wake its blocking accept when stopping.
+    wake: SocketAddr,
     stop: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
 }
@@ -131,8 +133,13 @@ struct Server {
 impl Drop for Server {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
+        // The accept waits for a connection, so one wakes it to see the stop. Without one the
+        // thread ends at the next phone's connection instead, and is not waited for.
+        let woke = TcpStream::connect_timeout(&self.wake, Duration::from_secs(2)).is_ok();
         if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
+            if woke {
+                let _ = thread.join();
+            }
         }
     }
 }
@@ -335,34 +342,50 @@ fn start_server(shared: &Arc<Shared>, port: u16) -> Result<Server, &'static str>
         }
     })?;
     let port = listener.local_addr().map_or(port, |address| address.port());
-    listener.set_nonblocking(true).map_err(|_| "failed")?;
     let stop = Arc::new(AtomicBool::new(false));
+    // A blocking accept answers a phone the moment it connects; polling would make every
+    // request wait for the next poll.
     let thread = {
         let (shared, stop) = (shared.clone(), stop.clone());
         std::thread::spawn(move || {
-            while !stop.load(Ordering::SeqCst) {
-                match listener.accept() {
-                    Ok((stream, _)) => {
-                        if shared.connections.load(Ordering::SeqCst) >= CONNECTIONS {
-                            continue;
-                        }
-                        shared.connections.fetch_add(1, Ordering::SeqCst);
-                        let (shared, config) = (shared.clone(), config.clone());
-                        std::thread::spawn(move || {
-                            serve(&shared, config, fingerprint, stream);
-                            shared.connections.fetch_sub(1, Ordering::SeqCst);
-                        });
-                    }
-                    Err(_) => std::thread::sleep(Duration::from_millis(100)),
+            for accepted in listener.incoming() {
+                if stop.load(Ordering::SeqCst) {
+                    break;
                 }
+                let Ok(stream) = accepted else {
+                    // Out of sockets or similar: try again shortly rather than spin.
+                    std::thread::sleep(Duration::from_millis(50));
+                    continue;
+                };
+                if shared.connections.load(Ordering::SeqCst) >= CONNECTIONS {
+                    continue;
+                }
+                shared.connections.fetch_add(1, Ordering::SeqCst);
+                let (shared, config) = (shared.clone(), config.clone());
+                std::thread::spawn(move || {
+                    serve(&shared, config, fingerprint, stream);
+                    shared.connections.fetch_sub(1, Ordering::SeqCst);
+                });
             }
         })
     };
     Ok(Server {
         port,
+        wake: SocketAddr::new(wake_address(shared.bind), port),
         stop,
         thread: Some(thread),
     })
+}
+
+/// The address that reaches a listener bound to `bind`: loopback for an unspecified one.
+fn wake_address(bind: IpAddr) -> IpAddr {
+    match bind {
+        IpAddr::V4(address) if address.is_unspecified() => IpAddr::V4(Ipv4Addr::LOCALHOST),
+        IpAddr::V6(address) if address.is_unspecified() => {
+            IpAddr::V6(std::net::Ipv6Addr::LOCALHOST)
+        }
+        address => address,
+    }
 }
 
 /// Starts or stops the server to match the saved settings, with a fresh code when it starts.

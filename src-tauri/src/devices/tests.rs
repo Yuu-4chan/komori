@@ -295,3 +295,33 @@ fn a_paired_phone_syncs_its_reading_and_the_pc_notes_when() {
         LinkError::Failed(_) | LinkError::Unreachable
     ));
 }
+
+#[test]
+fn the_pc_answers_each_new_connection_at_once_and_stops_listening_when_turned_off() {
+    let pc = pc();
+    let client = Client::new("127.0.0.1", pc.port, None, None).unwrap();
+    // Each request is a new connection; none waits for the server to look for it.
+    let mut times: Vec<_> = (0..7)
+        .map(|_| {
+            let start = std::time::Instant::now();
+            run(client.hello()).unwrap();
+            start.elapsed()
+        })
+        .collect();
+    times.sort();
+    assert!(
+        times[3] < std::time::Duration::from_millis(50),
+        "median {:?}",
+        times[3]
+    );
+
+    // Turning devices off frees the port at once, for this or another program.
+    let settings = pc
+        .shared
+        .update(|settings| settings.allowed = false)
+        .unwrap();
+    let start = std::time::Instant::now();
+    super::apply(&pc.shared, &settings);
+    assert!(start.elapsed() < std::time::Duration::from_secs(1));
+    std::net::TcpListener::bind(("127.0.0.1", pc.port)).unwrap();
+}
