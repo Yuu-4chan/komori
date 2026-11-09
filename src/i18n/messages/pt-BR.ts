@@ -56,6 +56,7 @@ export const ptBR: MessageCatalog = {
   "settings.devicesDescription": "Celulares que leem sua biblioteca",
   "settings.sync": "Sincronização",
   "settings.version": "Komori {version}",
+  "settings.released": "Lançada em {date}",
   "settings.about": "Sobre",
   "settings.sectionTitle": "Configurações de {section}",
   "settings.dictionarySourcesNote":
@@ -143,8 +144,10 @@ export const ptBR: MessageCatalog = {
   "updates.availableTitle": "O Komori {version} está disponível",
   "updates.availableDescription":
     "Você tem a versão {current}. O Komori fecha para instalar a atualização e abre de novo.",
+  "updates.availableDescriptionPhone": "Você tem a versão {current}.",
   "updates.notes": "Novidades",
   "updates.install": "Instalar e reiniciar",
+  "updates.installPhone": "Instalar",
   "updates.installing": "Baixando…",
   "updates.later": "Depois",
   "autoscroll.label": "Rolagem automática com clique do meio",
@@ -1583,6 +1586,7 @@ export const ptBR: MessageCatalog = {
   "appearancePanel.vnParagraphs": "Parágrafos do VN",
   "appearancePanel.revealSpeed": "Velocidade de exibição do texto",
   "appearancePanel.chapterThreshold": "Limite da roda entre capítulos",
+  "appearancePanel.chapterSwipeThreshold": "Limite de deslizes entre capítulos",
   "appearancePanel.vnFixed":
     "Este livro de layout fixo mantém as páginas originais; as opções de VN ficam salvas.",
   "appearancePanel.vnWhole":
@@ -1617,6 +1621,7 @@ export const ptBR: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "car./s",
   "unit.steps": "passos",
+  "unit.swipes": "deslizes",
   "unit.minutes": "min",
   "footerChoice.readingPosition": "Posição de leitura",
   "footerChoice.percentage": "Porcentagem",
@@ -1889,6 +1894,7 @@ export const ptBR: MessageCatalog = {
   "failure.updateInstall":
     "Não foi possível baixar ou verificar a atualização. Tente de novo mais tarde.",
   "failure.updateGone": "Procure atualizações de novo antes de instalar.",
+  "failure.updateAllow": "Permita que o Komori instale apps e toque em Instalar de novo.",
   "devices.title": "Dispositivos",
   "devices.description": "Seus celulares e a biblioteca deste PC",
   "devices.readError": "Não foi possível carregar os dispositivos.",

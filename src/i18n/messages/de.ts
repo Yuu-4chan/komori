@@ -56,6 +56,7 @@ export const de: MessageCatalog = {
   "settings.devicesDescription": "Handys, die deine Bibliothek lesen",
   "settings.sync": "Synchronisierung",
   "settings.version": "Komori {version}",
+  "settings.released": "Veröffentlicht am {date}",
   "settings.about": "Über Komori",
   "settings.sectionTitle": "Einstellungen: {section}",
   "settings.dictionarySourcesNote":
@@ -143,8 +144,10 @@ export const de: MessageCatalog = {
   "updates.availableTitle": "Komori {version} ist verfügbar",
   "updates.availableDescription":
     "Du hast Version {current}. Komori schließt sich zum Installieren des Updates und öffnet sich danach wieder.",
+  "updates.availableDescriptionPhone": "Du hast Version {current}.",
   "updates.notes": "Neuerungen",
   "updates.install": "Installieren und neu starten",
+  "updates.installPhone": "Installieren",
   "updates.installing": "Wird heruntergeladen…",
   "updates.later": "Später",
   "autoscroll.label": "Automatisches Scrollen per Mittelklick",
@@ -1598,6 +1601,7 @@ export const de: MessageCatalog = {
   "appearancePanel.vnParagraphs": "VN-Absätze",
   "appearancePanel.revealSpeed": "Einblendtempo des Texts",
   "appearancePanel.chapterThreshold": "Mausrad-Schwelle zwischen Kapiteln",
+  "appearancePanel.chapterSwipeThreshold": "Wischschwelle zwischen Kapiteln",
   "appearancePanel.vnFixed":
     "Dieses Buch mit festem Layout behält seine ursprünglichen Seiten; VN-Einstellungen werden gespeichert.",
   "appearancePanel.vnWhole":
@@ -1632,6 +1636,7 @@ export const de: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "Z./s",
   "unit.steps": "Schritte",
+  "unit.swipes": "Wischgesten",
   "unit.minutes": "Min.",
   "footerChoice.readingPosition": "Leseposition",
   "footerChoice.percentage": "Prozent",
@@ -1911,6 +1916,8 @@ export const de: MessageCatalog = {
   "failure.updateInstall":
     "Das Update konnte nicht heruntergeladen oder geprüft werden. Versuche es später erneut.",
   "failure.updateGone": "Suche vor der Installation erneut nach Updates.",
+  "failure.updateAllow":
+    "Erlaube Komori, Apps zu installieren, und tippe dann erneut auf Installieren.",
   "devices.title": "Geräte",
   "devices.description": "Deine Handys und die Bibliothek dieses PCs",
   "devices.readError": "Geräte konnten nicht geladen werden.",

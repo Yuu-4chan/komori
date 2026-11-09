@@ -31,6 +31,8 @@ mod library_folders;
 mod pc_link;
 #[cfg(any(mobile, test))]
 mod pc_listing;
+#[cfg(any(mobile, test))]
+mod phone_update;
 mod reader_background;
 mod reader_content;
 mod reader_fonts;
@@ -95,6 +97,8 @@ pub fn run() {
             #[cfg(mobile)]
             if let Ok(cache) = app.path().app_cache_dir() {
                 pc_listing::remove_dictionary_packs(&cache);
+                // An update's APK is spent once Komori starts again, updated or not.
+                updates::remove_downloads(&cache);
             }
             app.manage(library_drop::LibraryDropState::default());
             library_drop::install(&window);

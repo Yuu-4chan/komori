@@ -56,6 +56,7 @@ export const ru: MessageCatalog = {
   "settings.devicesDescription": "Телефоны, читающие вашу библиотеку",
   "settings.sync": "Синхронизация",
   "settings.version": "Komori {version}",
+  "settings.released": "Выпущена {date}",
   "settings.about": "О приложении",
   "settings.sectionTitle": "Настройки: {section}",
   "settings.dictionarySourcesNote":
@@ -142,8 +143,10 @@ export const ru: MessageCatalog = {
   "updates.availableTitle": "Доступен Komori {version}",
   "updates.availableDescription":
     "У вас версия {current}. Komori закроется, чтобы установить обновление, и откроется снова.",
+  "updates.availableDescriptionPhone": "У вас версия {current}.",
   "updates.notes": "Что нового",
   "updates.install": "Установить и перезапустить",
+  "updates.installPhone": "Установить",
   "updates.installing": "Загрузка…",
   "updates.later": "Позже",
   "autoscroll.label": "Автопрокрутка средней кнопкой",
@@ -1677,6 +1680,7 @@ export const ru: MessageCatalog = {
   "appearancePanel.vnParagraphs": "Абзацы VN",
   "appearancePanel.revealSpeed": "Скорость появления текста",
   "appearancePanel.chapterThreshold": "Порог колёсика между главами",
+  "appearancePanel.chapterSwipeThreshold": "Порог свайпов между главами",
   "appearancePanel.vnFixed":
     "Эта книга с фиксированной вёрсткой сохраняет исходные страницы; настройки VN сохранены.",
   "appearancePanel.vnWhole":
@@ -1711,6 +1715,7 @@ export const ru: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "симв./с",
   "unit.steps": "шагов",
+  "unit.swipes": "свайпов",
   "unit.minutes": "мин",
   "footerChoice.readingPosition": "Позиция чтения",
   "footerChoice.percentage": "Процент",
@@ -1984,6 +1989,7 @@ export const ru: MessageCatalog = {
     "Komori не удалось проверить обновления. Проверьте подключение и попробуйте снова.",
   "failure.updateInstall": "Не удалось загрузить или проверить обновление. Попробуйте позже.",
   "failure.updateGone": "Перед установкой снова проверьте обновления.",
+  "failure.updateAllow": "Разрешите Komori устанавливать приложения и снова нажмите «Установить».",
   "devices.title": "Устройства",
   "devices.description": "Ваши телефоны и библиотека этого ПК",
   "devices.readError": "Не удалось загрузить устройства.",

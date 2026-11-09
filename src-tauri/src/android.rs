@@ -1,6 +1,8 @@
 //! Komori's Android plugin (`gen/android/.../KomoriPlugin.kt`): the system document picker for
-//! books and dictionary archives, read-only descriptors for the documents it granted and the
-//! APK's assets, AnkiDroid's notes, and leaving the app from the Library.
+//! books and dictionary archives, the folder picker and listing for book folders, read-only
+//! descriptors for the documents it granted and the
+//! APK's assets, AnkiDroid's notes, installing Komori's updates, and leaving the app from the
+//! Library.
 //! Its calls wait for Android's main thread, so they run only from commands and worker threads.
 
 use std::{
@@ -83,6 +85,84 @@ async fn pick(args: Value) -> Result<Option<Vec<Document>>, String> {
 }
 
 #[derive(Deserialize)]
+struct PickedFolder {
+    canceled: bool,
+    #[serde(default)]
+    uri: Option<String>,
+}
+
+/// Shows Android's folder picker and keeps the read permission of the folder picked; its link,
+/// or `None` when the reader closed the picker.
+pub(crate) async fn pick_folder() -> Result<Option<String>, String> {
+    let picked: PickedFolder = plugin()
+        .map_err(|error| error.to_string())?
+        .run_mobile_plugin_async("pickFolder", json!({}))
+        .await
+        .map_err(|error| match error {
+            PluginInvokeError::InvokeRejected(_) => crate::failure::FOLDER_UNOPENABLE.to_owned(),
+            error => format!("The folder picker could not open: {error}"),
+        })?;
+    Ok(picked.uri.filter(|_| !picked.canceled))
+}
+
+#[derive(Deserialize)]
+struct FolderInfo {
+    label: String,
+    availability: String,
+}
+
+/// A book folder's name as the reader knows it, and whether it can be read: `available`,
+/// `missing` or `unreadable`.
+pub(crate) fn folder_info(tree: &str) -> (String, &'static str) {
+    let info = plugin().ok().and_then(|plugin| {
+        plugin
+            .run_mobile_plugin::<FolderInfo>("folderInfo", json!({ "uri": tree }))
+            .ok()
+    });
+    match info {
+        Some(info) => (
+            info.label,
+            match info.availability.as_str() {
+                "available" => "available",
+                "missing" => "missing",
+                _ => "unreadable",
+            },
+        ),
+        None => (tree.to_owned(), "unreadable"),
+    }
+}
+
+/// An EPUB in a book folder: its document link, name, size and modification time (ms).
+#[derive(Deserialize)]
+pub(crate) struct FolderFile {
+    pub(crate) uri: String,
+    pub(crate) name: String,
+    pub(crate) size: i64,
+    pub(crate) modified: i64,
+}
+
+#[derive(Deserialize)]
+struct Listed {
+    files: Vec<FolderFile>,
+}
+
+/// Every EPUB in the book folder and its subfolders, at most `max_depth` folders deep and
+/// `max_files` in all.
+pub(crate) fn list_folder(
+    tree: &str,
+    max_depth: usize,
+    max_files: usize,
+) -> io::Result<Vec<FolderFile>> {
+    plugin()?
+        .run_mobile_plugin::<Listed>(
+            "listFolder",
+            json!({ "uri": tree, "maxDepth": max_depth, "maxFiles": max_files }),
+        )
+        .map(|listed| listed.files)
+        .map_err(|error| io::Error::other(error.to_string()))
+}
+
+#[derive(Deserialize)]
 struct Opened {
     fd: i32,
 }
@@ -152,12 +232,15 @@ pub(crate) fn read_asset(path: &Path, limit: usize) -> io::Result<Vec<u8>> {
 }
 
 /// Gives back the read permission of every document the catalog no longer links, so removed
-/// and relinked books do not hold a grant of Android's limited number.
+/// and relinked books do not hold a grant of Android's limited number. A book read through a
+/// folder's permission keeps that folder's.
 pub(crate) fn keep_only(sources: &[String]) {
     let kept: Vec<&str> = sources
         .iter()
         .map(String::as_str)
         .filter(|source| is_document(source))
+        .flat_map(|source| [Some(source), crate::book_source::folder_of(source)])
+        .flatten()
         .collect();
     if let Ok(plugin) = plugin() {
         let _ = plugin.run_mobile_plugin::<Value>("keepOnly", json!({ "uris": kept }));
@@ -281,6 +364,25 @@ pub(crate) async fn open_link(url: &str) -> Result<(), String> {
         .await
         .map(|_| ())
         .map_err(|error| error.to_string())
+}
+
+#[derive(Deserialize)]
+struct Installing {
+    allowed: bool,
+}
+
+/// Hands a checked update APK in the cache's `updates` folder to Android's installer; false
+/// when Komori may not install apps yet, after opening the setting that allows it.
+pub(crate) async fn install_apk(path: &Path) -> Result<bool, String> {
+    plugin()
+        .map_err(|error| error.to_string())?
+        .run_mobile_plugin_async::<Installing>(
+            "installApk",
+            json!({ "path": path.to_string_lossy() }),
+        )
+        .await
+        .map(|answer| answer.allowed)
+        .map_err(|_| crate::failure::UPDATE_INSTALL.to_string())
 }
 
 /// Sends Komori to the background, as Back does from an Android app's first page.

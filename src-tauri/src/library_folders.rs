@@ -9,7 +9,13 @@
 //! written, say) is tried again once its size or modified time change. Removing a folder forgets
 //! the files it met that are not in the Library, so adding it again brings them back. Both tables
 //! are additive and created without a schema bump. Folders and their files are only read.
+//!
+//! On the phone a folder is the link Android's folder picker grants, whose read permission
+//! Komori keeps, and its books are the links of its documents under it; the plugin lists them.
+//! The folder's permission stays while it is a book folder or any book in the Library is read
+//! through it.
 
+#[cfg(desktop)]
 use crate::interface_text::{self, Text};
 use std::{
     collections::HashSet,
@@ -83,22 +89,29 @@ pub async fn list_library_folders(
         .map_err(|error| format!("Folder task failed: {error}"))?
 }
 
-/// Picks a folder natively, adds it, and imports its EPUBs at once.
+/// Picks a folder natively (on the phone, with Android's folder picker), adds it, and imports
+/// its EPUBs at once.
 #[tauri::command]
 pub async fn add_library_folder(
     app: AppHandle,
     catalog: State<'_, CatalogState>,
     operation_id: Option<String>,
 ) -> Result<AddFolderResult, String> {
+    #[cfg(desktop)]
     let window = app.clone();
     let mut progress = BatchProgress::for_app(app, operation_id)?;
     progress.phase("picking");
-    let language = interface_text::language(&catalog.database);
-    let selected = crate::library::window_picker(&window)
-        .set_title(interface_text::text(language, Text::AddBookFolder))
-        .pick_folder()
-        .await
-        .map(|folder| folder.path().to_path_buf());
+    #[cfg(desktop)]
+    let selected = {
+        let language = interface_text::language(&catalog.database);
+        crate::library::window_picker(&window)
+            .set_title(interface_text::text(language, Text::AddBookFolder))
+            .pick_folder()
+            .await
+            .map(|folder| folder.path().to_path_buf())
+    };
+    #[cfg(mobile)]
+    let selected = crate::android::pick_folder().await?;
     let Some(selected) = selected else {
         return Ok(added("canceled", None));
     };
@@ -109,7 +122,11 @@ pub async fn add_library_folder(
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut connection = open_catalog(&database)?;
-        add_folder_with_progress(&mut connection, &selected, &mut progress)
+        #[cfg(desktop)]
+        let result = add_folder_with_progress(&mut connection, &selected, &mut progress);
+        #[cfg(mobile)]
+        let result = add_tree_with_progress(&mut connection, selected, &mut progress);
+        result
     })
     .await
     .map_err(|error| format!("Folder task failed: {error}"))?
@@ -127,7 +144,11 @@ pub async fn remove_library_folder(
         let _writing = write_lock
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        remove_folder(&mut open_catalog(&database)?, id)
+        let mut connection = open_catalog(&database)?;
+        let removed = remove_folder(&mut connection, id)?;
+        #[cfg(mobile)]
+        crate::library::release_unlinked(&connection);
+        Ok(removed)
     })
     .await
     .map_err(|error| format!("Folder task failed: {error}"))?
@@ -228,6 +249,7 @@ pub(crate) fn add_folder(
     add_folder_with_progress(connection, selected, &mut BatchProgress::silent())
 }
 
+#[cfg(any(desktop, test))]
 fn add_folder_with_progress(
     connection: &mut Connection,
     selected: &Path,
@@ -238,6 +260,45 @@ fn add_folder_with_progress(
         _ => return Ok(added("failed", Some(crate::failure::FOLDER_UNOPENABLE))),
     };
     let path = canonical.to_string_lossy().into_owned();
+    if let Some(refused) = register(connection, &path)? {
+        return Ok(refused);
+    }
+    let _scanning = SCANNING
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    Ok(AddFolderResult {
+        status: "added",
+        message: None,
+        results: scan_paths(connection, &[path], progress)?,
+    })
+}
+
+/// Adds the folder the phone's picker granted, and gives its permission back when it is not
+/// added.
+#[cfg(mobile)]
+fn add_tree_with_progress(
+    connection: &mut Connection,
+    tree: String,
+    progress: &mut BatchProgress,
+) -> Result<AddFolderResult, String> {
+    let refused = register(connection, &tree);
+    if !matches!(refused, Ok(None)) {
+        crate::library::release_unlinked(connection);
+        return refused.map(|refused| refused.unwrap_or_else(|| added("failed", None)));
+    }
+    let _scanning = SCANNING
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    Ok(AddFolderResult {
+        status: "added",
+        message: None,
+        results: scan_paths(connection, &[tree], progress)?,
+    })
+}
+
+/// Records a new folder, or answers why it is not added: it is already a book folder, or there
+/// are too many.
+fn register(connection: &Connection, path: &str) -> Result<Option<AddFolderResult>, String> {
     let (exists, count): (bool, i64) = connection
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM library_folders WHERE path = ?1),
@@ -247,22 +308,18 @@ fn add_folder_with_progress(
         )
         .map_err(storage_error)?;
     if exists {
-        return Ok(added("duplicate", Some(crate::failure::FOLDER_DUPLICATE)));
+        return Ok(Some(added(
+            "duplicate",
+            Some(crate::failure::FOLDER_DUPLICATE),
+        )));
     }
     if count >= MAX_FOLDERS {
-        return Ok(added("tooMany", Some(crate::failure::FOLDER_LIMIT)));
+        return Ok(Some(added("tooMany", Some(crate::failure::FOLDER_LIMIT))));
     }
     connection
-        .execute("INSERT INTO library_folders (path) VALUES (?1)", [&path])
+        .execute("INSERT INTO library_folders (path) VALUES (?1)", [path])
         .map_err(storage_error)?;
-    let _scanning = SCANNING
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    Ok(AddFolderResult {
-        status: "added",
-        message: None,
-        results: scan_paths(connection, &[canonical], progress)?,
-    })
+    Ok(None)
 }
 
 pub(crate) fn folders(connection: &Connection) -> Result<Vec<LibraryFolder>, String> {
@@ -285,6 +342,16 @@ pub(crate) fn folders(connection: &Connection) -> Result<Vec<LibraryFolder>, Str
                     |row| row.get(0),
                 )
                 .map_err(storage_error)?;
+            #[cfg(mobile)]
+            if crate::android::is_document(&path) {
+                let (label, availability) = crate::android::folder_info(&path);
+                return Ok(LibraryFolder {
+                    id,
+                    availability,
+                    path: label,
+                    books,
+                });
+            }
             Ok(LibraryFolder {
                 id,
                 availability: match std::fs::metadata(&path) {
@@ -321,55 +388,106 @@ fn scan_all_with_progress(
             .map_err(storage_error)?;
         rows.collect::<Result<_, _>>().map_err(storage_error)?
     };
-    scan_paths(
-        connection,
-        &paths.into_iter().map(PathBuf::from).collect::<Vec<_>>(),
-        progress,
-    )
+    scan_paths(connection, &paths, progress)
+}
+
+/// An EPUB a folder holds: its path (on the phone, its document link), name and source stamp.
+struct Found {
+    key: String,
+    stamp: Option<String>,
+    #[cfg_attr(not(mobile), allow(dead_code))]
+    name: String,
+}
+
+/// The folder's EPUBs, in a stable order; none when the folder cannot be read.
+fn discover(folder: &str) -> Vec<Found> {
+    #[cfg(mobile)]
+    if crate::android::is_document(folder) {
+        let mut files = crate::android::list_folder(folder, MAX_DEPTH, MAX_FILES)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|file| Found {
+                stamp: Some(format!("{}:{}", file.size, file.modified)),
+                key: file.uri,
+                name: file.name,
+            })
+            .collect::<Vec<_>>();
+        files.sort_by(|a, b| a.key.cmp(&b.key));
+        return files;
+    }
+    let mut found = Vec::new();
+    collect_epubs(Path::new(folder), 0, &mut found);
+    found.sort();
+    found
+        .into_iter()
+        .map(|path| {
+            let key = path.to_string_lossy().into_owned();
+            Found {
+                stamp: source_stamp(&key),
+                name: path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+                key,
+            }
+        })
+        .collect()
+}
+
+fn import_found(connection: &mut Connection, found: &Found) -> ImportResult {
+    #[cfg(mobile)]
+    if crate::android::is_document(&found.key) {
+        let document = crate::android::Document {
+            uri: found.key.clone(),
+            name: found.name.clone(),
+        };
+        return crate::library::import_documents(connection, std::slice::from_ref(&document))
+            .remove(0);
+    }
+    import_paths(connection, &[PathBuf::from(&found.key)]).remove(0)
 }
 
 /// Imports the folder's EPUBs that no scan has met, or that failed and changed since. A missing
 /// folder (a disconnected drive) is skipped until it returns.
 fn scan_paths(
     connection: &mut Connection,
-    folders: &[PathBuf],
+    folders: &[String],
     progress: &mut BatchProgress,
 ) -> Result<Vec<ImportResult>, String> {
     progress.phase("discovering");
     let mut files = Vec::new();
     let mut seen = HashSet::new();
     for folder in folders {
-        let mut found = Vec::new();
-        collect_epubs(folder, 0, &mut found);
-        found.sort();
-        files.extend(found.into_iter().filter(|path| seen.insert(path.clone())));
+        files.extend(
+            discover(folder)
+                .into_iter()
+                .filter(|found| seen.insert(found.key.clone())),
+        );
     }
     let mut pending = Vec::new();
     for file in files {
-        let key = file.to_string_lossy().into_owned();
-        let stamp = source_stamp(&key);
         let met: Option<(Option<String>, bool)> = connection
             .query_row(
                 "SELECT stamp, in_library FROM library_folder_files WHERE path = ?1",
-                [&key],
+                [&file.key],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()
             .map_err(storage_error)?;
         if let Some((met_stamp, in_library)) = met {
-            if in_library || met_stamp == stamp {
+            if in_library || met_stamp == file.stamp {
                 continue;
             }
         }
-        pending.push((file, key, stamp));
+        pending.push(file);
     }
     progress.start(pending.len());
     let mut results = Vec::new();
-    for (file, key, stamp) in pending {
+    for file in pending {
         if progress.stopped() {
             break;
         }
-        let result = import_paths(connection, std::slice::from_ref(&file)).remove(0);
+        let result = import_found(connection, &file);
         // Count the committed import even if recording the scan stamp subsequently fails.
         progress.completed_one();
         connection
@@ -377,7 +495,7 @@ fn scan_paths(
                 "INSERT INTO library_folder_files (path, stamp, in_library) VALUES (?1, ?2, ?3)
                  ON CONFLICT(path) DO UPDATE
                     SET stamp = excluded.stamp, in_library = excluded.in_library",
-                params![key, stamp, result.status != "failed"],
+                params![file.key, file.stamp, result.status != "failed"],
             )
             .map_err(storage_error)?;
         results.push(result);

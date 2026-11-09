@@ -63,6 +63,7 @@ export const en = {
   "settings.devicesDescription": "Phones that read your library",
   "settings.sync": "Sync",
   "settings.version": "Komori {version}",
+  "settings.released": "Released {date}",
   "settings.about": "About",
   "settings.sectionTitle": "{section} settings",
   "settings.dictionarySourcesNote":
@@ -151,8 +152,10 @@ export const en = {
   "updates.availableTitle": "Komori {version} is available",
   "updates.availableDescription":
     "You have {current}. Komori closes to install the update and opens again.",
+  "updates.availableDescriptionPhone": "You have version {current}.",
   "updates.notes": "What's new",
   "updates.install": "Install and restart",
+  "updates.installPhone": "Install",
   "updates.installing": "Downloading…",
   "updates.later": "Later",
   "autoscroll.label": "Middle-click autoscroll",
@@ -1618,6 +1621,7 @@ export const en = {
   "appearancePanel.vnParagraphs": "VN paragraphs",
   "appearancePanel.revealSpeed": "Text reveal speed",
   "appearancePanel.chapterThreshold": "Chapter wheel threshold",
+  "appearancePanel.chapterSwipeThreshold": "Chapter swipe threshold",
   "appearancePanel.vnFixed":
     "This fixed-layout book keeps its original pages; VN choices are saved.",
   "appearancePanel.vnWhole": "This section has no safely separable paragraphs and appears whole.",
@@ -1651,6 +1655,7 @@ export const en = {
   "unit.em": "em",
   "unit.charsPerSecond": "chars/s",
   "unit.steps": "steps",
+  "unit.swipes": "swipes",
   "unit.minutes": "min",
   "footerChoice.readingPosition": "Reading position",
   "footerChoice.percentage": "Percentage",
@@ -1936,6 +1941,7 @@ export const en = {
   "failure.updateCheck": "Komori could not check for updates. Check your connection and try again.",
   "failure.updateInstall": "The update could not be downloaded or verified. Try again later.",
   "failure.updateGone": "Check for updates again before installing.",
+  "failure.updateAllow": "Allow Komori to install apps, then tap Install again.",
   "devices.title": "Devices",
   "devices.description": "Your phones and this PC's library",
   "devices.readError": "Devices could not be loaded.",

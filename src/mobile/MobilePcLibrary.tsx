@@ -77,6 +77,15 @@ export function refreshStalePcLibrary(): Promise<void> {
   return refreshPcLibrary();
 }
 
+/**
+ * Lists the PC unless it was listed this session: later showings of the Library keep that
+ * listing, which syncs and pulls renew.
+ */
+function listUnlisted(): Promise<void> {
+  if (listing) return listing;
+  return pcSession.get().listedAt > 0 ? Promise.resolve() : refreshPcLibrary();
+}
+
 /** Reads the copies here again from the saved listing, as after keeping or removing one. */
 async function relistCopies() {
   const books = await cachedPcLibrary().catch(() => null);
@@ -104,7 +113,7 @@ function readSavedListing(): Promise<void> {
 
 /**
  * The paired PC's Library while `active`: the saved listing at once, listed again in the
- * background on the first showing in a session, after a sync, or once the listing is old.
+ * background on the first showing in a session and after a sync.
  * `early` reads the saved listing before whether it is needed is known (the pairing still
  * being read), so the PC's books show with the phone's rather than after them.
  */
@@ -117,7 +126,7 @@ export function usePcLibrary(active: boolean, early = false) {
     if (!active) return;
     void (async () => {
       await readSavedListing();
-      await refreshStalePcLibrary();
+      await listUnlisted();
     })();
   }, [active]);
   const entries = useMemo(

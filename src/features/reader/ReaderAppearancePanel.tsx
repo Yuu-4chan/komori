@@ -364,14 +364,18 @@ export function ReaderAppearancePanel({
               />
             </>
           )}
-          {!touch && (viewMode === "paginated" || viewMode === "semi-continuous") && (
+          {(viewMode === "paginated" || viewMode === "semi-continuous") && (
             <Stepper
-              label={t("appearancePanel.chapterThreshold")}
+              label={t(
+                touch
+                  ? "appearancePanel.chapterSwipeThreshold"
+                  : "appearancePanel.chapterThreshold",
+              )}
               value={readerChapterWheelThreshold}
               min={thresholdRange.min}
               max={thresholdRange.max}
               step={thresholdRange.step}
-              unit={t("unit.steps")}
+              unit={t(touch ? "unit.swipes" : "unit.steps")}
               onChange={setReaderChapterWheelThreshold}
             />
           )}

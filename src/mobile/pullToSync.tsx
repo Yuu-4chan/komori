@@ -5,10 +5,13 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 // most it follows, in CSS pixels.
 const enough = 36;
 const most = 72;
+// How far the finger moves before the gesture counts as a pull or as a sideways swipe.
+const decide = 10;
 
 /**
  * Pulling the page down from its top, as the Library's, runs `onPull`, with a turning arrow
- * that follows the finger and spins until it is done.
+ * that follows the finger and spins until it is done. A touch that first moves more sideways
+ * than down, as a swipe along a carousel does, is no pull however it drifts after.
  */
 export function PullToSync({
   enabled,
@@ -26,18 +29,31 @@ export function PullToSync({
     const page = document.getElementById("main-content");
     if (!enabled || !page) return;
     let start: number | null = null;
+    let startX = 0;
+    let pulling = false;
     let distance = 0;
     let busy = false;
     const begin = (event: TouchEvent) => {
+      const touch = event.touches[0];
       start =
-        !busy && page.scrollTop <= 0 && event.touches.length === 1
-          ? event.touches[0]!.clientY
-          : null;
+        !busy && page.scrollTop <= 0 && event.touches.length === 1 && touch ? touch.clientY : null;
+      startX = touch?.clientX ?? 0;
+      pulling = false;
       distance = 0;
     };
     const move = (event: TouchEvent) => {
       if (start === null) return;
-      const down = (event.touches[0]?.clientY ?? start) - start;
+      const touch = event.touches[0];
+      const down = (touch?.clientY ?? start) - start;
+      if (!pulling) {
+        const sideways = Math.abs((touch?.clientX ?? startX) - startX);
+        if (Math.max(sideways, Math.abs(down)) < decide) return;
+        if (sideways >= Math.abs(down)) {
+          start = null;
+          return;
+        }
+        pulling = true;
+      }
       if (down <= 0 || page.scrollTop > 0) {
         start = distance > 0 ? start : null;
         distance = 0;

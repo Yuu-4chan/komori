@@ -1,5 +1,6 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { isAndroid } from "../../app/platform";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { useI18n } from "../../i18n/i18n";
 import { failureText } from "../../i18n/failure";
@@ -32,7 +33,8 @@ export function useUpdates(): Updates | null {
 /**
  * Owns update checks: one automatic check shortly after launch when the reader allows it, and
  * manual checks from Settings. A found update opens a dialog with its changelog; nothing is
- * downloaded until the reader chooses Install and restart.
+ * downloaded until the reader chooses Install and restart (Install on the phone, where Android's
+ * installer then asks and the dialog stays for another try).
  */
 export function UpdatesProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n();
@@ -82,6 +84,8 @@ export function UpdatesProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await installUpdate();
+      // On the phone Android's installer has the update now, and Komori goes on until it does.
+      setStatus("idle");
     } catch (failure) {
       setStatus("idle");
       setError(failureText(String(failure), t));
@@ -104,9 +108,12 @@ export function UpdatesProvider({ children }: { children: ReactNode }) {
           busy={status === "installing"}
           busyLabel={t("updates.installing")}
           cancelLabel={t("updates.later")}
-          confirmLabel={t("updates.install")}
+          confirmLabel={t(isAndroid ? "updates.installPhone" : "updates.install")}
           confirmTone="primary"
-          description={t("updates.availableDescription", { current: update.currentVersion })}
+          description={t(
+            isAndroid ? "updates.availableDescriptionPhone" : "updates.availableDescription",
+            { current: update.currentVersion },
+          )}
           dialogRole="dialog"
           error={open ? error : null}
           onCancel={() => setOpen(false)}

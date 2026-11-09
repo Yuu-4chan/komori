@@ -14,6 +14,8 @@ vi.mock("../features/library/libraryApi", () => ({
   importDroppedBooks: vi.fn(),
   listLibrary: vi.fn(),
   scanLibraryFolders: vi.fn(async () => []),
+  getLibraryBook: vi.fn(async () => null),
+  onLibraryDetailsUpdated: vi.fn(() => () => {}),
 }));
 vi.mock("./pcLinkApi", async (importOriginal) => {
   const usePcLink = vi.fn();
@@ -273,7 +275,9 @@ describe("the Library on a phone paired with a PC", () => {
     // The first render already has every book: nothing loads on returning.
     expect(titles(screen.getByRole("region", { name: "All" }))).toHaveLength(3);
     expect(screen.getByText("Connected")).toBeTruthy();
-    await waitFor(() => expect(listLibrary).toHaveBeenCalledTimes(2));
+    // Neither Library is listed again: the phone's keeps its listing until a sync or a pull.
+    await new Promise((settle) => setTimeout(settle, 50));
+    expect(listLibrary).toHaveBeenCalledTimes(1);
     expect(api.listPcLibrary).toHaveBeenCalledTimes(1);
   });
 

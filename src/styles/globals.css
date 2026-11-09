@@ -38,8 +38,9 @@ textarea {
   font: inherit;
 }
 
-button,
-a {
+/* Android's tap highlight is a blue box over any pressed control: buttons, links, dropdowns,
+   fields, and rows that take a tap. It inherits, so the root turns it off everywhere. */
+:root {
   -webkit-tap-highlight-color: transparent;
 }
 

@@ -56,6 +56,7 @@ export const es: MessageCatalog = {
   "settings.devicesDescription": "Móviles que leen tu biblioteca",
   "settings.sync": "Sincronización",
   "settings.version": "Komori {version}",
+  "settings.released": "Publicada el {date}",
   "settings.about": "Acerca de",
   "settings.sectionTitle": "Ajustes de {section}",
   "settings.dictionarySourcesNote":
@@ -142,8 +143,10 @@ export const es: MessageCatalog = {
   "updates.availableTitle": "Komori {version} está disponible",
   "updates.availableDescription":
     "Tienes la versión {current}. Komori se cierra para instalar la actualización y vuelve a abrirse.",
+  "updates.availableDescriptionPhone": "Tienes la versión {current}.",
   "updates.notes": "Novedades",
   "updates.install": "Instalar y reiniciar",
+  "updates.installPhone": "Instalar",
   "updates.installing": "Descargando…",
   "updates.later": "Más tarde",
   "autoscroll.label": "Desplazamiento automático con clic central",
@@ -1646,6 +1649,7 @@ export const es: MessageCatalog = {
   "appearancePanel.vnParagraphs": "Párrafos VN",
   "appearancePanel.revealSpeed": "Velocidad de aparición del texto",
   "appearancePanel.chapterThreshold": "Umbral de la rueda entre capítulos",
+  "appearancePanel.chapterSwipeThreshold": "Umbral de deslizamiento entre capítulos",
   "appearancePanel.vnFixed":
     "Este libro de maquetación fija conserva sus páginas originales; las opciones VN se guardan.",
   "appearancePanel.vnWhole":
@@ -1680,6 +1684,7 @@ export const es: MessageCatalog = {
   "unit.em": "em",
   "unit.charsPerSecond": "car./s",
   "unit.steps": "pasos",
+  "unit.swipes": "deslizamientos",
   "unit.minutes": "min",
   "footerChoice.readingPosition": "Posición de lectura",
   "footerChoice.percentage": "Porcentaje",
@@ -1953,6 +1958,7 @@ export const es: MessageCatalog = {
   "failure.updateInstall":
     "No se pudo descargar ni verificar la actualización. Inténtalo más tarde.",
   "failure.updateGone": "Vuelve a buscar actualizaciones antes de instalar.",
+  "failure.updateAllow": "Permite que Komori instale aplicaciones y vuelve a tocar Instalar.",
   "devices.title": "Dispositivos",
   "devices.description": "Tus móviles y la biblioteca de este PC",
   "devices.readError": "No se pudieron cargar los dispositivos.",

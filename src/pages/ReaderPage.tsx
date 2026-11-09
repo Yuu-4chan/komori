@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 
 import { safeCoverUrl } from "../features/library/coverUrl";
 import { getLibraryBook } from "../features/library/libraryApi";
+import { libraryCache } from "../features/library/libraryCache";
 import { ReaderShell } from "../features/reader/ReaderShell";
 import { epubRendererFactory } from "../features/reader/epubRenderer";
 import type { ReaderIdentity } from "../features/reader/readerIdentity";
@@ -29,6 +30,8 @@ export function ReaderPage({
 
   useEffect(() => {
     if (!catalogId) return;
+    // The Library reads this book again on its return, where it was read to.
+    libraryCache.touch(catalogId);
     let active = true;
     void getLibraryBook(catalogId)
       .then((found) => {

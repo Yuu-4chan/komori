@@ -14,7 +14,10 @@ interface SelectProps<T extends string> {
   disabled?: boolean;
 }
 
-/** A labelled native select, shown as a pop-up button; Komori draws its options. */
+/**
+ * A labelled native select, shown as a pop-up button; Komori draws its options. Its name is
+ * text, not a `<label>`: a press on the name must not open the options, as it would on the phone.
+ */
 export function Select<T extends string>({
   label,
   value,
@@ -26,11 +29,12 @@ export function Select<T extends string>({
   return (
     <div className="select-field">
       <div className="select-field__label">
-        <label htmlFor={id}>{label}</label>
+        <span id={`${id}-label`}>{label}</span>
       </div>
       <span className="select-control">
         <select
           id={id}
+          aria-labelledby={`${id}-label`}
           value={value}
           disabled={disabled}
           onChange={(event) => onChange(event.target.value as T)}

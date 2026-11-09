@@ -28,5 +28,7 @@ pub(crate) const DICTIONARY_NEWER: &str = "failure.dictionaryNewer";
 
 pub(crate) const UPDATE_CHECK: &str = "failure.updateCheck";
 pub(crate) const UPDATE_INSTALL: &str = "failure.updateInstall";
-#[cfg_attr(mobile, allow(dead_code))]
 pub(crate) const UPDATE_GONE: &str = "failure.updateGone";
+/// Android lets an app hand it APKs only once its owner allows it in the app's settings.
+#[cfg_attr(desktop, allow(dead_code))]
+pub(crate) const UPDATE_ALLOW: &str = "failure.updateAllow";

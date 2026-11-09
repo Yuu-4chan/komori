@@ -919,19 +919,16 @@ fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<Lib
         )
         .optional()
         .map_err(storage_error)?;
-    // On the phone the series is the Library's, named among the PC's books too; its catalog is
-    // small enough to list whole.
+    // On the phone the book is the Library's as listed, its series named among the PC's books
+    // too and marked when it is a PC book's copy, so the Library can take it in place of its
+    // own listing; the catalog is listed whole for it, which reuses the series named last.
     if cfg!(mobile) {
-        if let Some(book) = book.as_mut() {
-            if let Some(listed) = list_from_catalog(connection)?
-                .into_iter()
-                .find(|listed| listed.id == book.id)
-            {
-                book.series = listed.series;
-                book.series_index = listed.series_index;
-            }
+        if book.is_none() {
+            return Ok(None);
         }
-        return Ok(book);
+        return Ok(list_from_catalog(connection)?
+            .into_iter()
+            .find(|listed| listed.id == id));
     }
     if let Some(book) = book.as_mut().filter(|book| !book.series_manual) {
         if appearance_preferences::series_from_titles(connection) {
@@ -1112,6 +1109,22 @@ fn import_documents_with_progress(
     results
 }
 
+/// Imports documents a book folder holds on the phone. Their folder's permission reads them,
+/// so none of their own is kept or given back.
+#[cfg(mobile)]
+pub(crate) fn import_documents(
+    connection: &mut Connection,
+    documents: &[crate::android::Document],
+) -> Vec<ImportResult> {
+    import_each(
+        connection,
+        documents,
+        &mut BatchProgress::silent(),
+        |document| document.name.clone(),
+        import_document,
+    )
+}
+
 fn import_each<T>(
     connection: &mut Connection,
     picked: &[T],
@@ -1143,11 +1156,12 @@ fn import_each<T>(
     results
 }
 
-/// Gives back the read permission of every phone document the catalog no longer links.
+/// Gives back the read permission of every phone document the catalog no longer links: neither
+/// a book's source nor a book folder.
 #[cfg(mobile)]
-fn release_unlinked(connection: &Connection) {
+pub(crate) fn release_unlinked(connection: &Connection) {
     let sources = connection
-        .prepare("SELECT source_path FROM books")
+        .prepare("SELECT source_path FROM books UNION ALL SELECT path FROM library_folders")
         .and_then(|mut statement| {
             statement
                 .query_map([], |row| row.get(0))?

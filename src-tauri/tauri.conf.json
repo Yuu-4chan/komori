@@ -32,11 +32,12 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "publisher": "Yuu-4chan",
-    "copyright": "Copyright (C) 2026 Yuu-4chan",
+    "publisher": "Komori",
+    "copyright": "Copyright (C) 2026 The Komori authors",
     "windows": {
       "nsis": {
-        "installerIcon": "icons/icon.ico"
+        "installerIcon": "icons/icon.ico",
+        "installerHooks": "windows/installer-hooks.nsh"
       }
     }
   },

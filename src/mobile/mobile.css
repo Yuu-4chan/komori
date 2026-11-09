@@ -722,6 +722,7 @@
 .mobile-settings .settings-card__icon,
 .mobile-settings .settings-card__heading p,
 .mobile-settings--general .settings-card__heading,
+.mobile-settings--library .settings-card__heading,
 .mobile-settings--statistics .settings-card__heading {
   display: none;
 }
@@ -739,8 +740,20 @@
 }
 
 .mobile-settings .anki-settings .settings-row > div > span,
-.mobile-settings .anki-settings .settings-note {
+.mobile-settings .anki-settings .settings-note,
+.mobile-settings--library .settings-row > div > span {
   display: none;
+}
+
+/* A folder row is its name with its buttons beside it, as on the PC. */
+.mobile-settings--library .settings-row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.mobile-settings--library .settings-row > div:first-child {
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
 }
 
 .mobile-settings .anki-lapis-offer {
@@ -781,7 +794,7 @@
 }
 
 .mobile-about {
-  margin: auto 0;
+  padding: 1rem 0 0.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -797,6 +810,12 @@
 
 .mobile-about p {
   margin: 0;
+}
+
+.mobile-about .mobile-about__version {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 /* Statistics: two columns of compact tiles. */
