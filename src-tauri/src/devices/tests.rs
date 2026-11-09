@@ -325,3 +325,82 @@ fn the_pc_answers_each_new_connection_at_once_and_stops_listening_when_turned_of
     assert!(start.elapsed() < std::time::Duration::from_secs(1));
     std::net::TcpListener::bind(("127.0.0.1", pc.port)).unwrap();
 }
+
+/// Whether the server closed the connection, waiting at most `wait` to see.
+fn closed_within(stream: &mut std::net::TcpStream, wait: std::time::Duration) -> bool {
+    use std::io::Read;
+    stream.set_read_timeout(Some(wait)).unwrap();
+    match stream.read(&mut [0u8; 1]) {
+        Ok(read) => read == 0,
+        Err(error) => !matches!(
+            error.kind(),
+            std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+        ),
+    }
+}
+
+#[test]
+fn a_connection_that_sends_slowly_or_not_at_all_loses_its_place_at_the_deadline() {
+    use std::io::Write;
+    use std::net::TcpStream;
+    use std::time::{Duration, Instant};
+    let pc = pc();
+    let client = Client::new("127.0.0.1", pc.port, None, None).unwrap();
+
+    // Connections that send nothing take this address's share; another from it is closed.
+    let mut silent: Vec<_> = (0..super::PER_ADDRESS)
+        .map(|_| TcpStream::connect(("127.0.0.1", pc.port)).unwrap())
+        .collect();
+    let opened = Instant::now();
+    std::thread::sleep(Duration::from_millis(200));
+    assert!(run(client.hello()).is_err());
+    // They keep their places until the deadline, and lose them there.
+    let early = super::REQUEST_WAIT - Duration::from_millis(500);
+    assert!(!closed_within(
+        &mut silent[0],
+        early
+            .saturating_sub(opened.elapsed())
+            .max(Duration::from_millis(1))
+    ));
+    for stream in &mut silent {
+        assert!(closed_within(stream, Duration::from_secs(2)));
+    }
+    assert!(opened.elapsed() < super::REQUEST_WAIT + Duration::from_secs(2));
+    run(client.hello()).unwrap();
+
+    // A TLS record trickled a byte at a time, each well within a read's wait, is cut too.
+    let mut trickle = TcpStream::connect(("127.0.0.1", pc.port)).unwrap();
+    let opened = Instant::now();
+    trickle.write_all(&[0x16, 0x03, 0x01, 0x40, 0x00]).unwrap();
+    let mut cut = false;
+    while opened.elapsed() < super::REQUEST_WAIT * 2 {
+        if trickle.write_all(&[0]).is_err()
+            || closed_within(&mut trickle, Duration::from_millis(100))
+        {
+            cut = true;
+            break;
+        }
+    }
+    assert!(cut, "still open after {:?}", opened.elapsed());
+    assert!(opened.elapsed() >= super::REQUEST_WAIT - Duration::from_millis(200));
+    run(client.hello()).unwrap();
+}
+
+#[test]
+fn one_address_takes_at_most_its_share_of_the_connections() {
+    use super::{Slot, CONNECTIONS, PER_ADDRESS};
+    let pc = pc();
+    let address = |n: u8| std::net::IpAddr::from([192, 168, 1, n]);
+    let first: Vec<_> = (0..PER_ADDRESS)
+        .map(|_| Slot::take(&pc.shared, address(1)).unwrap())
+        .collect();
+    assert!(Slot::take(&pc.shared, address(1)).is_none());
+    // Other addresses take the rest, up to the limit.
+    let others: Vec<_> = (2..=u8::MAX)
+        .map_while(|n| Slot::take(&pc.shared, address(n)))
+        .collect();
+    assert_eq!(first.len() + others.len(), CONNECTIONS);
+    assert!(Slot::take(&pc.shared, address(1)).is_none());
+    drop(first);
+    assert!(Slot::take(&pc.shared, address(1)).is_some());
+}

@@ -10,11 +10,13 @@ mod http;
 pub(crate) mod protocol;
 
 use std::{
-    io::{self, Write},
+    cell::Cell,
+    io::{self, Read, Write},
     net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream, UdpSocket},
     path::PathBuf,
+    rc::Rc,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
     thread::JoinHandle,
@@ -39,8 +41,18 @@ const SETTINGS: &str = "devices";
 const IDENTITY: &str = "devices-identity";
 /// The PC's own device ID, which the sessions it read carry on a phone.
 const SELF: &str = "devices-self";
-/// Connections answered at once; more wait for the next.
-const CONNECTIONS: usize = 8;
+/// Connections answered at once; more are closed.
+const CONNECTIONS: usize = 32;
+/// Connections answered at once from one address, so no one host takes them all.
+const PER_ADDRESS: usize = 8;
+/// How long a connection has for its whole request (its TLS handshake, head and small body), so
+/// one that sends slowly or not at all cannot keep its place.
+#[cfg(not(test))]
+const REQUEST_WAIT: Duration = Duration::from_secs(10);
+#[cfg(test)]
+const REQUEST_WAIT: Duration = Duration::from_secs(2);
+/// How long one read waits once a paired phone's large sync is on its way.
+const READ_WAIT: Duration = Duration::from_secs(20);
 /// How long a started pairing waits for its proof.
 const PAIRING_WAIT: Duration = Duration::from_secs(120);
 /// A device's last connection is written at most this often.
@@ -164,7 +176,8 @@ pub(crate) struct Shared {
     runtime: Mutex<Runtime>,
     /// Settings changes, from the page and from the server's threads, one at a time.
     settings: Mutex<()>,
-    connections: AtomicUsize,
+    /// The address of each connection being answered.
+    connections: Mutex<Vec<IpAddr>>,
 }
 
 pub struct DevicesState(Arc<Shared>);
@@ -178,7 +191,7 @@ impl Shared {
             notify,
             runtime: Mutex::new(Runtime::default()),
             settings: Mutex::new(()),
-            connections: AtomicUsize::new(0),
+            connections: Mutex::new(Vec::new()),
         }
     }
 
@@ -190,6 +203,12 @@ impl Shared {
         if let Some(notify) = &self.notify {
             notify(event);
         }
+    }
+
+    fn connections(&self) -> std::sync::MutexGuard<'_, Vec<IpAddr>> {
+        self.connections
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     fn runtime(&self) -> std::sync::MutexGuard<'_, Runtime> {
@@ -357,14 +376,17 @@ fn start_server(shared: &Arc<Shared>, port: u16) -> Result<Server, &'static str>
                     std::thread::sleep(Duration::from_millis(50));
                     continue;
                 };
-                if shared.connections.load(Ordering::SeqCst) >= CONNECTIONS {
+                let Some(slot) = stream
+                    .peer_addr()
+                    .ok()
+                    .and_then(|peer| Slot::take(&shared, peer.ip()))
+                else {
                     continue;
-                }
-                shared.connections.fetch_add(1, Ordering::SeqCst);
+                };
                 let (shared, config) = (shared.clone(), config.clone());
                 std::thread::spawn(move || {
                     serve(&shared, config, fingerprint, stream);
-                    shared.connections.fetch_sub(1, Ordering::SeqCst);
+                    drop(slot);
                 });
             }
         })
@@ -375,6 +397,77 @@ fn start_server(shared: &Arc<Shared>, port: u16) -> Result<Server, &'static str>
         stop,
         thread: Some(thread),
     })
+}
+
+/// A connection's place among those answered at once; it frees the place when dropped.
+struct Slot {
+    shared: Arc<Shared>,
+    address: IpAddr,
+}
+
+impl Slot {
+    /// A place for a connection from `address`, unless all are taken or that address has its
+    /// share.
+    fn take(shared: &Arc<Shared>, address: IpAddr) -> Option<Self> {
+        let mut open = shared.connections();
+        if open.len() >= CONNECTIONS
+            || open.iter().filter(|other| **other == address).count() >= PER_ADDRESS
+        {
+            return None;
+        }
+        open.push(address);
+        Some(Self {
+            shared: shared.clone(),
+            address,
+        })
+    }
+}
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        let mut open = self.shared.connections();
+        if let Some(index) = open.iter().position(|other| *other == self.address) {
+            open.swap_remove(index);
+        }
+    }
+}
+
+/// A connection's socket, whose reads end at the request's deadline until that is lifted.
+struct Timed {
+    stream: TcpStream,
+    deadline: Rc<Cell<Option<Instant>>>,
+    /// Whether the socket's read timeout follows the deadline.
+    bounded: bool,
+}
+
+impl Read for Timed {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        match self.deadline.get() {
+            Some(deadline) => {
+                let left = deadline.saturating_duration_since(Instant::now());
+                if left.is_zero() {
+                    return Err(io::ErrorKind::TimedOut.into());
+                }
+                self.stream.set_read_timeout(Some(left.min(READ_WAIT)))?;
+            }
+            None if self.bounded => {
+                self.stream.set_read_timeout(Some(READ_WAIT))?;
+                self.bounded = false;
+            }
+            None => {}
+        }
+        self.stream.read(buffer)
+    }
+}
+
+impl Write for Timed {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        self.stream.write(buffer)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.stream.flush()
+    }
 }
 
 /// The address that reaches a listener bound to `bind`: loopback for an unspecified one.
@@ -451,17 +544,24 @@ fn serve(
     stream: TcpStream,
 ) {
     let _ = stream.set_nonblocking(false);
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(20)));
     let _ = stream.set_write_timeout(Some(Duration::from_secs(60)));
     let Ok(connection) = rustls::ServerConnection::new(config) else {
         return;
     };
-    let mut tls = rustls::StreamOwned::new(connection, stream);
+    let deadline = Rc::new(Cell::new(Some(Instant::now() + REQUEST_WAIT)));
+    let socket = Timed {
+        stream,
+        deadline: deadline.clone(),
+        bounded: true,
+    };
+    let mut tls = rustls::StreamOwned::new(connection, socket);
     let limit = |method: &str, path: &str, token: Option<&str>| {
         if method == "POST"
             && path.starts_with("/v1/sync/")
             && authenticate(shared, token).is_some()
         {
+            // A paired phone's large sync may take longer than the deadline on a slow network.
+            deadline.set(None);
             http::SYNC_BODY_LIMIT
         } else {
             http::BODY_LIMIT
