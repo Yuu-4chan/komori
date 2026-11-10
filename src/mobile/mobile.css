@@ -404,7 +404,7 @@
 
 .mobile-library__row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--mobile-grid-columns, 3), minmax(0, 1fr));
   column-gap: 0.75rem;
   padding-bottom: 1.125rem;
 }
@@ -512,7 +512,11 @@
   animation: mobile-fade var(--duration-normal) var(--ease-out);
 }
 
+/* A tablet's or e-reader's wider screen centres the sheet at a phone sheet's readable width. */
 .mobile-sheet {
+  width: 100%;
+  max-width: 40rem;
+  align-self: center;
   max-height: calc(100% - var(--safe-area-top) - 2rem);
   overscroll-behavior: contain;
   touch-action: pan-y;

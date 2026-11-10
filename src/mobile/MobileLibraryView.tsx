@@ -8,7 +8,15 @@ import {
   WarningCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useMemo, useRef, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { Link } from "react-router-dom";
 
 import type { LibraryDisplay } from "../features/appearance/AppearanceProvider";
@@ -363,7 +371,38 @@ export interface ItemSection {
   items: MergedBook[];
 }
 
-const GRID_COLUMNS = 3;
+/** A grid tile's narrowest width and the gap between tiles, in CSS pixels. */
+const GRID_TILE = 132;
+const GRID_GAP = 12;
+
+/**
+ * How many books a grid row holds at this width: three on a phone, and as many tiles of about a
+ * phone's size as fit on a wider screen, such as a tablet's or an e-reader's.
+ */
+export function gridColumns(width: number): number {
+  return Math.max(3, Math.floor((width + GRID_GAP) / (GRID_TILE + GRID_GAP)));
+}
+
+/** The grid's columns for the width the element has, following it as the screen turns. */
+function useGridColumns(ref: RefObject<HTMLElement | null>): number {
+  const [columns, setColumns] = useState(() =>
+    gridColumns(typeof window === "undefined" ? 0 : window.innerWidth - 24),
+  );
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const width = element.clientWidth;
+      if (width > 0) setColumns(gridColumns(width));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+  return columns;
+}
+
 /** A carousel shows this many books; See all at its end shows the rest on the group's page. */
 export const CAROUSEL_BOOKS = 20;
 
@@ -372,9 +411,9 @@ type Row =
 
 /**
  * The Library's books: grouped, each group's heading above its books in a row that scrolls
- * sideways (as the PC's carousels); otherwise three to a row in the grid, one to a row in the
- * list. Only the rows within about a screen of the view are rendered, so a Library of thousands
- * of the PC's books shows and scrolls as fast as a small one.
+ * sideways (as the PC's carousels); otherwise three or more to a row in the grid (`gridColumns`),
+ * one to a row in the list. Only the rows within about a screen of the view are rendered, so a
+ * Library of thousands of the PC's books shows and scrolls as fast as a small one.
  */
 export function LibraryBooks({
   sections,
@@ -392,7 +431,8 @@ export function LibraryBooks({
 }) {
   const { t } = useI18n();
   const listRef = useRef<HTMLDivElement>(null);
-  const columns = view === "grid" ? GRID_COLUMNS : 1;
+  const gridWidth = useGridColumns(listRef);
+  const columns = view === "grid" ? gridWidth : 1;
   const rows = useMemo(() => {
     const result: Row[] = [];
     for (const section of sections) {
@@ -412,7 +452,7 @@ export function LibraryBooks({
     estimate: grouped ? 300 : view === "grid" ? 290 : 104,
     gap: 0,
     kindOf: () => (grouped ? "carousel" : view),
-    layoutKey: `mobile-${grouped ? "carousel" : view}`,
+    layoutKey: `mobile-${grouped ? "carousel" : view}-${columns}`,
   });
   return (
     <div
@@ -471,7 +511,7 @@ export function LibraryBooks({
             key={row.key}
             ref={list.measureRef}
             role="presentation"
-            style={style}
+            style={{ ...style, "--mobile-grid-columns": columns } as CSSProperties}
           >
             {row.items.map((item) => (
               <div key={itemKey(item)} role="listitem">
