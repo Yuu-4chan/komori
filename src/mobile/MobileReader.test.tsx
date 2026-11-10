@@ -1,5 +1,14 @@
 import type { SessionState } from "../features/reader/useReadingSession";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -291,32 +300,34 @@ function selectingPage(text: string, note?: string) {
   return { page, clear: () => (selected = "") };
 }
 
-function tap(target: HTMLElement, x: number, y = 400) {
-  fireEvent.touchStart(target, {
-    touches: [{ clientX: x, clientY: y }],
-    changedTouches: [{ clientX: x, clientY: y }],
-  });
-  // False when the Reader cancels the tap's click.
-  return fireEvent.touchEnd(target, { touches: [], changedTouches: [{ clientX: x, clientY: y }] });
-}
-
-function drag(target: HTMLElement, from: { x: number; y: number }, to: { x: number; y: number }) {
-  fireEvent.touchStart(target, {
+/**
+ * A touch from `from` lifted at `to`. Both events are made before either is sent, so their
+ * time stamps are a moment apart however long the Reader takes with the first: a slow machine
+ * never makes a tap a hold. False when the Reader cancels the touch's click.
+ */
+function touch(target: HTMLElement, from: { x: number; y: number }, to = from) {
+  const start = createEvent.touchStart(target, {
     touches: [{ clientX: from.x, clientY: from.y }],
     changedTouches: [{ clientX: from.x, clientY: from.y }],
   });
-  fireEvent.touchEnd(target, {
+  const end = createEvent.touchEnd(target, {
     touches: [],
     changedTouches: [{ clientX: to.x, clientY: to.y }],
   });
+  fireEvent(target, start);
+  return fireEvent(target, end);
+}
+
+function tap(target: HTMLElement, x: number, y = 400) {
+  return touch(target, { x, y });
+}
+
+function drag(target: HTMLElement, from: { x: number; y: number }, to: { x: number; y: number }) {
+  touch(target, from, to);
 }
 
 function swipe(target: HTMLElement, from: number, to: number) {
-  fireEvent.touchStart(target, {
-    touches: [{ clientX: from, clientY: 400 }],
-    changedTouches: [{ clientX: from, clientY: 400 }],
-  });
-  fireEvent.touchEnd(target, { touches: [], changedTouches: [{ clientX: to, clientY: 410 }] });
+  touch(target, { x: from, y: 400 }, { x: to, y: 410 });
 }
 
 afterEach(() => {
