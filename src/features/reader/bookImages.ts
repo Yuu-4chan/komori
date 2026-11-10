@@ -1,6 +1,8 @@
 /** Bounds apply before archive decompression, before drawing and to the output. */
 export const IMAGE_LIMIT = 500;
 export const IMAGE_BYTES = 16 * 1024 * 1024;
+/** Thumbnails a book keeps once made, so a list scrolled back or opened again shows them at once. */
+export const THUMBNAIL_CACHE_BYTES = 24 * 1024 * 1024;
 export const IMAGE_DOCUMENT_BYTES = 2 * 1024 * 1024;
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -300,7 +302,11 @@ export async function renderBookImage(
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const output = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    // WebP: a phone takes seconds to encode an illustration as PNG, and a fraction of one
+    // as WebP. A browser without WebP encoding gives PNG.
+    const output = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/webp", 0.9),
+    );
     if (!output || signal.aborted) throw Error("Image unavailable");
     return { blob: output, ...dimensions };
   } finally {

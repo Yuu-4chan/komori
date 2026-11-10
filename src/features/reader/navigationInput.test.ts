@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   acceptsReaderInput,
+  focusRestsOnBook,
   arrowScrollDistance,
   revealsVnText,
   arrowTurn,
@@ -169,5 +170,19 @@ describe("VN reveal by Space", () => {
     expect(revealsVnText(at("button"))).toBe(false);
     expect(revealsVnText(at("popup"))).toBe(false);
     document.body.innerHTML = "";
+  });
+});
+
+describe("focusRestsOnBook", () => {
+  it("reads the book with nothing focused, and on the phone from the skip link Android focuses", () => {
+    const skip = document.createElement("a");
+    skip.className = "skip-link";
+    const button = document.createElement("button");
+    expect(focusRestsOnBook(document.body, false)).toBe(true);
+    expect(focusRestsOnBook(document.documentElement, true)).toBe(true);
+    expect(focusRestsOnBook(skip, true)).toBe(true);
+    expect(focusRestsOnBook(skip, false)).toBe(false);
+    expect(focusRestsOnBook(button, true)).toBe(false);
+    expect(focusRestsOnBook(null, true)).toBe(false);
   });
 });

@@ -403,13 +403,34 @@ describe("the Reader by touch", () => {
     expect(onTurn).toHaveBeenCalledWith("advance");
   });
 
-  it("shows the controls from the sides, and turns by no swipe, with page turns off", async () => {
+  it("shows the controls from the sides with tap turns off, and still turns by a swipe", async () => {
     const { viewport, onTurn } = reader({ preferences: { readerTouchPageTurns: false } });
     await shown();
-    swipe(viewport, 700, 400);
     tap(viewport, 950);
     expect(onTurn).not.toHaveBeenCalled();
     expect(await screen.findByRole("banner")).toBeInTheDocument();
+    swipe(viewport, 700, 400);
+    expect(onTurn.mock.calls).toEqual([["advance"]]);
+  });
+
+  it("turns a chapter shown alone by a swipe from its edge with tap turns off", async () => {
+    const semi = reader({
+      pageTurns: {
+        canAdvance: true,
+        canRetreat: true,
+        forwardArrow: "ArrowRight",
+        scrollAxis: "vertical",
+      },
+      preferences: {
+        readerViewMode: "semi-continuous",
+        readerTouchPageTurns: false,
+        readerChapterWheelThreshold: 1,
+      },
+    });
+    await shown();
+    semi.onChapterEdge.mockReturnValue(true);
+    drag(semi.viewport, { x: 500, y: 600 }, { x: 505, y: 300 });
+    expect(semi.onTurn.mock.calls).toEqual([["advance"]]);
   });
 
   it("does not turn the page on the tap that closed a lookup", () => {
@@ -1075,9 +1096,7 @@ describe("the Reader by touch", () => {
     expect(within(sheet).queryByText("Background image")).toBeNull();
 
     await userEvent.click(within(sheet).getByRole("button", { name: "Tap a word to look it up" }));
-    await userEvent.click(
-      within(sheet).getByRole("button", { name: "Tap or swipe to turn pages" }),
-    );
+    await userEvent.click(within(sheet).getByRole("button", { name: "Tap to turn pages" }));
     expect(
       within(sheet).getByRole("button", { name: "Volume keys turn pages" }),
     ).toBeInTheDocument();

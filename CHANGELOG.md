@@ -2,6 +2,12 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 2.2.1
+
+- With Tap to turn pages off, swiping still turns pages and chapters on the phone. The setting, formerly Tap or swipe to turn pages, is now about taps only.
+- The phone's Images sheet shows its pictures in a fraction of a second instead of many seconds, and at once when scrolled back to or opened again.
+- E-readers' page buttons and page turners turn pages on the phone as soon as the book opens, without touching the screen first.
+
 ## 2.2.0
 
 - The phone updates itself: Settings > About checks for a new release and installs it, and can check automatically. The phone's About page also shows the version, its release date and a link to the project on GitHub.

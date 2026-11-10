@@ -1427,7 +1427,7 @@ export const zhCN: MessageCatalog = {
   "appearancePanel.footer": "阅读器页脚",
   "appearancePanel.textBehavior": "文字表现",
   "appearancePanel.touch": "触摸",
-  "appearancePanel.touchTurns": "轻点或滑动翻页",
+  "appearancePanel.touchTurns": "轻点翻页",
   "appearancePanel.volumeTurns": "用音量键翻页",
   "appearancePanel.justification": "两端对齐",
   "appearancePanel.prettyWrap": "优化换行",

@@ -1690,7 +1690,7 @@ export const ru: MessageCatalog = {
   "appearancePanel.footer": "Нижняя строка",
   "appearancePanel.textBehavior": "Поведение текста",
   "appearancePanel.touch": "Касание",
-  "appearancePanel.touchTurns": "Листать касанием или свайпом",
+  "appearancePanel.touchTurns": "Листать касанием",
   "appearancePanel.volumeTurns": "Листать кнопками громкости",
   "appearancePanel.justification": "Выравнивание по ширине",
   "appearancePanel.prettyWrap": "Аккуратный перенос строк",

@@ -1510,7 +1510,7 @@ export const ja: MessageCatalog = {
   "appearancePanel.footer": "読書画面のフッター",
   "appearancePanel.textBehavior": "文章の表示",
   "appearancePanel.touch": "タッチ",
-  "appearancePanel.touchTurns": "タップやスワイプでページをめくる",
+  "appearancePanel.touchTurns": "タップでページをめくる",
   "appearancePanel.volumeTurns": "音量ボタンでページをめくる",
   "appearancePanel.justification": "両端揃え",
   "appearancePanel.prettyWrap": "きれいな折り返し",

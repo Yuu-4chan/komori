@@ -1497,7 +1497,7 @@ export const ko: MessageCatalog = {
   "appearancePanel.footer": "뷰어 바닥글",
   "appearancePanel.textBehavior": "글 표시",
   "appearancePanel.touch": "터치",
-  "appearancePanel.touchTurns": "탭하거나 밀어서 페이지 넘기기",
+  "appearancePanel.touchTurns": "탭하여 페이지 넘기기",
   "appearancePanel.volumeTurns": "음량 버튼으로 페이지 넘기기",
   "appearancePanel.justification": "양쪽 맞춤",
   "appearancePanel.prettyWrap": "보기 좋은 줄바꿈",

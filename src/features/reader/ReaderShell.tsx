@@ -37,6 +37,7 @@ import {
   acceptsReaderInput,
   arrowScrollDistance,
   arrowTurn,
+  focusRestsOnBook,
   pageKey,
   revealsVnText,
   WheelNavigationQueue,
@@ -1288,11 +1289,10 @@ export function ReaderShell({
       // Shift only goes back a page with Space.
       if (event.shiftKey && event.key !== " ") return;
       const target = event.target;
-      const bodyFocus =
-        !content && (target === document.body || target === document.documentElement);
+      const bodyFocus = !content && focusRestsOnBook(target);
       // Space shows all of a VN group's text at once, or reads on once all of it shows.
       if (event.key === " " && !event.shiftKey && vnStep.current) {
-        if (!revealsVnText(target)) return;
+        if (!bodyFocus && !revealsVnText(target)) return;
         event.preventDefault();
         vnStep.current(!event.repeat);
         return;

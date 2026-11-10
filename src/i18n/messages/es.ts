@@ -1659,7 +1659,7 @@ export const es: MessageCatalog = {
   "appearancePanel.footer": "Pie del lector",
   "appearancePanel.textBehavior": "Comportamiento del texto",
   "appearancePanel.touch": "Táctil",
-  "appearancePanel.touchTurns": "Tocar o deslizar para pasar página",
+  "appearancePanel.touchTurns": "Tocar para pasar página",
   "appearancePanel.volumeTurns": "Pasar página con los botones de volumen",
   "appearancePanel.justification": "Justificación del texto",
   "appearancePanel.prettyWrap": "Ajuste de línea cuidado",

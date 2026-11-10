@@ -1427,7 +1427,7 @@ export const zhTW: MessageCatalog = {
   "appearancePanel.footer": "閱讀器頁尾",
   "appearancePanel.textBehavior": "文字表現",
   "appearancePanel.touch": "觸控",
-  "appearancePanel.touchTurns": "輕點或滑動翻頁",
+  "appearancePanel.touchTurns": "輕點翻頁",
   "appearancePanel.volumeTurns": "用音量鍵翻頁",
   "appearancePanel.justification": "兩端對齊",
   "appearancePanel.prettyWrap": "最佳化換行",

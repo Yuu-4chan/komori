@@ -172,6 +172,8 @@ describe("book image safety and bounds", () => {
     expect(result.width).toBe(1024);
     expect(result.height).toBe(683);
     expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 1024, 683);
+    // A phone encodes an illustration as WebP in a fraction of the time PNG takes.
+    expect(canvas.toBlob).toHaveBeenCalledWith(expect.any(Function), "image/webp", 0.9);
     expect(canvas.getContext("2d")!.imageSmoothingQuality).toBe("high");
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:input");
   });

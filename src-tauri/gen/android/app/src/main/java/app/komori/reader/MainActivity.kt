@@ -8,6 +8,16 @@ import android.view.KeyEvent
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 
+private val pageKeys = setOf(
+  KeyEvent.KEYCODE_PAGE_UP,
+  KeyEvent.KEYCODE_PAGE_DOWN,
+  KeyEvent.KEYCODE_DPAD_UP,
+  KeyEvent.KEYCODE_DPAD_DOWN,
+  KeyEvent.KEYCODE_DPAD_LEFT,
+  KeyEvent.KEYCODE_DPAD_RIGHT,
+  KeyEvent.KEYCODE_SPACE,
+)
+
 class MainActivity : TauriActivity() {
   private var page: WebView? = null
 
@@ -32,6 +42,10 @@ class MainActivity : TauriActivity() {
       else -> null
     }
     val view = page
+    // An e-reader's page buttons and a page turner send page and arrow keys. The page has
+    // them only while it has focus, which it lacks until something is touched.
+    if (key == null && view != null && event.keyCode in pageKeys && !view.hasFocus())
+      view.requestFocusFromTouch()
     if (key == null || view == null) return super.dispatchKeyEvent(event)
     if (event.action == KeyEvent.ACTION_DOWN) {
       view.evaluateJavascript("window.komoriVolumeKey?.('$key') === true") { taken ->

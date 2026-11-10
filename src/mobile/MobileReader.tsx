@@ -422,8 +422,8 @@ export function MobileReader({
         } else setShown(true);
         return;
       }
-      if (!touchTurns) return;
-      // A continuous book scrolls under the finger instead; a chapter shown alone turns to
+      // Swipes turn whatever Tap to turn pages says: it is about taps alone. A continuous book
+      // scrolls under the finger instead; a chapter shown alone turns to
       // its neighbour when the finger reads on from the chapter's edge.
       if (pageTurns.scrollAxis) {
         const vertical = pageTurns.scrollAxis === "vertical";

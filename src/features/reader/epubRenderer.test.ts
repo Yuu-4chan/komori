@@ -1194,6 +1194,43 @@ describe("EPUB.js renderer adapter", () => {
     renderer.dispose();
   });
 
+  it("shows a thumbnail it already made at once, after scrolling back or listing again", async () => {
+    const { book } = mockBook([
+      section("one.xhtml", "", true, '<img src="one.png"><img src="two.png">'),
+    ]);
+    vi.stubGlobal(
+      "URL",
+      class extends URL {
+        static createObjectURL = vi.fn(() => "blob:generated");
+        static revokeObjectURL = vi.fn();
+      },
+    );
+    const renderer = epubRendererFactory(id)();
+    await renderer.mount(document.createElement("div"), new AbortController().signal, vi.fn());
+    book.archive.request.mockResolvedValue(
+      new Blob([new Uint8Array([137, 80, 78, 71, 0])]) as never,
+    );
+    const signal = new AbortController().signal;
+    const first = await renderer.listImages!(signal);
+    await renderer.loadImage!(first.items[0].id, "thumbnail", signal);
+    const renders = vi.mocked(renderBookImage).mock.calls.length;
+    renderer.releaseImage!("blob:generated");
+    const again = await renderer.listImages!(signal);
+    const reads = book.archive.request.mock.calls.length;
+    expect(await renderer.loadImage!(again.items[0].id, "thumbnail", signal)).toMatchObject({
+      url: "blob:generated",
+      width: 320,
+      height: 240,
+    });
+    expect(book.archive.request).toHaveBeenCalledTimes(reads);
+    expect(renderBookImage).toHaveBeenCalledTimes(renders);
+    // Another image, and the full-size viewer, are still read.
+    await renderer.loadImage!(again.items[1].id, "thumbnail", signal);
+    await renderer.loadImage!(again.items[0].id, "viewer", signal);
+    expect(renderBookImage).toHaveBeenCalledTimes(renders + 2);
+    renderer.dispose();
+  });
+
   it("loads bounded adapter-owned raster URLs, refuses external/oversized resources and revokes on dispose", async () => {
     const first = section(
       "Text/one.xhtml",

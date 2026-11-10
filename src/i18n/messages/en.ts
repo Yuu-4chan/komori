@@ -1630,7 +1630,7 @@ export const en = {
   "appearancePanel.footer": "Reader footer",
   "appearancePanel.textBehavior": "Text behavior",
   "appearancePanel.touch": "Touch",
-  "appearancePanel.touchTurns": "Tap or swipe to turn pages",
+  "appearancePanel.touchTurns": "Tap to turn pages",
   "appearancePanel.volumeTurns": "Volume keys turn pages",
   "appearancePanel.justification": "Text justification",
   "appearancePanel.prettyWrap": "Pretty text wrap",

@@ -80,6 +80,7 @@ import { imageInkShift, type InkShift } from "./imageInk";
 import {
   IMAGE_LIMIT,
   IMAGE_BYTES,
+  THUMBNAIL_CACHE_BYTES,
   IMAGE_DOCUMENT_BYTES,
   imageElements,
   imageAlt,
@@ -1190,6 +1191,9 @@ class EpubRenderer implements ReaderRenderer {
   private imageCatalog: ReaderImages | null = null;
   private imageLoads = new Set<AbortController>();
   private imageReads = 0;
+  /** Thumbnails already made, by their place in the book, newest last, within THUMBNAIL_CACHE_BYTES. */
+  private thumbnails = new Map<string, { blob: Blob; width: number; height: number }>();
+  private thumbnailBytes = 0;
 
   /** Check the declared entry size before reading image or section payloads. */
   /** An archive entry's size before decompression: null when missing, undefined when unknown. */
@@ -1415,6 +1419,19 @@ class EpubRenderer implements ReaderRenderer {
         return `data:${blob.type};base64,${btoa(binary)}`;
       });
     };
+    // Scrolling back to a card or opening the list again shows the thumbnail it already made.
+    const key = `${destination.spineIndex}:${destination.ordinal}`;
+    const kept = size === "thumbnail" ? this.thumbnails.get(key) : undefined;
+    if (kept) {
+      this.thumbnails.delete(key);
+      this.thumbnails.set(key, kept);
+      signal.removeEventListener("abort", abort);
+      destination.signal.removeEventListener("abort", abort);
+      this.imageLoads.delete(controller);
+      const url = URL.createObjectURL(kept.blob);
+      this.imageUrls.add(url);
+      return { url, width: kept.width, height: kept.height, blob: kept.blob };
+    }
     let reading = false;
     try {
       while (this.imageReads >= 3) {
@@ -1442,6 +1459,7 @@ class EpubRenderer implements ReaderRenderer {
       check();
       const rendered = await renderBookImage(blob, size, controller.signal);
       check();
+      if (size === "thumbnail") this.keepThumbnail(key, rendered);
       const url = URL.createObjectURL(rendered.blob);
       this.imageUrls.add(url);
       return { url, width: rendered.width, height: rendered.height, blob: framed ?? rendered.blob };
@@ -1450,6 +1468,19 @@ class EpubRenderer implements ReaderRenderer {
       this.imageLoads.delete(controller);
       signal.removeEventListener("abort", abort);
       destination.signal.removeEventListener("abort", abort);
+    }
+  }
+
+  private keepThumbnail(key: string, thumbnail: { blob: Blob; width: number; height: number }) {
+    const earlier = this.thumbnails.get(key);
+    if (earlier) this.thumbnailBytes -= earlier.blob.size;
+    this.thumbnails.delete(key);
+    this.thumbnails.set(key, thumbnail);
+    this.thumbnailBytes += thumbnail.blob.size;
+    for (const [oldest, value] of this.thumbnails) {
+      if (this.thumbnailBytes <= THUMBNAIL_CACHE_BYTES) break;
+      this.thumbnails.delete(oldest);
+      this.thumbnailBytes -= value.blob.size;
     }
   }
 
@@ -5598,6 +5629,8 @@ class EpubRenderer implements ReaderRenderer {
     for (const controller of this.imageLoads) controller.abort();
     this.imageLoads.clear();
     for (const url of this.imageUrls) URL.revokeObjectURL(url);
+    this.thumbnails.clear();
+    this.thumbnailBytes = 0;
     this.imageUrls.clear();
     this.bookmarkSections.clear();
     this.imageBlur.dispose();

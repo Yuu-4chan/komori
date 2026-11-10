@@ -1656,7 +1656,7 @@ export const it: MessageCatalog = {
   "appearancePanel.footer": "Piè di pagina del lettore",
   "appearancePanel.textBehavior": "Comportamento del testo",
   "appearancePanel.touch": "Tocco",
-  "appearancePanel.touchTurns": "Tocca o scorri per girare pagina",
+  "appearancePanel.touchTurns": "Tocca per girare pagina",
   "appearancePanel.volumeTurns": "Gira pagina con i tasti del volume",
   "appearancePanel.justification": "Giustificazione del testo",
   "appearancePanel.prettyWrap": "A capo curato",

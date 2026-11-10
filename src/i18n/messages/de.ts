@@ -1611,7 +1611,7 @@ export const de: MessageCatalog = {
   "appearancePanel.footer": "Fußzeile der Leseansicht",
   "appearancePanel.textBehavior": "Textverhalten",
   "appearancePanel.touch": "Berührung",
-  "appearancePanel.touchTurns": "Tippen oder wischen zum Blättern",
+  "appearancePanel.touchTurns": "Tippen zum Blättern",
   "appearancePanel.volumeTurns": "Mit den Lautstärketasten blättern",
   "appearancePanel.justification": "Blocksatz",
   "appearancePanel.prettyWrap": "Schöner Zeilenumbruch",

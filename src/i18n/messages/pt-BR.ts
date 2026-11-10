@@ -1596,7 +1596,7 @@ export const ptBR: MessageCatalog = {
   "appearancePanel.footer": "Rodapé do leitor",
   "appearancePanel.textBehavior": "Comportamento do texto",
   "appearancePanel.touch": "Toque",
-  "appearancePanel.touchTurns": "Tocar ou deslizar para virar páginas",
+  "appearancePanel.touchTurns": "Tocar para virar páginas",
   "appearancePanel.volumeTurns": "Virar páginas com os botões de volume",
   "appearancePanel.justification": "Texto justificado",
   "appearancePanel.prettyWrap": "Quebra de linha refinada",

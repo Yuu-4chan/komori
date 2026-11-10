@@ -6,6 +6,16 @@ const EXCLUDED =
   'button, a, input, textarea, select, option, [contenteditable=""], [contenteditable="true"], [role="dialog"], [role="menu"], [role="listbox"], [role="combobox"], [data-reader-navigation-exclude]';
 
 /**
+ * Whether a key pressed with focus on this element of the Reader's own page reads the book:
+ * with nothing focused, or on the phone with focus on the skip link, where Android puts it
+ * when an e-reader's page button or a page turner gives the webview focus.
+ */
+export function focusRestsOnBook(target: EventTarget | null, phone = isAndroid): boolean {
+  if (target === document.body || target === document.documentElement) return true;
+  return phone && !!(target as Element | null)?.classList?.contains("skip-link");
+}
+
+/**
  * Whether Space may finish a VN text reveal from where it was pressed: anywhere in the
  * book or Reader, but never in a dialog, menu or list, or on a control.
  */
