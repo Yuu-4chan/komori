@@ -1,6 +1,6 @@
 [package]
 name = "komori"
-version = "2.2.1"
+version = "2.3.0"
 description = "A lightweight desktop reading application"
 authors = ["The Komori authors"]
 license = "GPL-3.0-or-later"
