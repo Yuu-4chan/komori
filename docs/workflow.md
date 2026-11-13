@@ -38,7 +38,8 @@ Manual failures with real files outrank green synthetic tests: reproduce the pro
 - Its download buttons ask the GitHub API for the latest release in the browser and fall back to the releases page, so a release needs no change to the site.
 - The pages allow only their own files and, on the landing page, `api.github.com` (the Content Security Policy in each `<head>`): styles, scripts, fonts and images stay in `site/assets/`, with no inline styles or scripts.
 - URLs are relative, because the site is served from `/komori/`.
-- The site wears the application's default look: the Hojicha theme in light mode and Ember in dark mode. Its logo files (`site/assets/komori.svg`, `komori-dark.svg`) are `src/brand/komori.svg` with those themes' logo colors baked in, mixed as `.brand-mark` mixes them in `src/styles/shell.css`.
+- The site looks like the application, not like a product landing page: the name with its summary and the download buttons beside it, group headings over a hairline, a segmented control for the screenshots, and grouped lists of rows for features and downloads. Its text says what Komori does in plain words; headings are names (Windows, Features, Download), with no slogans.
+- It wears the application's default colors: the Hojicha theme in light mode and Ember in dark mode. Its logo files (`site/assets/komori.svg`, `komori-dark.svg`) are `src/brand/komori.svg` with those themes' logo colors baked in, mixed as `.brand-mark` mixes them in `src/styles/shell.css`.
 - When a release changes what users see or do, update the documentation page and retake the affected screenshots in `site/assets/img/`.
 
 The plain design guide is `design.md`; runtime design values remain in application themes, Reader themes, and CSS tokens.

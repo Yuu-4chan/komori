@@ -7,18 +7,18 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; script-src 'self'; connect-src https://api.github.com; base-uri 'none'; form-action 'none'"
     />
-    <title>Komori — an EPUB reader for readers and language learners</title>
+    <title>Komori — EPUB reader for Windows and Android</title>
     <meta
       name="description"
-      content="Komori is a lightweight EPUB reader for Windows and Android with pop-up dictionary lookup, reading statistics and one-click Anki cards. Free and open source."
+      content="Komori is an EPUB reader for Windows and Android with dictionary lookup popups, reading statistics and Anki cards. Free and open source."
     />
     <meta name="theme-color" content="#f1eadf" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#171311" media="(prefers-color-scheme: dark)" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Komori — an EPUB reader for readers and language learners" />
+    <meta property="og:title" content="Komori — EPUB reader for Windows and Android" />
     <meta
       property="og:description"
-      content="A lightweight EPUB reader for Windows and Android with pop-up dictionary lookup, reading statistics and one-click Anki cards."
+      content="An EPUB reader for Windows and Android with dictionary lookup popups, reading statistics and Anki cards."
     />
     <meta property="og:image" content="https://yuu-4chan.github.io/komori/assets/img/social.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -36,80 +36,14 @@
   </head>
   <body>
     <svg class="sprite" aria-hidden="true">
-      <symbol id="i-library" viewBox="0 0 24 24">
-        <path d="m16 6 4 14" />
-        <path d="M12 6v14" />
-        <path d="M8 8v12" />
-        <path d="M4 4v16" />
-      </symbol>
-      <symbol id="i-book" viewBox="0 0 24 24">
-        <path d="M12 7v14" />
-        <path
-          d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"
-        />
-      </symbol>
-      <symbol id="i-languages" viewBox="0 0 24 24">
-        <path d="m5 8 6 6" />
-        <path d="m4 14 6-6 2-3" />
-        <path d="M2 5h12" />
-        <path d="M7 2h1" />
-        <path d="m22 22-5-10-5 10" />
-        <path d="M14 18h6" />
-      </symbol>
-      <symbol id="i-search" viewBox="0 0 24 24">
-        <circle cx="11" cy="11" r="8" />
-        <path d="m21 21-4.3-4.3" />
-      </symbol>
-      <symbol id="i-chart" viewBox="0 0 24 24">
-        <path d="M3 3v18h18" />
-        <path d="M18 17V9" />
-        <path d="M13 17V5" />
-        <path d="M8 17v-3" />
-      </symbol>
-      <symbol id="i-cards" viewBox="0 0 24 24">
-        <path
-          d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"
-        />
-        <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
-        <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
-      </symbol>
-      <symbol id="i-phone" viewBox="0 0 24 24">
-        <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
-        <path d="M12 18h.01" />
-      </symbol>
-      <symbol id="i-sync" viewBox="0 0 24 24">
-        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-        <path d="M21 3v5h-5" />
-        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-        <path d="M8 16H3v5" />
-      </symbol>
-      <symbol id="i-shield" viewBox="0 0 24 24">
-        <path
-          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
-        />
-        <path d="m9 12 2 2 4-4" />
-      </symbol>
       <symbol id="i-monitor" viewBox="0 0 24 24">
         <rect width="20" height="14" x="2" y="3" rx="2" />
         <path d="M8 21h8" />
         <path d="M12 17v4" />
       </symbol>
-      <symbol id="i-palette" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2" />
-        <path d="M12 20v2" />
-        <path d="m4.93 4.93 1.41 1.41" />
-        <path d="m17.66 17.66 1.41 1.41" />
-        <path d="M2 12h2" />
-        <path d="M20 12h2" />
-        <path d="m6.34 17.66-1.41 1.41" />
-        <path d="m19.07 4.93-1.41 1.41" />
-      </symbol>
-      <symbol id="i-chat" viewBox="0 0 24 24">
-        <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-      </symbol>
-      <symbol id="i-check" viewBox="0 0 24 24">
-        <path d="M20 6 9 17l-5-5" />
+      <symbol id="i-phone" viewBox="0 0 24 24">
+        <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+        <path d="M12 18h.01" />
       </symbol>
     </svg>
 
@@ -120,15 +54,14 @@
         <a class="brand" href="./" aria-label="Komori, home">
           <picture>
             <source srcset="assets/komori-dark.svg" media="(prefers-color-scheme: dark)" />
-            <img src="assets/komori.svg" alt="" width="44" height="31" />
+            <img src="assets/komori.svg" alt="" width="40" height="28" />
           </picture>
           <span>Komori</span>
         </a>
         <nav class="nav" aria-label="Site">
+          <a href="#screenshots">Screenshots</a>
           <a href="#features">Features</a>
-          <a href="#windows">Windows</a>
-          <a href="#android">Android</a>
-          <a class="nav__keep" href="docs/">Docs</a>
+          <a class="nav__keep" href="docs/">Documentation</a>
           <a href="https://github.com/Yuu-4chan/komori">GitHub</a>
           <a class="nav__cta" href="#download">Download</a>
         </nav>
@@ -137,44 +70,42 @@
 
     <main id="main">
       <section class="hero">
-        <div class="wrap hero__copy">
-          <a class="eyebrow" href="https://github.com/Yuu-4chan/komori/releases/latest">
-            <b data-release-tag hidden></b>
-            <span>Free and open source</span>
-          </a>
-          <h1>Read in the language you’re <em>learning</em>.</h1>
-          <p class="lede">
-            Komori is a lightweight EPUB reader for Windows and Android. Look up any word without
-            leaving the page, see how much you read, and make Anki cards with one click.
-          </p>
-          <div class="actions">
-            <a
-              class="button button--primary"
-              data-download="windows"
-              href="https://github.com/Yuu-4chan/komori/releases/latest"
-            >
-              <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
-              <span>
-                Download for Windows
-                <small data-release-meta="windows">Windows 10 and 11, 64-bit</small>
-              </span>
-            </a>
-            <a
-              class="button"
-              data-download="android"
-              href="https://github.com/Yuu-4chan/komori/releases/latest"
-            >
-              <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg>
-              <span>
-                Download for Android
-                <small data-release-meta="android">Android 10 and later, APK</small>
-              </span>
-            </a>
+        <div class="wrap hero__head">
+          <img class="hero__icon" src="assets/icon.svg" alt="" width="84" height="84" />
+          <div class="hero__title">
+            <h1>Komori</h1>
+            <p>
+              An EPUB reader for Windows and Android with dictionary lookup popups, reading
+              statistics and Anki cards.
+            </p>
           </div>
-          <p class="fineprint">
-            No account, no telemetry. <a href="#download">How to install</a> ·
-            <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a>
-          </p>
+          <div class="hero__get">
+            <div class="actions">
+              <a
+                class="button button--primary"
+                data-download="windows"
+                href="https://github.com/Yuu-4chan/komori/releases/latest"
+              >
+                <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
+                Download for Windows
+              </a>
+              <a
+                class="button"
+                data-download="android"
+                href="https://github.com/Yuu-4chan/komori/releases/latest"
+              >
+                <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg>
+                Download for Android
+              </a>
+            </div>
+            <p class="hero__meta">
+              <span data-release-line hidden>
+                Version <span data-release-version></span>, <span data-release-date></span> ·
+              </span>
+              Free and open source ·
+              <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a>
+            </p>
+          </div>
         </div>
 
         <div class="stage">
@@ -204,283 +135,117 @@
         </div>
       </section>
 
-      <section class="section" id="features">
-        <div class="wrap">
-          <div class="section__head section__head--center">
-            <p class="kicker">Features</p>
-            <h2>Everything for reading a lot, in one quiet app</h2>
-            <p>
-              Made for long books in a language you are still learning, and just as comfortable for
-              the ones you already know.
-            </p>
-          </div>
-
-          <ul class="features">
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-library" /></svg>
-              </div>
-              <h3>A Library that tidies itself</h3>
-              <p>
-                Real covers and progress, search, filters and sorting, and groups by series,
-                language or author. Folders and drag and drop import even messy collections, reading
-                volumes and series from file names.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-book" /></svg>
-              </div>
-              <h3>A Reader you can shape</h3>
-              <p>
-                Continuous, semi-continuous, paginated and visual-novel modes, horizontal or
-                vertical writing, detailed typography, bookmarks, notes, highlights, find in book
-                and an image gallery.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-languages" /></svg>
-              </div>
-              <h3>Lookup in ten languages</h3>
-              <p>
-                Japanese, English, Spanish, French, Portuguese, Italian, German, Russian, Korean and
-                Chinese, each with its own dictionaries, deinflection and word audio. Furigana, IPA,
-                pitch accent, frequency and nested lookups.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-search" /></svg>
-              </div>
-              <h3>A full Dictionary page</h3>
-              <p>
-                Search by word, reading or kanji and get the same rich results, with sources in the
-                order you choose and a kanji card for single characters.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-chart" /></svg>
-              </div>
-              <h3>Reading statistics</h3>
-              <p>
-                Characters or words read, time and speed, an activity calendar with editable days, a
-                library overview and a character explorer. Recording pauses when you look away.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-cards" /></svg>
-              </div>
-              <h3>One-click Anki cards</h3>
-              <p>
-                Set it up once, then add a card from the popup with the reading, definitions,
-                frequency, word audio and book cover, in a deck for each language. The Lapis note
-                type is bundled.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg>
-              </div>
-              <h3>On your phone too</h3>
-              <p>
-                The Android app has the same Library, Reader, lookup, Dictionary and Statistics,
-                made for touch: tap a word to look it up, long press to select, and add words to
-                AnkiDroid.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-sync" /></svg>
-              </div>
-              <h3>Seamless PC and phone sync</h3>
-              <p>
-                Pair once with a short code. The phone opens the PC’s books, copies its
-                dictionaries, and keeps positions, bookmarks, notes and statistics in step, all on
-                your own network.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-palette" /></svg>
-              </div>
-              <h3>Themes for every mood</h3>
-              <p>
-                Fifteen Reader themes plus your own, a background image, eight application themes
-                and a custom one, downloadable and imported fonts, and sixteen app icons.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
-              </div>
-              <h3>At home on Windows</h3>
-              <p>
-                Launch at startup, start in or minimize to the tray, reopen the last book and
-                remember the window’s place. Small, fast and native-feeling.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-chat" /></svg>
-              </div>
-              <h3>Discord status</h3>
-              <p>
-                If you turn it on, your Discord status shows the book you are reading and your
-                progress while you read. Off by default.
-              </p>
-            </li>
-            <li class="feature">
-              <div class="feature__icon">
-                <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
-              </div>
-              <h3>Your data stays yours</h3>
-              <p>
-                Automatic snapshots, backup export and import, signed updates you approve, and no
-                telemetry. Komori reads your files where they are and never changes them.
-              </p>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="section section--tint" id="windows">
-        <div class="wrap">
-          <div class="section__head section__head--center">
-            <p class="kicker">On Windows</p>
-            <h2>A calm desktop for long reading sessions</h2>
-            <p>
-              A floating top bar, a dock for the three pages you live in, and nothing else in the
-              way of the book.
-            </p>
-          </div>
-
-          <div class="tour" data-tour>
+      <section class="section" id="screenshots">
+        <div class="wrap tour" data-tour>
+          <div class="group">
+            <h2>Windows</h2>
             <div class="tour__tabs" role="tablist" aria-label="Windows screenshots" hidden></div>
-            <div class="tour__panels">
-              <figure class="tour__panel" data-tab="Library">
-                <div class="window">
-                  <img
-                    src="assets/img/windows-library.webp"
-                    alt="The Library: a Continue reading row of six books with progress bars, then a series row."
-                    width="1920"
-                    height="1200"
-                    loading="lazy"
-                  />
-                </div>
-                <figcaption>
-                  <strong>Library.</strong> Continue where you stopped, then browse by series,
-                  language or author, with progress and character counts on every card.
-                </figcaption>
-              </figure>
-              <figure class="tour__panel" data-tab="Reader">
-                <div class="window">
-                  <img
-                    src="assets/img/windows-reader.webp"
-                    alt="The Reader showing a Japanese novel in vertical writing, with the clock above and the position below."
-                    width="1920"
-                    height="1200"
-                    loading="lazy"
-                  />
-                </div>
-                <figcaption>
-                  <strong>Reader.</strong> Vertical or horizontal writing in four reading modes,
-                  with a footer for your position, the clock and reading speed.
-                </figcaption>
-              </figure>
-              <figure class="tour__panel" data-tab="Lookup">
-                <div class="window">
-                  <img
-                    src="assets/img/windows-lookup.webp"
-                    alt="The lookup popup beside a highlighted word, with its reading, frequency, pitch accent and definitions from three dictionaries."
-                    width="1920"
-                    height="1200"
-                    loading="lazy"
-                  />
-                </div>
-                <figcaption>
-                  <strong>Lookup popup.</strong> Hold Shift over a word for its reading, pitch
-                  accent, frequency and definitions, then add it to Anki with the + button.
-                </figcaption>
-              </figure>
-              <figure class="tour__panel" data-tab="Contents">
-                <div class="window">
-                  <img
-                    src="assets/img/windows-reader-sidebar.webp"
-                    alt="The Reader sidebar with the book's cover, Images, Bookmarks, Notes and Search tiles, and the chapter list."
-                    width="1920"
-                    height="1200"
-                    loading="lazy"
-                  />
-                </div>
-                <figcaption>
-                  <strong>Sidebar.</strong> Chapters as a timeline, plus the book’s images,
-                  bookmarks, notes and search, a keypress away.
-                </figcaption>
-              </figure>
-              <figure class="tour__panel" data-tab="Dictionary">
-                <div class="window">
-                  <img
-                    src="assets/img/windows-dictionary.webp"
-                    alt="The Dictionary page with results for a Japanese word from three dictionaries."
-                    width="1920"
-                    height="1200"
-                    loading="lazy"
-                  />
-                </div>
-                <figcaption>
-                  <strong>Dictionary.</strong> The same entries as the popup on a full page, with a
-                  rail of the dictionaries that matched.
-                </figcaption>
-              </figure>
-              <figure class="tour__panel" data-tab="Statistics">
-                <div class="window">
-                  <img
-                    src="assets/img/windows-statistics.webp"
-                    alt="The Statistics page with reading time, sessions, characters read and speed, and a calendar of daily activity."
-                    width="1920"
-                    height="1200"
-                    loading="lazy"
-                  />
-                </div>
-                <figcaption>
-                  <strong>Statistics.</strong> Time, characters and speed, and a calendar that shows
-                  what you read each day.
-                </figcaption>
-              </figure>
-              <figure class="tour__panel" data-tab="Settings">
-                <div class="window">
-                  <img
-                    src="assets/img/windows-settings.webp"
-                    alt="Settings showing the application language, sixteen app icons and the application themes."
-                    width="1920"
-                    height="1200"
-                    loading="lazy"
-                  />
-                </div>
-                <figcaption>
-                  <strong>Settings.</strong> Eight application themes and a custom one, sixteen app
-                  icons, and an interface in eleven languages.
-                </figcaption>
-              </figure>
-            </div>
+          </div>
+          <div class="tour__panels">
+            <figure class="tour__panel" data-tab="Library">
+              <div class="window">
+                <img
+                  src="assets/img/windows-library.webp"
+                  alt="The Library: a Continue reading row of six books with progress bars, then a series row."
+                  width="1920"
+                  height="1200"
+                  loading="lazy"
+                />
+              </div>
+              <figcaption>
+                The Library, grouped by series, with progress and character counts on each card.
+              </figcaption>
+            </figure>
+            <figure class="tour__panel" data-tab="Reader">
+              <div class="window">
+                <img
+                  src="assets/img/windows-reader.webp"
+                  alt="The Reader showing a Japanese novel in vertical writing, with the clock above and the position below."
+                  width="1920"
+                  height="1200"
+                  loading="lazy"
+                />
+              </div>
+              <figcaption>A novel in vertical writing, paginated two pages at a time.</figcaption>
+            </figure>
+            <figure class="tour__panel" data-tab="Lookup">
+              <div class="window">
+                <img
+                  src="assets/img/windows-lookup.webp"
+                  alt="The lookup popup beside a highlighted word, with its reading, frequency, pitch accent and definitions from three dictionaries."
+                  width="1920"
+                  height="1200"
+                  loading="lazy"
+                />
+              </div>
+              <figcaption>
+                The lookup popup, opened by holding Shift over a word: reading, frequency, pitch
+                accent and definitions.
+              </figcaption>
+            </figure>
+            <figure class="tour__panel" data-tab="Sidebar">
+              <div class="window">
+                <img
+                  src="assets/img/windows-reader-sidebar.webp"
+                  alt="The Reader sidebar with the book's cover, Images, Bookmarks, Notes and Search tiles, and the chapter list."
+                  width="1920"
+                  height="1200"
+                  loading="lazy"
+                />
+              </div>
+              <figcaption>
+                The Reader’s sidebar: chapters, images, bookmarks, notes and search.
+              </figcaption>
+            </figure>
+            <figure class="tour__panel" data-tab="Dictionary">
+              <div class="window">
+                <img
+                  src="assets/img/windows-dictionary.webp"
+                  alt="The Dictionary page with results for a Japanese word from three dictionaries."
+                  width="1920"
+                  height="1200"
+                  loading="lazy"
+                />
+              </div>
+              <figcaption>
+                The Dictionary page, with the dictionaries that matched listed on the left.
+              </figcaption>
+            </figure>
+            <figure class="tour__panel" data-tab="Statistics">
+              <div class="window">
+                <img
+                  src="assets/img/windows-statistics.webp"
+                  alt="The Statistics page with reading time, sessions, characters read and speed, and a calendar of daily activity."
+                  width="1920"
+                  height="1200"
+                  loading="lazy"
+                />
+              </div>
+              <figcaption>
+                Statistics: reading time, characters, speed and a calendar of each day.
+              </figcaption>
+            </figure>
+            <figure class="tour__panel" data-tab="Settings">
+              <div class="window">
+                <img
+                  src="assets/img/windows-settings.webp"
+                  alt="Settings showing the application language, sixteen app icons and the application themes."
+                  width="1920"
+                  height="1200"
+                  loading="lazy"
+                />
+              </div>
+              <figcaption>
+                Settings &gt; General: language, app icon and application themes.
+              </figcaption>
+            </figure>
           </div>
         </div>
-      </section>
 
-      <section class="section" id="android">
-        <div class="wrap">
-          <div class="section__head">
-            <p class="kicker">On Android</p>
-            <h2>The same reader, made for touch</h2>
-            <p>
-              Tap a word to look it up, swipe or tap to turn pages, and pick up exactly where you
-              stopped on the PC.
-            </p>
+        <div class="wrap" id="android">
+          <div class="group">
+            <h2>Android</h2>
           </div>
-
           <ul class="phones">
             <li>
               <div class="phone">
@@ -492,8 +257,7 @@
                   loading="lazy"
                 />
               </div>
-              <h3>Library</h3>
-              <p>The phone’s own books beside the PC’s, ready to open or keep offline.</p>
+              <p>Library</p>
             </li>
             <li>
               <div class="phone">
@@ -505,8 +269,7 @@
                   loading="lazy"
                 />
               </div>
-              <h3>Reader</h3>
-              <p>Full-screen text with your themes, fonts and reading modes.</p>
+              <p>Reader</p>
             </li>
             <li>
               <div class="phone">
@@ -518,8 +281,7 @@
                   loading="lazy"
                 />
               </div>
-              <h3>Tap to look up</h3>
-              <p>The popup opens beside the word, and a tap inside it looks up the next one.</p>
+              <p>Lookup</p>
             </li>
             <li>
               <div class="phone">
@@ -531,8 +293,7 @@
                   loading="lazy"
                 />
               </div>
-              <h3>Contents</h3>
-              <p>Chapters, images, bookmarks, notes and a slider through the whole book.</p>
+              <p>Contents</p>
             </li>
             <li>
               <div class="phone">
@@ -544,214 +305,180 @@
                   loading="lazy"
                 />
               </div>
-              <h3>Statistics</h3>
-              <p>One reading history, whichever device you read on.</p>
+              <p>Statistics</p>
             </li>
           </ul>
         </div>
       </section>
 
-      <section class="section section--tint" id="sync">
-        <div class="wrap split">
-          <div>
-            <div class="section__head">
-              <p class="kicker">Sync</p>
-              <h2>Stop on one, continue on the other</h2>
-              <p>
-                Your phone and your PC talk to each other directly over your own network. There is
-                no account and no cloud in between.
-              </p>
-            </div>
-            <ul class="checks">
-              <li>
-                <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>
-                <span>The phone lists the PC’s books and opens them without copying files.</span>
-              </li>
-              <li>
-                <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>
-                <span>It copies the PC’s dictionaries, so lookups match on both.</span>
-              </li>
-              <li>
-                <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>
-                <span>
-                  Reading positions, bookmarks, notes and statistics stay in step both ways.
-                </span>
-              </li>
-            </ul>
+      <section class="section" id="features">
+        <div class="wrap">
+          <div class="group">
+            <h2>Features</h2>
+            <p><a href="docs/">Documentation</a></p>
           </div>
-          <ol class="steps">
-            <li>
-              <strong>Allow phones on the PC</strong>
-              <span>
-                Turn on Allow phones to connect in Settings &gt; Integrations &gt; Devices. Komori
-                shows an address and a short pairing code.
-              </span>
-            </li>
-            <li>
-              <strong>Enter the code on the phone</strong>
-              <span>
-                Type the address and code in Settings &gt; Sync. Both devices must be on the same
-                network.
-              </span>
-            </li>
-            <li>
-              <strong>Read anywhere</strong>
-              <span>
-                The PC’s books appear in the phone’s Library, and your place follows you.
-              </span>
-            </li>
-          </ol>
+          <dl class="rows">
+            <div>
+              <dt>Library</dt>
+              <dd>
+                Covers, progress, search, filters and sorting. Groups by series, language or author;
+                series and volumes are read from the books and their file names. Books are added by
+                folder or by drag and drop.
+              </dd>
+            </div>
+            <div>
+              <dt>Reader</dt>
+              <dd>
+                Continuous, semi-continuous, paginated and VN modes, in horizontal or vertical
+                writing. Fonts, spacing and margins, fifteen themes and your own. Bookmarks, notes,
+                highlights, find in book and an image gallery.
+              </dd>
+            </div>
+            <div>
+              <dt>Lookup</dt>
+              <dd>
+                A popup beside the word with readings, pitch accent, frequency, definitions and word
+                audio. Words inside the popup can be looked up too. Japanese, English, Spanish,
+                French, Portuguese, Italian, German, Russian, Korean and Chinese.
+              </dd>
+            </div>
+            <div>
+              <dt>Dictionaries</dt>
+              <dd>
+                Free starter dictionaries to download, or your own ZIP archives in the format used
+                by popular pop-up dictionary extensions. The Dictionary page searches by word,
+                reading or kanji.
+              </dd>
+            </div>
+            <div>
+              <dt>Anki</dt>
+              <dd>
+                The popup’s + button adds a card with the reading, definitions, frequency, word
+                audio and the book’s cover. AnkiConnect on Windows, AnkiDroid on Android. The Lapis
+                note type is bundled.
+              </dd>
+            </div>
+            <div>
+              <dt>Statistics</dt>
+              <dd>
+                Characters or words read, time and speed. An activity calendar, a library overview
+                and a character explorer.
+              </dd>
+            </div>
+            <div>
+              <dt>Phone and PC</dt>
+              <dd>
+                Paired with a code over your own network, without an account. The phone opens the
+                PC’s books and copies its dictionaries; positions, bookmarks, notes and statistics
+                sync both ways. <a href="docs/#sync">How to pair</a>
+              </dd>
+            </div>
+            <div>
+              <dt>Appearance</dt>
+              <dd>
+                Eight application themes and a custom one, an interface in eleven languages, and
+                sixteen app icons.
+                <ul class="appicons" aria-label="The sixteen app icons">
+                  <li><img src="assets/icons/beige.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/sunrise.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/peach.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/butter.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/mint.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/forest.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/teal.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/sky.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/ocean.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/navy.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/lavender.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/plum.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/twilight.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/midnight.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/charcoal.png" alt="" width="32" height="32" /></li>
+                  <li><img src="assets/icons/white.png" alt="" width="32" height="32" /></li>
+                </ul>
+              </dd>
+            </div>
+            <div>
+              <dt>Windows</dt>
+              <dd>
+                Launch at startup, start in or minimize to the tray, reopen the last book. An
+                optional Discord status shows the book while you read.
+              </dd>
+            </div>
+            <div>
+              <dt>Backups</dt>
+              <dd>Automatic snapshots, with export and import for moving to another computer.</dd>
+            </div>
+            <div>
+              <dt>Privacy</dt>
+              <dd>
+                No account, telemetry or analytics. EPUBs and dictionary archives are read where
+                they are and never changed. The network is used for update checks, word audio and
+                the downloads you choose. <a href="docs/#privacy">Privacy notes</a>
+              </dd>
+            </div>
+          </dl>
         </div>
       </section>
 
       <section class="section" id="download">
         <div class="wrap">
-          <div class="section__head section__head--center">
-            <p class="kicker">Download</p>
-            <h2>Get Komori</h2>
-            <p>
-              Free software under the GNU GPL.
-              <span data-release-line hidden>
-                The latest version is <strong data-release-version></strong>, released
-                <span data-release-date></span>.
-              </span>
+          <div class="group">
+            <h2>Download</h2>
+            <p data-release-line hidden>
+              Version <span data-release-version></span>, <span data-release-date></span>
             </p>
           </div>
-
-          <div class="downloads">
-            <article class="download" data-platform="windows">
-              <div class="download__head">
-                <div class="feature__icon">
-                  <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
-                </div>
-                <div>
-                  <h3>Windows</h3>
-                  <p class="download__req">64-bit Windows 10 and 11</p>
-                </div>
+          <div class="rows">
+            <div class="download" data-platform="windows">
+              <div>
+                <strong>Windows</strong>
+                <span>
+                  64-bit Windows 10 and 11 ·
+                  <span data-release-meta="windows">Installer (.exe)</span>
+                </span>
               </div>
-              <ol>
-                <li>Download the installer and run it.</li>
-                <li>
-                  The installer is not code-signed, so Windows SmartScreen may warn about an unknown
-                  publisher. Choose <strong>More info</strong>, then <strong>Run anyway</strong>.
-                </li>
-                <li>
-                  Add a folder of EPUBs, or drop files on the Library. Komori offers free starter
-                  dictionaries the first time you look a word up.
-                </li>
-              </ol>
               <a
-                class="button button--primary"
+                class="button"
                 data-download="windows"
                 href="https://github.com/Yuu-4chan/komori/releases/latest"
               >
                 <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
-                <span>
-                  Download for Windows
-                  <small data-release-meta="windows">Installer (.exe)</small>
-                </span>
+                Download
               </a>
-            </article>
-
-            <article class="download" data-platform="android">
-              <div class="download__head">
-                <div class="feature__icon">
-                  <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg>
-                </div>
-                <div>
-                  <h3>Android</h3>
-                  <p class="download__req">64-bit Android 10 and later</p>
-                </div>
+            </div>
+            <div class="download" data-platform="android">
+              <div>
+                <strong>Android</strong>
+                <span>
+                  64-bit Android 10 and later ·
+                  <span data-release-meta="android">Package (.apk)</span>
+                </span>
               </div>
-              <ol>
-                <li>On the phone, download the APK and open it.</li>
-                <li>
-                  Allow your browser or file manager to <strong>install apps</strong> when Android
-                  asks.
-                </li>
-                <li>
-                  Add EPUBs from the phone, or pair with Komori on your PC to read its books and use
-                  its dictionaries.
-                </li>
-              </ol>
               <a
-                class="button button--primary"
+                class="button"
                 data-download="android"
                 href="https://github.com/Yuu-4chan/komori/releases/latest"
               >
                 <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg>
-                <span>
-                  Download for Android
-                  <small data-release-meta="android">Package (.apk)</small>
-                </span>
+                Download
               </a>
-            </article>
+            </div>
           </div>
-
-          <p class="note">
-            Komori checks for a new version when it starts and asks before installing it. Updating
-            keeps your data. See the <a href="docs/#install">installation guide</a>, the
-            <a href="https://github.com/Yuu-4chan/komori/blob/main/CHANGELOG.md">changelog</a> or
-            <a href="https://github.com/Yuu-4chan/komori/releases">all releases</a>.
-          </p>
-        </div>
-      </section>
-
-      <section class="section section--tint" id="privacy">
-        <div class="wrap split">
-          <div class="section__head">
-            <p class="kicker">Private by design</p>
-            <h2>A local app, not a service</h2>
-            <p>
-              Your library, reading history, notes and dictionaries stay on your devices. Komori
-              uses the network only to check for updates, fetch word audio when you ask for it, and
-              download the dictionaries or fonts you choose.
-            </p>
-            <ul class="appicons" aria-label="Sixteen app icons to choose from">
-              <li><img src="assets/icons/beige.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/sunrise.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/peach.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/butter.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/mint.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/forest.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/teal.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/sky.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/ocean.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/navy.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/lavender.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/plum.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/twilight.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/midnight.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/charcoal.png" alt="" width="40" height="40" /></li>
-              <li><img src="assets/icons/white.png" alt="" width="40" height="40" /></li>
-            </ul>
-          </div>
-          <ul class="checks">
+          <ul class="notes">
             <li>
-              <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>
-              <span>No account, telemetry, analytics or crash reporting.</span>
+              The Windows installer is not code-signed. If SmartScreen warns about an unknown
+              publisher, choose <strong>More info</strong>, then <strong>Run anyway</strong>.
+            </li>
+            <li>On Android, allow your browser or file manager to install apps when it asks.</li>
+            <li>
+              Komori checks for a new version when it starts and asks before installing it. Updating
+              keeps your data.
             </li>
             <li>
-              <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>
-              <span
-                >Your EPUBs and dictionary archives are read where they are, never changed.</span
-              >
-            </li>
-            <li>
-              <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>
-              <span>Automatic snapshots, with backup export and import.</span>
-            </li>
-            <li>
-              <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>
-              <span>Signed updates, installed only when you approve them.</span>
-            </li>
-            <li>
-              <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>
-              <span>
-                Open source under the GPL: read the
-                <a href="https://github.com/Yuu-4chan/komori">code</a> and the
-                <a href="docs/#privacy">privacy notes</a>.
-              </span>
+              <a href="docs/#install">Installation guide</a> ·
+              <a href="https://github.com/Yuu-4chan/komori/blob/main/CHANGELOG.md">Changelog</a> ·
+              <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a>
             </li>
           </ul>
         </div>

@@ -6,8 +6,8 @@ const RELEASE_CACHE = "komori-latest-release";
 const RELEASE_CACHE_MS = 10 * 60 * 1000;
 
 const ASSETS = {
-  windows: { suffix: "_x64-setup.exe", note: "Windows 10 and 11" },
-  android: { suffix: "_android-arm64.apk", note: "Android 10 and later" },
+  windows: { suffix: "_x64-setup.exe", kind: "Installer (.exe)" },
+  android: { suffix: "_android-arm64.apk", kind: "Package (.apk)" },
 };
 
 function megabytes(bytes) {
@@ -48,7 +48,7 @@ async function latestRelease() {
 
 function showRelease(release) {
   if (!release.version) return;
-  for (const [platform, { suffix, note }] of Object.entries(ASSETS)) {
+  for (const [platform, { suffix, kind }] of Object.entries(ASSETS)) {
     const asset = release.assets.find((candidate) => candidate.name.endsWith(suffix));
     // Only GitHub's own download URLs replace the fallback link.
     if (!asset || !asset.url.startsWith("https://github.com/Yuu-4chan/komori/releases/download/")) {
@@ -58,12 +58,8 @@ function showRelease(release) {
       link.href = asset.url;
     }
     for (const meta of document.querySelectorAll(`[data-release-meta="${platform}"]`)) {
-      meta.textContent = `v${release.version} · ${megabytes(asset.size)} · ${note}`;
+      meta.textContent = `${kind}, ${megabytes(asset.size)}`;
     }
-  }
-  for (const tag of document.querySelectorAll("[data-release-tag]")) {
-    tag.textContent = `v${release.version}`;
-    tag.hidden = false;
   }
   for (const version of document.querySelectorAll("[data-release-version]")) {
     version.textContent = release.version;
