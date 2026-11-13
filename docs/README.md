@@ -14,7 +14,7 @@ These documents describe the current Komori application. Code and tests are the 
 - `workflow.md` — development commands and repository conventions.
 - `release-checklist.md` — how a release is made and the manual checks before publishing it.
 
-Agent instructions for this repository are in `../AGENTS.md`.
+Agent instructions for this repository are in `../AGENTS.md`. The public website with the user documentation is in `../site/`; `workflow.md` says how it is published.
 
 ## Documentation policy
 

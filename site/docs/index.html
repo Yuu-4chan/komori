@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self'; style-src 'self'; font-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Komori documentation</title>
+    <meta
+      name="description"
+      content="How to install and use Komori: adding books, reading, dictionary lookup, Anki, statistics, syncing a phone with a PC, backups, shortcuts and troubleshooting."
+    />
+    <meta name="theme-color" content="#f1eadf" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171311" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="../assets/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="../assets/icons/beige.png" type="image/png" sizes="128x128" />
+    <link
+      rel="preload"
+      href="../assets/fonts/inter-latin-wght-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="../assets/site.css" />
+    <script src="../assets/site.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="topbar">
+      <div class="wrap topbar__inner">
+        <a class="brand" href="../" aria-label="Komori, home">
+          <picture>
+            <source srcset="../assets/komori-dark.svg" media="(prefers-color-scheme: dark)" />
+            <img src="../assets/komori.svg" alt="" width="44" height="31" />
+          </picture>
+          <span>Komori</span>
+        </a>
+        <nav class="nav" aria-label="Site">
+          <a href="../#features">Features</a>
+          <a class="nav__keep" href="./" aria-current="page">Docs</a>
+          <a href="https://github.com/Yuu-4chan/komori">GitHub</a>
+          <a class="nav__cta" href="../#download">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="wrap docs">
+      <aside class="toc" data-outline>
+        <details open>
+          <summary>On this page</summary>
+          <nav aria-label="On this page">
+            <p class="toc__group">Start</p>
+            <ul>
+              <li><a href="#install">Install</a></li>
+              <li><a href="#books">Add books</a></li>
+            </ul>
+            <p class="toc__group">Read</p>
+            <ul>
+              <li><a href="#library">Library</a></li>
+              <li><a href="#reader">Reader</a></li>
+              <li><a href="#lookup">Looking words up</a></li>
+              <li><a href="#dictionaries">Dictionaries</a></li>
+              <li><a href="#anki">Anki</a></li>
+              <li><a href="#statistics">Statistics</a></li>
+            </ul>
+            <p class="toc__group">Devices</p>
+            <ul>
+              <li><a href="#android">Komori on Android</a></li>
+              <li><a href="#sync">Sync with your PC</a></li>
+            </ul>
+            <p class="toc__group">Reference</p>
+            <ul>
+              <li><a href="#settings">Settings</a></li>
+              <li><a href="#shortcuts">Keyboard shortcuts</a></li>
+              <li><a href="#backups">Backups and your data</a></li>
+              <li><a href="#privacy">Privacy</a></li>
+              <li><a href="#troubleshooting">Troubleshooting</a></li>
+            </ul>
+          </nav>
+        </details>
+      </aside>
+
+      <main class="doc" id="main">
+        <div class="doc__title">
+          <h1>Documentation</h1>
+          <p>
+            How to install Komori, add your books and get the most out of reading with it, on
+            Windows and on Android.
+          </p>
+        </div>
+
+        <section id="install">
+          <h2>Install</h2>
+
+          <h3>Windows</h3>
+          <ol>
+            <li>
+              Download the latest <code>Komori_&lt;version&gt;_x64-setup.exe</code> from the
+              <a href="https://github.com/Yuu-4chan/komori/releases/latest">releases page</a>.
+            </li>
+            <li>
+              Run it. The installer is not code-signed, so Windows SmartScreen may warn about an
+              unknown publisher; choose <strong>More info</strong>, then
+              <strong>Run anyway</strong>.
+            </li>
+          </ol>
+          <p>
+            Komori runs on 64-bit Windows 10 and 11. It needs the Microsoft Edge WebView2 Runtime,
+            which Windows 11 already includes; if it is missing, the installer downloads and
+            installs it.
+          </p>
+
+          <h3>Android</h3>
+          <ol>
+            <li>
+              On the phone, download the latest
+              <code>Komori_&lt;version&gt;_android-arm64.apk</code> from the
+              <a href="https://github.com/Yuu-4chan/komori/releases/latest">releases page</a>.
+            </li>
+            <li>
+              Open it and allow your browser or file manager to install apps when Android asks.
+            </li>
+          </ol>
+          <p>Komori runs on 64-bit Android 10 and later, on phones, tablets and e-readers.</p>
+
+          <h3>Updating and uninstalling</h3>
+          <p>
+            Komori checks for a new version when it starts and asks before installing it, showing
+            what changed. You can turn the check off in <strong>Settings &gt; General</strong> on
+            Windows and <strong>Settings &gt; About</strong> on Android. Updating keeps your data.
+          </p>
+          <p>
+            To uninstall on Windows, use <strong>Installed apps</strong> in Windows Settings; the
+            uninstaller asks whether to delete Komori’s data as well. Your EPUB files are never
+            touched.
+          </p>
+        </section>
+
+        <section id="books">
+          <h2>Add books</h2>
+          <p>
+            Komori reads EPUB files where they are. It never moves, copies or changes them, so your
+            collection stays exactly as you keep it.
+          </p>
+          <ul>
+            <li>
+              <strong>Drop files.</strong> Drag EPUBs from Explorer anywhere onto the Library.
+            </li>
+            <li>
+              <strong>Add books.</strong> The + button in the top bar opens a file picker; on the
+              phone it opens Android’s document picker, where you can choose several EPUBs at once.
+            </li>
+            <li>
+              <strong>Book folders.</strong> In <strong>Settings &gt; General</strong>, add a folder
+              and Komori imports everything in it; <strong>Check for new books</strong>
+              picks up what you add later.
+            </li>
+          </ul>
+          <p>
+            Imports report progress and tell you what happened to each file. Titles lose store and
+            edition tags, and volumes and series are read from the books and their file names, so
+            even a messy collection lines up.
+          </p>
+          <div class="callout">
+            If a book was moved, renamed or deleted, its card says it is unavailable. Choose
+            <strong>Relink EPUB</strong> and pick the file at its new place; your reading position,
+            notes, bookmarks and statistics are kept.
+          </div>
+        </section>
+
+        <section id="library">
+          <h2>Library</h2>
+          <figure>
+            <div class="window">
+              <img
+                src="../assets/img/windows-library.webp"
+                alt="The Library with a Continue reading row and a series row."
+                width="1920"
+                height="1200"
+                loading="lazy"
+              />
+            </div>
+          </figure>
+          <p>
+            <strong>Continue reading</strong> lists the books you have started. Below it, the
+            toolbar switches between a grid and a list, filters by reading status, chooses the
+            details shown on each card, and sorts by title, author, progress and more.
+          </p>
+          <ul>
+            <li>
+              <strong>Groups.</strong> Group by series, language or author. Each group is a row with
+              a <strong>See all</strong> page of its own.
+            </li>
+            <li>
+              <strong>Automatic series.</strong> On by default: Komori builds series from the
+              numbers in file names and titles, and from each book’s own series. A series you set by
+              hand always wins.
+            </li>
+            <li>
+              <strong>Edit titles and authors.</strong> <strong>Edit…</strong> on a card’s menu
+              changes how a book is shown without changing the file. With several books selected,
+              retitle the first volume and the rest follow, numbered.
+            </li>
+            <li>
+              <strong>Selection.</strong> Tick several cards to mark them as completed, relink or
+              remove them together.
+            </li>
+            <li>
+              <strong>Characters or words.</strong> Japanese, Chinese and Korean books are counted
+              in characters; western books in words.
+            </li>
+          </ul>
+        </section>
+
+        <section id="reader">
+          <h2>Reader</h2>
+          <figure>
+            <div class="window">
+              <img
+                src="../assets/img/windows-reader-sidebar.webp"
+                alt="The Reader with its sidebar open over a book in vertical writing."
+                width="1920"
+                height="1200"
+                loading="lazy"
+              />
+            </div>
+          </figure>
+
+          <h3>Reading modes</h3>
+          <p>
+            Open <strong>Appearance</strong> (<kbd>A</kbd>) to choose how the book flows:
+            <strong>Continuous</strong>, <strong>Semi-continuous</strong>,
+            <strong>Paginated</strong> (single or double pages) or <strong>VN</strong>, which shows
+            a few paragraphs at a time like a visual novel. Each works in horizontal or vertical
+            writing.
+          </p>
+
+          <h3>Appearance</h3>
+          <ul>
+            <li>
+              <strong>Themes.</strong> Fifteen Reader themes, plus named themes of your own and an
+              optional background image with blur.
+            </li>
+            <li>
+              <strong>Typography.</strong> Separate fonts for western and Asian text, size, weight,
+              line height, indentation and spacing. The + beside a font opens the font manager to
+              download more families or import your own TTF and OTF files.
+            </li>
+            <li>
+              <strong>Page.</strong> Margins, maximum width and height, justification, and how far
+              the wheel scrolls.
+            </li>
+            <li>
+              <strong>Furigana.</strong> Hide it fully or partially and reveal it per word when you
+              need it.
+            </li>
+            <li>
+              <strong>Footer.</strong> Choose what the two pills show: book and chapter position,
+              percentage, reading speed, the clock and the session time.
+            </li>
+          </ul>
+
+          <h3>The sidebar</h3>
+          <p>
+            Move the pointer to the window’s left edge, or press <kbd>S</kbd>, to show the sidebar:
+            the book’s card, the chapters as a timeline, and tiles for <strong>Images</strong>,
+            <strong>Bookmarks</strong>, <strong>Notes</strong> and <strong>Search</strong>. Pin it
+            to keep it beside the text.
+          </p>
+          <ul>
+            <li>
+              <strong>Bookmarks.</strong> <kbd>B</kbd> saves a quick bookmark and <kbd>R</kbd>
+              returns to the last one.
+            </li>
+            <li>
+              <strong>Notes and highlights.</strong> Select text and press <kbd>N</kbd>, or
+              right-click the selection for Look up, Copy, Add note and Highlight.
+            </li>
+            <li>
+              <strong>Find in book.</strong> <kbd>Ctrl</kbd>+<kbd>F</kbd> searches the whole book or
+              the current chapter.
+            </li>
+            <li>
+              <strong>Images.</strong> <kbd>G</kbd> opens the book’s illustrations as a gallery with
+              zoom, and each can take you to its place in the book.
+            </li>
+            <li>
+              <strong>Autoscroll.</strong> Middle-click blank space in a continuous book to scroll
+              hands-free.
+            </li>
+          </ul>
+        </section>
+
+        <section id="lookup">
+          <h2>Looking words up</h2>
+          <figure>
+            <div class="window">
+              <img
+                src="../assets/img/windows-lookup.webp"
+                alt="The lookup popup beside a highlighted word in the Reader."
+                width="1920"
+                height="1200"
+                loading="lazy"
+              />
+            </div>
+          </figure>
+          <p>
+            Komori looks words up right where you are reading. The popup opens beside the word with
+            the dictionary entries, and never takes you out of the book.
+          </p>
+
+          <h3>Triggers</h3>
+          <div class="table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Trigger</th>
+                  <th>How</th>
+                  <th>Default</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Shift</td>
+                  <td>Hold <kbd>Shift</kbd> and move the pointer over a word.</td>
+                  <td>On</td>
+                </tr>
+                <tr>
+                  <td>Shortcut</td>
+                  <td>Select text and press <kbd>Shift</kbd>+<kbd>Enter</kbd>.</td>
+                  <td>On</td>
+                </tr>
+                <tr>
+                  <td>Click</td>
+                  <td>Middle-click a word, or left-click when you choose that.</td>
+                  <td>On</td>
+                </tr>
+                <tr>
+                  <td>Selection</td>
+                  <td>Select text with the mouse.</td>
+                  <td>Off</td>
+                </tr>
+                <tr>
+                  <td>Hover</td>
+                  <td>Rest the pointer on a word.</td>
+                  <td>Off</td>
+                </tr>
+                <tr>
+                  <td>Touch</td>
+                  <td>On the phone, tap a word.</td>
+                  <td>On</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Change them in <strong>Settings &gt; Reader popup</strong>, along with the popup’s size,
+            colors, font and how much text it scans.
+          </p>
+
+          <h3>What the popup shows</h3>
+          <ul>
+            <li>
+              The headword with its reading, as furigana or beside it, and ★ for a common word.
+            </li>
+            <li>Pitch accent drawn on the reading, and every frequency list’s rank.</li>
+            <li>
+              Each dictionary’s definitions under its name. Click a name to fold that dictionary.
+            </li>
+            <li>
+              <strong>Voice</strong> plays a recording of the word,
+              <strong>Open in Dictionary</strong> shows the full page, and <strong>+</strong> adds
+              the word to Anki.
+            </li>
+            <li>
+              Click a kanji or a word inside the popup to look that up too, several levels deep.
+            </li>
+          </ul>
+          <p>
+            Prefer something quieter? The <strong>Dictionary</strong> popup style shows only
+            headwords and definitions, for fast reading.
+          </p>
+
+          <h3>Lookup languages</h3>
+          <p>
+            Choose the lookup language in <strong>Settings &gt; Dictionary</strong>: Japanese,
+            English, Spanish, French, Portuguese, Italian, German, Russian, Korean or Chinese. Each
+            has its own dictionaries and its own way of finding the dictionary form of a word, such
+            as verb tenses, plurals and cases, or Korean verb endings.
+          </p>
+        </section>
+
+        <section id="dictionaries">
+          <h2>Dictionaries</h2>
+          <p>
+            Each lookup language keeps its own dictionaries, managed in
+            <strong>Settings &gt; Dictionary</strong>. You can use Komori without any dictionary,
+            but lookup needs at least one with definitions.
+          </p>
+
+          <h3>Starter dictionaries</h3>
+          <p>
+            When a language has none, Komori offers to download freely licensed ones: Wiktionary
+            dictionaries with definitions in your language and IPA pronunciations for every lookup
+            language, and for Japanese also curated Japanese–English dictionaries, a word frequency
+            list, a kanji dictionary and a proper-name dictionary.
+          </p>
+
+          <h3>Your own dictionaries</h3>
+          <p>
+            Choose <strong>Add dictionaries</strong> and pick one or more ZIP archives in the format
+            used by popular pop-up dictionary extensions (an <code>index.json</code> in format 2 or
+            3). Komori copies the entries into its own store and never changes the archive.
+            Definition, frequency, pitch accent and kanji dictionaries are all supported.
+          </p>
+          <ul>
+            <li>Drag the rows to set the order results appear in.</li>
+            <li>Select rows to remove them or move them to another language.</li>
+            <li>
+              <strong>Word audio</strong> lists where recordings come from; add your own source with
+              an audio URL.
+            </li>
+          </ul>
+
+          <h3>The Dictionary page</h3>
+          <p>
+            <kbd>Ctrl</kbd>+<kbd>D</kbd> opens a full-page dictionary. Search a word, a reading or a
+            single kanji; the rail on the left lists the dictionaries that matched.
+          </p>
+        </section>
+
+        <section id="anki">
+          <h2>Anki</h2>
+          <p>
+            Komori creates Anki cards from the popup’s <strong>+</strong> button, with the reading,
+            definitions, frequency, word audio and the book’s cover.
+          </p>
+
+          <h3>On Windows</h3>
+          <ol>
+            <li>
+              Install the <strong>AnkiConnect</strong> add-on in Anki (code <code>2055492159</code>)
+              and keep Anki running with your profile open.
+            </li>
+            <li>
+              Open <strong>Settings &gt; Anki</strong> in Komori and use
+              <strong>Test connection</strong>. The default port is 8765.
+            </li>
+            <li>
+              Choose <strong>New deck</strong> to create a deck with the bundled Lapis note type, or
+              pick your own deck and note type and map their fields.
+            </li>
+          </ol>
+          <p>
+            Each lookup language can have its own deck. Duplicates can be prevented, overwritten or
+            allowed, and tags can include the dictionary names or frequency tiers.
+          </p>
+
+          <h3>On Android</h3>
+          <p>
+            Install AnkiDroid and open it once, then allow Komori to use it in
+            <strong>Settings &gt; Anki</strong>. The popup’s + adds the word to AnkiDroid.
+          </p>
+        </section>
+
+        <section id="statistics">
+          <h2>Statistics</h2>
+          <figure>
+            <div class="window">
+              <img
+                src="../assets/img/windows-statistics.webp"
+                alt="The Statistics page with summary numbers and a calendar of daily reading."
+                width="1920"
+                height="1200"
+                loading="lazy"
+              />
+            </div>
+          </figure>
+          <p>
+            Komori records how much you read: characters or words, time and speed. The page shows
+            today, this month or all time, an activity calendar, a library overview and a character
+            explorer whose tiles open their Dictionary search.
+          </p>
+          <ul>
+            <li>
+              Recording pauses while Komori’s window is in the background, and stops counting after
+              a few minutes without reading forward, so time away never lowers your speed.
+            </li>
+            <li><kbd>P</kbd> starts or pauses a session by hand.</li>
+            <li>Right-click a book in a day’s details to correct what was recorded.</li>
+            <li>
+              <strong>Settings &gt; Statistics</strong> turns recording off, sets when a session
+              starts, and deletes recorded statistics.
+            </li>
+          </ul>
+        </section>
+
+        <section id="android">
+          <h2>Komori on Android</h2>
+          <p>
+            The Android app has the same Library, Reader, lookup, Dictionary and Statistics, with a
+            frame made for touch.
+          </p>
+          <div class="table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Gesture</th>
+                  <th>What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Tap a word</td>
+                  <td>Looks it up. Tap a word in the popup for the next lookup.</td>
+                </tr>
+                <tr>
+                  <td>Tap the sides</td>
+                  <td>Turns the page in paginated and VN views.</td>
+                </tr>
+                <tr>
+                  <td>Swipe</td>
+                  <td>Turns the page in paginated view; continuous views scroll.</td>
+                </tr>
+                <tr>
+                  <td>Tap the middle</td>
+                  <td>Shows the Reader’s controls: Back, Search, Appearance and Contents.</td>
+                </tr>
+                <tr>
+                  <td>Long press text</td>
+                  <td>Selects it to add a note, highlight, copy, look up or search.</td>
+                </tr>
+                <tr>
+                  <td>Long press a book</td>
+                  <td>Selects it in the Library for information, editing or removal.</td>
+                </tr>
+                <tr>
+                  <td>Back</td>
+                  <td>Closes the deepest popup or the open sheet before leaving the page.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Pages can also turn with the volume keys, and the status and navigation bars hide while
+            you read. Reopening Komori after Android closes it opens the last book where it was.
+          </p>
+        </section>
+
+        <section id="sync">
+          <h2>Sync with your PC</h2>
+          <p>
+            Pair the phone with Komori on your PC to read the PC’s books on the phone and keep
+            everything in step. The two devices talk directly over your own network, with no account
+            or cloud.
+          </p>
+          <ol>
+            <li>
+              On the PC, open <strong>Settings &gt; Integrations &gt; Devices</strong> and turn on
+              <strong>Allow phones to connect</strong>. Komori shows the PC’s address, a port and a
+              pairing code.
+            </li>
+            <li>
+              On the phone, open <strong>Settings &gt; Sync</strong> and enter the address and the
+              code. Both devices must be on the same network.
+            </li>
+          </ol>
+          <p>Once paired:</p>
+          <ul>
+            <li>
+              The phone’s Library lists the PC’s books beside its own and opens them without copying
+              files by hand. <strong>Keep on this phone</strong> stores a book for reading away from
+              home.
+            </li>
+            <li>
+              <strong>Settings &gt; Sync</strong> lists the PC’s dictionaries;
+              <strong>Copy</strong> brings one to the phone.
+            </li>
+            <li>
+              Reading positions, bookmarks, notes and reading statistics sync both ways, so you pick
+              up on one device where you stopped on the other.
+            </li>
+            <li>
+              Books from the PC can be marked as completed or unread, and removed from the PC’s
+              Library, from the phone. Removing never deletes the EPUB.
+            </li>
+          </ul>
+          <div class="callout">
+            If the phone says the PC isn’t answering, open Komori on the PC, check that
+            <strong>Allow phones to connect</strong> is on and that Windows Firewall allows Komori
+            on your private network. <strong>Unpair this phone</strong> in Settings &gt; Sync, or
+            <strong>Remove</strong> beside the phone on the PC, ends the pairing.
+          </div>
+        </section>
+
+        <section id="settings">
+          <h2>Settings</h2>
+          <figure>
+            <div class="window">
+              <img
+                src="../assets/img/windows-settings.webp"
+                alt="Settings, opened on General, with the app icons and application themes."
+                width="1920"
+                height="1200"
+                loading="lazy"
+              />
+            </div>
+          </figure>
+          <div class="table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>What is there</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>General</td>
+                  <td>
+                    Language, app icon, application themes, Library card size and book folders, and
+                    startup behavior: launch at startup, start in tray, minimize to tray, restore
+                    the last book, remember the window, and updates.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Storage</td>
+                  <td>Disk space, automatic backups, export, import and snapshots.</td>
+                </tr>
+                <tr>
+                  <td>Shortcuts</td>
+                  <td>Every key binding, by context.</td>
+                </tr>
+                <tr>
+                  <td>Reader popup</td>
+                  <td>The lookup popup’s style, appearance, triggers and scanning.</td>
+                </tr>
+                <tr>
+                  <td>Dictionary</td>
+                  <td>The lookup language, its dictionaries and word audio sources.</td>
+                </tr>
+                <tr>
+                  <td>Statistics</td>
+                  <td>Recording, session start and limits, and deleting statistics.</td>
+                </tr>
+                <tr>
+                  <td>Anki</td>
+                  <td>Connection, deck, note type, field contents, tags and duplicates.</td>
+                </tr>
+                <tr>
+                  <td>Discord</td>
+                  <td>
+                    An optional Discord status that shows the book you are reading and your progress
+                    while you read. Off by default.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Devices</td>
+                  <td>Allowing phones to connect, the pairing code and paired phones.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            The interface is available in English, Japanese, Simplified and Traditional Chinese,
+            Korean, German, Spanish, French, Italian, Brazilian Portuguese and Russian.
+          </p>
+        </section>
+
+        <section id="shortcuts">
+          <h2>Keyboard shortcuts</h2>
+          <p>
+            These are the Windows defaults. <strong>Settings &gt; Shortcuts</strong> lists every
+            binding and when it is available.
+          </p>
+
+          <h3>Application</h3>
+          <div class="table">
+            <table>
+              <tbody>
+                <tr>
+                  <td><kbd>Ctrl</kbd>+<kbd>D</kbd></td>
+                  <td>Open the Dictionary</td>
+                </tr>
+                <tr>
+                  <td><kbd>Ctrl</kbd>+<kbd>S</kbd></td>
+                  <td>Open Statistics</td>
+                </tr>
+                <tr>
+                  <td><kbd>Ctrl</kbd>+<kbd>G</kbd></td>
+                  <td>Open Settings</td>
+                </tr>
+                <tr>
+                  <td><kbd>Ctrl</kbd>+<kbd>B</kbd></td>
+                  <td>Return to the Library</td>
+                </tr>
+                <tr>
+                  <td><kbd>Ctrl</kbd>+<kbd>F</kbd></td>
+                  <td>Search the Library</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Reader</h3>
+          <div class="table">
+            <table>
+              <tbody>
+                <tr>
+                  <td><kbd>S</kbd></td>
+                  <td>Show the chapters, or hide or show the sidebar</td>
+                </tr>
+                <tr>
+                  <td><kbd>A</kbd></td>
+                  <td>Open or close Appearance</td>
+                </tr>
+                <tr>
+                  <td><kbd>G</kbd></td>
+                  <td>Open or close the image gallery</td>
+                </tr>
+                <tr>
+                  <td><kbd>B</kbd></td>
+                  <td>Save a quick bookmark</td>
+                </tr>
+                <tr>
+                  <td><kbd>R</kbd></td>
+                  <td>Go to the last bookmark</td>
+                </tr>
+                <tr>
+                  <td><kbd>Ctrl</kbd>+<kbd>B</kbd></td>
+                  <td>Open or close all bookmarks</td>
+                </tr>
+                <tr>
+                  <td><kbd>N</kbd></td>
+                  <td>Create a note from selected text, or open or close notes</td>
+                </tr>
+                <tr>
+                  <td><kbd>Ctrl</kbd>+<kbd>F</kbd></td>
+                  <td>Find in book</td>
+                </tr>
+                <tr>
+                  <td><kbd>P</kbd></td>
+                  <td>Start or pause the reading session</td>
+                </tr>
+                <tr>
+                  <td><kbd>Esc</kbd> <kbd>Esc</kbd></td>
+                  <td>Return to the Library</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Lookup popup</h3>
+          <div class="table">
+            <table>
+              <tbody>
+                <tr>
+                  <td><kbd>Shift</kbd></td>
+                  <td>Look up the word under the pointer</td>
+                </tr>
+                <tr>
+                  <td><kbd>Shift</kbd>+<kbd>Enter</kbd></td>
+                  <td>Look up the selected text</td>
+                </tr>
+                <tr>
+                  <td><kbd>Alt</kbd>+<kbd>E</kbd></td>
+                  <td>Add the active word to Anki</td>
+                </tr>
+                <tr>
+                  <td><kbd>Alt</kbd>+<kbd>B</kbd></td>
+                  <td>Open the active word’s card in the Anki Browser</td>
+                </tr>
+                <tr>
+                  <td><kbd>Esc</kbd></td>
+                  <td>Close the popup</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="backups">
+          <h2>Backups and your data</h2>
+          <p>
+            <strong>Settings &gt; Storage</strong> keeps automatic snapshots of Komori’s own data:
+            the catalog, preferences, progress, bookmarks, notes and statistics. Restore one from
+            <strong>Snapshots</strong>; Komori previews what will change and takes a snapshot of the
+            current state first.
+          </p>
+          <ul>
+            <li>
+              <strong>Export</strong> writes a backup file wherever you choose, and
+              <strong>Import</strong> restores one, for moving to a new computer.
+            </li>
+            <li>
+              Backups hold Komori’s data, not your books or dictionaries. Keep your EPUB files and
+              dictionary archives yourself.
+            </li>
+            <li>
+              On Windows, Komori’s data is in <code>%APPDATA%\app.komori.reader</code>. On Android
+              it is in Komori’s private app storage.
+            </li>
+          </ul>
+        </section>
+
+        <section id="privacy">
+          <h2>Privacy</h2>
+          <p>
+            Komori is a local application. It has no account, no telemetry, no analytics and no
+            crash reporting, and it writes no log files. It uses the network only for these:
+          </p>
+          <ul>
+            <li>
+              <strong>Updates.</strong> It asks the project’s GitHub releases for the latest version
+              when it starts, unless you turn that off. An update is downloaded only when you choose
+              to install it, and its signature is verified first.
+            </li>
+            <li>
+              <strong>Starter dictionaries and fonts.</strong> Downloaded only when you choose them.
+            </li>
+            <li>
+              <strong>Word audio.</strong> When you press Voice or add a card with audio, Komori
+              asks the word audio sources for a recording of that word.
+            </li>
+            <li>
+              <strong>Anki and Discord.</strong> Komori talks to Anki, and to Discord when you turn
+              the status on, only on your own computer.
+            </li>
+            <li>
+              <strong>Sync.</strong> The phone and the PC talk only to each other, over your own
+              network, after you pair them.
+            </li>
+          </ul>
+          <p>
+            These requests carry no identifier and nothing about your library or reading. Books are
+            rendered offline, with scripts disabled. The full notes are in
+            <a href="https://github.com/Yuu-4chan/komori/blob/main/docs/privacy.md">privacy.md</a>.
+          </p>
+        </section>
+
+        <section id="troubleshooting">
+          <h2>Troubleshooting</h2>
+
+          <h3>Komori does not start, or the window stays blank</h3>
+          <p>
+            Komori needs the Microsoft Edge WebView2 Runtime. If it was removed or its download
+            failed, install the Evergreen runtime from Microsoft and start Komori again.
+          </p>
+
+          <h3>Nothing happens when I look a word up</h3>
+          <ul>
+            <li>
+              Lookup needs a dictionary with definitions. Download the starter dictionaries or add
+              your own in <strong>Settings &gt; Dictionary</strong>.
+            </li>
+            <li>
+              Check that <strong>Reader lookup popup</strong> is on in
+              <strong>Settings &gt; Reader popup</strong>, and which triggers are enabled.
+            </li>
+          </ul>
+
+          <h3>A dictionary will not import</h3>
+          <p>
+            Komori imports ZIP archives with a root <code>index.json</code> in format 2 or 3.
+            Damaged archives and format 1 are refused with a reason, and a dictionary already
+            installed with the same title and revision is not imported twice.
+          </p>
+
+          <h3>A book does not open</h3>
+          <p>
+            Komori shows an error page when an EPUB is damaged. Try another copy, or repair it with
+            an EPUB editor, then use <strong>Relink EPUB</strong>. DRM-protected EPUBs cannot be
+            read.
+          </p>
+
+          <h3>Anki cards are not created</h3>
+          <p>
+            Anki must be running with AnkiConnect installed. Check the port and key in
+            <strong>Settings &gt; Anki</strong>, use <strong>Test connection</strong>, and make sure
+            a deck and note type are chosen with at least one field mapped.
+          </p>
+
+          <h3>Voice finds no audio</h3>
+          <p>
+            Voice needs an internet connection and at least one source in
+            <strong>Settings &gt; Dictionary &gt; Word audio</strong>. When no source has the word,
+            the button says so.
+          </p>
+
+          <h3>Something else</h3>
+          <p>
+            See the
+            <a href="https://github.com/Yuu-4chan/komori/blob/main/docs/troubleshooting.md"
+              >full troubleshooting list</a
+            >, or <a href="https://github.com/Yuu-4chan/komori/issues">open an issue</a> with your
+            Windows or Android version, Komori’s version and the steps that reproduce the problem.
+            Please do not attach copyrighted books or dictionaries.
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <div class="wrap footer__inner">
+        <p>
+          Komori is free software under the
+          <a href="https://github.com/Yuu-4chan/komori/blob/main/LICENSE">GNU GPL v3.0 or later</a>.
+        </p>
+        <nav aria-label="Footer">
+          <a href="../">Home</a>
+          <a href="https://github.com/Yuu-4chan/komori">GitHub</a>
+          <a href="https://github.com/Yuu-4chan/komori/releases">Releases</a>
+          <a href="https://github.com/Yuu-4chan/komori/blob/main/CHANGELOG.md">Changelog</a>
+          <a href="https://github.com/Yuu-4chan/komori/issues">Report a problem</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

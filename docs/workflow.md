@@ -31,6 +31,16 @@ Manual failures with real files outrank green synthetic tests: reproduce the pro
 - Releases are made by `.github/workflows/release.yml`: pushing the tag `v<version>` builds, checks and signs on Windows and Linux and attaches `Komori_<version>_x64-setup.exe`, its `.sig`, `latest.json`, `Komori_<version>_android-arm64.apk` and `SHA256SUMS.txt` to a draft release; installed copies find it through `releases/latest` once the draft is published. The steps before and after are in `release-checklist.md`; `node scripts/release-books.mjs <folder>` writes its synthetic books and `node scripts/update-rehearsal.mjs build | serve <folder>` rehearses an update before publishing.
 - Generated validation files are ignored under `artifacts/`; never commit them.
 
+## Website
+
+`site/` is the project's website: a landing page (`index.html`) and the user documentation (`docs/index.html`), as static files with no build step. `.github/workflows/pages.yml` publishes it to GitHub Pages at `https://yuu-4chan.github.io/komori/` whenever `site/` changes on `main`.
+
+- Its download buttons ask the GitHub API for the latest release in the browser and fall back to the releases page, so a release needs no change to the site.
+- The pages allow only their own files and, on the landing page, `api.github.com` (the Content Security Policy in each `<head>`): styles, scripts, fonts and images stay in `site/assets/`, with no inline styles or scripts.
+- URLs are relative, because the site is served from `/komori/`.
+- The site wears the application's default look: the Hojicha theme in light mode and Ember in dark mode. Its logo files (`site/assets/komori.svg`, `komori-dark.svg`) are `src/brand/komori.svg` with those themes' logo colors baked in, mixed as `.brand-mark` mixes them in `src/styles/shell.css`.
+- When a release changes what users see or do, update the documentation page and retake the affected screenshots in `site/assets/img/`.
+
 The plain design guide is `design.md`; runtime design values remain in application themes, Reader themes, and CSS tokens.
 
 ## Local configuration
