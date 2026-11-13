@@ -250,7 +250,6 @@ export function MobileSyncSettings() {
               inputMode="url"
               onBlur={commitPlace}
               onChange={(event) => setAddress(event.target.value)}
-              placeholder="192.168.0.10"
               value={address}
             />
           </div>
@@ -284,7 +283,6 @@ export function MobileSyncSettings() {
                   onKeyDown={(event) => {
                     if (event.key === "Enter") void pair();
                   }}
-                  placeholder="000 000"
                   value={code}
                 />
                 <Button

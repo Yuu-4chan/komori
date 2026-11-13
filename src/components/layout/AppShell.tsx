@@ -13,16 +13,6 @@ import { shortcutCommand } from "../../features/reader/shortcuts";
 import { AutoscrollController, scrollableAncestor } from "../../app/autoscroll";
 import { useAppearance } from "../../features/appearance/AppearanceProvider";
 import { useI18n } from "../../i18n/i18n";
-import type { DiscordPage } from "../../features/discord/discordApi";
-import { useDiscordBrowsing } from "../../features/discord/useDiscordPresence";
-
-const discordPages: Record<string, DiscordPage> = {
-  "/": "library",
-  "/library": "library",
-  "/dictionary": "dictionary",
-  "/statistics": "statistics",
-  "/settings": "settings",
-};
 
 /**
  * The application frame. Its top bar is the window's title bar: it drags the window, holds the
@@ -43,7 +33,6 @@ export function AppShell() {
   const autoscrolls = onLibrary || pathname === "/dictionary";
   const { middleClickAutoscroll } = useAppearance();
   const { t } = useI18n();
-  useDiscordBrowsing(discordPages[pathname] ?? null);
 
   useEffect(() => {
     if (!autoscrolls || !middleClickAutoscroll) return;

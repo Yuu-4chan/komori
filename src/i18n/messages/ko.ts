@@ -114,6 +114,7 @@ export const ko: MessageCatalog = {
   "startup.rememberWindowSize": "창 위치와 크기 기억",
   "startup.minimizeToTray": "트레이로 최소화",
   "startup.minimizeToTrayHint": "창을 닫은 뒤에도 Komori를 계속 사용할 수 있게 둡니다.",
+  "startup.startInTray": "트레이에서 시작",
   "startup.checkForUpdates": "업데이트 자동 확인",
   "discord.title": "Discord 상태",
   "discord.description":
@@ -121,16 +122,12 @@ export const ko: MessageCatalog = {
   "discord.readError": "Komori가 Discord 설정을 읽지 못했습니다. 데스크톱 앱에서 다시 시도하세요.",
   "discord.saveError": "Komori가 이 설정을 저장하지 못했습니다. 다시 시도하세요.",
   "discord.enabled": "Discord에 독서 상태 표시",
-  "discord.enabledHint":
-    "Discord가 실행 중일 때 표시됩니다. 5분 동안 읽지 않으면 자리 비움으로 표시됩니다.",
+  "discord.enabledHint": "책을 열어 둔 동안 표시됩니다. 5분 동안 읽지 않으면 사라집니다.",
   "discord.showBookTitle": "책 제목",
   "discord.showBookProgress": "책 진행률",
   "discord.showChapterProgress": "장 진행률",
   "discord.showReadingSpeed": "독서 속도",
   "discord.showReadingSpeedHint": "독서 통계가 켜져 있을 때 1분 동안 읽은 뒤 표시됩니다.",
-  "discord.showBrowsing": "Komori 페이지",
-  "discord.showBrowsingHint":
-    "뷰어 밖의 서재, 사전, 통계, 설정. 5분 동안 사용하지 않으면 자리 비움으로 표시됩니다.",
   "updates.title": "업데이트",
   "updates.check": "업데이트 확인",
   "updates.checking": "확인 중…",
@@ -969,6 +966,9 @@ export const ko: MessageCatalog = {
   "library.unreadDescription":
     "이 책의 위치와 진행률을 지워 처음부터 열리게 하고, 통계에서도 다 읽은 책으로 세지 않습니다. 이미 기록된 읽은 시간은 남습니다.",
   "library.unreadTitle": "이 책을 읽지 않음으로 표시할까요?",
+  "library.unreadBooksTitle": "이 책들을 읽지 않음으로 표시할까요?",
+  "library.unreadBooksDescription":
+    "이 책들의 읽던 위치와 진행 상황을 지워 처음부터 열리게 하고, 통계에서도 다 읽은 책으로 세지 않습니다. 이미 기록된 독서 시간은 남습니다.",
   "library.bulkConfirm_other": "책 {count}권 제거",
   "library.bulkDescription_other": "원래 EPUB 파일은 삭제되지 않습니다.",
   "library.bulkTitle_other": "책 {count}권을 Komori에서 제거할까요?",

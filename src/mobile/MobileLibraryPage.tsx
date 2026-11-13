@@ -1,4 +1,5 @@
 import {
+  ArrowCounterClockwiseIcon,
   BooksIcon,
   CheckCircleIcon,
   CheckIcon,
@@ -27,6 +28,7 @@ import {
   getLibraryBook,
   listLibrary,
   onLibraryDetailsUpdated,
+  markBookUnread,
   markBooksCompleted,
   relinkBook,
   removeBook,
@@ -94,7 +96,15 @@ import {
 } from "./MobilePcLibrary";
 import { MobileSheet } from "./MobileSheet";
 import { pcSession } from "./pcLibrarySession";
-import { changesPcListing, onPcSynced, syncPc, usePcLinkState } from "./pcLinkApi";
+import {
+  autoSync,
+  changePcBooks,
+  changesPcListing,
+  onPcSynced,
+  pcErrorKey,
+  syncPc,
+  usePcLinkState,
+} from "./pcLinkApi";
 import { mergePcLibrary, phoneItem, type MergedBook } from "./pcLibraryMerge";
 import { PullToSync } from "./pullToSync";
 import { useBackCloser } from "./system";
@@ -161,6 +171,8 @@ function LibraryContent({ group }: { group: string | null }) {
   const [seriesError, setSeriesError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false);
+  const [unreadOpen, setUnreadOpen] = useState(false);
+  const [unreadError, setUnreadError] = useState<string | null>(null);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const [info, setInfo] = useState<LibraryBook | null>(null);
   const requests = useRef(0);
@@ -414,10 +426,14 @@ function LibraryContent({ group }: { group: string | null }) {
     () => chosen.flatMap((item) => (item.kind === "pc" ? [item.entry] : [])),
     [chosen],
   );
+  // Books read some, or opened, can be marked unread.
+  const unreadOwn = chosenOwn.filter((book) => book.progress || book.lastReadAt);
+  const unreadPc = chosenPc.filter((entry) => entry.book.progress || entry.book.lastReadAt);
   const dialogOpen =
     editing !== null ||
     seriesOpen ||
     bulkRemoveOpen ||
+    unreadOpen ||
     removing !== null ||
     viewOpen ||
     info !== null;
@@ -465,12 +481,35 @@ function LibraryContent({ group }: { group: string | null }) {
     }
   }
 
+  /**
+   * Has the PC change its books as its own Library does. A sync first sends what was read here
+   * of the copies, and one after brings the PC's places back; the PC is listed again.
+   */
+  async function changePc(change: "completed" | "unread" | "remove", entries: PcEntry[]) {
+    if (entries.some((entry) => entry.pc.localId !== null)) await autoSync();
+    let changed: string[];
+    try {
+      changed = await changePcBooks(
+        change,
+        entries.map((entry) => entry.pc.id),
+      );
+    } catch (error) {
+      throw new Error(t(pcErrorKey(error), { name: pcName }));
+    }
+    if (change !== "remove") await autoSync();
+    void relistPc();
+    return new Set(changed);
+  }
+
   // Marking completed asks nothing, as on the PC: reading on undoes it.
-  async function markCompleted(books: LibraryBook[]) {
+  async function markCompleted(books: LibraryBook[], entries: PcEntry[]) {
     setBusy(true);
     setCompleteError(null);
     try {
-      await markBooksCompleted(books.filter(canMarkCompleted).map((book) => book.id));
+      const own = books.filter(canMarkCompleted).map((book) => book.id);
+      if (own.length) await markBooksCompleted(own);
+      const pcBooks = entries.filter((entry) => canMarkCompleted(entry.book));
+      if (pcBooks.length) await changePc("completed", pcBooks);
       await refresh();
       cancel();
     } catch (error) {
@@ -480,25 +519,59 @@ function LibraryContent({ group }: { group: string | null }) {
     }
   }
 
+  async function markUnread() {
+    setBusy(true);
+    setUnreadError(null);
+    try {
+      for (const book of unreadOwn) await markBookUnread(book.id);
+      if (unreadPc.length) await changePc("unread", unreadPc);
+      await refresh();
+      setUnreadOpen(false);
+      cancel();
+    } catch (error) {
+      setUnreadError(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // The phone's books leave its Library; the PC's leave the PC's, as removing them there does.
   async function removeChosen() {
     const ids = chosenOwn.map((book) => book.id);
-    if (ids.length === 0) return;
+    const entries = chosenPc;
+    if (ids.length === 0 && entries.length === 0) return;
     setBusy(true);
     setBulkError(null);
+    const left: string[] = [];
     try {
-      const results = await removeBooks(ids);
-      const removed = new Set(
-        results.flatMap((result) => (result.status === "removed" ? [result.id] : [])),
-      );
-      setListing((current) => ({
-        ...current,
-        books: current.books.filter((book) => !removed.has(book.id)),
-      }));
-      const failed = results.find((result) => result.status !== "removed");
-      if (failed) {
-        setBulkError(failureText(failed.message ?? t("library.noRemovalResult"), t));
-        replace(ids.filter((id) => !removed.has(id)).map((id) => `phone:${id}`));
-      } else {
+      if (ids.length) {
+        const results = await removeBooks(ids);
+        const removed = new Set(
+          results.flatMap((result) => (result.status === "removed" ? [result.id] : [])),
+        );
+        setListing((current) => ({
+          ...current,
+          books: current.books.filter((book) => !removed.has(book.id)),
+        }));
+        const failed = results.find((result) => result.status !== "removed");
+        if (failed) {
+          setBulkError(failureText(failed.message ?? t("library.noRemovalResult"), t));
+          left.push(...ids.filter((id) => !removed.has(id)).map((id) => `phone:${id}`));
+        }
+      }
+      if (entries.length) {
+        try {
+          // A book the PC no longer lists is gone all the same.
+          await changePc("remove", entries);
+          // Copies of the removed books left this phone's catalog too.
+          await refresh();
+        } catch (error) {
+          setBulkError(errorMessage(error));
+          left.push(...entries.map((entry) => `pc:${entry.pc.id}`));
+        }
+      }
+      if (left.length) replace(left);
+      else {
         setBulkRemoveOpen(false);
         cancel();
       }
@@ -641,14 +714,28 @@ function LibraryContent({ group }: { group: string | null }) {
           },
         ]
       : []),
-    ...(chosenOwn.some(canMarkCompleted)
+    ...(chosenOwn.some(canMarkCompleted) || chosenPc.some((entry) => canMarkCompleted(entry.book))
       ? [
           {
             key: "completed",
             label: t("library.markCompleted"),
             icon: <CheckCircleIcon aria-hidden="true" />,
             disabled: busy,
-            onClick: () => void markCompleted(chosenOwn),
+            onClick: () => void markCompleted(chosenOwn, chosenPc),
+          },
+        ]
+      : []),
+    ...(unreadOwn.length || unreadPc.length
+      ? [
+          {
+            key: "unread",
+            label: t("library.markUnread"),
+            icon: <ArrowCounterClockwiseIcon aria-hidden="true" />,
+            disabled: busy,
+            onClick: () => {
+              setUnreadError(null);
+              setUnreadOpen(true);
+            },
           },
         ]
       : []),
@@ -672,7 +759,7 @@ function LibraryContent({ group }: { group: string | null }) {
           },
         ]
       : []),
-    ...(chosenOwn.length
+    ...(chosen.length
       ? [
           {
             key: "remove",
@@ -968,13 +1055,32 @@ function LibraryContent({ group }: { group: string | null }) {
       <ConfirmDialog
         busy={busy}
         busyLabel={t("library.removing")}
-        confirmLabel={tp("library.bulkConfirm", chosenOwn.length)}
-        description={tp("library.bulkDescription", chosenOwn.length)}
+        confirmLabel={tp("library.bulkConfirm", chosen.length)}
+        description={tp("library.bulkDescription", chosen.length)}
         error={bulkError}
         onCancel={() => setBulkRemoveOpen(false)}
         onConfirm={() => void removeChosen()}
         open={bulkRemoveOpen}
-        title={tp("library.bulkTitle", chosenOwn.length)}
+        title={tp("library.bulkTitle", chosen.length)}
+      />
+      <ConfirmDialog
+        busy={busy}
+        busyLabel={t("library.markingUnread")}
+        confirmLabel={t("library.markUnread")}
+        description={t(
+          unreadOwn.length + unreadPc.length === 1
+            ? "library.unreadDescription"
+            : "library.unreadBooksDescription",
+        )}
+        error={unreadError}
+        onCancel={() => setUnreadOpen(false)}
+        onConfirm={() => void markUnread()}
+        open={unreadOpen}
+        title={t(
+          unreadOwn.length + unreadPc.length === 1
+            ? "library.unreadTitle"
+            : "library.unreadBooksTitle",
+        )}
       />
     </div>
   );

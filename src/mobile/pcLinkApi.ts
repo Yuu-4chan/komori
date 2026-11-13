@@ -143,6 +143,12 @@ export const openPcBook = (book: PcBook) =>
 export const keepPcBook = (book: PcBook) =>
   invoke<string>("keep_pc_book", { id: book.id, fileName: book.fileName });
 export const removePcBook = (book: PcBook) => invoke<void>("remove_pc_book", { id: book.id });
+/**
+ * Marks the PC's books completed or unread, or removes them from its Library (their files stay
+ * on the PC; their copies here go), returning the books changed.
+ */
+export const changePcBooks = (change: "completed" | "unread" | "remove", ids: string[]) =>
+  invoke<string[]>("change_pc_books", { change, ids });
 export const listPcDictionaries = () => invoke<PcDictionary[]>("list_pc_dictionaries");
 export const copyPcDictionary = (id: number) =>
   invoke<"imported" | "alreadyImported">("copy_pc_dictionary", { id });

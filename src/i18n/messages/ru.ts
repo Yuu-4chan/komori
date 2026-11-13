@@ -116,6 +116,7 @@ export const ru: MessageCatalog = {
   "startup.rememberWindowSize": "Запоминать размер и положение окна",
   "startup.minimizeToTray": "Сворачивать в трей",
   "startup.minimizeToTrayHint": "Komori остаётся доступным после закрытия окна.",
+  "startup.startInTray": "Запускать в трее",
   "startup.checkForUpdates": "Проверять обновления автоматически",
   "discord.title": "Статус в Discord",
   "discord.description":
@@ -124,16 +125,13 @@ export const ru: MessageCatalog = {
     "Komori не удалось прочитать настройки Discord. Повторите попытку в настольном приложении.",
   "discord.saveError": "Komori не удалось сохранить этот выбор. Повторите попытку.",
   "discord.enabled": "Показывать статус чтения в Discord",
-  "discord.enabledHint": "Пока Discord открыт. После 5 минут без чтения показывается «Неактивен».",
+  "discord.enabledHint": "Пока открыта книга. Исчезает после 5 минут без чтения.",
   "discord.showBookTitle": "Название книги",
   "discord.showBookProgress": "Прогресс книги",
   "discord.showChapterProgress": "Прогресс главы",
   "discord.showReadingSpeed": "Скорость чтения",
   "discord.showReadingSpeedHint":
     "Показывается при включённой статистике чтения, после минуты чтения.",
-  "discord.showBrowsing": "Страницы Komori",
-  "discord.showBrowsingHint":
-    "Библиотека, словарь, статистика и настройки вне режима чтения. После 5 минут бездействия показывается «Неактивен».",
   "updates.title": "Обновления",
   "updates.check": "Проверить обновления",
   "updates.checking": "Проверка…",
@@ -1111,6 +1109,9 @@ export const ru: MessageCatalog = {
   "library.unreadDescription":
     "Komori забудет, где вы остановились в этой книге, и её прогресс: она откроется с начала, а статистика перестанет считать её прочитанной. Уже записанное время чтения сохранится.",
   "library.unreadTitle": "Отметить эту книгу как непрочитанную?",
+  "library.unreadBooksTitle": "Отметить эти книги как непрочитанные?",
+  "library.unreadBooksDescription":
+    "Komori забудет, где вы остановились в этих книгах, и их прогресс: они откроются с начала, а статистика перестанет считать их прочитанными. Уже записанное время чтения сохранится.",
   "library.bulkConfirm_one": "Удалить {count} книгу",
   "library.bulkConfirm_few": "Удалить {count} книги",
   "library.bulkConfirm_many": "Удалить {count} книг",

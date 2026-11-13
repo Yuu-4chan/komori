@@ -116,6 +116,7 @@ export const ptBR: MessageCatalog = {
   "startup.rememberWindowSize": "Lembrar tamanho e posição da janela",
   "startup.minimizeToTray": "Minimizar para a bandeja",
   "startup.minimizeToTrayHint": "Mantém o Komori disponível depois de fechar a janela.",
+  "startup.startInTray": "Iniciar na bandeja",
   "startup.checkForUpdates": "Procurar atualizações automaticamente",
   "discord.title": "Status no Discord",
   "discord.description":
@@ -124,17 +125,13 @@ export const ptBR: MessageCatalog = {
     "O Komori não conseguiu ler suas opções do Discord. Tente novamente no app para desktop.",
   "discord.saveError": "O Komori não conseguiu salvar esta opção. Tente novamente.",
   "discord.enabled": "Mostrar status de leitura no Discord",
-  "discord.enabledHint":
-    "Enquanto o Discord estiver aberto. Após 5 minutos sem leitura, mostra Ausente.",
+  "discord.enabledHint": "Enquanto um livro estiver aberto. Some após 5 minutos sem leitura.",
   "discord.showBookTitle": "Título do livro",
   "discord.showBookProgress": "Progresso do livro",
   "discord.showChapterProgress": "Progresso do capítulo",
   "discord.showReadingSpeed": "Velocidade de leitura",
   "discord.showReadingSpeedHint":
     "Mostrada com as estatísticas de leitura ativadas, após um minuto de leitura.",
-  "discord.showBrowsing": "Páginas do Komori",
-  "discord.showBrowsingHint":
-    "Biblioteca, Dicionário, Estatísticas e Configurações, fora do Leitor. Após 5 minutos sem uso, mostra Ausente.",
   "updates.title": "Atualizações",
   "updates.check": "Procurar atualizações",
   "updates.checking": "Procurando…",
@@ -1039,6 +1036,9 @@ export const ptBR: MessageCatalog = {
   "library.unreadDescription":
     "O Komori esquece onde você está neste livro e o progresso dele, então ele abre no início, e as Estatísticas deixam de contá-lo como concluído. O tempo de leitura já registrado continua.",
   "library.unreadTitle": "Marcar este livro como não lido?",
+  "library.unreadBooksTitle": "Marcar estes livros como não lidos?",
+  "library.unreadBooksDescription":
+    "O Komori esquece onde você está nestes livros e o progresso deles, então eles abrem no início, e as Estatísticas deixam de contá-los como concluídos. O tempo de leitura já registrado continua.",
   "library.bulkConfirm_one": "Remover livro",
   "library.bulkConfirm_other": "Remover {count} livros",
   "library.bulkDescription_one": "O arquivo EPUB original não será excluído.",

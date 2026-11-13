@@ -9,6 +9,10 @@ import {
 
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true, invoke: vi.fn(async () => true) }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async () => () => {}) }));
+const windowShown = vi.hoisted(() => ({ value: true }));
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({ isVisible: async () => windowShown.value }),
+}));
 
 describe("Native close handshake", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -57,5 +61,21 @@ describe("Native close handshake", () => {
     vi.mocked(invoke).mockClear();
     await closing({ payload: "after-dispose" } as never);
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("starts hidden when Komori starts in the tray, until the tray shows the window", async () => {
+    windowShown.value = false;
+    const stop = installWindowLifecycle();
+    const shown = vi
+      .mocked(listen)
+      .mock.calls.find(([event]) => event === "komori-window-visible")![1];
+    const visibility = vi.fn();
+    const stopVisibility = watchWindowVisibility(visibility);
+    await vi.waitFor(() => expect(visibility).toHaveBeenLastCalledWith(false));
+    shown({ payload: true } as never);
+    expect(visibility).toHaveBeenLastCalledWith(true);
+    stopVisibility();
+    stop();
+    windowShown.value = true;
   });
 });

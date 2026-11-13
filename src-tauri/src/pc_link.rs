@@ -954,17 +954,7 @@ pub async fn remove_pc_book(
         let Some(copy) = copy_of(&connection, &id)? else {
             return Ok(());
         };
-        let source = Path::new(&copy.source);
-        let owned = roots.iter().any(|root| {
-            root.canonicalize()
-                .is_ok_and(|root| source.starts_with(root))
-        });
-        if owned {
-            let _ = std::fs::remove_file(source);
-            if let Some(parent) = source.parent() {
-                let _ = std::fs::remove_dir(parent);
-            }
-        }
+        remove_owned_file(&roots, Path::new(&copy.source));
         connection
             .execute(
                 "UPDATE pc_books SET kept = 0 WHERE book_id = ?1",
@@ -974,6 +964,66 @@ pub async fn remove_pc_book(
         Ok(())
     })
     .await
+}
+
+/// Marks the PC's books completed or unread, or removes them from its Library, as the PC's
+/// Library does; the phone syncs afterwards to take the places. Removing also removes the
+/// books' copies here, files and all. Returns the books changed.
+#[tauri::command]
+pub async fn change_pc_books(
+    app: AppHandle,
+    catalog: State<'_, CatalogState>,
+    change: crate::devices::protocol::BookChange,
+    ids: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let database = catalog_path(&catalog);
+    let link = {
+        let database = database.clone();
+        blocking(move || read_link(&database)).await?
+    };
+    let client = link.client()?;
+    let mut changed = Vec::new();
+    for chunk in ids.chunks(crate::devices::protocol::MAX_CHANGED_BOOKS) {
+        changed.extend(
+            client
+                .change_books(change, chunk)
+                .await
+                .map_err(|error| error.code())?,
+        );
+    }
+    if change == crate::devices::protocol::BookChange::Remove {
+        let roots = [directory(&app, false)?, directory(&app, true)?];
+        let removed = changed.clone();
+        blocking(move || {
+            let connection = open_catalog(&database)?;
+            for id in &removed {
+                let Some(copy) = copy_of(&connection, id)? else {
+                    continue;
+                };
+                remove_owned_file(&roots, Path::new(&copy.source));
+                crate::library::remove_book_from_catalog(&connection, &copy.book)?;
+            }
+            #[cfg(mobile)]
+            crate::library::release_unlinked(&connection);
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(changed)
+}
+
+/// Deletes a copy's file when it is one Komori downloaded, with its folder once empty.
+fn remove_owned_file(roots: &[PathBuf], source: &Path) {
+    let owned = roots.iter().any(|root| {
+        root.canonicalize()
+            .is_ok_and(|root| source.starts_with(root))
+    });
+    if owned {
+        let _ = std::fs::remove_file(source);
+        if let Some(parent) = source.parent() {
+            let _ = std::fs::remove_dir(parent);
+        }
+    }
 }
 
 /// A PC dictionary, and whether the phone has it.

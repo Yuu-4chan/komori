@@ -225,6 +225,13 @@ pub fn create_main_window(app: &AppHandle, database: &Path) -> Result<WebviewWin
     let fitted_minimum = minimum.within(work_area);
     config.min_width = Some(fitted_minimum.width);
     config.min_height = Some(fitted_minimum.height);
+    // Starting in the tray keeps the window hidden until the tray shows it.
+    if crate::startup::load(database)
+        .unwrap_or_default()
+        .start_in_tray
+    {
+        config.visible = false;
+    }
     // A kept place is applied to the hidden window, which is then shown there.
     let shown = config.visible;
     if size.position.is_some() {

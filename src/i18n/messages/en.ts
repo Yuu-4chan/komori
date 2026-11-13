@@ -126,6 +126,7 @@ export const en = {
   "startup.rememberWindowSize": "Remember window size and position",
   "startup.minimizeToTray": "Minimize to tray",
   "startup.minimizeToTrayHint": "Keep Komori available after closing the window.",
+  "startup.startInTray": "Start in tray",
   "startup.checkForUpdates": "Check for updates automatically",
   "discord.title": "Discord status",
   "discord.description":
@@ -133,16 +134,13 @@ export const en = {
   "discord.readError": "Komori could not read your Discord choices. Try again in the desktop app.",
   "discord.saveError": "Komori could not save this choice. Try again.",
   "discord.enabled": "Show reading status in Discord",
-  "discord.enabledHint": "While Discord is open. After 5 minutes without reading, it shows Idle.",
+  "discord.enabledHint": "While a book is open. It clears after 5 minutes without reading.",
   "discord.showBookTitle": "Book title",
   "discord.showBookProgress": "Book progress",
   "discord.showChapterProgress": "Chapter progress",
   "discord.showReadingSpeed": "Reading speed",
   "discord.showReadingSpeedHint":
     "Shown while reading statistics are on, after a minute of reading.",
-  "discord.showBrowsing": "Komori pages",
-  "discord.showBrowsingHint":
-    "Library, Dictionary, Statistics and Settings, outside the Reader. After 5 minutes without using them, it shows Idle.",
   "updates.title": "Updates",
   "updates.check": "Check for updates",
   "updates.checking": "Checking…",
@@ -1053,6 +1051,9 @@ export const en = {
   "library.unreadDescription":
     "Komori forgets where you are in this book and its progress, so it opens at the start, and Statistics no longer counts it as finished. Reading time already recorded stays.",
   "library.unreadTitle": "Mark this book as unread?",
+  "library.unreadBooksTitle": "Mark these books as unread?",
+  "library.unreadBooksDescription":
+    "Komori forgets where you are in these books and their progress, so they open at the start, and Statistics no longer counts them as finished. Reading time already recorded stays.",
   "library.bulkConfirm_one": "Remove book",
   "library.bulkConfirm_other": "Remove {count} books",
   "library.bulkDescription_one": "The original EPUB file will not be deleted.",

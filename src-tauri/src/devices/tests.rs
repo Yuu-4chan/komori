@@ -328,6 +328,72 @@ fn a_paired_phone_syncs_its_reading_and_the_pc_notes_when() {
 }
 
 #[test]
+fn a_paired_phone_marks_the_pcs_books_and_removes_them_from_its_library() {
+    use super::protocol::BookChange;
+    let pc = pc();
+    let pairing = pair(&pc, &pc.shared.code()).unwrap();
+    let client = paired(&pc, &pairing);
+    let book = run(client.library()).unwrap().books.remove(0);
+    let catalog = open_catalog(&pc.shared.catalog).unwrap();
+    let progress = |catalog: &rusqlite::Connection| {
+        catalog
+            .query_row(
+                "SELECT current_units, total_units FROM book_progress WHERE book_id = ?1",
+                [&book.id],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+            )
+            .ok()
+    };
+    catalog
+        .execute(
+            "INSERT INTO book_progress (book_id, unit, current_units, total_units)
+             VALUES (?1, 'characters', 10, 100)",
+            [&book.id],
+        )
+        .unwrap();
+    let other = "00000000-0000-4000-8000-000000000000".to_owned();
+    let ids = [book.id.clone(), other];
+
+    // Completed moves the progress to its end; a book the PC lacks is left out.
+    assert_eq!(
+        run(client.change_books(BookChange::Completed, &ids)).unwrap(),
+        std::slice::from_ref(&book.id)
+    );
+    assert_eq!(progress(&catalog), Some((100, 100)));
+    // Unread forgets the place and the progress.
+    let position = crate::reading_position::position(3, None, 0.5);
+    assert!(crate::reading_position::save_to(&catalog, &book.id, &position).unwrap());
+    assert_eq!(
+        run(client.change_books(BookChange::Unread, &ids)).unwrap(),
+        std::slice::from_ref(&book.id)
+    );
+    assert_eq!(progress(&catalog), None);
+    assert_eq!(
+        crate::reading_position::load_from(&catalog, &book.id).unwrap(),
+        None
+    );
+    // Removing takes the book out of the Library and leaves its file.
+    assert_eq!(
+        run(client.change_books(BookChange::Remove, &ids)).unwrap(),
+        std::slice::from_ref(&book.id)
+    );
+    assert!(run(client.library()).unwrap().books.is_empty());
+    assert!(pc.directory.join("Alice.epub").exists());
+
+    // Only a paired phone may, and only with books' IDs.
+    assert!(matches!(
+        run(client.change_books(BookChange::Remove, &["../library.sqlite3".to_owned()]))
+            .unwrap_err(),
+        LinkError::Failed(_)
+    ));
+    let unpaired = Client::new("127.0.0.1", pc.port, Some(pairing.fingerprint), None).unwrap();
+    assert_eq!(
+        run(unpaired.change_books(BookChange::Remove, &ids)).unwrap_err(),
+        LinkError::NotPaired
+    );
+}
+
+#[test]
 fn the_pc_answers_each_new_connection_at_once_and_stops_listening_when_turned_off() {
     let pc = pc();
     let client = Client::new("127.0.0.1", pc.port, None, None).unwrap();

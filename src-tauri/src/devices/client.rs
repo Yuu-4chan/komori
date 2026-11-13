@@ -371,6 +371,30 @@ impl Client {
         .await
     }
 
+    /// Marks the PC's books completed or unread, or removes them from its Library. A PC
+    /// without this request (an older Komori) answers as another version.
+    pub(crate) async fn change_books(
+        &self,
+        change: super::protocol::BookChange,
+        ids: &[String],
+    ) -> Result<Vec<String>, LinkError> {
+        let answer: super::protocol::ChangedBooks = self
+            .json(
+                self.request(reqwest::Method::POST, "/v1/library/change")
+                    .json(&super::protocol::ChangeBooks {
+                        change,
+                        ids: ids.to_vec(),
+                    })
+                    .timeout(LISTING),
+            )
+            .await
+            .map_err(|error| match error {
+                LinkError::NotFound => LinkError::OtherVersion,
+                other => other,
+            })?;
+        Ok(answer.changed)
+    }
+
     pub(crate) async fn dictionaries(&self) -> Result<Vec<RemoteDictionary>, LinkError> {
         self.json(
             self.request(reqwest::Method::GET, "/v1/dictionaries")

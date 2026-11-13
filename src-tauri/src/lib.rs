@@ -232,7 +232,6 @@ pub fn run() {
             #[cfg(desktop)]
             discord_presence::set_discord_activity,
             #[cfg(desktop)]
-            discord_presence::set_discord_browsing,
             #[cfg(desktop)]
             devices::get_devices,
             #[cfg(desktop)]
@@ -276,6 +275,8 @@ pub fn run() {
             pc_link::keep_pc_book,
             #[cfg(mobile)]
             pc_link::remove_pc_book,
+            #[cfg(mobile)]
+            pc_link::change_pc_books,
             #[cfg(mobile)]
             pc_link::list_pc_dictionaries,
             #[cfg(mobile)]

@@ -116,6 +116,7 @@ export const de: MessageCatalog = {
   "startup.rememberWindowSize": "Fenstergröße und -position merken",
   "startup.minimizeToTray": "In den Infobereich minimieren",
   "startup.minimizeToTrayHint": "Komori bleibt nach dem Schließen des Fensters verfügbar.",
+  "startup.startInTray": "Im Infobereich starten",
   "startup.checkForUpdates": "Automatisch nach Updates suchen",
   "discord.title": "Discord-Status",
   "discord.description":
@@ -125,16 +126,13 @@ export const de: MessageCatalog = {
   "discord.saveError": "Komori konnte diese Auswahl nicht speichern. Versuche es erneut.",
   "discord.enabled": "Lesestatus in Discord anzeigen",
   "discord.enabledHint":
-    "Solange Discord geöffnet ist. Nach 5 Minuten ohne Lesen wird Abwesend angezeigt.",
+    "Solange ein Buch geöffnet ist. Nach 5 Minuten ohne Lesen verschwindet er.",
   "discord.showBookTitle": "Buchtitel",
   "discord.showBookProgress": "Buchfortschritt",
   "discord.showChapterProgress": "Kapitelfortschritt",
   "discord.showReadingSpeed": "Lesegeschwindigkeit",
   "discord.showReadingSpeedHint":
     "Wird bei aktiver Lesestatistik nach einer Minute Lesen angezeigt.",
-  "discord.showBrowsing": "Komori-Seiten",
-  "discord.showBrowsingHint":
-    "Bibliothek, Wörterbuch, Statistik und Einstellungen außerhalb der Leseansicht. Nach 5 Minuten ohne Nutzung wird Abwesend angezeigt.",
   "updates.title": "Updates",
   "updates.check": "Nach Updates suchen",
   "updates.checking": "Suche…",
@@ -1055,6 +1053,9 @@ export const de: MessageCatalog = {
   "library.unreadDescription":
     "Komori vergisst deine Position und den Fortschritt in diesem Buch. Es öffnet sich also am Anfang, und die Statistik zählt es nicht mehr als beendet. Bereits erfasste Lesezeit bleibt erhalten.",
   "library.unreadTitle": "Dieses Buch als ungelesen markieren?",
+  "library.unreadBooksTitle": "Diese Bücher als ungelesen markieren?",
+  "library.unreadBooksDescription":
+    "Komori vergisst deine Position und den Fortschritt in diesen Büchern, sodass sie am Anfang öffnen, und die Statistik zählt sie nicht mehr als beendet. Bereits erfasste Lesezeit bleibt erhalten.",
   "library.bulkConfirm_one": "Buch entfernen",
   "library.bulkConfirm_other": "{count} Bücher entfernen",
   "library.bulkDescription_one": "Die ursprüngliche EPUB-Datei wird nicht gelöscht.",

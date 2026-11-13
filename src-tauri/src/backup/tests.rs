@@ -108,6 +108,7 @@ fn startup_choices_round_trip_without_window_or_last_book_and_older_backups_pres
         restore_last_book: false,
         remember_window_size: false,
         minimize_to_tray: true,
+        start_in_tray: true,
         check_for_updates: false,
     };
     crate::startup::save_to(&connection, choices).unwrap();
@@ -154,7 +155,6 @@ fn discord_choices_round_trip_and_older_backups_preserve_them() {
         show_book_progress: true,
         show_chapter_progress: false,
         show_reading_speed: true,
-        show_browsing: false,
     };
     crate::discord_presence::save_to(&connection, choices).unwrap();
     let backup = collect(&mut connection, START).unwrap();
@@ -170,12 +170,10 @@ fn discord_choices_round_trip_and_older_backups_preserve_them() {
         crate::discord_presence::load(&fixture.database).unwrap(),
         choices
     );
-    // A backup from before the pages' choice shows them.
+    // A backup from when Discord could show the pages outside the Reader keeps the rest.
     let mut older = serde_json::to_value(&backup).unwrap();
-    older["preferences"]["discord"]
-        .as_object_mut()
-        .unwrap()
-        .remove("showBrowsing");
+    older["preferences"]["discord"]["showBrowsing"] = serde_json::json!(true);
+    crate::discord_presence::save_to(&connection, Default::default()).unwrap();
     restore(
         &fixture.database,
         &serde_json::from_value(older).unwrap(),
@@ -184,10 +182,7 @@ fn discord_choices_round_trip_and_older_backups_preserve_them() {
     .unwrap();
     assert_eq!(
         crate::discord_presence::load(&fixture.database).unwrap(),
-        crate::discord_presence::Preferences {
-            show_browsing: true,
-            ..choices
-        }
+        choices
     );
     let mut value = serde_json::to_value(&backup).unwrap();
     value["preferences"]["discord"]["enabled"] = serde_json::json!("yes");
@@ -1019,6 +1014,7 @@ fn full_state(fixture: &Fixture) {
             restore_last_book: false,
             remember_window_size: false,
             minimize_to_tray: true,
+            start_in_tray: false,
             check_for_updates: false,
         },
     )

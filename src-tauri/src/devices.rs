@@ -718,6 +718,7 @@ fn route(
             let _ = std::fs::remove_file(&pack);
             result
         }
+        ("POST", ["v1", "library", "change"]) => change_books(shared, request, stream),
         ("POST", ["v1", "sync", "pull"]) => sync_pull(shared, request, stream),
         ("POST", ["v1", "sync", "push"]) => sync_push(shared, &device, request, stream),
         ("DELETE", ["v1", "device"]) => {
@@ -744,6 +745,50 @@ fn phones(connection: &Connection) -> Result<Vec<ReadingDevice>, String> {
             name: device.name,
         })
         .collect())
+}
+
+/// Marks books completed or unread, or removes them from the Library, for the paired phone.
+fn change_books(
+    shared: &Shared,
+    request: &http::Request,
+    stream: &mut impl Write,
+) -> io::Result<()> {
+    let Ok(change) = serde_json::from_slice::<protocol::ChangeBooks>(&request.body) else {
+        return error(stream, 400, "malformed");
+    };
+    if change.ids.len() > protocol::MAX_CHANGED_BOOKS
+        || change.ids.iter().any(|id| Uuid::parse_str(id).is_err())
+    {
+        return error(stream, 400, "malformed");
+    }
+    let changed = open_catalog(&shared.catalog).and_then(|mut connection| match change.change {
+        protocol::BookChange::Completed => {
+            crate::reading_position::mark_completed(&connection, &change.ids)
+        }
+        protocol::BookChange::Unread => {
+            let mut marked = Vec::new();
+            for id in change.ids {
+                if crate::reading_sessions::mark_unread(&mut connection, &id)? {
+                    marked.push(id);
+                }
+            }
+            Ok(marked)
+        }
+        protocol::BookChange::Remove => {
+            Ok(crate::library::remove_books_by_id(&connection, change.ids))
+        }
+    });
+    match changed {
+        Ok(changed) => {
+            // The Library and Statistics show what the phone changed.
+            shared.emit(crate::book_details::DETAILS_EVENT);
+            http::respond_json(stream, 200, &protocol::ChangedBooks { changed })
+        }
+        Err(message) => {
+            eprintln!("Komori devices could not change books: {message}");
+            error(stream, 500, "failed")
+        }
+    }
 }
 
 fn sync_pull(shared: &Shared, request: &http::Request, stream: &mut impl Write) -> io::Result<()> {

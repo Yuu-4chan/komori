@@ -663,7 +663,7 @@ pub async fn restore_backup(
     let database = catalog.database.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let startup = backup.preferences.startup;
-        if startup.is_some_and(|preferences| preferences.minimize_to_tray) {
+        if startup.is_some_and(|preferences| preferences.uses_tray()) {
             crate::window_lifecycle::ensure_tray(&app, true)?;
         }
         let _guard = crate::startup::CHANGING
@@ -679,7 +679,7 @@ pub async fn restore_backup(
                 }
                 Ok(result)
             });
-        let actual = crate::startup::load(&database)?.minimize_to_tray;
+        let actual = crate::startup::load(&database)?.uses_tray();
         drop(_guard);
         crate::window_lifecycle::ensure_tray(&app, actual)?;
         // A restored interface language names the tray menu at once.

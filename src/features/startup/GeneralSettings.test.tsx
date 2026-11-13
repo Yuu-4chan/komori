@@ -48,6 +48,7 @@ describe("Startup choices", () => {
       ["restoreLastBook", "Restore last book", ""],
       ["rememberWindowSize", "Remember window size and position", ""],
       ["minimizeToTray", "Minimize to tray", "Keep Komori available after closing the window."],
+      ["startInTray", "Start in tray", ""],
       ["checkForUpdates", "Check for updates automatically", ""],
     ] as const) {
       const toggle = screen.getByRole("button", { name: label });

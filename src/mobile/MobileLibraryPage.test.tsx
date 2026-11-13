@@ -8,6 +8,7 @@ import {
   editBooks,
   getLibraryBook,
   listLibrary,
+  markBookUnread,
   markBooksCompleted,
   removeBooks,
   scanLibraryFolders,
@@ -24,6 +25,7 @@ vi.mock("../features/library/libraryApi", () => ({
   listLibrary: vi.fn(),
   relinkBook: vi.fn(),
   markBooksCompleted: vi.fn(async (ids: string[]) => ids),
+  markBookUnread: vi.fn(async () => true),
   removeBook: vi.fn(async () => true),
   removeBooks: vi.fn(async (ids: string[]) =>
     ids.map((id) => ({ id, status: "removed", message: null })),
@@ -147,13 +149,20 @@ describe("selecting books on the phone", () => {
     await longPress(await tile("羅生門"), () => tile("羅生門"));
     expect(screen.queryByText(/^Reading/)).toBeNull();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("1 book selected");
-    expect(actions()).toEqual(["Information", "Series…", "Edit…", "Mark as completed", "Remove"]);
+    expect(actions()).toEqual([
+      "Information",
+      "Series…",
+      "Edit…",
+      "Mark as completed",
+      "Mark as unread",
+      "Remove",
+    ]);
     // Each action is its icon alone, so all of them fit the phone's width.
     expect(
       bar()
         .getAllByRole("button")
         .map((each) => each.textContent),
-    ).toEqual(["", "", "", "", ""]);
+    ).toEqual(["", "", "", "", "", ""]);
 
     await userEvent.click(await tile("こころ"));
     expect(screen.queryByText(/^Reading/)).toBeNull();
@@ -181,10 +190,28 @@ describe("selecting books on the phone", () => {
     expect(listLibrary).toHaveBeenCalledTimes(2);
   });
 
+  it("marks the books selected unread after asking, one book or several", async () => {
+    library();
+    await longPress(await tile("羅生門"), () => tile("羅生門"));
+    await userEvent.click(bar().getByRole("button", { name: "Mark as unread" }));
+    let confirm = screen.getByRole("alertdialog", { name: "Mark this book as unread?" });
+    await userEvent.click(within(confirm).getByRole("button", { name: "Cancel" }));
+    expect(markBookUnread).not.toHaveBeenCalled();
+    // A book never opened has nothing to forget.
+    await userEvent.click(await tile("人間失格"));
+    await userEvent.click(await tile("こころ"));
+    await userEvent.click(bar().getByRole("button", { name: "Mark as unread" }));
+    confirm = screen.getByRole("alertdialog", { name: "Mark these books as unread?" });
+    await userEvent.click(within(confirm).getByRole("button", { name: "Mark as unread" }));
+    await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
+    expect(vi.mocked(markBookUnread).mock.calls).toEqual([["book-2"], ["book-1"]]);
+    expect(listLibrary).toHaveBeenCalledTimes(2);
+  });
+
   it("offers no Mark as completed for a finished book, and renames its series", async () => {
     library();
     await longPress(await tile("こころ"), () => tile("こころ"));
-    expect(actions()).toEqual(["Information", "Series…", "Edit…", "Remove"]);
+    expect(actions()).toEqual(["Information", "Series…", "Edit…", "Mark as unread", "Remove"]);
     await userEvent.click(bar().getByRole("button", { name: "Series…" }));
     const dialog = screen.getByRole("dialog", { name: "Series" });
     const name = within(dialog).getByRole("combobox", { name: "Series name" }) as HTMLInputElement;

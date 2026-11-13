@@ -1,11 +1,10 @@
-//! Discord Rich Presence. While it is on, Komori tells the Discord app on this computer what
-//! the Reader shows, through Discord's local IPC pipe: the book's title, its progress, the
-//! chapter's progress and the reading speed, each as the reader chooses; outside the Reader, the
-//! page in use (Library, Dictionary, Statistics or Settings) when the reader chooses; or Idle
-//! after five minutes without reading or using the page, or with nothing to show. Native code
-//! owns the choices, the pipe and the idle timer; the Reader reports only display text and its
-//! position, and the other pages only which one is open and a count of the reader's actions.
-//! Nothing goes over the network from Komori: the Discord app shares the status.
+//! Discord Rich Presence. While it is on and a book is open in the shown window, Komori tells
+//! the Discord app on this computer what the Reader shows, through Discord's local IPC pipe: the
+//! book's title, its progress, the chapter's progress and the reading speed, each as the reader
+//! chooses. Anywhere else, in the tray, or after five minutes without reading, Komori closes the
+//! pipe and Discord shows nothing of it. Native code owns the choices, the pipe and the idle
+//! timer; the Reader reports only display text and its position. Nothing goes over the network
+//! from Komori: the Discord app shares the status.
 #![cfg_attr(mobile, allow(dead_code))]
 
 use crate::interface_text::{self, Text};
@@ -29,7 +28,7 @@ const CLIENT_ID: &str = "1562070752675766322";
 const WEBSITE: &str = "https://github.com/Yuu-4chan/komori";
 const ICON: &str =
     "https://raw.githubusercontent.com/Yuu-4chan/komori/main/src-tauri/icons/128x128@2x.png";
-/// No reading, or no use of the open page, for this long shows Idle.
+/// No reading for this long clears the status.
 const IDLE_AFTER: Duration = Duration::from_secs(5 * 60);
 /// Discord accepts five activity updates in 20 s; a change sooner waits for the next slot.
 const UPDATE_EVERY: Duration = Duration::from_secs(15);
@@ -45,20 +44,39 @@ const PART_CHARS: usize = 64;
 const MAX_POSITION: u64 = 1_000_000_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase", from = "Stored")]
 pub(crate) struct Preferences {
     pub enabled: bool,
     pub show_book_title: bool,
     pub show_book_progress: bool,
     pub show_chapter_progress: bool,
     pub show_reading_speed: bool,
-    /// Backups made before it show the pages, as new choices do.
-    #[serde(default = "shown")]
-    pub show_browsing: bool,
 }
 
-fn shown() -> bool {
-    true
+/// The choices as backups hold them. Backups from before 2.3 also hold whether the pages
+/// outside the Reader were shown, which Komori no longer does.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Stored {
+    enabled: bool,
+    show_book_title: bool,
+    show_book_progress: bool,
+    show_chapter_progress: bool,
+    show_reading_speed: bool,
+    #[serde(default, rename = "showBrowsing")]
+    _show_browsing: Option<bool>,
+}
+
+impl From<Stored> for Preferences {
+    fn from(stored: Stored) -> Self {
+        Self {
+            enabled: stored.enabled,
+            show_book_title: stored.show_book_title,
+            show_book_progress: stored.show_book_progress,
+            show_chapter_progress: stored.show_chapter_progress,
+            show_reading_speed: stored.show_reading_speed,
+        }
+    }
 }
 
 impl Default for Preferences {
@@ -69,7 +87,6 @@ impl Default for Preferences {
             show_book_progress: true,
             show_chapter_progress: true,
             show_reading_speed: true,
-            show_browsing: true,
         }
     }
 }
@@ -85,7 +102,6 @@ impl Preferences {
             show_book_progress: field("showBookProgress", defaults.show_book_progress),
             show_chapter_progress: field("showChapterProgress", defaults.show_chapter_progress),
             show_reading_speed: field("showReadingSpeed", defaults.show_reading_speed),
-            show_browsing: field("showBrowsing", defaults.show_browsing),
         }
     }
 }
@@ -98,7 +114,6 @@ pub struct Changes {
     show_book_progress: Option<bool>,
     show_chapter_progress: Option<bool>,
     show_reading_speed: Option<bool>,
-    show_browsing: Option<bool>,
 }
 
 impl Changes {
@@ -112,7 +127,6 @@ impl Changes {
                 &mut preferences.show_chapter_progress,
             ),
             (self.show_reading_speed, &mut preferences.show_reading_speed),
-            (self.show_browsing, &mut preferences.show_browsing),
         ];
         for (change, field) in pairs {
             if let Some(value) = change {
@@ -185,25 +199,6 @@ impl Reading {
     }
 }
 
-/// A page of Komori outside the Reader.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Page {
-    Library,
-    Dictionary,
-    Statistics,
-    Settings,
-}
-
-/// The page open outside the Reader; `activity` changing (a count of the reader's actions on
-/// it) is using it.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Browsing {
-    page: Page,
-    activity: u64,
-}
-
 /// One line of plain text: whitespace and control characters become single spaces, and text
 /// longer than `limit` characters ends in an ellipsis. Empty text is none.
 fn clean(text: &str, limit: usize) -> Option<String> {
@@ -251,56 +246,22 @@ impl Activity {
     }
 }
 
-/// A report whose subject (a book, a page) stays while its position moves.
-trait Progress {
-    fn same_subject(&self, other: &Self) -> bool;
-    fn position(&self) -> u64;
-}
-
-impl Progress for Reading {
-    fn same_subject(&self, other: &Self) -> bool {
-        self.book == other.book
-    }
-    fn position(&self) -> u64 {
-        self.position
-    }
-}
-
-impl Progress for Browsing {
-    fn same_subject(&self, other: &Self) -> bool {
-        self.page == other.page
-    }
-    fn position(&self) -> u64 {
-        self.activity
-    }
-}
-
-/// The latest report of one kind and when it last moved.
-#[derive(Debug)]
-struct Tracked<T> {
-    report: Option<T>,
-    /// When the subject opened or its position last changed.
+/// The open book and when it was last read.
+#[derive(Debug, Default)]
+struct Presence {
+    report: Option<Reading>,
+    /// When the book opened or its position last changed.
     progressed: Option<Instant>,
-    /// When this stretch began: the subject opening, or moving again after Idle.
+    /// When this stretch of reading began: the book opening, or reading again after idling.
     since: u64,
 }
 
-impl<T> Default for Tracked<T> {
-    fn default() -> Self {
-        Self {
-            report: None,
-            progressed: None,
-            since: 0,
-        }
-    }
-}
-
-impl<T: Progress> Tracked<T> {
-    fn report(&mut self, report: Option<T>, now: Instant, unix: u64) {
+impl Presence {
+    fn report(&mut self, report: Option<Reading>, now: Instant, unix: u64) {
         match (&self.report, &report) {
             (_, None) => self.progressed = None,
-            (Some(old), Some(new)) if old.same_subject(new) => {
-                if old.position() != new.position() {
+            (Some(old), Some(new)) if old.book == new.book => {
+                if old.position != new.position {
                     if self.idle(now) {
                         self.since = unix;
                     }
@@ -320,47 +281,20 @@ impl<T: Progress> Tracked<T> {
             .is_none_or(|at| now.saturating_duration_since(at) >= IDLE_AFTER)
     }
 
-    /// The report, unless it is Idle.
-    fn active(&self, now: Instant) -> Option<&T> {
+    /// The open book, unless it has gone unread for too long.
+    fn active(&self, now: Instant) -> Option<&Reading> {
         self.report.as_ref().filter(|_| !self.idle(now))
     }
-}
 
-/// The open book and the open page, each with when it was last read or used. The Reader and
-/// the other pages are never open together; the book comes first all the same.
-#[derive(Debug, Default)]
-struct Presence {
-    reading: Tracked<Reading>,
-    browsing: Tracked<Browsing>,
-}
-
-impl Presence {
-    fn activity(&self, preferences: &Preferences, language: &str, now: Instant) -> Activity {
-        if let Some(reading) = self.reading.active(now) {
-            return reading_activity(reading, self.reading.since, preferences, language);
-        }
-        if let Some(browsing) = self
-            .browsing
-            .active(now)
-            .filter(|_| preferences.show_browsing)
-        {
-            let page = match browsing.page {
-                Page::Library => Text::DiscordLibrary,
-                Page::Dictionary => Text::DiscordDictionary,
-                Page::Statistics => Text::DiscordStatistics,
-                Page::Settings => Text::DiscordSettings,
-            };
-            return Activity {
-                details: interface_text::text(language, page).into(),
-                state: None,
-                start: Some(self.browsing.since),
-            };
-        }
-        Activity {
-            details: interface_text::text(language, Text::DiscordIdle).into(),
-            state: None,
-            start: None,
-        }
+    /// What Discord shows: the open book, or nothing.
+    fn activity(
+        &self,
+        preferences: &Preferences,
+        language: &str,
+        now: Instant,
+    ) -> Option<Activity> {
+        self.active(now)
+            .map(|reading| reading_activity(reading, self.since, preferences, language))
     }
 }
 
@@ -496,7 +430,6 @@ fn connect() -> Option<Ipc<std::fs::File>> {
 enum Message {
     Preferences(Preferences),
     Reading(Option<Reading>),
-    Browsing(Option<Browsing>),
 }
 
 /// The Discord worker's inbox.
@@ -541,9 +474,10 @@ fn unix_now() -> u64 {
         .map_or(0, |time| time.as_secs())
 }
 
-/// Keeps Discord's status until the application ends: connects while the choice is on (again
-/// every 30 s while Discord is closed), sends each changed status at most every 15 s, and closes
-/// the connection, clearing the status, when the choice is turned off.
+/// Keeps Discord's status until the application ends: connects while the choice is on and a
+/// book is being read (again every 30 s while Discord is closed), sends each changed status at
+/// most every 15 s, and closes the connection, clearing the status, when the choice is turned
+/// off or the book closes or goes unread for five minutes.
 fn run<S: Read + Write>(
     mut preferences: Preferences,
     messages: Receiver<Message>,
@@ -557,7 +491,7 @@ fn run<S: Read + Write>(
     let mut tried_at: Option<Instant> = None;
     let mut words: Option<(&'static str, Instant)> = None;
     loop {
-        // Idle needs the clock while the choice is on; otherwise only a message matters.
+        // Idling needs the clock while the choice is on; otherwise only a message matters.
         let first = if preferences.enabled {
             match messages.recv_timeout(Duration::from_secs(1)) {
                 Ok(message) => Some(message),
@@ -576,18 +510,13 @@ fn run<S: Read + Write>(
                     preferences = next;
                     words = None;
                 }
-                Message::Reading(reading) => {
-                    presence.reading.report(reading, Instant::now(), unix_now())
-                }
-                Message::Browsing(browsing) => {
-                    presence
-                        .browsing
-                        .report(browsing, Instant::now(), unix_now())
-                }
+                Message::Reading(reading) => presence.report(reading, Instant::now(), unix_now()),
             }
         }
         let now = Instant::now();
-        if !preferences.enabled {
+        // With nothing to show Komori leaves Discord, which clears the status, and looks for it
+        // again once there is.
+        if !preferences.enabled || presence.active(now).is_none() {
             if let Some(mut connection) = ipc.take() {
                 let _ = connection.set_activity(None);
             }
@@ -618,7 +547,9 @@ fn run<S: Read + Write>(
                 saved
             }
         };
-        let activity = presence.activity(&preferences, words_language, now);
+        let Some(activity) = presence.activity(&preferences, words_language, now) else {
+            continue;
+        };
         if shown.as_ref() == Some(&activity) {
             continue;
         }
@@ -677,12 +608,6 @@ pub fn set_discord_activity(
     Ok(())
 }
 
-/// The page open outside the Reader, or none once it closes.
-#[tauri::command]
-pub fn set_discord_browsing(discord: State<'_, DiscordState>, browsing: Option<Browsing>) {
-    discord.send(Message::Browsing(browsing));
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -725,14 +650,16 @@ mod tests {
         assert!(serde_json::from_value::<Preferences>(json!({"enabled": true})).is_err());
         assert!(serde_json::from_value::<Changes>(json!({"bookProgressFormat": "both"})).is_err());
         assert!(serde_json::from_value::<Changes>(json!({"clientId": "1"})).is_err());
-        // Choices saved before the pages' choice show the pages.
+        // Backups from when the pages outside the Reader were shown keep the other choices.
         let mut older = serde_json::to_value(preferences).unwrap();
-        older.as_object_mut().unwrap().remove("showBrowsing");
+        assert!(older.get("showBrowsing").is_none());
+        older["showBrowsing"] = json!(false);
         assert_eq!(
-            serde_json::from_value::<Preferences>(older).unwrap(),
+            serde_json::from_value::<Preferences>(older.clone()).unwrap(),
             preferences
         );
-        assert!(!Preferences::from_stored(&json!({"showBrowsing": false})).show_browsing);
+        assert_eq!(Preferences::from_stored(&older), preferences);
+        assert!(serde_json::from_value::<Changes>(json!({"showBrowsing": true})).is_err());
         let mut changed = preferences;
         serde_json::from_value::<Changes>(json!({"showBookTitle": false}))
             .unwrap()
@@ -775,30 +702,23 @@ mod tests {
     }
 
     #[test]
-    fn shows_the_chosen_parts_and_idle_after_five_minutes_without_reading() {
+    fn shows_the_chosen_parts_and_nothing_after_five_minutes_without_reading() {
         let start = Instant::now();
         let mut presence = Presence::default();
         let everything = Preferences {
             enabled: true,
             ..Preferences::default()
         };
-        // No book open is Idle.
+        // No book open shows nothing.
+        assert_eq!(presence.activity(&everything, "en", start), None);
+        presence.report(Some(reading(10)), start, 1_000);
         assert_eq!(
             presence.activity(&everything, "en", start),
-            Activity {
-                details: "Idle".into(),
-                state: None,
-                start: None
-            }
-        );
-        presence.reading.report(Some(reading(10)), start, 1_000);
-        assert_eq!(
-            presence.activity(&everything, "en", start),
-            Activity {
+            Some(Activity {
                 details: "吾輩は猫である".into(),
                 state: Some("45% · Chapter 30% · 31,200 Ch./h".into()),
                 start: Some(1_000)
-            }
+            })
         );
         let hidden = Preferences {
             show_book_title: false,
@@ -808,26 +728,27 @@ mod tests {
         };
         assert_eq!(
             presence.activity(&hidden, "ja", start),
-            Activity {
+            Some(Activity {
                 details: "読書中".into(),
                 state: Some("45%".into()),
                 start: Some(1_000)
-            }
+            })
         );
         let nothing = Preferences {
             show_book_progress: false,
             ..hidden
         };
-        assert_eq!(presence.activity(&nothing, "en", start).state, None);
+        assert_eq!(
+            presence.activity(&nothing, "en", start).unwrap().state,
+            None
+        );
 
         // A report without a new position (a speed refresh) is not reading.
         let later = start + Duration::from_secs(4 * 60);
-        presence.reading.report(Some(reading(10)), later, 1_240);
+        presence.report(Some(reading(10)), later, 1_240);
         assert_eq!(
-            presence
-                .activity(&everything, "en", start + IDLE_AFTER)
-                .details,
-            "Idle"
+            presence.activity(&everything, "en", start + IDLE_AFTER),
+            None
         );
         assert_eq!(
             presence
@@ -836,147 +757,42 @@ mod tests {
                     "en",
                     start + IDLE_AFTER - Duration::from_secs(1)
                 )
+                .unwrap()
                 .start,
             Some(1_000)
         );
-        // Reading again after Idle starts a new stretch.
+        // Reading again after idling starts a new stretch.
         let back = start + Duration::from_secs(9 * 60);
-        presence.reading.report(Some(reading(11)), back, 1_540);
+        presence.report(Some(reading(11)), back, 1_540);
         assert_eq!(
-            presence.activity(&everything, "en", back).start,
+            presence.activity(&everything, "en", back).unwrap().start,
             Some(1_540)
         );
-        // Reading before Idle keeps the stretch.
-        presence
-            .reading
-            .report(Some(reading(12)), back + Duration::from_secs(60), 1_600);
+        // Reading before idling keeps the stretch.
+        presence.report(Some(reading(12)), back + Duration::from_secs(60), 1_600);
         assert_eq!(
             presence
                 .activity(&everything, "en", back + Duration::from_secs(60))
+                .unwrap()
                 .start,
             Some(1_540)
         );
-        // Another book starts its own stretch, and closing the book is Idle.
+        // Another book starts its own stretch, and closing the book shows nothing.
         let other = Reading {
             book: "22222222-2222-4222-8222-222222222222".into(),
             title: "猫".into(),
             ..reading(12)
         };
-        presence
-            .reading
-            .report(Some(other), back + Duration::from_secs(61), 1_601);
-        let shown = presence.activity(&everything, "en", back + Duration::from_secs(61));
+        presence.report(Some(other), back + Duration::from_secs(61), 1_601);
+        let shown = presence
+            .activity(&everything, "en", back + Duration::from_secs(61))
+            .unwrap();
         assert_eq!(shown.details, "“猫”");
         assert_eq!(shown.start, Some(1_601));
-        presence
-            .reading
-            .report(None, back + Duration::from_secs(62), 1_602);
+        presence.report(None, back + Duration::from_secs(62), 1_602);
         assert_eq!(
-            presence
-                .activity(&everything, "pt-BR", back + Duration::from_secs(62))
-                .details,
-            "Ausente"
-        );
-    }
-
-    #[test]
-    fn shows_the_page_in_use_and_idle_after_five_minutes_without_using_it() {
-        let start = Instant::now();
-        let mut presence = Presence::default();
-        let everything = Preferences {
-            enabled: true,
-            ..Preferences::default()
-        };
-        let browsing = |page, activity| Browsing { page, activity };
-        presence
-            .browsing
-            .report(Some(browsing(Page::Library, 0)), start, 2_000);
-        assert_eq!(
-            presence.activity(&everything, "en", start),
-            Activity {
-                details: "Browsing the library".into(),
-                state: None,
-                start: Some(2_000)
-            }
-        );
-        // The pages are a choice of their own.
-        let hidden = Preferences {
-            show_browsing: false,
-            ..everything
-        };
-        assert_eq!(presence.activity(&hidden, "en", start).details, "Idle");
-        // Another page starts its own stretch; using it keeps it.
-        let dictionary = start + Duration::from_secs(60);
-        presence
-            .browsing
-            .report(Some(browsing(Page::Dictionary, 0)), dictionary, 2_060);
-        assert_eq!(
-            presence.activity(&everything, "ja", dictionary),
-            Activity {
-                details: "辞書で検索中".into(),
-                state: None,
-                start: Some(2_060)
-            }
-        );
-        let used = dictionary + Duration::from_secs(4 * 60);
-        presence
-            .browsing
-            .report(Some(browsing(Page::Dictionary, 3)), used, 2_300);
-        assert_eq!(
-            presence
-                .activity(&everything, "en", dictionary + IDLE_AFTER)
-                .start,
-            Some(2_060)
-        );
-        // A report without use, such as the same count again, is not using it.
-        presence
-            .browsing
-            .report(Some(browsing(Page::Dictionary, 3)), used, 2_300);
-        assert_eq!(
-            presence.activity(&everything, "en", used + IDLE_AFTER),
-            Activity {
-                details: "Idle".into(),
-                state: None,
-                start: None
-            }
-        );
-        // Using it again after Idle starts a new stretch.
-        let back = used + IDLE_AFTER + Duration::from_secs(30);
-        presence
-            .browsing
-            .report(Some(browsing(Page::Dictionary, 4)), back, 2_900);
-        assert_eq!(
-            presence.activity(&everything, "en", back).start,
-            Some(2_900)
-        );
-        for (page, words) in [
-            (Page::Statistics, "Viewing statistics"),
-            (Page::Settings, "Changing settings"),
-        ] {
-            presence
-                .browsing
-                .report(Some(browsing(page, 0)), back, 2_900);
-            assert_eq!(presence.activity(&everything, "en", back).details, words);
-        }
-        // An open book comes first, and the page closing is Idle.
-        presence.reading.report(Some(reading(1)), back, 2_900);
-        assert_eq!(
-            presence.activity(&everything, "en", back).details,
-            "吾輩は猫である"
-        );
-        presence.reading.report(None, back, 2_900);
-        presence.browsing.report(None, back, 2_900);
-        assert_eq!(presence.activity(&everything, "en", back).details, "Idle");
-        assert!(
-            serde_json::from_value::<Browsing>(json!({"page": "reader", "activity": 0})).is_err()
-        );
-        assert!(serde_json::from_value::<Browsing>(
-            json!({"page": "library", "activity": 0, "path": "C:\\"})
-        )
-        .is_err());
-        assert_eq!(
-            serde_json::from_value::<Browsing>(json!({"page": "settings", "activity": 2})).unwrap(),
-            browsing(Page::Settings, 2)
+            presence.activity(&everything, "en", back + Duration::from_secs(62)),
+            None
         );
     }
 
@@ -1082,8 +898,9 @@ mod tests {
         frames(&[(CLOSE, json!({"code": 4000, "message": "Invalid Client ID"}))])
     }
 
-    #[test]
-    fn the_worker_shows_the_book_and_clears_it_when_turned_off() {
+    /// Runs the worker on one scripted connection: shows a book, then sends `after`. Returns
+    /// the frames Komori sent once it sent `count` of them.
+    fn worker_frames(after: Message, count: usize) -> Vec<(u32, Value)> {
         let output = Arc::new(Mutex::new(Vec::new()));
         let answers = frames(
             &[(FRAME, json!({"evt": "READY"}))]
@@ -1124,15 +941,26 @@ mod tests {
             panic!("Komori sent {} frames", sent(&output).len());
         };
         wait_for(2);
-        sender
-            .send(Message::Preferences(Preferences::default()))
-            .unwrap();
-        wait_for(3);
+        sender.send(after).unwrap();
+        wait_for(count);
         drop(sender);
         worker.join().unwrap();
-        let frames = sent(&output);
+        sent(&output)
+    }
+
+    #[test]
+    fn the_worker_shows_the_book_and_clears_it_when_turned_off() {
+        let frames = worker_frames(Message::Preferences(Preferences::default()), 3);
         assert_eq!(frames.len(), 3);
         assert_eq!(frames[1].1["args"]["activity"]["details"], "吾輩は猫である");
+        assert_eq!(frames[2].1["args"]["activity"], Value::Null);
+    }
+
+    #[test]
+    fn the_worker_leaves_discord_once_the_book_closes() {
+        // The Reader closing, or Komori going to the tray, reports no book.
+        let frames = worker_frames(Message::Reading(None), 3);
+        assert_eq!(frames.len(), 3);
         assert_eq!(frames[2].1["args"]["activity"], Value::Null);
     }
 }

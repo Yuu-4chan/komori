@@ -18,6 +18,7 @@ const choices = [
   "restoreLastBook",
   "rememberWindowSize",
   "minimizeToTray",
+  "startInTray",
   "checkForUpdates",
 ] as const;
 

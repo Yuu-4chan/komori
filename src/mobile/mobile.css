@@ -172,6 +172,22 @@
   box-shadow: var(--shadow-float);
   transform: translateX(-50%);
   backdrop-filter: blur(16px);
+  transition:
+    opacity var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out);
+}
+
+/* Scrolling down the Library, the dock steps below the screen's edge. */
+.mobile-dock--away {
+  opacity: 0;
+  transform: translate(-50%, calc(100% + var(--mobile-dock-gap) + var(--safe-area-bottom)));
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-dock {
+    transition: none;
+  }
 }
 
 .mobile-dock[hidden] {
@@ -212,6 +228,44 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+/* The Library's search floats at the top while the books scroll under it, and takes the
+   dock's shadow once they do. */
+.mobile-search {
+  position: sticky;
+  top: calc(var(--safe-area-top) + 0.5rem);
+  z-index: 10;
+  border-radius: var(--radius-pill);
+}
+
+/* The books passing above the floating search stay under the page's own colour, from the
+   status bar to the field's middle. */
+.mobile-search::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -0.5rem;
+  right: calc(-1 * (var(--safe-area-right) + var(--mobile-gutter)));
+  left: calc(-1 * (var(--safe-area-left) + var(--mobile-gutter)));
+  height: calc(50% + 0.5rem);
+  background: var(--surface-main);
+  pointer-events: none;
+}
+
+/* The shadow is the wrapper's, so the field's focus ring still shows. */
+@supports (animation-timeline: scroll()) {
+  .mobile-search {
+    animation: mobile-search-float linear both;
+    animation-timeline: scroll(nearest);
+    animation-range: 0 3rem;
+  }
+}
+
+@keyframes mobile-search-float {
+  to {
+    box-shadow: var(--shadow-float);
+  }
 }
 
 .mobile-search .book-search {
@@ -1319,12 +1373,14 @@
   gap: 0.5rem;
 }
 
+/* A field's box goes under its label when a long label leaves it too little room. */
 .mobile-field {
   min-height: 3.25rem;
-  padding: 0 0.875rem;
+  padding: 0.4375rem 0.875rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.4375rem 0.75rem;
   color: var(--text-primary);
 }
 
@@ -1333,35 +1389,46 @@
 }
 
 .mobile-field > label {
-  flex: none;
+  min-width: 0;
+  flex: 0 1 auto;
   font-size: 0.9375rem;
 }
 
+/* An entry box, so an empty field reads as empty. */
 .mobile-field__input {
   min-width: 0;
-  flex: 1;
+  flex: 1 0 9rem;
   height: 2.25rem;
-  padding: 0;
+  padding: 0 0.75rem;
   color: var(--text-primary);
-  background: none;
-  border: 0;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
   outline: none;
   font: inherit;
   font-size: 0.9375rem;
   font-variant-numeric: tabular-nums;
-  text-align: end;
 }
 
-.mobile-field__input::placeholder {
-  color: var(--text-muted);
+.mobile-field__input:focus {
+  border-color: var(--accent-base);
+  box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--accent-base) 16%, transparent);
+}
+
+.mobile-field__input:disabled {
+  opacity: 0.6;
 }
 
 .mobile-sync__pair {
   min-width: 0;
-  flex: 1;
+  flex: 1 0 13rem;
   display: flex;
   align-items: center;
   gap: 0.625rem;
+}
+
+.mobile-sync__pair .mobile-field__input {
+  flex: 1 0 5.5rem;
 }
 
 .mobile-sync__pair .button {

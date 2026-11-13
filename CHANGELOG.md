@@ -2,6 +2,14 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 2.3.0
+
+- Start in tray (Settings > General) opens Komori in the tray, its window shown from the tray icon.
+- The Discord status shows only while you read a book, and clears after 5 minutes without reading or while Komori is in the tray. It no longer shows the Library, Dictionary, Statistics or Settings.
+- On the phone, books from the PC can be marked as completed or unread and removed from the PC's Library, as the phone's own books can. Removing never deletes the EPUB on the PC. Mark as unread is available for the phone's own books too.
+- Scrolling down the phone's Library hides the navigation bar, and scrolling up brings it back. The search stays at the top while you scroll.
+- The phone's Sync settings show empty Address and Pairing code boxes as empty, and a long label no longer squeezes the pairing code to one character.
+
 ## 2.2.1
 
 - With Tap to turn pages off, swiping still turns pages and chapters on the phone. The setting, formerly Tap or swipe to turn pages, is now about taps only.

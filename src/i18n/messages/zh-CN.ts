@@ -114,6 +114,7 @@ export const zhCN: MessageCatalog = {
   "startup.rememberWindowSize": "记住窗口位置和大小",
   "startup.minimizeToTray": "最小化到托盘",
   "startup.minimizeToTrayHint": "关闭窗口后Komori仍可使用。",
+  "startup.startInTray": "启动到托盘",
   "startup.checkForUpdates": "自动检查更新",
   "discord.title": "Discord状态",
   "discord.description":
@@ -121,14 +122,12 @@ export const zhCN: MessageCatalog = {
   "discord.readError": "Komori无法读取你的Discord设置。请在桌面应用中重试。",
   "discord.saveError": "Komori无法保存此设置。请重试。",
   "discord.enabled": "在Discord中显示阅读状态",
-  "discord.enabledHint": "在Discord运行时显示。5分钟未阅读后显示为闲置。",
+  "discord.enabledHint": "打开书时显示。5分钟未阅读后消失。",
   "discord.showBookTitle": "书名",
   "discord.showBookProgress": "全书进度",
   "discord.showChapterProgress": "章节进度",
   "discord.showReadingSpeed": "阅读速度",
   "discord.showReadingSpeedHint": "在阅读统计开启时，阅读一分钟后显示。",
-  "discord.showBrowsing": "Komori页面",
-  "discord.showBrowsingHint": "阅读器以外的书架、词典、统计和设置。5分钟未操作后显示为闲置。",
   "updates.title": "更新",
   "updates.check": "检查更新",
   "updates.checking": "正在检查…",
@@ -909,6 +908,9 @@ export const zhCN: MessageCatalog = {
   "library.unreadDescription":
     "Komori会忘记你在这本书中的位置和进度，使其从头打开，统计中也不再将其算作读完。已记录的阅读时间会保留。",
   "library.unreadTitle": "要将这本书标记为未读吗？",
+  "library.unreadBooksTitle": "将这些书标记为未读？",
+  "library.unreadBooksDescription":
+    "Komori会清除这些书的阅读位置和进度，使其从头打开，统计也不再将其计为已读完。已记录的阅读时间会保留。",
   "library.bulkConfirm_other": "移除{count}本书",
   "library.bulkDescription_other": "原始EPUB文件不会被删除。",
   "library.bulkTitle_other": "要从Komori中移除{count}本书吗？",

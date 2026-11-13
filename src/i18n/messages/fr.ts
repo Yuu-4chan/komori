@@ -116,6 +116,7 @@ export const fr: MessageCatalog = {
   "startup.rememberWindowSize": "Mémoriser la taille et la position de la fenêtre",
   "startup.minimizeToTray": "Réduire dans la zone de notification",
   "startup.minimizeToTrayHint": "Garder Komori disponible après la fermeture de la fenêtre.",
+  "startup.startInTray": "Démarrer dans la zone de notification",
   "startup.checkForUpdates": "Rechercher automatiquement les mises à jour",
   "discord.title": "Statut Discord",
   "discord.description":
@@ -124,17 +125,13 @@ export const fr: MessageCatalog = {
     "Komori n’a pas pu lire vos choix Discord. Réessayez dans l’application de bureau.",
   "discord.saveError": "Komori n’a pas pu enregistrer ce choix. Réessayez.",
   "discord.enabled": "Afficher le statut de lecture sur Discord",
-  "discord.enabledHint":
-    "Tant que Discord est ouvert. Après 5 minutes sans lecture, il affiche Inactif.",
+  "discord.enabledHint": "Tant qu’un livre est ouvert. Il disparaît après 5 minutes sans lecture.",
   "discord.showBookTitle": "Titre du livre",
   "discord.showBookProgress": "Progression du livre",
   "discord.showChapterProgress": "Progression du chapitre",
   "discord.showReadingSpeed": "Vitesse de lecture",
   "discord.showReadingSpeedHint":
     "Affichée quand les statistiques de lecture sont activées, après une minute de lecture.",
-  "discord.showBrowsing": "Pages de Komori",
-  "discord.showBrowsingHint":
-    "Bibliothèque, Dictionnaire, Statistiques et Réglages, hors du lecteur. Après 5 minutes sans les utiliser, il affiche Inactif.",
   "updates.title": "Mises à jour",
   "updates.check": "Rechercher des mises à jour",
   "updates.checking": "Recherche…",
@@ -1095,6 +1092,9 @@ export const fr: MessageCatalog = {
   "library.unreadDescription":
     "Komori oublie où vous en êtes dans ce livre et sa progression ; il s’ouvrira donc au début et les statistiques ne le compteront plus comme terminé. Le temps de lecture déjà enregistré est conservé.",
   "library.unreadTitle": "Marquer ce livre comme non lu ?",
+  "library.unreadBooksTitle": "Marquer ces livres comme non lus ?",
+  "library.unreadBooksDescription":
+    "Komori oublie où vous en êtes dans ces livres et leur progression : ils s’ouvrent au début, et les statistiques ne les comptent plus comme terminés. Le temps de lecture déjà enregistré est conservé.",
   "library.bulkConfirm_one": "Retirer le livre",
   "library.bulkConfirm_other": "Retirer {count} livres",
   "library.bulkConfirm_many": "Retirer {count} livres",

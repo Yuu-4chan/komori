@@ -261,10 +261,15 @@ function reader({
 }
 
 /** Waits for saved preferences to apply and the Reader to show. */
+/**
+ * Waits for the Reader shown once saved preferences load. Its touch handling is attached by an
+ * effect that may still be pending when the footer appears, so that runs too.
+ */
 async function shown() {
   await waitFor(() =>
     expect(document.querySelector("button.mobile-reader__footer")).not.toBeNull(),
   );
+  await act(async () => {});
 }
 
 /** A book page whose selection is `text`, shown at the given place. */

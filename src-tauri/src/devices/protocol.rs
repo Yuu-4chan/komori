@@ -94,6 +94,34 @@ pub(crate) struct RemoteLibrary {
     pub(crate) books: Vec<RemoteBook>,
 }
 
+/// The most books one change names; the phone sends more in several.
+pub(crate) const MAX_CHANGED_BOOKS: usize = 1_000;
+
+/// What the paired phone does to books in the PC's Library, as the PC's Library does it:
+/// marking them completed or unread, or removing them from the Library (their files stay).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BookChange {
+    Completed,
+    Unread,
+    Remove,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct ChangeBooks {
+    pub(crate) change: BookChange,
+    pub(crate) ids: Vec<String>,
+}
+
+/// The books the change applied to; a book not in the Library, or not counted for Completed,
+/// is left out.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ChangedBooks {
+    pub(crate) changed: Vec<String>,
+}
+
 /// A dictionary on the PC, by its store ID.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

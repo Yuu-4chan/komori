@@ -116,6 +116,7 @@ export const ja: MessageCatalog = {
   "startup.rememberWindowSize": "ウィンドウの位置とサイズを記憶",
   "startup.minimizeToTray": "トレイに最小化",
   "startup.minimizeToTrayHint": "ウィンドウを閉じてもKomoriを使える状態にしておきます。",
+  "startup.startInTray": "トレイで起動",
   "startup.checkForUpdates": "アップデートを自動で確認",
   "discord.title": "Discordステータス",
   "discord.description":
@@ -124,16 +125,12 @@ export const ja: MessageCatalog = {
     "Discordの設定を読み込めませんでした。デスクトップアプリで再試行してください。",
   "discord.saveError": "この設定を保存できませんでした。もう一度お試しください。",
   "discord.enabled": "Discordに読書ステータスを表示",
-  "discord.enabledHint":
-    "Discordが起動している間に表示されます。5分間読み進めないと「退席中」になります。",
+  "discord.enabledHint": "本を開いている間に表示されます。5分間読み進めないと消えます。",
   "discord.showBookTitle": "書名",
   "discord.showBookProgress": "本の進み具合",
   "discord.showChapterProgress": "章の進み具合",
   "discord.showReadingSpeed": "読書速度",
   "discord.showReadingSpeedHint": "読書統計がオンのとき、1分読んだ後に表示されます。",
-  "discord.showBrowsing": "Komoriのページ",
-  "discord.showBrowsingHint":
-    "読書画面以外の本棚・辞書・統計・設定。5分間操作しないと「退席中」になります。",
   "updates.title": "アップデート",
   "updates.check": "アップデートを確認",
   "updates.checking": "確認中…",
@@ -977,6 +974,9 @@ export const ja: MessageCatalog = {
   "library.unreadDescription":
     "この本の読書位置と進み具合を消去して最初から開くようにし、統計でも読了として数えなくなります。記録済みの読書時間は残ります。",
   "library.unreadTitle": "この本を未読にしますか？",
+  "library.unreadBooksTitle": "これらの本を未読にしますか？",
+  "library.unreadBooksDescription":
+    "これらの本の読書位置と進み具合を消去して最初から開くようにし、統計でも読了として数えなくなります。記録済みの読書時間は残ります。",
   "library.bulkConfirm_other": "{count}冊を削除",
   "library.bulkDescription_other": "元のEPUBファイルは削除されません。",
   "library.bulkTitle_other": "{count}冊をKomoriから削除しますか？",

@@ -1,5 +1,12 @@
 import { ArrowLeftIcon, GearSixIcon } from "@phosphor-icons/react";
-import { useEffect, useLayoutEffect, useRef, type MouseEvent, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type RefObject,
+} from "react";
 import {
   Link,
   NavLink,
@@ -23,8 +30,8 @@ import { systemBarIcons, useBackButton, watchKeyboard, watchSafeArea } from "./s
 
 /**
  * Komori's frame on the phone: the page scrolls under the status bar's inset, and a floating
- * dock of destinations sits above the gesture bar, except in Settings, which Back leaves. Each
- * page heads itself.
+ * dock of destinations sits above the gesture bar, except in Settings, which Back leaves. In the
+ * Library, the dock steps away while the reader scrolls down. Each page heads itself.
  */
 export function MobileShell() {
   const { t } = useI18n();
@@ -32,6 +39,8 @@ export function MobileShell() {
   const docked = location.pathname !== "/settings";
   const content = useRef<HTMLElement>(null);
   useScrollMemory(content);
+  const library = location.pathname === "/" || location.pathname === "/library";
+  const away = useDockAway(content, docked && library, location.key);
   // The bars' icons follow Komori's theme here, and the book's in the Reader.
   const lightTheme = useAppearance().themeBase === "light";
   useEffect(() => systemBarIcons(lightTheme), [lightTheme]);
@@ -42,7 +51,12 @@ export function MobileShell() {
           <main className="mobile-shell__content" id="main-content" ref={content}>
             <Outlet />
           </main>
-          <nav className="mobile-dock" aria-label={t("shell.primaryNavigation")} hidden={!docked}>
+          <nav
+            aria-label={t("shell.primaryNavigation")}
+            className={away ? "mobile-dock mobile-dock--away" : "mobile-dock"}
+            hidden={!docked}
+            inert={away}
+          >
             {navigationItems.map(({ icon: NavigationIcon, label, path }) => (
               <NavLink
                 className={({ isActive }) =>
@@ -128,6 +142,53 @@ function useScrollMemory(content: RefObject<HTMLElement | null>) {
       page.removeEventListener("wheel", stop);
     };
   }, [content, key, navigation, path, returning]);
+}
+
+/** How far the reader scrolls one way before the dock steps away, or comes back. */
+export const DOCK_AWAY_AFTER = 24;
+export const DOCK_BACK_AFTER = 12;
+
+/**
+ * Whether the dock is away: scrolling down hides it, to show more of the page, and scrolling up,
+ * or reaching the top, brings it back. Only the reader's own scrolling counts, so a page
+ * returning to where it was left keeps the dock; each page opens with it.
+ */
+function useDockAway(content: RefObject<HTMLElement | null>, enabled: boolean, page: string) {
+  const [awayOn, setAwayOn] = useState<string | null>(null);
+  useEffect(() => {
+    const scroller = content.current;
+    if (!enabled || !scroller) return;
+    let last = scroller.scrollTop;
+    let travelled = 0;
+    let touched = false;
+    const touch = () => {
+      touched = true;
+    };
+    const scrolled = () => {
+      const top = scroller.scrollTop;
+      const moved = top - last;
+      last = top;
+      if (top <= 0) {
+        travelled = 0;
+        setAwayOn(null);
+        return;
+      }
+      if (!touched || moved === 0) return;
+      // Turning around starts counting again.
+      travelled = Math.sign(moved) === Math.sign(travelled) ? travelled + moved : moved;
+      if (travelled >= DOCK_AWAY_AFTER) setAwayOn(page);
+      else if (travelled <= -DOCK_BACK_AFTER) setAwayOn(null);
+    };
+    scroller.addEventListener("touchstart", touch, { passive: true });
+    scroller.addEventListener("wheel", touch, { passive: true });
+    scroller.addEventListener("scroll", scrolled, { passive: true });
+    return () => {
+      scroller.removeEventListener("touchstart", touch);
+      scroller.removeEventListener("wheel", touch);
+      scroller.removeEventListener("scroll", scrolled);
+    };
+  }, [content, enabled, page]);
+  return enabled && awayOn === page;
 }
 
 /**

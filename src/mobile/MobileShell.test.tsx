@@ -118,6 +118,38 @@ describe("The phone's frame", () => {
     expect(router.state.historyAction).toBe("POP");
   });
 
+  it("hides the dock while the Library scrolls down and brings it back on scrolling up", async () => {
+    const { page } = shell();
+    const dock = screen.getByRole("navigation", { name: "Primary navigation" });
+    const away = () => dock.classList.contains("mobile-dock--away");
+    // Returning to where the page was left is not the reader scrolling.
+    act(() => scroll(page, 400));
+    expect(away()).toBe(false);
+    fireEvent.touchStart(page);
+    act(() => scroll(page, 410));
+    expect(away()).toBe(false);
+    act(() => scroll(page, 430));
+    expect(away()).toBe(true);
+    expect(dock.hasAttribute("inert")).toBe(true);
+    act(() => scroll(page, 600));
+    act(() => scroll(page, 595));
+    expect(away()).toBe(true);
+    act(() => scroll(page, 580));
+    expect(away()).toBe(false);
+    act(() => scroll(page, 700));
+    expect(away()).toBe(true);
+    act(() => scroll(page, 0));
+    expect(away()).toBe(false);
+    act(() => scroll(page, 700));
+    expect(away()).toBe(true);
+    // Other pages keep their dock, and the Library opens with it.
+    await userEvent.click(screen.getByRole("link", { name: "Statistics" }));
+    expect(away()).toBe(false);
+    fireEvent.touchStart(page);
+    act(() => scroll(page, 300));
+    expect(away()).toBe(false);
+  });
+
   it("keeps the page still while a sheet is open", async () => {
     shell();
     await userEvent.click(screen.getByRole("button", { name: "Filters" }));

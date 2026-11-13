@@ -290,13 +290,18 @@ pub(crate) fn install(app: &AppHandle, database: &std::path::Path) {
         database: Mutex::new(Some(database.to_path_buf())),
         ..Lifecycle::default()
     });
-    let _ = ensure_tray(
+    let tray = ensure_tray(
         app,
         crate::startup::load(database)
             .unwrap_or_default()
-            .minimize_to_tray,
+            .uses_tray(),
     );
     let window = app.get_webview_window("main").expect("main window created");
+    // A window started in the tray stays hidden only when the tray icon can bring it back.
+    #[cfg(desktop)]
+    if !window.is_visible().unwrap_or(true) && (tray.is_err() || !has_tray(app)) {
+        show(app);
+    }
     let handle = app.clone();
     let database = database.to_path_buf();
     window.on_window_event(move |event| {

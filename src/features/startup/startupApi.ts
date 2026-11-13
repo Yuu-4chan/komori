@@ -6,6 +6,7 @@ export interface StartupPreferences {
   restoreLastBook: boolean;
   rememberWindowSize: boolean;
   minimizeToTray: boolean;
+  startInTray: boolean;
   checkForUpdates: boolean;
 }
 export const defaultStartupPreferences: StartupPreferences = {
@@ -13,6 +14,7 @@ export const defaultStartupPreferences: StartupPreferences = {
   restoreLastBook: true,
   rememberWindowSize: true,
   minimizeToTray: false,
+  startInTray: false,
   checkForUpdates: true,
 };
 export async function getStartupPreferences(): Promise<StartupPreferences> {

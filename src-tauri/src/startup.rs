@@ -22,6 +22,10 @@ pub(crate) struct Preferences {
     pub restore_last_book: bool,
     pub remember_window_size: bool,
     pub minimize_to_tray: bool,
+    /// Starts with the window hidden and the tray icon shown. Backups made before this choice
+    /// existed leave it off.
+    #[serde(default)]
+    pub start_in_tray: bool,
     /// Backups made before this choice existed leave it on.
     #[serde(default = "checks_for_updates")]
     pub check_for_updates: bool,
@@ -38,6 +42,7 @@ impl Default for Preferences {
             restore_last_book: true,
             remember_window_size: true,
             minimize_to_tray: false,
+            start_in_tray: false,
             check_for_updates: true,
         }
     }
@@ -53,8 +58,14 @@ impl Preferences {
             restore_last_book: field("restoreLastBook", defaults.restore_last_book),
             remember_window_size: field("rememberWindowSize", defaults.remember_window_size),
             minimize_to_tray: field("minimizeToTray", defaults.minimize_to_tray),
+            start_in_tray: field("startInTray", defaults.start_in_tray),
             check_for_updates: field("checkForUpdates", defaults.check_for_updates),
         }
+    }
+
+    /// The tray icon shows while Komori closes or starts to it.
+    pub(crate) fn uses_tray(&self) -> bool {
+        self.minimize_to_tray || self.start_in_tray
     }
 }
 
@@ -65,6 +76,7 @@ pub struct Changes {
     restore_last_book: Option<bool>,
     remember_window_size: Option<bool>,
     minimize_to_tray: Option<bool>,
+    start_in_tray: Option<bool>,
     check_for_updates: Option<bool>,
 }
 
@@ -135,7 +147,7 @@ pub async fn save_startup_preferences(
     let database = catalog.database.clone();
     tauri::async_runtime::spawn_blocking(move || {
         // Tray operations marshal to the main thread; hold no settings lock across one.
-        if changes.minimize_to_tray == Some(true) {
+        if changes.minimize_to_tray == Some(true) || changes.start_in_tray == Some(true) {
             crate::window_lifecycle::ensure_tray(&app, true)?;
         }
         let _guard = CHANGING
@@ -155,6 +167,9 @@ pub async fn save_startup_preferences(
         if let Some(value) = changes.minimize_to_tray {
             preferences.minimize_to_tray = value;
         }
+        if let Some(value) = changes.start_in_tray {
+            preferences.start_in_tray = value;
+        }
         if let Some(value) = changes.check_for_updates {
             preferences.check_for_updates = value;
         }
@@ -162,7 +177,7 @@ pub async fn save_startup_preferences(
             save_to(&open_catalog(&database)?, preferences)?;
             Ok(preferences)
         });
-        let actual = load(&database)?.minimize_to_tray;
+        let actual = load(&database)?.uses_tray();
         drop(_guard);
         crate::window_lifecycle::ensure_tray(&app, actual)?;
         if !actual {
@@ -247,6 +262,7 @@ mod tests {
             restore_last_book: false,
             remember_window_size: false,
             minimize_to_tray: true,
+            start_in_tray: true,
             check_for_updates: false,
             ..Preferences::default()
         };
@@ -258,6 +274,7 @@ mod tests {
             ),
             Preferences {
                 remember_window_size: true,
+                start_in_tray: false,
                 check_for_updates: true,
                 ..preferences
             }
@@ -266,15 +283,25 @@ mod tests {
             serde_json::json!({"launchAtStartup": false})
         )
         .is_err());
-        // A backup from before the update choice existed keeps update checks on.
-        assert!(
-            serde_json::from_value::<Preferences>(serde_json::json!({
-                "launchAtStartup": false, "restoreLastBook": true,
-                "rememberWindowSize": true, "minimizeToTray": false
-            }))
-            .unwrap()
-            .check_for_updates
-        );
+        // A backup from before the update and tray start choices existed keeps update checks
+        // on and starts with the window.
+        let older = serde_json::from_value::<Preferences>(serde_json::json!({
+            "launchAtStartup": false, "restoreLastBook": true,
+            "rememberWindowSize": true, "minimizeToTray": false
+        }))
+        .unwrap();
+        assert!(older.check_for_updates && !older.start_in_tray);
+        assert!(!older.uses_tray());
+        assert!(Preferences {
+            start_in_tray: true,
+            ..older
+        }
+        .uses_tray());
+        assert!(Preferences {
+            minimize_to_tray: true,
+            ..older
+        }
+        .uses_tray());
         assert!(serde_json::from_value::<Changes>(serde_json::json!({"path":"bad"})).is_err());
     }
 

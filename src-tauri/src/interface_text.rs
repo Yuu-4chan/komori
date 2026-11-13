@@ -33,14 +33,6 @@ pub(crate) enum Text {
     Images,
     /// Discord's status line while a book is open with its title hidden.
     DiscordReading,
-    /// Discord's status line after 5 minutes without reading or using a page, or with nothing
-    /// to show.
-    DiscordIdle,
-    /// Discord's status line while each page outside the Reader is in use.
-    DiscordLibrary,
-    DiscordDictionary,
-    DiscordStatistics,
-    DiscordSettings,
 }
 
 /// The saved interface language, or English when none is saved or it cannot be read.
@@ -286,71 +278,6 @@ pub(crate) fn text(language: &str, text: Text) -> &'static str {
             "Sta leggendo",
             "Читает",
         ],
-        DiscordIdle => [
-            "Idle",
-            "退席中",
-            "闲置",
-            "閒置",
-            "자리 비움",
-            "Ausente",
-            "Abwesend",
-            "Ausente",
-            "Absent",
-            "Inattivo",
-            "Неактивен",
-        ],
-        DiscordLibrary => [
-            "Browsing the library",
-            "本棚を閲覧中",
-            "浏览书架中",
-            "瀏覽書架中",
-            "서재 둘러보는 중",
-            "Navegando na biblioteca",
-            "Stöbert in der Bibliothek",
-            "Explorando la biblioteca",
-            "Parcourt la bibliothèque",
-            "Sfoglia la libreria",
-            "Просматривает библиотеку",
-        ],
-        DiscordDictionary => [
-            "Using the dictionary",
-            "辞書で検索中",
-            "查词典中",
-            "查詞典中",
-            "사전 검색 중",
-            "Usando o dicionário",
-            "Nutzt das Wörterbuch",
-            "Usando el diccionario",
-            "Consulte le dictionnaire",
-            "Consulta il dizionario",
-            "Пользуется словарём",
-        ],
-        DiscordStatistics => [
-            "Viewing statistics",
-            "統計を確認中",
-            "查看统计中",
-            "查看統計中",
-            "통계 확인 중",
-            "Vendo estatísticas",
-            "Sieht Statistiken an",
-            "Viendo estadísticas",
-            "Consulte les statistiques",
-            "Guarda le statistiche",
-            "Смотрит статистику",
-        ],
-        DiscordSettings => [
-            "Changing settings",
-            "設定を変更中",
-            "调整设置中",
-            "調整設定中",
-            "설정 변경 중",
-            "Ajustando configurações",
-            "Ändert Einstellungen",
-            "Cambiando ajustes",
-            "Modifie les réglages",
-            "Modifica le impostazioni",
-            "Меняет настройки",
-        ],
     };
     match language {
         "ja" => ja,
@@ -371,7 +298,7 @@ pub(crate) fn text(language: &str, text: Text) -> &'static str {
 mod tests {
     use super::*;
 
-    const ALL: [Text; 23] = [
+    const ALL: [Text; 18] = [
         Text::ShowKomori,
         Text::Quit,
         Text::ImportEpubs,
@@ -390,11 +317,6 @@ mod tests {
         Text::SaveImage,
         Text::Images,
         Text::DiscordReading,
-        Text::DiscordIdle,
-        Text::DiscordLibrary,
-        Text::DiscordDictionary,
-        Text::DiscordStatistics,
-        Text::DiscordSettings,
     ];
 
     #[test]

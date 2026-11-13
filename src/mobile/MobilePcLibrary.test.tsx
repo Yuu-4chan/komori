@@ -29,6 +29,7 @@ vi.mock("./pcLinkApi", async (importOriginal) => {
     openPcBook: vi.fn(),
     keepPcBook: vi.fn(),
     removePcBook: vi.fn(async () => {}),
+    changePcBooks: vi.fn(async (_change: string, ids: string[]) => ids),
     onPcTransfer: vi.fn(async () => () => {}),
     syncPc: vi.fn(),
     autoSync: vi.fn(async () => null),
@@ -531,13 +532,27 @@ describe("the Library on a phone paired with a PC", () => {
       bar()
         .getAllByRole("button")
         .map((each) => each.getAttribute("aria-label"));
-    expect(actions()).toEqual(["Information", "Remove from this phone"]);
+    expect(actions()).toEqual([
+      "Information",
+      "Mark as completed",
+      "Mark as unread",
+      "Remove from this phone",
+      "Remove",
+    ]);
     await userEvent.click(tile(books, "それから"));
-    expect(actions()).toEqual(["Keep on this phone", "Remove from this phone"]);
+    expect(actions()).toEqual([
+      "Mark as completed",
+      "Mark as unread",
+      "Keep on this phone",
+      "Remove from this phone",
+      "Remove",
+    ]);
     await userEvent.click(tile(books, "羅生門"));
     expect(actions()).toEqual([
       "Series…",
       "Edit…",
+      "Mark as completed",
+      "Mark as unread",
       "Keep on this phone",
       "Remove from this phone",
       "Remove",
@@ -546,6 +561,47 @@ describe("the Library on a phone paired with a PC", () => {
     await userEvent.click(bar().getByRole("button", { name: "Remove from this phone" }));
     await waitFor(() => expect(api.removePcBook).toHaveBeenCalledWith(kept));
     expect(screen.queryByRole("toolbar")).toBeNull();
+    vi.restoreAllMocks();
+  });
+
+  it("marks the PC's books completed or unread and removes them from the PC's Library", async () => {
+    library(paired);
+    const books = await allBooks();
+    await waitFor(() => expect(titles(books)).toHaveLength(3));
+    const bar = () => within(screen.getByRole("toolbar", { name: "Library selection" }));
+    const select = (title: string) => {
+      const now = Date.now();
+      vi.spyOn(Date, "now").mockReturnValue(now);
+      fireEvent.contextMenu(tile(books, title));
+      fireEvent.click(tile(books, title));
+      vi.spyOn(Date, "now").mockReturnValue(now + 1_000);
+    };
+
+    // The copy here is synced first, so what was read here is not lost, and again after.
+    select("三四郎");
+    await userEvent.click(bar().getByRole("button", { name: "Mark as completed" }));
+    await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
+    expect(api.changePcBooks).toHaveBeenLastCalledWith("completed", ["pc-2"]);
+    expect(api.autoSync).toHaveBeenCalledTimes(2);
+
+    select("三四郎");
+    await userEvent.click(bar().getByRole("button", { name: "Mark as unread" }));
+    const unread = screen.getByRole("alertdialog", { name: "Mark this book as unread?" });
+    await userEvent.click(within(unread).getByRole("button", { name: "Mark as unread" }));
+    await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
+    expect(api.changePcBooks).toHaveBeenLastCalledWith("unread", ["pc-2"]);
+
+    // Removing asks first, and says so when the PC does not answer, keeping the selection.
+    vi.mocked(api.changePcBooks).mockRejectedValueOnce(Error("unreachable"));
+    select("それから");
+    await userEvent.click(bar().getByRole("button", { name: "Remove" }));
+    const remove = screen.getByRole("alertdialog", { name: "Remove 1 book from Komori?" });
+    await userEvent.click(within(remove).getByRole("button", { name: "Remove book" }));
+    expect(await within(remove).findByRole("alert")).toBeTruthy();
+    expect(screen.getByRole("toolbar")).toBeTruthy();
+    await userEvent.click(within(remove).getByRole("button", { name: "Remove book" }));
+    await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
+    expect(api.changePcBooks).toHaveBeenLastCalledWith("remove", ["pc-1"]);
     vi.restoreAllMocks();
   });
 });

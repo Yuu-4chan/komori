@@ -18,7 +18,7 @@ vi.mock("./discordApi", async (original) => ({
   saveDiscordPreferences: vi.fn(),
 }));
 
-const parts = ["Book title", "Book progress", "Chapter progress", "Reading speed", "Komori pages"];
+const parts = ["Book title", "Book progress", "Chapter progress", "Reading speed"];
 
 describe("Discord settings", () => {
   beforeEach(() => {
@@ -49,7 +49,7 @@ describe("Discord settings", () => {
     await waitFor(() => expect(enabled).toBeEnabled());
     expect(enabled).toHaveAttribute("aria-pressed", "false");
     expect(enabled).toHaveAccessibleDescription(
-      "While Discord is open. After 5 minutes without reading, it shows Idle.",
+      "While a book is open. It clears after 5 minutes without reading.",
     );
     // The parts wait for the status to be on.
     for (const label of parts) expect(screen.getByRole("button", { name: label })).toBeDisabled();
@@ -63,7 +63,6 @@ describe("Discord settings", () => {
       ["showBookProgress", "Book progress"],
       ["showChapterProgress", "Chapter progress"],
       ["showReadingSpeed", "Reading speed"],
-      ["showBrowsing", "Komori pages"],
     ] as const) {
       const toggle = screen.getByRole("button", { name: label });
       await waitFor(() => expect(toggle).toBeEnabled());
@@ -74,9 +73,6 @@ describe("Discord settings", () => {
     }
     expect(screen.getByRole("button", { name: "Reading speed" })).toHaveAccessibleDescription(
       "Shown while reading statistics are on, after a minute of reading.",
-    );
-    expect(screen.getByRole("button", { name: "Komori pages" })).toHaveAccessibleDescription(
-      "Library, Dictionary, Statistics and Settings, outside the Reader. After 5 minutes without using them, it shows Idle.",
     );
 
     view.unmount();

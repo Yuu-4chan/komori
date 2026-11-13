@@ -1648,6 +1648,15 @@ pub(crate) fn remove_book_from_catalog(connection: &Connection, id: &str) -> Res
         .map_err(storage_error)
 }
 
+/// Removes books from the Library as the paired phone asks, returning those removed.
+pub(crate) fn remove_books_by_id(connection: &Connection, ids: Vec<String>) -> Vec<String> {
+    remove_books_with_progress(connection, ids, &mut BatchProgress::silent())
+        .into_iter()
+        .filter(|result| result.status == "removed")
+        .map(|result| result.id)
+        .collect()
+}
+
 #[cfg(test)]
 fn remove_books_from_catalog(connection: &Connection, ids: Vec<String>) -> Vec<RemoveResult> {
     remove_books_with_progress(connection, ids, &mut BatchProgress::silent())

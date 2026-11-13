@@ -1,16 +1,27 @@
-import { fireEvent, renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ReaderBookProgress } from "../reader/renderer";
 import type { ReadingSpeed } from "../statistics/readingSession";
-import { reportDiscordBrowsing, reportDiscordReading, type DiscordPage } from "./discordApi";
-import { discordRefreshMs, useDiscordBrowsing, useDiscordPresence } from "./useDiscordPresence";
+import { reportDiscordReading } from "./discordApi";
+import { discordRefreshMs, useDiscordPresence } from "./useDiscordPresence";
 
 vi.mock("./discordApi", async (original) => ({
   ...(await original<typeof import("./discordApi")>()),
   reportDiscordReading: vi.fn(),
-  reportDiscordBrowsing: vi.fn(),
 }));
+const windowVisibility = vi.hoisted(() => ({ listeners: new Set<(visible: boolean) => void>() }));
+vi.mock("../../app/windowLifecycle", () => ({
+  watchWindowVisibility: (changed: (visible: boolean) => void) => {
+    windowVisibility.listeners.add(changed);
+    changed(true);
+    return () => windowVisibility.listeners.delete(changed);
+  },
+}));
+const setWindowShown = (shown: boolean) =>
+  act(() => {
+    for (const changed of windowVisibility.listeners) changed(shown);
+  });
 
 const book = { id: "11111111-1111-4111-8111-111111111111", title: "吾輩は猫である" };
 const progress = (current: number): ReaderBookProgress => ({
@@ -83,47 +94,21 @@ describe("Discord status from the Reader", () => {
     view.unmount();
     expect(reportDiscordReading).toHaveBeenLastCalledWith(null);
   });
-});
 
-describe("Discord status from the other pages", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-  });
-  afterEach(() => vi.useRealTimers());
-
-  it("reports the open page, then each 15 s only after use, and no page once it closes", () => {
-    const view = renderHook(({ page }: { page: DiscordPage | null }) => useDiscordBrowsing(page), {
-      initialProps: { page: "library" as DiscordPage | null },
-    });
-    expect(reportDiscordBrowsing).toHaveBeenLastCalledWith({ page: "library", activity: 0 });
-    // Nothing used, nothing reported.
+  it("reports no book while the window is in the tray and the book again once it is shown", () => {
+    const view = renderHook(() => useDiscordPresence(book, progress(9_099), () => null));
+    expect(reportDiscordReading).toHaveBeenLastCalledWith(
+      expect.objectContaining({ book: book.id, position: 9_099 }),
+    );
+    setWindowShown(false);
+    expect(reportDiscordReading).toHaveBeenLastCalledWith(null);
+    const hidden = vi.mocked(reportDiscordReading).mock.calls.length;
     vi.advanceTimersByTime(discordRefreshMs * 2);
-    expect(reportDiscordBrowsing).toHaveBeenCalledTimes(1);
-    // Presses, keys and wheel turns are use, reported together at the next refresh.
-    fireEvent.pointerDown(document.body);
-    fireEvent.keyDown(document.body, { key: "a" });
-    fireEvent.wheel(document.body);
-    expect(reportDiscordBrowsing).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(discordRefreshMs);
-    expect(reportDiscordBrowsing).toHaveBeenLastCalledWith({ page: "library", activity: 3 });
-    vi.advanceTimersByTime(discordRefreshMs);
-    expect(reportDiscordBrowsing).toHaveBeenCalledTimes(2);
-
-    // Another page reports at once, keeping the count.
-    view.rerender({ page: "dictionary" });
-    expect(reportDiscordBrowsing).toHaveBeenNthCalledWith(3, null);
-    expect(reportDiscordBrowsing).toHaveBeenLastCalledWith({ page: "dictionary", activity: 3 });
-    view.rerender({ page: null });
-    expect(reportDiscordBrowsing).toHaveBeenLastCalledWith(null);
-    const closed = vi.mocked(reportDiscordBrowsing).mock.calls.length;
-    fireEvent.pointerDown(document.body);
-    vi.advanceTimersByTime(discordRefreshMs * 2);
-    expect(reportDiscordBrowsing).toHaveBeenCalledTimes(closed);
-
-    view.rerender({ page: "settings" });
-    expect(reportDiscordBrowsing).toHaveBeenLastCalledWith({ page: "settings", activity: 4 });
+    expect(reportDiscordReading).toHaveBeenCalledTimes(hidden);
+    setWindowShown(true);
+    expect(reportDiscordReading).toHaveBeenLastCalledWith(
+      expect.objectContaining({ book: book.id, position: 9_099 }),
+    );
     view.unmount();
-    expect(reportDiscordBrowsing).toHaveBeenLastCalledWith(null);
   });
 });
