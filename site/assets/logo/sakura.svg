@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1354" height="950" viewBox="0 0 1354 950" role="img" aria-labelledby="title description">
   <title id="title">Komori logo</title>
-  <desc id="description">An open book with rounded cat ears, a flowing tail, a floating petal and a sakura blossom, in the colors of the website.</desc>
+  <desc id="description">An open book with rounded cat ears, a flowing tail, a floating petal and a sakura blossom.</desc>
   <defs>
     <clipPath id="left-ear-clip" clipPathUnits="userSpaceOnUse">
       <path d="
@@ -18,42 +18,42 @@
         C 407,112 319,46 228,19 Z"/>
     </clipPath>
     <linearGradient id="coral-page" gradientUnits="userSpaceOnUse" x1="40" y1="230" x2="540" y2="880">
-      <stop offset="0" stop-color="#f37d8f"/>
-      <stop offset="0.52" stop-color="#f37d8f"/>
-      <stop offset="1" stop-color="#f37d8f"/>
+      <stop offset="0" stop-color="#e7787f"/>
+      <stop offset="0.52" stop-color="#e7787f"/>
+      <stop offset="1" stop-color="#e7787f"/>
     </linearGradient>
     <linearGradient id="coral-cover" gradientUnits="userSpaceOnUse" x1="40" y1="750" x2="555" y2="935">
-      <stop offset="0" stop-color="#f37d8f"/>
-      <stop offset="1" stop-color="#f37d8f"/>
+      <stop offset="0" stop-color="#e7787f"/>
+      <stop offset="1" stop-color="#e7787f"/>
     </linearGradient>
     <linearGradient id="rose-ear" gradientUnits="userSpaceOnUse" x1="225" y1="30" x2="560" y2="420">
-      <stop offset="0" stop-color="#cf576d"/>
-      <stop offset="1" stop-color="#cf576d"/>
+      <stop offset="0" stop-color="#c3525c"/>
+      <stop offset="1" stop-color="#c3525c"/>
     </linearGradient>
     <linearGradient id="peach-ear" gradientUnits="userSpaceOnUse" x1="590" y1="415" x2="970" y2="35">
-      <stop offset="0" stop-color="#fba8b2"/>
-      <stop offset="1" stop-color="#fba8b2"/>
+      <stop offset="0" stop-color="#f3a5a7"/>
+      <stop offset="1" stop-color="#f3a5a7"/>
     </linearGradient>
     <linearGradient id="cream-page" gradientUnits="userSpaceOnUse" x1="610" y1="260" x2="1110" y2="795">
-      <stop offset="0" stop-color="#ffeced"/>
-      <stop offset="1" stop-color="#ffeced"/>
+      <stop offset="0" stop-color="#feebeb"/>
+      <stop offset="1" stop-color="#feebeb"/>
     </linearGradient>
     <linearGradient id="cream-fold" gradientUnits="userSpaceOnUse" x1="525" y1="168" x2="578" y2="296">
-      <stop offset="0" stop-color="#ffeced"/>
-      <stop offset="1" stop-color="#ffeced"/>
+      <stop offset="0" stop-color="#feebeb"/>
+      <stop offset="1" stop-color="#feebeb"/>
     </linearGradient>
     <linearGradient id="mauve-tail" gradientUnits="userSpaceOnUse" x1="615" y1="915" x2="1305" y2="505">
-      <stop offset="0" stop-color="#c16387"/>
-      <stop offset="0.55" stop-color="#c16387"/>
-      <stop offset="1" stop-color="#c16387"/>
+      <stop offset="0" stop-color="#b9617d"/>
+      <stop offset="0.55" stop-color="#b9617d"/>
+      <stop offset="1" stop-color="#b9617d"/>
     </linearGradient>
     <linearGradient id="pink-petal" gradientUnits="userSpaceOnUse" x1="1170" y1="315" x2="1315" y2="150">
-      <stop offset="0" stop-color="#f896a3"/>
-      <stop offset="1" stop-color="#f896a3"/>
+      <stop offset="0" stop-color="#ee9296"/>
+      <stop offset="1" stop-color="#ee9296"/>
     </linearGradient>
     <linearGradient id="sakura-pink" gradientUnits="userSpaceOnUse" x1="780" y1="380" x2="960" y2="610">
-      <stop offset="0" stop-color="#ee657e"/>
-      <stop offset="1" stop-color="#ee657e"/>
+      <stop offset="0" stop-color="#e0606b"/>
+      <stop offset="1" stop-color="#e0606b"/>
     </linearGradient>
   </defs>
   <g id="komori-logo" shape-rendering="geometricPrecision">

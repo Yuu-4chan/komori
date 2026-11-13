@@ -69,9 +69,20 @@ function recolor(svg: string, id: string, colors: (index: number, count: number)
 const half = 940;
 const centre = { x: 620, y: 475 };
 
+/** A tile's colours: one or two for the tile, and the logo's light and deep ends. */
+export interface TilePalette {
+  tile: readonly string[];
+  light: string;
+  deep: string;
+}
+
 /** The icon as SVG, made from Komori's logo (`src/brand/komori.svg`). */
 export function appIconSvg(logo: string, id: AppIconId): string {
-  const icon = appIcons.find((candidate) => candidate.id === id) ?? appIcons[0];
+  return tileIconSvg(logo, appIcons.find((candidate) => candidate.id === id) ?? appIcons[0]);
+}
+
+/** The logo on a tile of any palette; the website draws one for each application theme. */
+export function tileIconSvg(logo: string, icon: TilePalette): string {
   const [first, last = first] = icon.tile;
   let svg = logo.replace(/^<\?xml[^>]*>\s*/u, "");
   for (const [gradient, shade] of Object.entries(shades))

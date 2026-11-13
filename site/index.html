@@ -129,7 +129,6 @@
           <a href="#android">Android</a>
           <a class="nav__keep" href="docs/">Docs</a>
           <a href="https://github.com/Yuu-4chan/komori">GitHub</a>
-          <a class="nav__cta" href="#download">Download</a>
         </nav>
       </div>
     </header>
@@ -137,31 +136,36 @@
     <main id="main">
       <section class="hero">
         <div class="wrap hero__head">
-          <img class="hero__icon" src="assets/icon.svg" alt="" width="88" height="88" />
+          <span class="hero__icon" role="img" aria-label="Komori app icon"></span>
           <h1>Komori</h1>
           <p class="hero__summary">
             An EPUB reader for Windows and Android with dictionary lookup popups, reading statistics
             and Anki cards.
           </p>
-          <a
-            class="button button--primary"
-            data-download="windows"
-            data-hero-download
-            href="https://github.com/Yuu-4chan/komori/releases/latest"
-          >
-            <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
-            <span data-hero-label>Download for Windows</span>
-          </a>
-          <p class="hero__meta">
+          <div class="actions">
             <a
-              data-download="android"
-              data-hero-other
+              class="button button--primary"
+              data-download="windows"
               href="https://github.com/Yuu-4chan/komori/releases/latest"
-              >Also for Android</a
             >
-            ·
-            <span data-release-line hidden>Version <span data-release-version></span> ·</span>
-            Free and open source
+              <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
+              Download for Windows
+            </a>
+            <a
+              class="button"
+              data-download="android"
+              href="https://github.com/Yuu-4chan/komori/releases/latest"
+            >
+              <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg>
+              Download for Android
+            </a>
+          </div>
+          <p class="hero__meta">
+            <span data-release-line hidden>
+              Version <span data-release-version></span>, <span data-release-date></span> ·
+            </span>
+            Free and open source · <a href="docs/#install">Installation guide</a> ·
+            <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a>
           </p>
         </div>
         <div class="wrap stage">
@@ -617,69 +621,6 @@
               <li><img src="assets/icons/white.png" alt="" width="44" height="44" /></li>
             </ul>
           </div>
-        </div>
-      </section>
-
-      <section class="section" id="download">
-        <div class="wrap">
-          <div class="group">
-            <h2>Download</h2>
-            <p data-release-line hidden>
-              Version <span data-release-version></span>, <span data-release-date></span>
-            </p>
-          </div>
-          <div class="downloads">
-            <div class="download" data-platform="windows">
-              <span class="tile">
-                <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
-              </span>
-              <div class="download__name">
-                <h3>Windows</h3>
-                <p>
-                  64-bit Windows 10 and 11 ·
-                  <span data-release-meta="windows">Installer (.exe)</span>
-                </p>
-              </div>
-              <a
-                class="button"
-                data-download="windows"
-                href="https://github.com/Yuu-4chan/komori/releases/latest"
-                >Download</a
-              >
-              <p class="download__note">
-                The installer is not code-signed. If SmartScreen warns about an unknown publisher,
-                choose <strong>More info</strong>, then <strong>Run anyway</strong>.
-              </p>
-            </div>
-            <div class="download" data-platform="android">
-              <span class="tile">
-                <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg>
-              </span>
-              <div class="download__name">
-                <h3>Android</h3>
-                <p>
-                  64-bit Android 10 and later ·
-                  <span data-release-meta="android">Package (.apk)</span>
-                </p>
-              </div>
-              <a
-                class="button"
-                data-download="android"
-                href="https://github.com/Yuu-4chan/komori/releases/latest"
-                >Download</a
-              >
-              <p class="download__note">
-                Open the APK on the phone and allow your browser or file manager to install apps
-                when Android asks.
-              </p>
-            </div>
-          </div>
-          <p class="notes">
-            Komori checks for a new version when it starts and asks before installing it. Updating
-            keeps your data. <a href="docs/#install">Installation guide</a> ·
-            <a href="https://github.com/Yuu-4chan/komori/blob/main/CHANGELOG.md">Changelog</a> ·
-            <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a>
-          </p>
         </div>
       </section>
     </main>

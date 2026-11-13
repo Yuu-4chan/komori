@@ -6,13 +6,9 @@ const RELEASE_CACHE = "komori-latest-release";
 const RELEASE_CACHE_MS = 10 * 60 * 1000;
 
 const ASSETS = {
-  windows: { suffix: "_x64-setup.exe", kind: "Installer (.exe)" },
-  android: { suffix: "_android-arm64.apk", kind: "Package (.apk)" },
+  windows: "_x64-setup.exe",
+  android: "_android-arm64.apk",
 };
-
-function megabytes(bytes) {
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
 
 function readCachedRelease() {
   try {
@@ -48,7 +44,7 @@ async function latestRelease() {
 
 function showRelease(release) {
   if (!release.version) return;
-  for (const [platform, { suffix, kind }] of Object.entries(ASSETS)) {
+  for (const [platform, suffix] of Object.entries(ASSETS)) {
     const asset = release.assets.find((candidate) => candidate.name.endsWith(suffix));
     // Only GitHub's own download URLs replace the fallback link.
     if (!asset || !asset.url.startsWith("https://github.com/Yuu-4chan/komori/releases/download/")) {
@@ -56,9 +52,6 @@ function showRelease(release) {
     }
     for (const link of document.querySelectorAll(`a[data-download="${platform}"]`)) {
       link.href = asset.url;
-    }
-    for (const meta of document.querySelectorAll(`[data-release-meta="${platform}"]`)) {
-      meta.textContent = `${kind}, ${megabytes(asset.size)}`;
     }
   }
   for (const version of document.querySelectorAll("[data-release-version]")) {
@@ -76,25 +69,16 @@ function showRelease(release) {
   }
 }
 
-// The hero offers one download: the phone build on Android, Windows elsewhere, and links the other.
+// Put the visitor's own platform first: the phone build on Android, Windows elsewhere.
 function preferPlatform() {
-  const android = /Android/i.test(navigator.userAgent);
-  const preferred = android ? "android" : "windows";
-  if (android) {
-    const button = document.querySelector("[data-hero-download]");
-    const other = document.querySelector("[data-hero-other]");
-    if (button && other) {
-      button.dataset.download = "android";
-      button.querySelector("use")?.setAttribute("href", "#i-phone");
-      const label = button.querySelector("[data-hero-label]");
-      if (label) label.textContent = "Download for Android";
-      other.dataset.download = "windows";
-      other.textContent = "Also for Windows";
-    }
-  }
-  for (const card of document.querySelectorAll(".download[data-platform]")) {
-    card.classList.toggle("is-preferred", card.dataset.platform === preferred);
-  }
+  if (!/Android/i.test(navigator.userAgent)) return;
+  const actions = document.querySelector(".hero .actions");
+  const windows = actions?.querySelector('a[data-download="windows"]');
+  const android = actions?.querySelector('a[data-download="android"]');
+  if (!windows || !android) return;
+  windows.classList.remove("button--primary");
+  android.classList.add("button--primary");
+  actions.prepend(android);
 }
 
 // Screenshot thumbnails open large in a dialog; the arrow keys move between them.

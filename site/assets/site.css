@@ -292,7 +292,7 @@ kbd {
   text-decoration: none;
 }
 
-/* The logo is src/brand/komori.svg with each theme's logo color baked in (assets/logo). */
+/* The logo in the page's theme accent (assets/logo, drawn by scripts/site-brand.mjs). */
 .brand-mark {
   width: 44px;
   aspect-ratio: 1354 / 950;
@@ -397,20 +397,18 @@ kbd {
   background: color-mix(in srgb, var(--accent) 8%, var(--surface-raised));
 }
 
-.button--primary,
-.download.is-preferred .button {
+.button--primary {
   border-color: transparent;
   background: var(--button);
   color: var(--button-text);
 }
 
-.button--primary:hover,
-.download.is-preferred .button:hover {
+.button--primary:hover {
   border-color: transparent;
   background: var(--button-hover);
 }
 
-/* Hero: the icon, the name and its summary, one download button, then the Library. */
+/* Hero: the icon, the name and its summary, the downloads, then the Library. */
 
 .hero {
   padding: 40px 0 0;
@@ -422,11 +420,59 @@ kbd {
   justify-items: center;
 }
 
+/* The app icon in the page's theme (assets/icon, drawn by scripts/site-brand.mjs). */
 .hero__icon {
   width: 88px;
   height: 88px;
   border-radius: 20px;
+  background: url("icon/hojicha.svg") center / 100% no-repeat;
   box-shadow: var(--shadow-md);
+}
+
+@media (prefers-color-scheme: dark) {
+  .hero__icon {
+    background-image: url("icon/ember.svg");
+  }
+}
+
+[data-theme="light"] .hero__icon {
+  background-image: url("icon/light.svg");
+}
+
+[data-theme="dark"] .hero__icon {
+  background-image: url("icon/dark.svg");
+}
+
+[data-theme="sakura"] .hero__icon {
+  background-image: url("icon/sakura.svg");
+}
+
+[data-theme="matcha"] .hero__icon {
+  background-image: url("icon/matcha.svg");
+}
+
+[data-theme="hojicha"] .hero__icon {
+  background-image: url("icon/hojicha.svg");
+}
+
+[data-theme="midnight"] .hero__icon {
+  background-image: url("icon/midnight.svg");
+}
+
+[data-theme="ember"] .hero__icon {
+  background-image: url("icon/ember.svg");
+}
+
+[data-theme="forest"] .hero__icon {
+  background-image: url("icon/forest.svg");
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 26px;
 }
 
 .hero h1 {
@@ -446,7 +492,6 @@ kbd {
 
 .hero .button {
   min-height: 50px;
-  margin-top: 26px;
   padding-inline: 24px;
   border-radius: 14px;
   font-size: 1rem;
@@ -895,58 +940,6 @@ kbd {
   border-radius: 11px;
 }
 
-/* Download: one panel for each platform. */
-
-.downloads {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-}
-
-.download {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 14px;
-  align-items: center;
-  padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface);
-}
-
-.download h3 {
-  font-size: 1.05rem;
-  font-weight: 650;
-}
-
-.download__name p {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.download__name span {
-  white-space: nowrap;
-}
-
-.download__note {
-  grid-column: 1 / -1;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.download__note strong {
-  color: var(--secondary);
-  font-weight: 620;
-}
-
-.notes {
-  margin-top: 18px;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
 /* Footer */
 
 .footer {
@@ -1256,6 +1249,14 @@ kbd {
     font-size: 1.02rem;
   }
 
+  .actions {
+    width: 100%;
+  }
+
+  .actions .button {
+    flex: 1 1 100%;
+  }
+
   .window {
     border-radius: 8px;
   }
@@ -1313,10 +1314,6 @@ kbd {
 
   .themes {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .downloads {
-    grid-template-columns: 1fr;
   }
 }
 
