@@ -32,18 +32,86 @@
       crossorigin
     />
     <link rel="stylesheet" href="assets/site.css" />
+    <script src="assets/theme.js"></script>
     <script src="assets/site.js" defer></script>
   </head>
   <body>
     <svg class="sprite" aria-hidden="true">
+      <symbol id="i-library" viewBox="0 0 24 24">
+        <path d="m16 6 4 14" />
+        <path d="M12 6v14" />
+        <path d="M8 8v12" />
+        <path d="M4 4v16" />
+      </symbol>
+      <symbol id="i-book" viewBox="0 0 24 24">
+        <path d="M12 7v14" />
+        <path
+          d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"
+        />
+      </symbol>
+      <symbol id="i-languages" viewBox="0 0 24 24">
+        <path d="m5 8 6 6" />
+        <path d="m4 14 6-6 2-3" />
+        <path d="M2 5h12" />
+        <path d="M7 2h1" />
+        <path d="m22 22-5-10-5 10" />
+        <path d="M14 18h6" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+      </symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24">
+        <path d="M3 3v18h18" />
+        <path d="M18 17V9" />
+        <path d="M13 17V5" />
+        <path d="M8 17v-3" />
+      </symbol>
+      <symbol id="i-cards" viewBox="0 0 24 24">
+        <path
+          d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"
+        />
+        <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+        <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
+      </symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24">
+        <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+        <path d="M12 18h.01" />
+      </symbol>
+      <symbol id="i-sync" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+        <path d="M8 16H3v5" />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24">
+        <path
+          d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+        />
+      </symbol>
       <symbol id="i-monitor" viewBox="0 0 24 24">
         <rect width="20" height="14" x="2" y="3" rx="2" />
         <path d="M8 21h8" />
         <path d="M12 17v4" />
       </symbol>
-      <symbol id="i-phone" viewBox="0 0 24 24">
-        <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
-        <path d="M12 18h.01" />
+      <symbol id="i-sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2" />
+        <path d="M12 20v2" />
+        <path d="m4.93 4.93 1.41 1.41" />
+        <path d="m17.66 17.66 1.41 1.41" />
+        <path d="M2 12h2" />
+        <path d="M20 12h2" />
+        <path d="m6.34 17.66-1.41 1.41" />
+        <path d="m19.07 4.93-1.41 1.41" />
+      </symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24">
+        <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+      </symbol>
+      <symbol id="i-archive" viewBox="0 0 24 24">
+        <rect width="20" height="5" x="2" y="3" rx="1" />
+        <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+        <path d="M10 12h4" />
       </symbol>
     </svg>
 
@@ -52,15 +120,12 @@
     <header class="topbar">
       <div class="wrap topbar__inner">
         <a class="brand" href="./" aria-label="Komori, home">
-          <picture>
-            <source srcset="assets/komori-dark.svg" media="(prefers-color-scheme: dark)" />
-            <img src="assets/komori.svg" alt="" width="40" height="28" />
-          </picture>
+          <span class="brand-mark"></span>
           <span>Komori</span>
         </a>
         <nav class="nav" aria-label="Site">
-          <a href="#screenshots">Screenshots</a>
           <a href="#features">Features</a>
+          <a href="#themes">Themes</a>
           <a class="nav__keep" href="docs/">Documentation</a>
           <a href="https://github.com/Yuu-4chan/komori">GitHub</a>
           <a class="nav__cta" href="#download">Download</a>
@@ -108,52 +173,41 @@
           </div>
         </div>
 
-        <div class="stage">
-          <div class="window">
-            <picture>
-              <source
-                srcset="assets/img/windows-library-dark.webp"
-                media="(prefers-color-scheme: dark)"
-              />
-              <img
-                src="assets/img/windows-library.webp"
-                alt="Komori on Windows: the Library with book covers, reading progress and a Continue reading row."
-                width="1920"
-                height="1200"
-                fetchpriority="high"
-              />
-            </picture>
-          </div>
-          <div class="phone">
-            <img
-              src="assets/img/android-library.webp"
-              alt="Komori on Android: the Library listing the PC's books by series."
-              width="720"
-              height="1600"
-            />
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="screenshots">
         <div class="wrap tour" data-tour>
-          <div class="group">
-            <h2>Windows</h2>
-            <div class="tour__tabs" role="tablist" aria-label="Windows screenshots" hidden></div>
-          </div>
+          <div class="tour__tabs" role="tablist" aria-label="Screenshots" hidden></div>
           <div class="tour__panels">
             <figure class="tour__panel" data-tab="Library">
-              <div class="window">
-                <img
-                  src="assets/img/windows-library.webp"
-                  alt="The Library: a Continue reading row of six books with progress bars, then a series row."
-                  width="1920"
-                  height="1200"
-                  loading="lazy"
-                />
+              <div class="stage">
+                <div class="window">
+                  <img
+                    class="when-light"
+                    src="assets/img/windows-library.webp"
+                    alt="Komori on Windows: the Library with a Continue reading row of six books with progress bars, then a series row."
+                    width="1920"
+                    height="1200"
+                    fetchpriority="high"
+                  />
+                  <img
+                    class="when-dark"
+                    src="assets/img/windows-library-dark.webp"
+                    alt="Komori on Windows: the Library in a dark theme."
+                    width="1920"
+                    height="1200"
+                    loading="lazy"
+                  />
+                </div>
+                <div class="phone">
+                  <img
+                    src="assets/img/android-library.webp"
+                    alt="Komori on Android: the Library listing the PC's books by series."
+                    width="720"
+                    height="1600"
+                  />
+                </div>
               </div>
               <figcaption>
-                The Library, grouped by series, with progress and character counts on each card.
+                The Library on Windows and on Android: books grouped by series, with progress on
+                each cover.
               </figcaption>
             </figure>
             <figure class="tour__panel" data-tab="Reader">
@@ -241,74 +295,6 @@
             </figure>
           </div>
         </div>
-
-        <div class="wrap" id="android">
-          <div class="group">
-            <h2>Android</h2>
-          </div>
-          <ul class="phones">
-            <li>
-              <div class="phone">
-                <img
-                  src="assets/img/android-library.webp"
-                  alt="The phone Library with a Continue reading card and the PC's books grouped by series."
-                  width="720"
-                  height="1600"
-                  loading="lazy"
-                />
-              </div>
-              <p>Library</p>
-            </li>
-            <li>
-              <div class="phone">
-                <img
-                  src="assets/img/android-reader.webp"
-                  alt="The phone Reader showing Japanese text in a dark theme."
-                  width="720"
-                  height="1560"
-                  loading="lazy"
-                />
-              </div>
-              <p>Reader</p>
-            </li>
-            <li>
-              <div class="phone">
-                <img
-                  src="assets/img/android-lookup.webp"
-                  alt="The lookup popup on the phone showing the reading and definitions of a tapped word."
-                  width="720"
-                  height="1560"
-                  loading="lazy"
-                />
-              </div>
-              <p>Lookup</p>
-            </li>
-            <li>
-              <div class="phone">
-                <img
-                  src="assets/img/android-contents.webp"
-                  alt="The Contents sheet on the phone with Images, Bookmarks, Notes, the chapters and a position slider."
-                  width="720"
-                  height="1560"
-                  loading="lazy"
-                />
-              </div>
-              <p>Contents</p>
-            </li>
-            <li>
-              <div class="phone">
-                <img
-                  src="assets/img/android-statistics.webp"
-                  alt="The Statistics page on the phone with reading time, sessions and a calendar."
-                  width="720"
-                  height="1560"
-                  loading="lazy"
-                />
-              </div>
-              <p>Statistics</p>
-            </li>
-          </ul>
-        </div>
       </section>
 
       <section class="section" id="features">
@@ -317,107 +303,309 @@
             <h2>Features</h2>
             <p><a href="docs/">Documentation</a></p>
           </div>
-          <dl class="rows">
-            <div>
-              <dt>Library</dt>
-              <dd>
-                Covers, progress, search, filters and sorting. Groups by series, language or author;
-                series and volumes are read from the books and their file names. Books are added by
-                folder or by drag and drop.
-              </dd>
+          <ul class="features">
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-library" /></svg>
+              </span>
+              <div>
+                <h3>Library</h3>
+                <p>
+                  Covers, progress, search, filters and sorting. Groups by series, language or
+                  author; series and volumes are read from the books and their file names.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-book" /></svg>
+              </span>
+              <div>
+                <h3>Reader</h3>
+                <p>
+                  Continuous, semi-continuous, paginated and VN modes, in horizontal or vertical
+                  writing. Bookmarks, notes, highlights, find in book and an image gallery.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-search" /></svg>
+              </span>
+              <div>
+                <h3>Lookup</h3>
+                <p>
+                  A popup beside the word with readings, pitch accent, frequency, definitions and
+                  word audio. Words inside the popup can be looked up too.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-languages" /></svg>
+              </span>
+              <div>
+                <h3>Dictionaries</h3>
+                <p>
+                  Ten lookup languages. Free starter dictionaries to download, or your own ZIP
+                  archives in the format used by popular pop-up dictionary extensions.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-cards" /></svg>
+              </span>
+              <div>
+                <h3>Anki</h3>
+                <p>
+                  The popup’s + button adds a card with the reading, definitions, frequency, word
+                  audio and the book’s cover. AnkiConnect on Windows, AnkiDroid on Android.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-chart" /></svg>
+              </span>
+              <div>
+                <h3>Statistics</h3>
+                <p>
+                  Characters or words read, time and speed. An activity calendar, a library overview
+                  and a character explorer.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-sync" /></svg>
+              </span>
+              <div>
+                <h3>Phone and PC</h3>
+                <p>
+                  Paired with a code over your own network. The phone opens the PC’s books and
+                  copies its dictionaries; positions, bookmarks, notes and statistics sync both
+                  ways. <a href="docs/#sync">How to pair</a>
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-sun" /></svg>
+              </span>
+              <div>
+                <h3>Appearance</h3>
+                <p>
+                  Fonts, spacing and margins in the Reader, with fifteen themes and your own. Eight
+                  application themes and a custom one, and sixteen app icons.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
+              </span>
+              <div>
+                <h3>Windows</h3>
+                <p>
+                  Launch at startup, start in or minimize to the tray, reopen the last book. An
+                  interface in eleven languages.
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-chat" /></svg>
+              </span>
+              <div>
+                <h3>Discord</h3>
+                <p>An optional status that shows the book while you read.</p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-archive" /></svg>
+              </span>
+              <div>
+                <h3>Backups</h3>
+                <p>Automatic snapshots, with export and import for moving to another computer.</p>
+              </div>
+            </li>
+            <li>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-shield" /></svg>
+              </span>
+              <div>
+                <h3>Privacy</h3>
+                <p>
+                  No account, telemetry or analytics. EPUBs and dictionary archives are read where
+                  they are and never changed. <a href="docs/#privacy">Privacy notes</a>
+                </p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section" id="android">
+        <div class="wrap">
+          <div class="group">
+            <h2>Android</h2>
+            <p>Phones, tablets and e-readers with 64-bit Android 10 or later</p>
+          </div>
+          <div class="android">
+            <ul class="phones">
+              <li>
+                <div class="phone">
+                  <img
+                    src="assets/img/android-reader.webp"
+                    alt="The phone Reader showing Japanese text in a dark theme."
+                    width="720"
+                    height="1560"
+                    loading="lazy"
+                  />
+                </div>
+                <p>Reader</p>
+              </li>
+              <li>
+                <div class="phone">
+                  <img
+                    src="assets/img/android-lookup.webp"
+                    alt="The lookup popup on the phone showing the reading and definitions of a tapped word."
+                    width="720"
+                    height="1560"
+                    loading="lazy"
+                  />
+                </div>
+                <p>Lookup</p>
+              </li>
+              <li>
+                <div class="phone">
+                  <img
+                    src="assets/img/android-contents.webp"
+                    alt="The Contents sheet on the phone with Images, Bookmarks, Notes, the chapters and a position slider."
+                    width="720"
+                    height="1560"
+                    loading="lazy"
+                  />
+                </div>
+                <p>Contents</p>
+              </li>
+              <li>
+                <div class="phone">
+                  <img
+                    src="assets/img/android-statistics.webp"
+                    alt="The Statistics page on the phone with reading time, sessions and a calendar."
+                    width="720"
+                    height="1560"
+                    loading="lazy"
+                  />
+                </div>
+                <p>Statistics</p>
+              </li>
+            </ul>
+            <div class="gestures">
+              <h3>Gestures</h3>
+              <dl>
+                <div>
+                  <dt>Tap a word</dt>
+                  <dd>Looks it up</dd>
+                </div>
+                <div>
+                  <dt>Tap the sides</dt>
+                  <dd>Turns the page</dd>
+                </div>
+                <div>
+                  <dt>Swipe</dt>
+                  <dd>Turns the page or scrolls</dd>
+                </div>
+                <div>
+                  <dt>Tap the middle</dt>
+                  <dd>Shows the Reader’s controls</dd>
+                </div>
+                <div>
+                  <dt>Long press text</dt>
+                  <dd>Note, highlight, copy or search</dd>
+                </div>
+                <div>
+                  <dt>Volume keys</dt>
+                  <dd>Turn the page</dd>
+                </div>
+              </dl>
+              <p><a href="docs/#android">Komori on Android</a></p>
             </div>
-            <div>
-              <dt>Reader</dt>
-              <dd>
-                Continuous, semi-continuous, paginated and VN modes, in horizontal or vertical
-                writing. Fonts, spacing and margins, fifteen themes and your own. Bookmarks, notes,
-                highlights, find in book and an image gallery.
-              </dd>
-            </div>
-            <div>
-              <dt>Lookup</dt>
-              <dd>
-                A popup beside the word with readings, pitch accent, frequency, definitions and word
-                audio. Words inside the popup can be looked up too. Japanese, English, Spanish,
-                French, Portuguese, Italian, German, Russian, Korean and Chinese.
-              </dd>
-            </div>
-            <div>
-              <dt>Dictionaries</dt>
-              <dd>
-                Free starter dictionaries to download, or your own ZIP archives in the format used
-                by popular pop-up dictionary extensions. The Dictionary page searches by word,
-                reading or kanji.
-              </dd>
-            </div>
-            <div>
-              <dt>Anki</dt>
-              <dd>
-                The popup’s + button adds a card with the reading, definitions, frequency, word
-                audio and the book’s cover. AnkiConnect on Windows, AnkiDroid on Android. The Lapis
-                note type is bundled.
-              </dd>
-            </div>
-            <div>
-              <dt>Statistics</dt>
-              <dd>
-                Characters or words read, time and speed. An activity calendar, a library overview
-                and a character explorer.
-              </dd>
-            </div>
-            <div>
-              <dt>Phone and PC</dt>
-              <dd>
-                Paired with a code over your own network, without an account. The phone opens the
-                PC’s books and copies its dictionaries; positions, bookmarks, notes and statistics
-                sync both ways. <a href="docs/#sync">How to pair</a>
-              </dd>
-            </div>
-            <div>
-              <dt>Appearance</dt>
-              <dd>
-                Eight application themes and a custom one, an interface in eleven languages, and
-                sixteen app icons.
-                <ul class="appicons" aria-label="The sixteen app icons">
-                  <li><img src="assets/icons/beige.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/sunrise.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/peach.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/butter.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/mint.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/forest.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/teal.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/sky.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/ocean.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/navy.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/lavender.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/plum.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/twilight.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/midnight.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/charcoal.png" alt="" width="32" height="32" /></li>
-                  <li><img src="assets/icons/white.png" alt="" width="32" height="32" /></li>
-                </ul>
-              </dd>
-            </div>
-            <div>
-              <dt>Windows</dt>
-              <dd>
-                Launch at startup, start in or minimize to the tray, reopen the last book. An
-                optional Discord status shows the book while you read.
-              </dd>
-            </div>
-            <div>
-              <dt>Backups</dt>
-              <dd>Automatic snapshots, with export and import for moving to another computer.</dd>
-            </div>
-            <div>
-              <dt>Privacy</dt>
-              <dd>
-                No account, telemetry or analytics. EPUBs and dictionary archives are read where
-                they are and never changed. The network is used for update checks, word audio and
-                the downloads you choose. <a href="docs/#privacy">Privacy notes</a>
-              </dd>
-            </div>
-          </dl>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="themes">
+        <div class="wrap">
+          <div class="group">
+            <h2>Themes</h2>
+            <p>The application’s themes. Choose one to see this page in it.</p>
+          </div>
+          <div class="themes" data-themes>
+            <button class="theme" type="button" data-theme-option="">
+              <span class="chip chip--pair">
+                <span class="chip" data-theme="hojicha"><i></i><i></i></span>
+                <span class="chip" data-theme="ember"><i></i><i></i></span>
+              </span>
+              <span>Automatic</span>
+            </button>
+            <button class="theme" type="button" data-theme-option="light">
+              <span class="chip" data-theme="light"><i></i><i></i></span>
+              <span>Light</span>
+            </button>
+            <button class="theme" type="button" data-theme-option="dark">
+              <span class="chip" data-theme="dark"><i></i><i></i></span>
+              <span>Dark</span>
+            </button>
+            <button class="theme" type="button" data-theme-option="sakura">
+              <span class="chip" data-theme="sakura"><i></i><i></i></span>
+              <span>Sakura</span>
+            </button>
+            <button class="theme" type="button" data-theme-option="matcha">
+              <span class="chip" data-theme="matcha"><i></i><i></i></span>
+              <span>Matcha</span>
+            </button>
+            <button class="theme" type="button" data-theme-option="hojicha">
+              <span class="chip" data-theme="hojicha"><i></i><i></i></span>
+              <span>Hojicha</span>
+            </button>
+            <button class="theme" type="button" data-theme-option="midnight">
+              <span class="chip" data-theme="midnight"><i></i><i></i></span>
+              <span>Midnight</span>
+            </button>
+            <button class="theme" type="button" data-theme-option="ember">
+              <span class="chip" data-theme="ember"><i></i><i></i></span>
+              <span>Ember</span>
+            </button>
+            <button class="theme" type="button" data-theme-option="forest">
+              <span class="chip" data-theme="forest"><i></i><i></i></span>
+              <span>Forest</span>
+            </button>
+          </div>
+          <div class="appicons">
+            <p>App icons</p>
+            <ul>
+              <li><img src="assets/icons/beige.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/sunrise.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/peach.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/butter.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/mint.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/forest.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/teal.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/sky.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/ocean.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/navy.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/lavender.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/plum.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/twilight.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/midnight.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/charcoal.png" alt="" width="44" height="44" /></li>
+              <li><img src="assets/icons/white.png" alt="" width="44" height="44" /></li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -429,58 +617,58 @@
               Version <span data-release-version></span>, <span data-release-date></span>
             </p>
           </div>
-          <div class="rows">
+          <div class="downloads">
             <div class="download" data-platform="windows">
-              <div>
-                <strong>Windows</strong>
-                <span>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
+              </span>
+              <div class="download__name">
+                <h3>Windows</h3>
+                <p>
                   64-bit Windows 10 and 11 ·
                   <span data-release-meta="windows">Installer (.exe)</span>
-                </span>
+                </p>
               </div>
               <a
                 class="button"
                 data-download="windows"
                 href="https://github.com/Yuu-4chan/komori/releases/latest"
+                >Download</a
               >
-                <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
-                Download
-              </a>
+              <p class="download__note">
+                The installer is not code-signed. If SmartScreen warns about an unknown publisher,
+                choose <strong>More info</strong>, then <strong>Run anyway</strong>.
+              </p>
             </div>
             <div class="download" data-platform="android">
-              <div>
-                <strong>Android</strong>
-                <span>
+              <span class="tile">
+                <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg>
+              </span>
+              <div class="download__name">
+                <h3>Android</h3>
+                <p>
                   64-bit Android 10 and later ·
                   <span data-release-meta="android">Package (.apk)</span>
-                </span>
+                </p>
               </div>
               <a
                 class="button"
                 data-download="android"
                 href="https://github.com/Yuu-4chan/komori/releases/latest"
+                >Download</a
               >
-                <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg>
-                Download
-              </a>
+              <p class="download__note">
+                Open the APK on the phone and allow your browser or file manager to install apps
+                when Android asks.
+              </p>
             </div>
           </div>
-          <ul class="notes">
-            <li>
-              The Windows installer is not code-signed. If SmartScreen warns about an unknown
-              publisher, choose <strong>More info</strong>, then <strong>Run anyway</strong>.
-            </li>
-            <li>On Android, allow your browser or file manager to install apps when it asks.</li>
-            <li>
-              Komori checks for a new version when it starts and asks before installing it. Updating
-              keeps your data.
-            </li>
-            <li>
-              <a href="docs/#install">Installation guide</a> ·
-              <a href="https://github.com/Yuu-4chan/komori/blob/main/CHANGELOG.md">Changelog</a> ·
-              <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a>
-            </li>
-          </ul>
+          <p class="notes">
+            Komori checks for a new version when it starts and asks before installing it. Updating
+            keeps your data. <a href="docs/#install">Installation guide</a> ·
+            <a href="https://github.com/Yuu-4chan/komori/blob/main/CHANGELOG.md">Changelog</a> ·
+            <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a>
+          </p>
         </div>
       </section>
     </main>

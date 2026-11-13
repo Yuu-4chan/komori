@@ -1,4 +1,4 @@
-// Komori website: latest-release download links, the screenshot tabs and the docs outline.
+// Komori website: latest-release download links, the screenshot tabs, the theme picker and the docs outline.
 // Everything here is an enhancement; without it the page links to the releases page.
 
 const RELEASE_API = "https://api.github.com/repos/Yuu-4chan/komori/releases/latest";
@@ -122,7 +122,9 @@ function setUpTour(tour) {
       panels[at].hidden = !selected;
     });
     // Load the image as its panel opens instead of waiting for it to scroll into view.
-    panels[index].querySelector("img")?.setAttribute("loading", "eager");
+    for (const image of panels[index].querySelectorAll("img:not(.when-dark)")) {
+      image.setAttribute("loading", "eager");
+    }
     if (focus) tabs[index].focus();
   }
 
@@ -142,6 +144,32 @@ function setUpTour(tour) {
 
   tabList.hidden = false;
   select(0);
+}
+
+// The Themes section: choosing one puts the page in that theme and remembers it.
+function setUpThemes(picker) {
+  const options = [...picker.querySelectorAll("[data-theme-option]")];
+  const show = () => {
+    const current = document.documentElement.dataset.theme ?? "";
+    for (const option of options) {
+      option.setAttribute("aria-pressed", String(option.dataset.themeOption === current));
+    }
+  };
+  for (const option of options) {
+    option.addEventListener("click", () => {
+      const theme = option.dataset.themeOption;
+      if (theme) document.documentElement.dataset.theme = theme;
+      else delete document.documentElement.dataset.theme;
+      try {
+        if (theme) localStorage.setItem("komori-site-theme", theme);
+        else localStorage.removeItem("komori-site-theme");
+      } catch {
+        // Storage can be unavailable (private windows); the choice lasts for this visit.
+      }
+      show();
+    });
+  }
+  show();
 }
 
 // Marks the documentation section being read in the outline.
@@ -185,6 +213,7 @@ function setUpOutline(outline) {
 
 preferPlatform();
 for (const tour of document.querySelectorAll("[data-tour]")) setUpTour(tour);
+for (const picker of document.querySelectorAll("[data-themes]")) setUpThemes(picker);
 for (const outline of document.querySelectorAll("[data-outline]")) setUpOutline(outline);
 if (document.querySelector("[data-download]")) {
   latestRelease()

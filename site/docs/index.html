@@ -24,6 +24,7 @@
       crossorigin
     />
     <link rel="stylesheet" href="../assets/site.css" />
+    <script src="../assets/theme.js"></script>
     <script src="../assets/site.js" defer></script>
   </head>
   <body>
@@ -32,15 +33,12 @@
     <header class="topbar">
       <div class="wrap topbar__inner">
         <a class="brand" href="../" aria-label="Komori, home">
-          <picture>
-            <source srcset="../assets/komori-dark.svg" media="(prefers-color-scheme: dark)" />
-            <img src="../assets/komori.svg" alt="" width="40" height="28" />
-          </picture>
+          <span class="brand-mark"></span>
           <span>Komori</span>
         </a>
         <nav class="nav" aria-label="Site">
-          <a href="../#screenshots">Screenshots</a>
           <a href="../#features">Features</a>
+          <a href="../#themes">Themes</a>
           <a class="nav__keep" href="./" aria-current="page">Documentation</a>
           <a href="https://github.com/Yuu-4chan/komori">GitHub</a>
           <a class="nav__cta" href="../#download">Download</a>
