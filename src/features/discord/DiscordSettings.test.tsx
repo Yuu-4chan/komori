@@ -49,7 +49,7 @@ describe("Discord settings", () => {
     await waitFor(() => expect(enabled).toBeEnabled());
     expect(enabled).toHaveAttribute("aria-pressed", "false");
     expect(enabled).toHaveAccessibleDescription(
-      "While a book is open. It clears after 5 minutes without reading.",
+      "While a book is open. It clears after 20 minutes without reading.",
     );
     // The parts wait for the status to be on.
     for (const label of parts) expect(screen.getByRole("button", { name: label })).toBeDisabled();

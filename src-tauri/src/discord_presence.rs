@@ -1,7 +1,7 @@
 //! Discord Rich Presence. While it is on and a book is open in the shown window, Komori tells
 //! the Discord app on this computer what the Reader shows, through Discord's local IPC pipe: the
 //! book's title, its progress, the chapter's progress and the reading speed, each as the reader
-//! chooses. Anywhere else, in the tray, or after five minutes without reading, Komori closes the
+//! chooses. Anywhere else, in the tray, or after 20 minutes without reading, Komori closes the
 //! pipe and Discord shows nothing of it. Native code owns the choices, the pipe and the idle
 //! timer; the Reader reports only display text and its position. Nothing goes over the network
 //! from Komori: the Discord app shares the status.
@@ -29,7 +29,8 @@ const WEBSITE: &str = "https://github.com/Yuu-4chan/komori";
 const ICON: &str =
     "https://raw.githubusercontent.com/Yuu-4chan/komori/main/src-tauri/icons/128x128@2x.png";
 /// No reading for this long clears the status.
-const IDLE_AFTER: Duration = Duration::from_secs(5 * 60);
+/// Long enough for a break while reading, so the status does not come and go.
+const IDLE_AFTER: Duration = Duration::from_secs(20 * 60);
 /// Discord accepts five activity updates in 20 s; a change sooner waits for the next slot.
 const UPDATE_EVERY: Duration = Duration::from_secs(15);
 /// While Discord is closed, how often Komori looks for it again.
@@ -477,7 +478,7 @@ fn unix_now() -> u64 {
 /// Keeps Discord's status until the application ends: connects while the choice is on and a
 /// book is being read (again every 30 s while Discord is closed), sends each changed status at
 /// most every 15 s, and closes the connection, clearing the status, when the choice is turned
-/// off or the book closes or goes unread for five minutes.
+/// off or the book closes or goes unread for 20 minutes.
 fn run<S: Read + Write>(
     mut preferences: Preferences,
     messages: Receiver<Message>,
@@ -702,7 +703,7 @@ mod tests {
     }
 
     #[test]
-    fn shows_the_chosen_parts_and_nothing_after_five_minutes_without_reading() {
+    fn shows_the_chosen_parts_and_nothing_after_twenty_minutes_without_reading() {
         let start = Instant::now();
         let mut presence = Presence::default();
         let everything = Preferences {
@@ -762,20 +763,20 @@ mod tests {
             Some(1_000)
         );
         // Reading again after idling starts a new stretch.
-        let back = start + Duration::from_secs(9 * 60);
-        presence.report(Some(reading(11)), back, 1_540);
+        let back = start + Duration::from_secs(25 * 60);
+        presence.report(Some(reading(11)), back, 2_500);
         assert_eq!(
             presence.activity(&everything, "en", back).unwrap().start,
-            Some(1_540)
+            Some(2_500)
         );
         // Reading before idling keeps the stretch.
-        presence.report(Some(reading(12)), back + Duration::from_secs(60), 1_600);
+        presence.report(Some(reading(12)), back + Duration::from_secs(60), 2_560);
         assert_eq!(
             presence
                 .activity(&everything, "en", back + Duration::from_secs(60))
                 .unwrap()
                 .start,
-            Some(1_540)
+            Some(2_500)
         );
         // Another book starts its own stretch, and closing the book shows nothing.
         let other = Reading {
@@ -783,13 +784,13 @@ mod tests {
             title: "猫".into(),
             ..reading(12)
         };
-        presence.report(Some(other), back + Duration::from_secs(61), 1_601);
+        presence.report(Some(other), back + Duration::from_secs(61), 2_561);
         let shown = presence
             .activity(&everything, "en", back + Duration::from_secs(61))
             .unwrap();
         assert_eq!(shown.details, "“猫”");
-        assert_eq!(shown.start, Some(1_601));
-        presence.report(None, back + Duration::from_secs(62), 1_602);
+        assert_eq!(shown.start, Some(2_561));
+        presence.report(None, back + Duration::from_secs(62), 2_562);
         assert_eq!(
             presence.activity(&everything, "en", back + Duration::from_secs(62)),
             None

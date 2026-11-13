@@ -134,7 +134,7 @@ export const en = {
   "discord.readError": "Komori could not read your Discord choices. Try again in the desktop app.",
   "discord.saveError": "Komori could not save this choice. Try again.",
   "discord.enabled": "Show reading status in Discord",
-  "discord.enabledHint": "While a book is open. It clears after 5 minutes without reading.",
+  "discord.enabledHint": "While a book is open. It clears after 20 minutes without reading.",
   "discord.showBookTitle": "Book title",
   "discord.showBookProgress": "Book progress",
   "discord.showChapterProgress": "Chapter progress",

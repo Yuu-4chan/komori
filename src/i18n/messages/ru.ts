@@ -125,7 +125,7 @@ export const ru: MessageCatalog = {
     "Komori не удалось прочитать настройки Discord. Повторите попытку в настольном приложении.",
   "discord.saveError": "Komori не удалось сохранить этот выбор. Повторите попытку.",
   "discord.enabled": "Показывать статус чтения в Discord",
-  "discord.enabledHint": "Пока открыта книга. Исчезает после 5 минут без чтения.",
+  "discord.enabledHint": "Пока открыта книга. Исчезает после 20 минут без чтения.",
   "discord.showBookTitle": "Название книги",
   "discord.showBookProgress": "Прогресс книги",
   "discord.showChapterProgress": "Прогресс главы",

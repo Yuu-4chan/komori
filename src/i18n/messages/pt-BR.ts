@@ -125,7 +125,7 @@ export const ptBR: MessageCatalog = {
     "O Komori não conseguiu ler suas opções do Discord. Tente novamente no app para desktop.",
   "discord.saveError": "O Komori não conseguiu salvar esta opção. Tente novamente.",
   "discord.enabled": "Mostrar status de leitura no Discord",
-  "discord.enabledHint": "Enquanto um livro estiver aberto. Some após 5 minutos sem leitura.",
+  "discord.enabledHint": "Enquanto um livro estiver aberto. Some após 20 minutos sem leitura.",
   "discord.showBookTitle": "Título do livro",
   "discord.showBookProgress": "Progresso do livro",
   "discord.showChapterProgress": "Progresso do capítulo",

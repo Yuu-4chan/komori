@@ -122,7 +122,7 @@ export const zhTW: MessageCatalog = {
   "discord.readError": "Komori無法讀取你的Discord設定。請在桌面應用中重試。",
   "discord.saveError": "Komori無法儲存此設定。請重試。",
   "discord.enabled": "在Discord中顯示閱讀狀態",
-  "discord.enabledHint": "開啟書時顯示。5分鐘未閱讀後消失。",
+  "discord.enabledHint": "開啟書時顯示。20分鐘未閱讀後消失。",
   "discord.showBookTitle": "書名",
   "discord.showBookProgress": "全書進度",
   "discord.showChapterProgress": "章節進度",

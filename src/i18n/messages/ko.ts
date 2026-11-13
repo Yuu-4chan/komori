@@ -122,7 +122,7 @@ export const ko: MessageCatalog = {
   "discord.readError": "Komori가 Discord 설정을 읽지 못했습니다. 데스크톱 앱에서 다시 시도하세요.",
   "discord.saveError": "Komori가 이 설정을 저장하지 못했습니다. 다시 시도하세요.",
   "discord.enabled": "Discord에 독서 상태 표시",
-  "discord.enabledHint": "책을 열어 둔 동안 표시됩니다. 5분 동안 읽지 않으면 사라집니다.",
+  "discord.enabledHint": "책을 열어 둔 동안 표시됩니다. 20분 동안 읽지 않으면 사라집니다.",
   "discord.showBookTitle": "책 제목",
   "discord.showBookProgress": "책 진행률",
   "discord.showChapterProgress": "장 진행률",

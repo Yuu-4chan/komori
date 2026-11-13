@@ -125,7 +125,7 @@ export const ja: MessageCatalog = {
     "Discordの設定を読み込めませんでした。デスクトップアプリで再試行してください。",
   "discord.saveError": "この設定を保存できませんでした。もう一度お試しください。",
   "discord.enabled": "Discordに読書ステータスを表示",
-  "discord.enabledHint": "本を開いている間に表示されます。5分間読み進めないと消えます。",
+  "discord.enabledHint": "本を開いている間に表示されます。20分間読み進めないと消えます。",
   "discord.showBookTitle": "書名",
   "discord.showBookProgress": "本の進み具合",
   "discord.showChapterProgress": "章の進み具合",

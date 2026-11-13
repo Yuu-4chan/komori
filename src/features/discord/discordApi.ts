@@ -19,7 +19,7 @@ export const defaultDiscordPreferences: DiscordPreferences = {
 /**
  * What the Reader shows of the open book, in the interface language. Native code shows each
  * text only while its choice is on, and clears the status once `position` has not changed for
- * 5 minutes.
+ * 20 minutes.
  */
 export interface DiscordReading {
   book: string;
