@@ -1,4 +1,4 @@
-// Komori website: latest-release download links, the screenshot tabs, the theme picker and the docs outline.
+// Komori website: latest-release download links, the screenshot viewer, the theme picker and the docs outline.
 // Everything here is an enhancement; without it the page links to the releases page.
 
 const RELEASE_API = "https://api.github.com/repos/Yuu-4chan/komori/releases/latest";
@@ -76,74 +76,67 @@ function showRelease(release) {
   }
 }
 
-// Put the visitor's own platform first: the phone build on Android, Windows elsewhere.
+// The hero offers one download: the phone build on Android, Windows elsewhere, and links the other.
 function preferPlatform() {
   const android = /Android/i.test(navigator.userAgent);
   const preferred = android ? "android" : "windows";
-  for (const link of document.querySelectorAll(".hero a[data-download]")) {
-    link.classList.toggle("button--primary", link.dataset.download === preferred);
-  }
   if (android) {
-    const actions = document.querySelector(".hero .actions");
-    const phone = actions?.querySelector('a[data-download="android"]');
-    if (actions && phone) actions.prepend(phone);
+    const button = document.querySelector("[data-hero-download]");
+    const other = document.querySelector("[data-hero-other]");
+    if (button && other) {
+      button.dataset.download = "android";
+      button.querySelector("use")?.setAttribute("href", "#i-phone");
+      const label = button.querySelector("[data-hero-label]");
+      if (label) label.textContent = "Download for Android";
+      other.dataset.download = "windows";
+      other.textContent = "Also for Windows";
+    }
   }
   for (const card of document.querySelectorAll(".download[data-platform]")) {
     card.classList.toggle("is-preferred", card.dataset.platform === preferred);
   }
 }
 
-// Turns the stacked screenshots into tabs, one panel shown at a time.
-function setUpTour(tour) {
-  const tabList = tour.querySelector(".tour__tabs");
-  const panels = [...tour.querySelectorAll(".tour__panel")];
-  if (!tabList || panels.length < 2) return;
+// Screenshot thumbnails open large in a dialog; the arrow keys move between them.
+function setUpGallery(gallery) {
+  const viewer = document.querySelector("[data-viewer]");
+  const links = [...gallery.querySelectorAll("a[href]")];
+  if (!viewer || typeof viewer.showModal !== "function" || links.length === 0) return;
+  const image = viewer.querySelector("img");
+  const caption = viewer.querySelector("[data-viewer-caption]");
+  let current = 0;
 
-  const tabs = panels.map((panel, index) => {
-    const tab = document.createElement("button");
-    tab.type = "button";
-    tab.className = "tour__tab";
-    tab.id = `tour-tab-${index}`;
-    tab.textContent = panel.dataset.tab ?? `Screenshot ${index + 1}`;
-    tab.setAttribute("role", "tab");
-    panel.id = `tour-panel-${index}`;
-    panel.setAttribute("role", "tabpanel");
-    panel.setAttribute("aria-labelledby", tab.id);
-    tab.setAttribute("aria-controls", panel.id);
-    tabList.append(tab);
-    return tab;
-  });
-
-  function select(index, focus = false) {
-    tabs.forEach((tab, at) => {
-      const selected = at === index;
-      tab.setAttribute("aria-selected", String(selected));
-      tab.tabIndex = selected ? 0 : -1;
-      panels[at].hidden = !selected;
-    });
-    // Load the image as its panel opens instead of waiting for it to scroll into view.
-    for (const image of panels[index].querySelectorAll("img:not(.when-dark)")) {
-      image.setAttribute("loading", "eager");
-    }
-    if (focus) tabs[index].focus();
+  function show(index) {
+    current = (index + links.length) % links.length;
+    const link = links[current];
+    image.src = link.href;
+    image.alt = link.querySelector("img")?.alt ?? "";
+    caption.textContent = link.querySelector("h3")?.textContent ?? "";
   }
 
-  tabs.forEach((tab, index) => {
-    tab.addEventListener("click", () => select(index));
-    tab.addEventListener("keydown", (event) => {
-      const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
-      if (step) {
-        event.preventDefault();
-        select((index + step + tabs.length) % tabs.length, true);
-      } else if (event.key === "Home" || event.key === "End") {
-        event.preventDefault();
-        select(event.key === "Home" ? 0 : tabs.length - 1, true);
-      }
+  links.forEach((link, index) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      show(index);
+      viewer.showModal();
     });
   });
-
-  tabList.hidden = false;
-  select(0);
+  viewer
+    .querySelector("[data-viewer-previous]")
+    ?.addEventListener("click", () => show(current - 1));
+  viewer.querySelector("[data-viewer-next]")?.addEventListener("click", () => show(current + 1));
+  viewer.querySelector("[data-viewer-close]")?.addEventListener("click", () => viewer.close());
+  viewer.addEventListener("keydown", (event) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+    if (step) {
+      event.preventDefault();
+      show(current + step);
+    }
+  });
+  // A click on the dimmed backdrop, outside the picture and its buttons, closes it.
+  viewer.addEventListener("click", (event) => {
+    if (event.target === viewer) viewer.close();
+  });
 }
 
 // The Themes section: choosing one puts the page in that theme and remembers it.
@@ -212,7 +205,7 @@ function setUpOutline(outline) {
 }
 
 preferPlatform();
-for (const tour of document.querySelectorAll("[data-tour]")) setUpTour(tour);
+for (const gallery of document.querySelectorAll("[data-gallery]")) setUpGallery(gallery);
 for (const picker of document.querySelectorAll("[data-themes]")) setUpThemes(picker);
 for (const outline of document.querySelectorAll("[data-outline]")) setUpOutline(outline);
 if (document.querySelector("[data-download]")) {

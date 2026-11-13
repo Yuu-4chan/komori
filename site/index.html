@@ -125,8 +125,9 @@
         </a>
         <nav class="nav" aria-label="Site">
           <a href="#features">Features</a>
-          <a href="#themes">Themes</a>
-          <a class="nav__keep" href="docs/">Documentation</a>
+          <a href="#windows">Windows</a>
+          <a href="#android">Android</a>
+          <a class="nav__keep" href="docs/">Docs</a>
           <a href="https://github.com/Yuu-4chan/komori">GitHub</a>
           <a class="nav__cta" href="#download">Download</a>
         </nav>
@@ -136,163 +137,59 @@
     <main id="main">
       <section class="hero">
         <div class="wrap hero__head">
-          <img class="hero__icon" src="assets/icon.svg" alt="" width="84" height="84" />
-          <div class="hero__title">
-            <h1>Komori</h1>
-            <p>
-              An EPUB reader for Windows and Android with dictionary lookup popups, reading
-              statistics and Anki cards.
-            </p>
-          </div>
-          <div class="hero__get">
-            <div class="actions">
-              <a
-                class="button button--primary"
-                data-download="windows"
-                href="https://github.com/Yuu-4chan/komori/releases/latest"
-              >
-                <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
-                Download for Windows
-              </a>
-              <a
-                class="button"
-                data-download="android"
-                href="https://github.com/Yuu-4chan/komori/releases/latest"
-              >
-                <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg>
-                Download for Android
-              </a>
-            </div>
-            <p class="hero__meta">
-              <span data-release-line hidden>
-                Version <span data-release-version></span>, <span data-release-date></span> ·
-              </span>
-              Free and open source ·
-              <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a>
-            </p>
-          </div>
+          <img class="hero__icon" src="assets/icon.svg" alt="" width="88" height="88" />
+          <h1>Komori</h1>
+          <p class="hero__summary">
+            An EPUB reader for Windows and Android with dictionary lookup popups, reading statistics
+            and Anki cards.
+          </p>
+          <a
+            class="button button--primary"
+            data-download="windows"
+            data-hero-download
+            href="https://github.com/Yuu-4chan/komori/releases/latest"
+          >
+            <svg class="icon" aria-hidden="true"><use href="#i-monitor" /></svg>
+            <span data-hero-label>Download for Windows</span>
+          </a>
+          <p class="hero__meta">
+            <a
+              data-download="android"
+              data-hero-other
+              href="https://github.com/Yuu-4chan/komori/releases/latest"
+              >Also for Android</a
+            >
+            ·
+            <span data-release-line hidden>Version <span data-release-version></span> ·</span>
+            Free and open source
+          </p>
         </div>
-
-        <div class="wrap tour" data-tour>
-          <div class="tour__tabs" role="tablist" aria-label="Screenshots" hidden></div>
-          <div class="tour__panels">
-            <figure class="tour__panel" data-tab="Library">
-              <div class="stage">
-                <div class="window">
-                  <img
-                    class="when-light"
-                    src="assets/img/windows-library.webp"
-                    alt="Komori on Windows: the Library with a Continue reading row of six books with progress bars, then a series row."
-                    width="1920"
-                    height="1200"
-                    fetchpriority="high"
-                  />
-                  <img
-                    class="when-dark"
-                    src="assets/img/windows-library-dark.webp"
-                    alt="Komori on Windows: the Library in a dark theme."
-                    width="1920"
-                    height="1200"
-                    loading="lazy"
-                  />
-                </div>
-                <div class="phone">
-                  <img
-                    src="assets/img/android-library.webp"
-                    alt="Komori on Android: the Library listing the PC's books by series."
-                    width="720"
-                    height="1600"
-                  />
-                </div>
-              </div>
-              <figcaption>
-                The Library on Windows and on Android: books grouped by series, with progress on
-                each cover.
-              </figcaption>
-            </figure>
-            <figure class="tour__panel" data-tab="Reader">
-              <div class="window">
-                <img
-                  src="assets/img/windows-reader.webp"
-                  alt="The Reader showing a Japanese novel in vertical writing, with the clock above and the position below."
-                  width="1920"
-                  height="1200"
-                  loading="lazy"
-                />
-              </div>
-              <figcaption>A novel in vertical writing, paginated two pages at a time.</figcaption>
-            </figure>
-            <figure class="tour__panel" data-tab="Lookup">
-              <div class="window">
-                <img
-                  src="assets/img/windows-lookup.webp"
-                  alt="The lookup popup beside a highlighted word, with its reading, frequency, pitch accent and definitions from three dictionaries."
-                  width="1920"
-                  height="1200"
-                  loading="lazy"
-                />
-              </div>
-              <figcaption>
-                The lookup popup, opened by holding Shift over a word: reading, frequency, pitch
-                accent and definitions.
-              </figcaption>
-            </figure>
-            <figure class="tour__panel" data-tab="Sidebar">
-              <div class="window">
-                <img
-                  src="assets/img/windows-reader-sidebar.webp"
-                  alt="The Reader sidebar with the book's cover, Images, Bookmarks, Notes and Search tiles, and the chapter list."
-                  width="1920"
-                  height="1200"
-                  loading="lazy"
-                />
-              </div>
-              <figcaption>
-                The Reader’s sidebar: chapters, images, bookmarks, notes and search.
-              </figcaption>
-            </figure>
-            <figure class="tour__panel" data-tab="Dictionary">
-              <div class="window">
-                <img
-                  src="assets/img/windows-dictionary.webp"
-                  alt="The Dictionary page with results for a Japanese word from three dictionaries."
-                  width="1920"
-                  height="1200"
-                  loading="lazy"
-                />
-              </div>
-              <figcaption>
-                The Dictionary page, with the dictionaries that matched listed on the left.
-              </figcaption>
-            </figure>
-            <figure class="tour__panel" data-tab="Statistics">
-              <div class="window">
-                <img
-                  src="assets/img/windows-statistics.webp"
-                  alt="The Statistics page with reading time, sessions, characters read and speed, and a calendar of daily activity."
-                  width="1920"
-                  height="1200"
-                  loading="lazy"
-                />
-              </div>
-              <figcaption>
-                Statistics: reading time, characters, speed and a calendar of each day.
-              </figcaption>
-            </figure>
-            <figure class="tour__panel" data-tab="Settings">
-              <div class="window">
-                <img
-                  src="assets/img/windows-settings.webp"
-                  alt="Settings showing the application language, sixteen app icons and the application themes."
-                  width="1920"
-                  height="1200"
-                  loading="lazy"
-                />
-              </div>
-              <figcaption>
-                Settings &gt; General: language, app icon and application themes.
-              </figcaption>
-            </figure>
+        <div class="wrap stage">
+          <div class="window">
+            <img
+              class="when-light"
+              src="assets/img/windows-library.webp"
+              alt="Komori on Windows: the Library with a Continue reading row of six books with progress bars, then a series row."
+              width="1920"
+              height="1200"
+              fetchpriority="high"
+            />
+            <img
+              class="when-dark"
+              src="assets/img/windows-library-dark.webp"
+              alt="Komori on Windows: the Library in a dark theme."
+              width="1920"
+              height="1200"
+              loading="lazy"
+            />
+          </div>
+          <div class="phone">
+            <img
+              src="assets/img/android-library.webp"
+              alt="Komori on Android: the Library listing the PC's books by series."
+              width="720"
+              height="1600"
+            />
           </div>
         </div>
       </section>
@@ -444,6 +341,120 @@
               </div>
             </li>
           </ul>
+        </div>
+      </section>
+
+      <section class="section" id="windows">
+        <div class="wrap">
+          <div class="group">
+            <h2>Windows</h2>
+            <p>64-bit Windows 10 and 11</p>
+          </div>
+          <ul class="shots" data-gallery>
+            <li>
+              <a href="assets/img/windows-reader.webp">
+                <span class="window">
+                  <img
+                    src="assets/img/windows-reader.webp"
+                    alt="The Reader showing a Japanese novel in vertical writing, with the clock above and the position below."
+                    width="1920"
+                    height="1200"
+                    loading="lazy"
+                  />
+                </span>
+                <h3>Reader</h3>
+              </a>
+              <p>A novel in vertical writing, two pages at a time.</p>
+            </li>
+            <li>
+              <a href="assets/img/windows-lookup.webp">
+                <span class="window">
+                  <img
+                    src="assets/img/windows-lookup.webp"
+                    alt="The lookup popup beside a highlighted word, with its reading, frequency, pitch accent and definitions from three dictionaries."
+                    width="1920"
+                    height="1200"
+                    loading="lazy"
+                  />
+                </span>
+                <h3>Lookup</h3>
+              </a>
+              <p>Hold Shift over a word for its reading and definitions.</p>
+            </li>
+            <li>
+              <a href="assets/img/windows-reader-sidebar.webp">
+                <span class="window">
+                  <img
+                    src="assets/img/windows-reader-sidebar.webp"
+                    alt="The Reader sidebar with the book's cover, Images, Bookmarks, Notes and Search tiles, and the chapter list."
+                    width="1920"
+                    height="1200"
+                    loading="lazy"
+                  />
+                </span>
+                <h3>Sidebar</h3>
+              </a>
+              <p>Chapters, images, bookmarks, notes and search.</p>
+            </li>
+            <li>
+              <a href="assets/img/windows-dictionary.webp">
+                <span class="window">
+                  <img
+                    src="assets/img/windows-dictionary.webp"
+                    alt="The Dictionary page with results for a Japanese word from three dictionaries."
+                    width="1920"
+                    height="1200"
+                    loading="lazy"
+                  />
+                </span>
+                <h3>Dictionary</h3>
+              </a>
+              <p>Search by word, reading or kanji.</p>
+            </li>
+            <li>
+              <a href="assets/img/windows-statistics.webp">
+                <span class="window">
+                  <img
+                    src="assets/img/windows-statistics.webp"
+                    alt="The Statistics page with reading time, sessions, characters read and speed, and a calendar of daily activity."
+                    width="1920"
+                    height="1200"
+                    loading="lazy"
+                  />
+                </span>
+                <h3>Statistics</h3>
+              </a>
+              <p>Time, characters, speed and a calendar of each day.</p>
+            </li>
+            <li>
+              <a href="assets/img/windows-settings.webp">
+                <span class="window">
+                  <img
+                    src="assets/img/windows-settings.webp"
+                    alt="Settings showing the application language, sixteen app icons and the application themes."
+                    width="1920"
+                    height="1200"
+                    loading="lazy"
+                  />
+                </span>
+                <h3>Settings</h3>
+              </a>
+              <p>Language, app icon and application themes.</p>
+            </li>
+          </ul>
+          <dialog class="viewer" data-viewer aria-label="Screenshot">
+            <img src="assets/img/windows-reader.webp" alt="" width="1920" height="1200" />
+            <div class="viewer__bar">
+              <strong data-viewer-caption></strong>
+              <div>
+                <button type="button" data-viewer-previous aria-label="Previous screenshot">
+                  ‹
+                </button>
+                <button type="button" data-viewer-next aria-label="Next screenshot">›</button>
+                <button type="button" data-viewer-close>Close</button>
+              </div>
+            </div>
+          </dialog>
         </div>
       </section>
 
