@@ -1292,7 +1292,13 @@ fn write_backup_within(path: &Path, backup: &Backup, limit: u64) -> Result<(), W
     let mut partial = path.as_os_str().to_owned();
     partial.push(".partial");
     let partial = PathBuf::from(partial);
-    let written = std::fs::write(&partial, text).and_then(|()| std::fs::rename(&partial, path));
+    // Flushed before it takes the name, so a power cut leaves the last backup or this one whole.
+    let written = std::fs::File::create(&partial)
+        .and_then(|mut file| {
+            std::io::Write::write_all(&mut file, &text)?;
+            file.sync_all()
+        })
+        .and_then(|()| std::fs::rename(&partial, path));
     if written.is_err() {
         let _ = std::fs::remove_file(&partial);
     }

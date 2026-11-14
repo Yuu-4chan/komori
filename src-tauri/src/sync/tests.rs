@@ -591,3 +591,130 @@ fn malformed_items_from_the_phone_are_left_out() {
     assert_eq!(sessions(&sides.pc), []);
     assert_eq!(bookmarks(&sides.pc, BOOK), []);
 }
+
+#[test]
+fn a_place_with_a_long_fraction_crosses_the_link_unchanged() {
+    let mut sides = sides();
+    // A progress whose shortest decimal form a lax JSON reader takes for the next number.
+    let pc_place = place(1, 0.985_690_694_632_869_5, 100);
+    read_to(&sides.pc, BOOK, &pc_place);
+    sync(&mut sides);
+    assert_eq!(reading(&sides.phone, BOOK), pc_place);
+    let further = place(2, 0.123_456_789_012_345_68, 200);
+    read_to(&sides.phone, BOOK, &further);
+    let answer = sync(&mut sides);
+    assert_eq!(answer.refused, [] as [&str; 0]);
+    assert_eq!(reading(&sides.pc, BOOK), further);
+}
+
+#[test]
+fn a_bookmark_a_full_book_cannot_take_stays_where_it_is() {
+    let mut sides = sides();
+    for number in 0..MAX_BOOKMARKS {
+        let id = format!("b0000000-0000-4000-8000-{number:012}");
+        add_bookmark(&sides.pc, BOOK, &id, 10 + number, "PC");
+    }
+    add_bookmark(&sides.phone, BOOK, ID_A, 5, "Phone");
+    // The PC's book is full, and the phone's has room for all but one of the PC's.
+    let answer = sync(&mut sides);
+    assert_eq!(answer.refused_items, [ID_A]);
+    let full = MAX_BOOKMARKS as usize;
+    for _ in 0..2 {
+        let phone = bookmarks(&sides.phone, BOOK);
+        assert_eq!(phone.len(), full);
+        assert!(phone.contains(&(ID_A.into(), "Phone".into())));
+        let pc = bookmarks(&sides.pc, BOOK);
+        assert_eq!(pc.len(), full);
+        assert!(pc.iter().all(|(_, label)| label == "PC"));
+        // Neither side takes the other's lack of one for a deletion.
+        sync(&mut sides);
+    }
+}
+
+#[test]
+fn a_sync_cut_off_after_the_push_does_not_copy_a_note_again() {
+    let mut sides = sides();
+    add_note(&sides.pc, BOOK, ID_A, "First");
+    sync(&mut sides);
+    for (side, body) in [(&sides.pc, "PC edit"), (&sides.phone, "Phone edit")] {
+        side.execute(
+            "UPDATE reader_notes SET body = ?2 WHERE id = ?1",
+            params![ID_A, body],
+        )
+        .unwrap();
+    }
+    // The PC stores what the phone pushed, and the phone stops before writing its side.
+    for _ in 0..2 {
+        let pulled = pull(&sides.pc, &own(), &[], &pull_request(&sides.phone)).unwrap();
+        let plan = plan(&sides.phone, PHONE_DEVICE, &pulled).unwrap();
+        push(&mut sides.pc, PC_DEVICE, &phone_device(), &plan.push).unwrap();
+    }
+    sync(&mut sides);
+    let pc = note_bodies(&sides.pc, BOOK);
+    assert_eq!(pc, note_bodies(&sides.phone, BOOK));
+    assert_eq!(pc.len(), 2, "{pc:?}");
+    assert!(pc.contains(&(ID_A.into(), "PC edit".into())));
+    assert!(pc
+        .iter()
+        .any(|(id, body)| id != ID_A && body == "Phone edit"));
+}
+
+#[test]
+fn a_note_edited_on_the_phone_during_a_sync_keeps_its_text() {
+    let mut sides = sides();
+    add_note(&sides.pc, BOOK, ID_A, "First");
+    add_note(&sides.pc, BOOK, ID_B, "Second");
+    sync(&mut sides);
+    let edit = |side: &Connection, id: &str, body: &str| {
+        side.execute(
+            "UPDATE reader_notes SET body = ?2 WHERE id = ?1",
+            params![id, body],
+        )
+        .unwrap();
+    };
+    edit(&sides.pc, ID_A, "PC edit");
+    sides
+        .pc
+        .execute("DELETE FROM reader_notes WHERE id = ?1", [ID_B])
+        .unwrap();
+    // The phone would take the PC's edit and its deletion, but both notes change here first.
+    sync_with(&mut sides, |sides| {
+        edit(&sides.phone, ID_A, "Phone edit");
+        edit(&sides.phone, ID_B, "Kept");
+    });
+    assert_eq!(
+        note_bodies(&sides.phone, BOOK),
+        [
+            (ID_A.into(), "Phone edit".into()),
+            (ID_B.into(), "Kept".into())
+        ]
+    );
+    // The next sync merges them as changes: one edited on both sides, one outliving a deletion.
+    sync(&mut sides);
+    let pc = note_bodies(&sides.pc, BOOK);
+    assert_eq!(pc, note_bodies(&sides.phone, BOOK));
+    assert_eq!(pc.len(), 3, "{pc:?}");
+    assert!(pc.contains(&(ID_A.into(), "PC edit".into())));
+    assert!(pc.contains(&(ID_B.into(), "Kept".into())));
+    assert!(pc.iter().any(|(_, body)| body == "Phone edit"));
+}
+
+#[test]
+fn an_item_deleted_on_both_sides_is_forgotten() {
+    let mut sides = sides();
+    add_note(&sides.pc, BOOK, ID_A, "First");
+    assert!(reading_sessions::save_to(&sides.pc, BOOK, &session(ID_B, T)).unwrap());
+    sync(&mut sides);
+    for side in [&sides.pc, &sides.phone] {
+        side.execute("DELETE FROM reader_notes WHERE id = ?1", [ID_A])
+            .unwrap();
+        side.execute("DELETE FROM reading_sessions WHERE id = ?1", [ID_B])
+            .unwrap();
+    }
+    sync(&mut sides);
+    let recorded: i64 = sides
+        .phone
+        .query_row("SELECT count(*) FROM sync_items", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(recorded, 0);
+}
