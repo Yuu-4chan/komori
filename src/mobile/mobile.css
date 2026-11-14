@@ -100,15 +100,19 @@
   flex: 1;
 }
 
+/* A long title takes a second line before it is cut. */
 .mobile-header h1 {
   margin: 0;
   overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   color: var(--text-primary);
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .mobile-round-button {
@@ -814,6 +818,20 @@
   overflow-wrap: anywhere;
 }
 
+/* The folders' title keeps to one line; its buttons go under it when both do not fit. */
+.mobile-settings--library .settings-row:has(> .library-folders__actions) {
+  flex-wrap: wrap;
+}
+
+.mobile-settings--library .library-folders__actions {
+  flex: 0 1 auto;
+}
+
+.mobile-settings--library .settings-row:has(> .library-folders__actions) > div:first-child {
+  flex: 1 0 auto;
+  overflow-wrap: normal;
+}
+
 .mobile-settings .anki-lapis-offer {
   display: flex;
   flex-wrap: wrap;
@@ -1365,6 +1383,31 @@
   background: none;
   border: 0;
   border-radius: 0;
+}
+
+/* Its headings are the size of the other settings' card titles. */
+.mobile-sync .mobile-section-heading {
+  font-size: 0.9375rem;
+  font-weight: 720;
+}
+
+/* Its switch row is written and sized as the other settings' rows are. */
+.mobile-sync .toggle-setting__text strong {
+  font-size: var(--font-size-2);
+}
+
+.mobile-sync .toggle-setting__switch {
+  width: 36px;
+  height: 21px;
+}
+
+.mobile-sync .toggle-setting__switch > span {
+  width: 17px;
+  height: 17px;
+}
+
+.mobile-sync .toggle-setting--on .toggle-setting__switch > span {
+  transform: translateX(15px);
 }
 
 .mobile-sync__section {

@@ -56,6 +56,7 @@ const finished: LibraryBook = {
   title: "こころ",
   author: "夏目漱石",
   series: "漱石全集",
+  characters: 10_000,
   progress: { unit: "characters", current: 10_000, total: 10_000 },
 } as LibraryBook;
 const gone: LibraryBook = {
@@ -381,7 +382,8 @@ describe("the phone Library's view", () => {
     expect(screen.queryByRole("toolbar")).toBeNull();
     expect(screen.queryByRole("region", { name: "Continue reading" })).toBeNull();
     expect(titles(await allBooks())).toEqual(["こころ"]);
-    expect((await allBooks()).textContent).toContain("1 book");
+    // A group's page gives what was read of its characters beside its books.
+    expect((await allBooks()).textContent).toContain("1 book · 10K / 10K Ch.");
     // Its view has no grouping, as on the PC.
     await userEvent.click(screen.getByRole("button", { name: "Library view" }));
     const viewSheet = screen.getByRole("dialog", { name: "Library view" });

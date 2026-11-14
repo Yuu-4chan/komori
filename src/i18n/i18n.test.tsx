@@ -140,10 +140,11 @@ describe("interface language catalogs", () => {
     expect(translatorFor("es").compact(1_234, 1)).toBe("1,2K");
     expect(translatorFor("ru").compact(12_345_678, 1)).toBe("12,3 млн");
     expect(translatorFor("pt-BR").compact(1_234_567_890, 1)).toBe("1,2B");
-    // Brazilian durations join each unit to its number.
-    expect(translatorFor("pt-BR").t("duration.hoursMinutes", { hours: 8, minutes: 20 })).toBe(
-      "8h20m",
-    );
+    // Western durations take one letter a unit, joined to its number.
+    for (const language of ["pt-BR", "de", "es", "fr", "it"] as const)
+      expect(translatorFor(language).t("duration.hoursMinutes", { hours: 8, minutes: 20 })).toBe(
+        "8h 20m",
+      );
     expect(translatorFor("pt-BR").compact(12_345, 1)).toBe("12,3K");
     expect(translatorFor("pt-BR").compact(23_000, 0)).toBe("23K");
     expect(translatorFor("pt-BR").compact(219_000_000, 0)).toBe("219M");
@@ -160,7 +161,7 @@ describe("interface language catalogs", () => {
         expect(value, `${language} ${key}`).not.toMatch(new RegExp(`${cjk} | ${cjk}`, "u"));
       }
       const books = translator.tp("librarySummary.books", 1);
-      const characters = translator.t("librarySummary.characters", {
+      const characters = translator.t("amount.characters", {
         count: translator.compact(94_000, 1),
       });
       expect(books).toBe({ ja: "1冊", "zh-CN": "1本书", "zh-TW": "1本書" }[language]);

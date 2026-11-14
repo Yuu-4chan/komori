@@ -27,6 +27,7 @@ import {
   type LanguageShare,
 } from "./statistics";
 import type { LibraryKanji } from "./statisticsApi";
+import { amount } from "../../i18n/amounts";
 
 /** Whole numbers in the interface language. */
 export const numbers = { format: (value: number) => i18n().number(value) };
@@ -38,10 +39,7 @@ export const formatMonth = (date: Date) => i18n().date(date, { month: "long", ye
 export const formatCompact = (value: number) => i18n().compact(value, 2);
 
 function unitAmount(unit: BookActivity["unit"], units: number): string {
-  const { t, tp } = i18n();
-  return unit === "characters"
-    ? t("statisticsCards.characters", { count: units })
-    : tp("statisticsCards.words", units);
+  return amount(unit, units);
 }
 
 export function SectionHeading({
@@ -231,8 +229,8 @@ export function DailyDetail({
 }) {
   const { t, tp } = useI18n();
   const amounts = [
-    summary.characters > 0 ? t("librarySummary.characters", { count: summary.characters }) : null,
-    summary.words > 0 ? t("librarySummary.words", { count: summary.words }) : null,
+    summary.characters > 0 ? amount("characters", summary.characters) : null,
+    summary.words > 0 ? amount("words", summary.words) : null,
   ].filter(Boolean);
   return (
     <aside className="statistics-day-detail" aria-label={t("statisticsCards.dayDetails")}>

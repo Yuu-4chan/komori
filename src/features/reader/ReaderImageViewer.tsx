@@ -27,6 +27,9 @@ export interface ImageViewerSession {
   signal: AbortSignal;
 }
 
+/** How many times its own size a picture smaller than the screen is enlarged to fit it. */
+const MAX_FIT_ENLARGEMENT = 3;
+
 /**
  * The image viewer. Opened from a book's image it is modal over the whole window; opened
  * from the sidebar's images it is docked beside the sidebar, which stays open, so another
@@ -90,10 +93,13 @@ export function ReaderImageViewer({
     resources.releaseImage,
   );
   const rotated = rotation % 180 !== 0;
+  // A small picture, such as an inline symbol, is enlarged only so far: filling the screen
+  // with it would only show its blur.
   const scale = resource
     ? Math.min(
         area.width / (rotated ? resource.height : resource.width),
         area.height / (rotated ? resource.width : resource.height),
+        MAX_FIT_ENLARGEMENT,
       ) * zoom
     : 1;
   useEffect(() => {

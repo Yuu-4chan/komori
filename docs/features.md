@@ -24,7 +24,7 @@ and the page keeps still under an open sheet, which a swipe down closes. The Lib
 count of books, search, Add books (the system document picker, several EPUBs at once), the
 books to continue and the books as a grid of covers or a list with progress and the
 characters or words read, with the PC's status filter, grouping (series, language, author, each
-group a row that scrolls sideways under a heading opening the group's page), sort and direction
+group a row that scrolls sideways under a heading with its count of books, opening the group's page, which gives what was read of its characters or words beside its books: `23 books · 29.7K / 1.8M Ch.`), sort and direction
 in its view sheet; books stay where they are, and a moved or deleted one offers Relink and Remove.
 A long press selects a book or a group's books, then taps select more, with Done and Select all
 staying at the top as the page scrolls, and a bar of icons (each named for screen readers) offers Information for one book (its details, the series opening its page), Series…
@@ -52,9 +52,9 @@ idle limits), Sync and About.
 
 ## Library
 
-A Calibre-like Library of real covers and progress: Continue reading (books read past their start) under the toolbar;
+A Calibre-like Library of real covers and progress: Continue reading (books read past their start) as the first group under the toolbar, a row with See all and a page of its own like any group, its heading giving how much of its books is read, narrowed by search and filters;
 grid/list, search, status filters, Cards details, sort (Author sorts by name, then title) and direction, which order groups too; grouping by series,
-language or first author (`A & B`, `A／B` and `A、B` group under A) as carousels with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Automatic series in Settings > General, on
+language or first author (`A & B`, `A／B` and `A、B` group under A) as carousels whose headings give the group's books and its characters or words (`120K / 1.6M characters` once any of them is read, `1.6M characters` before; the Library spells the unit out, the phone's group pages keep `Ch.`), with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Automatic series in Settings > General, on
 by default, makes series in this order: what you set by hand, then numbered file names
 (`Harry Potter 1.epub`, `Harry Potter 2.epub`, ignoring a copy's `(1)`, notes such as `(2020)` or a checksum, and the store tags titles drop, such as `【電子版限定特典付き】`, spelled as the books' titles spell the same words, taking the number after `Vol`, `Volume` or `第` before a later year, as in `Baccano! - Vol 13 - 2002`, and leaving to the titles file names that only spell a Japanese title's katakana reading),
 then a book's own series, then numbered volumes sharing a title (`Title 01`, `Title 02`), full-width
@@ -123,7 +123,7 @@ back. The search stays in the top bar even in an empty Library.
   clock and session reading time in an upper pill; both center over the available
   reading area, including while the sidebar is pinned. Empty pills disappear.
 - **Images.** The book's illustrations as cards and a modal viewer with zoom, rotation,
-  reset, panning, pinch to zoom on a touch screen and Go to location; clicking an unblurred book image opens it.
+  reset, panning, pinch to zoom on a touch screen and Go to location, fitting the picture to the window but enlarging a small one no more than three times; clicking an unblurred book image opens it.
 - **Find in book.** Whole book or this chapter, up to 100 results with excerpts.
 - **Bookmarks and Notes.** Optional labels, B quick bookmarks, N notes from selected
   text, editing, removal, note search and order; saved passages use the theme's
@@ -266,8 +266,8 @@ the action itself, and Edit in Anki Browser hands off manual editing.
 ## Themes
 
 Application themes: Light, Dark, Sakura, Matcha, Hojicha, Midnight, Ember, Forest and one
-custom theme (Light/Dark base, Background, Surface, Text, Accent, Logo). Each preset colors the
-logo its own way (Hojicha in its accent); the custom theme's logo color is chosen. Reader themes are
+custom theme (Light/Dark base, Background, Surface, Text, Accent, Logo). Each preset draws the
+logo in its accent; the custom theme's logo color is chosen. Reader themes are
 separate: Paper, Sepia, Night, Sakura, Matcha, Hojicha, Solarized, Nord, Gruvbox, Rosé
 Pine, Tokyo Night and Catppuccin Latte, Frappé, Macchiato and Mocha, plus named custom
 themes, each deleted from its swatch's context menu. Custom Reader themes are structured values, never arbitrary CSS.

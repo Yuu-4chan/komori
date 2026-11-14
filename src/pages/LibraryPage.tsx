@@ -33,11 +33,7 @@ import {
   type SelectGesture,
 } from "../features/library/LibraryBookCard";
 import { LibraryCollection } from "../features/library/LibraryCollection";
-import {
-  AllBooksHeading,
-  ContinueReading,
-  LibrarySummary,
-} from "../features/library/LibraryOverview";
+import { LibrarySummary } from "../features/library/LibraryOverview";
 import { useLibraryImport } from "../features/library/libraryImport";
 import { useLibraryDrop } from "../features/library/useLibraryDrop";
 import { useBulkOperation, operationLabel } from "../features/operations/bulkOperation";
@@ -61,7 +57,9 @@ import {
   bookTitle,
   canMarkCompleted,
   groupBooks,
+  ALL_BOOKS,
   groupPageLink,
+  READING_GROUP,
   matchesQuery,
   hasReadingProgress,
   readingStatus,
@@ -240,21 +238,26 @@ function LibraryContent({ group }: { group: string | null }) {
     [library.books, query, display.filter, bookSort, bookSortReversed],
   );
   // A group's page shows only that group's books, in the order its carousel shows them.
+  const readingTitle = t("libraryCard.continue");
   const groupSection = useMemo(
     () =>
-      groupKind && group !== null
-        ? (groupBooks(shownBooks, groupKind).find((section) => section.key === group) ?? null)
-        : null,
+      group === READING_GROUP
+        ? { key: READING_GROUP, title: readingTitle, books: shownBooks.filter(hasReadingProgress) }
+        : groupKind && group !== null
+          ? (groupBooks(shownBooks, groupKind).find((section) => section.key === group) ?? null)
+          : null,
     // Group names follow the interface language.
-    [group, groupKind, shownBooks, language],
+    [group, groupKind, shownBooks, language, readingTitle],
   );
   // The whole group, whatever the search or filters, for its title and summary.
   const wholeGroup = useMemo(
     () =>
-      groupKind && group !== null
-        ? (groupBooks(library.books, groupKind).find((section) => section.key === group) ?? null)
-        : null,
-    [group, groupKind, library.books, language],
+      group === READING_GROUP
+        ? { key: READING_GROUP, title: readingTitle, books: readingBooks }
+        : groupKind && group !== null
+          ? (groupBooks(library.books, groupKind).find((section) => section.key === group) ?? null)
+          : null,
+    [group, groupKind, library.books, language, readingBooks, readingTitle],
   );
   const sections = useMemo<LibrarySection[]>(
     () =>
@@ -274,6 +277,21 @@ function LibraryContent({ group }: { group: string | null }) {
     ],
   );
   const sectionBooks = useMemo(() => sections.flatMap((section) => section.books), [sections]);
+  // Continue reading is the Library's first group whenever a book in progress is among the
+  // books shown, most recently read first; searching and filtering narrow it as any group.
+  // Ungrouped, the Library's own books follow under All books.
+  const shownIds = useMemo(() => new Set(shownBooks.map((book) => book.id)), [shownBooks]);
+  const allBooksTitle = t("libraryToolbar.filter.all");
+  const collectionSections = useMemo<readonly LibrarySection[]>(() => {
+    const reading = onGroupPage ? [] : readingBooks.filter((book) => shownIds.has(book.id));
+    if (reading.length === 0) return sections;
+    return [
+      { key: READING_GROUP, title: readingTitle, books: reading },
+      ...sections.map((section) =>
+        section.key === ALL_BOOKS ? { ...section, title: allBooksTitle } : section,
+      ),
+    ];
+  }, [allBooksTitle, onGroupPage, readingBooks, readingTitle, sections, shownIds]);
   // The books in the order they are shown, which Shift+click ranges and series numbers follow.
   const orderedIds = useMemo(() => sectionBooks.map((book) => book.id), [sectionBooks]);
   const orderedIdsRef = useRef(orderedIds);
@@ -701,10 +719,10 @@ function LibraryContent({ group }: { group: string | null }) {
     (book: LibraryBook) => card(book, display.view, selectBook),
     [card, display.view, selectBook],
   );
-  // Books in progress always show as grid cards.
+  // Continue reading's cards, in the Library's view as any group's.
   const renderShelfBook = useCallback(
-    (book: LibraryBook) => card(book, "grid", selectShelfBook),
-    [card, selectShelfBook],
+    (book: LibraryBook) => card(book, display.view, selectShelfBook),
+    [card, display.view, selectShelfBook],
   );
 
   // The search stays in the top bar even when the Library is empty.
@@ -713,15 +731,6 @@ function LibraryContent({ group }: { group: string | null }) {
   );
   const ready = library.status === "ready";
   const hasBooks = ready && library.books.length > 0;
-  // Books in progress head the whole Library's books, and stay while selecting so a book chosen
-  // there or below keeps its place; searching or filtering works on the books below, so they
-  // step aside then, and a group's page has none.
-  const showShelf =
-    hasBooks &&
-    readingBooks.length > 0 &&
-    !onGroupPage &&
-    query.trim() === "" &&
-    display.filter === "all";
 
   return (
     <div
@@ -866,14 +875,11 @@ function LibraryContent({ group }: { group: string | null }) {
             <span>{t("library.noneFoundHint")}</span>
           </div>
         ) : null}
-        {showShelf ? <ContinueReading books={readingBooks} renderBook={renderShelfBook} /> : null}
-        {showShelf && display.group === "none" && sectionBooks.length > 0 ? (
-          <AllBooksHeading />
-        ) : null}
         {ready && sectionBooks.length > 0 ? (
           <LibraryCollection
             groupLink={onGroupPage ? undefined : sectionPageLink}
-            sections={sections}
+            renderReadingBook={renderShelfBook}
+            sections={collectionSections}
             onRowOffset={libraryCache.setRowOffset}
             onScroll={savePlace}
             renderBook={renderBook}

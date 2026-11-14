@@ -6,8 +6,9 @@ import type { LibraryBook } from "./libraryApi";
 import type { ScrollPlace } from "./libraryCache";
 import { LibraryCarousel } from "./LibraryCarousel";
 import {
-  libraryCharacters,
-  libraryWords,
+  ALL_BOOKS,
+  groupAmounts,
+  READING_GROUP,
   type LibrarySection,
   type LibraryView,
 } from "./libraryView";
@@ -22,6 +23,8 @@ interface LibraryCollectionProps {
   onScroll?: (place: ScrollPlace) => void;
   /** Where a group's See all leads; groups show as carousels when given. */
   groupLink?: (section: LibrarySection) => string;
+  /** Draws Continue reading's cards, whose selection ranges over its own books. */
+  renderReadingBook?: (book: LibraryBook) => ReactNode;
   /** How far each group's carousel was scrolled sideways, by the group's key. */
   rowOffset?: (key: string) => number | undefined;
   onRowOffset?: (key: string, offset: number) => void;
@@ -54,6 +57,7 @@ export function LibraryCollection({
   restore,
   onScroll,
   groupLink,
+  renderReadingBook,
   rowOffset,
   onRowOffset,
 }: LibraryCollectionProps) {
@@ -97,10 +101,17 @@ export function LibraryCollection({
       : layout.columnWidth
     : 0;
   const carousels = groupLink !== undefined;
+  // A named group is a carousel; the ungrouped Library's books under All books never are.
+  const isCarousel = useCallback(
+    (section: LibrarySection) => carousels && section.title !== null && section.key !== ALL_BOOKS,
+    [carousels],
+  );
+  const cardOf = (section: LibrarySection) =>
+    section.key === READING_GROUP && renderReadingBook ? renderReadingBook : renderBook;
   const rows = useMemo(() => {
     const result: Row[] = [];
     for (const section of sections) {
-      if (carousels && section.title !== null) {
+      if (isCarousel(section)) {
         result.push({ kind: "group", section });
         continue;
       }
@@ -113,7 +124,7 @@ export function LibraryCollection({
         });
     }
     return result;
-  }, [carousels, columns, sections]);
+  }, [isCarousel, columns, sections]);
   const kindOf = useCallback((index: number) => rows[index]?.kind ?? "books", [rows]);
   const keyOf = useCallback(
     (index: number) => {
@@ -131,8 +142,8 @@ export function LibraryCollection({
   // The books outside carousels are one Tab stop; each carousel is its own.
   const rovingRef = useRef<HTMLDivElement | null>(null);
   const rovingBooks = useMemo(
-    () => sections.flatMap((section) => (carousels && section.title !== null ? [] : section.books)),
-    [carousels, sections],
+    () => sections.flatMap((section) => (isCarousel(section) ? [] : section.books)),
+    [isCarousel, sections],
   );
   const cards = useCardRoving(rovingRef, rovingBooks, columns);
   const virtualRows = useVirtualRows(listRef, {
@@ -152,8 +163,8 @@ export function LibraryCollection({
       <CardTabStop stop={cards.stop}>
         <div className="library-sections" ref={rovingRef} {...cards.props}>
           {sections.map((section) => (
-            <div className="library-section" key={section.key}>
-              {carousels && section.title !== null ? (
+            <div className="library-section" key={section.key} {...groupRegion(section)}>
+              {isCarousel(section) && groupLink ? (
                 <LibraryCarousel
                   books={section.books}
                   gap={gap}
@@ -161,9 +172,9 @@ export function LibraryCollection({
                   initialOffset={rowOffset?.(section.key)}
                   itemWidth={itemWidth}
                   onOffset={onRowOffset ? (offset) => onRowOffset(section.key, offset) : undefined}
-                  renderBook={renderBook}
+                  renderBook={cardOf(section)}
                   seeAll={groupLink(section)}
-                  title={section.title}
+                  title={section.title ?? ""}
                   view={view}
                 />
               ) : (
@@ -203,6 +214,7 @@ export function LibraryCollection({
                 key={row.section.key}
                 ref={virtualRows.measureRef}
                 style={{ transform: `translateY(${start}px)` }}
+                {...groupRegion(row.section)}
               >
                 <LibraryCarousel
                   books={row.section.books}
@@ -213,7 +225,7 @@ export function LibraryCollection({
                   onOffset={
                     onRowOffset ? (offset) => onRowOffset(row.section.key, offset) : undefined
                   }
-                  renderBook={renderBook}
+                  renderBook={cardOf(row.section)}
                   seeAll={groupLink?.(row.section) ?? ""}
                   title={row.section.title ?? ""}
                   view={view}
@@ -252,29 +264,36 @@ export function LibraryCollection({
 
 /** A group's name, then its books and the characters and words they hold, as the Library's summary. */
 function SectionHeading({ section }: { section: LibrarySection }) {
-  const characters = libraryCharacters(section.books);
-  const words = libraryWords(section.books);
-  const { t, tp } = useI18n();
+  const { tp } = useI18n();
+  const full = groupAmounts(section.books, false);
+  // All books names the Library's own books under Continue reading; the Library's summary
+  // already counts them.
+  if (section.key === ALL_BOOKS)
+    return (
+      <h3 className="library-group-heading library-all-heading">
+        <span>{section.title}</span>
+      </h3>
+    );
   return (
     <h3 className="library-group-heading">
       <span title={section.title ?? undefined}>{section.title}</span>
       <small>
         {tp("librarySummary.books", section.books.length)}
-        {characters > 0 ? (
-          <span title={t("librarySummary.characters", { count: characters })}>
+        {groupAmounts(section.books, true).map((short, index) => (
+          <span key={short} title={full[index]}>
             {" · "}
-            {t("librarySummary.characters", { count: compactCount(characters) })}
+            {short}
           </span>
-        ) : null}
-        {words > 0 ? (
-          <span title={t("librarySummary.words", { count: words })}>
-            {" · "}
-            {t("librarySummary.words", { count: compactCount(words) })}
-          </span>
-        ) : null}
+        ))}
       </small>
     </h3>
   );
 }
+
+/** Continue reading is a region of its own, named by its heading. */
+const groupRegion = (section: LibrarySection) =>
+  section.key === READING_GROUP
+    ? { role: "region", "aria-label": section.title ?? undefined, "data-group": READING_GROUP }
+    : {};
 
 const virtualSupported = () => typeof ResizeObserver !== "undefined";

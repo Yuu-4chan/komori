@@ -92,19 +92,19 @@ describe("Application themes", () => {
       "--border-medium",
       "--logo-base",
     ]);
-    expect(tokens["--logo-base"]).toBe("#b49cf0");
+    expect(tokens["--logo-base"]).toBe("#7aa2f7");
   });
 
-  it("gives each preset a logo color of its own, Hojicha's its accent", () => {
+  it("draws each preset's logo in its accent", () => {
     expect(Object.fromEntries(appPresetThemes.map((theme) => [theme.id, theme.logo]))).toEqual({
-      light: "#ee657e",
-      dark: "#f08a9b",
-      sakura: "#ee657e",
-      matcha: "#e5788c",
+      light: "#5874df",
+      dark: "#7b93f0",
+      sakura: "#e0606b",
+      matcha: "#4f9a62",
       hojicha: "#b8743c",
-      midnight: "#b49cf0",
-      ember: "#e8a26a",
-      forest: "#f08a9b",
+      midnight: "#7aa2f7",
+      ember: "#e58b5c",
+      forest: "#5bbd8b",
     });
   });
 

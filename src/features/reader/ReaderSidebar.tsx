@@ -30,6 +30,7 @@ import { ReaderSearchPanel, type ReaderSearchPanelProps } from "./ReaderSearchPa
 import { ReaderImagesPanel, type ReaderImagesPanelProps } from "./ReaderImagesPanel";
 import type { ReaderIdentity } from "./readerIdentity";
 import type { ReaderBookProgress, ReaderContentsEntry, ReaderStatus } from "./renderer";
+import { amount, amountOf } from "../../i18n/amounts";
 
 export type ReaderSidebarView = "main" | "appearance" | "bookmarks" | "search" | "images" | "notes";
 
@@ -372,7 +373,7 @@ function ReadingProgress({
   chapterLabel: string | null;
 }) {
   const { total, chapter } = progress;
-  const { t, number } = useI18n();
+  const { t } = useI18n();
   const current = Math.min(progress.current, total);
   const percent = Math.floor((current / total) * 100);
   const chapterPercent = chapter.total
@@ -395,8 +396,7 @@ function ReadingProgress({
       ) : null}
       <div className="reader-sidebar__progress">
         <small>
-          {number(current)} / {number(total)}{" "}
-          {t(progress.unit === "words" ? "readerFooter.wo" : "readerFooter.ch")} · {percent}%
+          {amountOf(progress.unit, current, total)} · {percent}%
         </small>
         <span
           className="reader-sidebar__progress-bar"
@@ -522,16 +522,15 @@ function contentsStart(entry: ReaderContentsEntry): string {
   if (!entry.navigable || entry.location === null) return "—";
   if (!entry.location) return "…";
   const { current, unit } = entry.location;
-  const { t, number } = i18n();
-  return `${number(current)} ${t(unit === "characters" ? "readerFooter.ch" : "readerFooter.wo")}`;
+  return amount(unit, current);
 }
 
 function contentsLocation(entry: ReaderContentsEntry): string {
-  const { t, number } = i18n();
+  const { t } = i18n();
   if (!entry.navigable || entry.location === null) return t("sidebar.locationUnavailable");
   if (!entry.location) return t("sidebar.countingLocation");
   const { current, total, unit } = entry.location;
-  return `${number(current)} / ${number(total)} ${t(unit === "characters" ? "readerFooter.ch" : "readerFooter.wo")}`;
+  return amountOf(unit, current, total);
 }
 
 /** Every contents entry in reading order, each before its children. */

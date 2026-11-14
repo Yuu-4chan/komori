@@ -15,17 +15,6 @@
   gap: var(--space-5);
 }
 
-/* Spaced like a group: its heading close above its books. */
-.reading-shelf {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.library-all-heading {
-  margin-bottom: calc(var(--space-3) - var(--space-5));
-}
-
 .library-section-heading {
   display: flex;
   align-items: flex-end;

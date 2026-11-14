@@ -22,7 +22,7 @@ export interface AppThemeColors {
   /** The page content area. */
   surface: string;
   text: string;
-  /** The logo's color, which its other colors are mixed from; the accent is for controls. */
+  /** The logo's color, which its other colors are mixed from. A preset's is its accent. */
   logo: string;
 }
 
@@ -42,7 +42,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#fbfcfe",
     text: "#162340",
     accent: "#5874df",
-    logo: "#ee657e",
+    logo: "#5874df",
   },
   {
     id: "dark",
@@ -52,7 +52,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#1b1c26",
     text: "#e6e8f2",
     accent: "#7b93f0",
-    logo: "#f08a9b",
+    logo: "#7b93f0",
   },
   {
     id: "sakura",
@@ -62,7 +62,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#fdf9f7",
     text: "#3b2429",
     accent: "#e0606b",
-    logo: "#ee657e",
+    logo: "#e0606b",
   },
   {
     id: "matcha",
@@ -72,7 +72,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#f9fbf6",
     text: "#1e2b20",
     accent: "#4f9a62",
-    logo: "#e5788c",
+    logo: "#4f9a62",
   },
   {
     id: "hojicha",
@@ -92,7 +92,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#181a24",
     text: "#c9d1f2",
     accent: "#7aa2f7",
-    logo: "#b49cf0",
+    logo: "#7aa2f7",
   },
   {
     id: "ember",
@@ -102,7 +102,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#1f1a17",
     text: "#f0e5db",
     accent: "#e58b5c",
-    logo: "#e8a26a",
+    logo: "#e58b5c",
   },
   {
     id: "forest",
@@ -112,7 +112,7 @@ export const appPresetThemes: readonly AppPresetTheme[] = [
     surface: "#151f1b",
     text: "#dbe9e1",
     accent: "#5bbd8b",
-    logo: "#f08a9b",
+    logo: "#5bbd8b",
   },
 ];
 

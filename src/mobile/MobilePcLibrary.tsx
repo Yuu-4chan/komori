@@ -29,6 +29,7 @@ import {
   transferPercent,
   type PcBook,
 } from "./pcLinkApi";
+import { amountOf } from "../i18n/amounts";
 
 /** A PC book with the shape the Library's covers, progress and search read. */
 export interface PcEntry {
@@ -296,15 +297,13 @@ export function Progress({
   /** The characters or words read and in all beside the percentage, in Ch./Wo. when short. */
   count?: "full" | "short" | null;
 }) {
-  const { t, number } = useI18n();
+  const { t } = useI18n();
   const percent = progressPercent(book);
   let total: string | null = null;
   if (count === "full") total = readTotalLabel(book);
   else if (count === "short") {
     const read = readCounts(book);
-    total = read
-      ? `${number(read.read)} / ${number(read.total)} ${t(read.unit === "characters" ? "readerFooter.ch" : "readerFooter.wo")}`
-      : null;
+    total = read ? amountOf(read.unit, read.read, read.total) : null;
   }
   return (
     <span className="mobile-progress">
