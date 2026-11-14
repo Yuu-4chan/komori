@@ -107,6 +107,7 @@ import type { NotePassage, NoteStore } from "./notes";
 import { commandTarget, escapeReturnWindow, matchesModifiers, shortcutCommand } from "./shortcuts";
 import { popupShortcut } from "./popupShortcuts";
 import { libraryCache, libraryReturn } from "../library/libraryCache";
+import { amountOf } from "../../i18n/amounts";
 
 interface Lookup {
   id: number;
@@ -2226,7 +2227,7 @@ function ProgressValues({
   current: number;
   total: number;
 }) {
-  const { t, number } = useI18n();
+  const { t } = useI18n();
   const shown = Math.min(current, total);
   const percent = Math.floor((shown / total) * 100);
   const book = kind === "book";
@@ -2249,12 +2250,7 @@ function ProgressValues({
             { current: shown, total },
           )}
         >
-          {number(shown)} / {number(total)}{" "}
-          {unit === "words" ? (
-            <abbr title={t("readerFooter.words")}>{t("readerFooter.wo")}</abbr>
-          ) : (
-            <abbr title={t("readerFooter.characters")}>{t("readerFooter.ch")}</abbr>
-          )}
+          {amountOf(unit, shown, total)}
         </span>
       )}
       {percentage && (

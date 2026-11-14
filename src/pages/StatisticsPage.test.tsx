@@ -191,7 +191,7 @@ describe("Statistics", () => {
     await waitFor(() =>
       expect(
         within(calendar).getByRole("complementary", { name: "Day details" }),
-      ).toHaveTextContent("6,010 words"),
+      ).toHaveTextContent("6,010 Wo."),
     );
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await user.click(
@@ -267,7 +267,7 @@ describe("Statistics", () => {
     resolveSave(saved);
     expect(await screen.findByText("Daily activity saved.")).toBeInTheDocument();
     expect(within(calendar).getByRole("complementary", { name: "Day details" })).toHaveTextContent(
-      "3,000 words",
+      "3,000 Wo.",
     );
     const metrics = screen.getByRole("region", { name: "Reading activity" });
     expect(
@@ -284,7 +284,7 @@ describe("Statistics", () => {
     renderPage();
     const reloaded = await screen.findByRole("region", { name: "Daily activity" });
     expect(within(reloaded).getByRole("complementary", { name: "Day details" })).toHaveTextContent(
-      "3,000 words",
+      "3,000 Wo.",
     );
   });
 
@@ -337,7 +337,7 @@ describe("Statistics", () => {
     expect(document.body).not.toHaveTextContent("private");
     expect(within(dialog).getByRole("textbox", { name: "Characters read" })).toHaveValue("0");
     expect(within(calendar).getByRole("complementary", { name: "Day details" })).toHaveTextContent(
-      "18,000 characters",
+      "18,000 Ch.",
     );
     fireEvent(dialog, new Event("cancel", { cancelable: true }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -411,7 +411,7 @@ describe("Statistics", () => {
     );
     await user.hover(within(calendar).getByRole("button", { name: "October 14: 1h 00m read" }));
     expect(details).toHaveTextContent("1h 00m reading");
-    expect(details).toHaveTextContent("18,000 characters");
+    expect(details).toHaveTextContent("18,000 Ch.");
     expect(within(calendar).getByRole("complementary", { name: "Books read" })).toHaveTextContent(
       "山田 花子18,000 Ch. · 1h 00m",
     );

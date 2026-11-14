@@ -1321,7 +1321,7 @@ describe("Library page", () => {
         .getAllByRole("heading", { level: 3 })
         .filter(
           (heading) =>
-            !heading.closest(".reading-shelf") && !heading.matches(".library-all-heading"),
+            !heading.closest('[data-group="reading"]') && !heading.matches(".library-all-heading"),
         )
         .map((heading) => heading.textContent);
     }
@@ -1349,14 +1349,22 @@ describe("Library page", () => {
       expect(within(library).getByText("3.5K characters")).toBeInTheDocument();
       expect(within(library).queryByText(/read$/)).not.toBeInTheDocument();
       const shelf = screen.getByRole("region", { name: "Continue reading" });
-      // Only the book in progress, as the same card as the Library's, with no See all.
+      // Only the book in progress, as the same card as the Library's, under a group's heading
+      // whose See all opens the group's own page.
       expect(
         within(shelf)
           .getAllByRole("link")
           .map((link) => link.getAttribute("aria-label")),
-      ).toEqual(["Open Halfway Book in reader"]);
-      expect(within(shelf).getByText("1 book in progress")).toBeInTheDocument();
-      expect(within(shelf).queryByRole("button", { name: "See all" })).not.toBeInTheDocument();
+      ).toEqual(["See all of Continue reading", "Open Halfway Book in reader"]);
+      expect(within(shelf).getByRole("link", { name: /See all/ })).toHaveAttribute(
+        "href",
+        "/library?group=reading",
+      );
+      expect(within(shelf).getByText("1 book")).toBeInTheDocument();
+      // Its heading gives what has been read of those books, as a group's does.
+      expect(within(shelf).getByTitle("500 / 2,000 characters")).toHaveTextContent(
+        "500 / 2K characters",
+      );
       expect(within(shelf).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "25");
       expect(
         within(shelf).getByText(
@@ -1450,7 +1458,7 @@ describe("Library page", () => {
       expect(screen.getAllByText("Completed")).toHaveLength(3);
     });
 
-    it("shows Continue reading inside the Library, under its heading, until searching or filtering", async () => {
+    it("shows Continue reading as the Library's first group, narrowed by search and filters as any group", async () => {
       const user = userEvent.setup();
       listMock.mockResolvedValueOnce(shelfBooks);
       renderPage(
@@ -1471,7 +1479,11 @@ describe("Library page", () => {
         shelf.compareDocumentPosition(allBooks) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
 
+      // A search that finds a book in progress keeps the group; one that finds none drops it.
       await user.type(screen.getByRole("searchbox", { name: "Search books" }), "halfway");
+      expect(screen.getByRole("region", { name: "Continue reading" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Clear search" }));
+      await user.type(screen.getByRole("searchbox", { name: "Search books" }), "unread-file");
       expect(screen.queryByRole("region", { name: "Continue reading" })).not.toBeInTheDocument();
       expect(screen.queryByRole("heading", { name: "All books" })).not.toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: "Clear search" }));
@@ -1581,14 +1593,14 @@ describe("Library page", () => {
         "aria-pressed",
         "true",
       );
-      // Continue reading keeps grid cards; the Library's own books are listed.
+      // Continue reading's cards follow the view, as any group's.
       expect(document.querySelectorAll(".library-books--list article")).toHaveLength(3);
-      expect(document.querySelectorAll(".reading-shelf .library-books--grid article")).toHaveLength(
-        1,
-      );
+      expect(
+        document.querySelectorAll('[data-group="reading"] .library-carousel__track--list article'),
+      ).toHaveLength(1);
     });
 
-    it("shows every book in progress, adding rows rather than a separate page", async () => {
+    it("shows every book in progress in one row, with a page of its own", async () => {
       listMock.mockResolvedValueOnce(
         Array.from({ length: 12 }, (_, index) => ({ ...shelfBooks[0], id: `reading-${index}` })),
       );
@@ -1598,8 +1610,26 @@ describe("Library page", () => {
         </MemoryRouter>,
       );
       const shelf = await screen.findByRole("region", { name: "Continue reading" });
-      expect(within(shelf).getByText("12 books in progress")).toBeInTheDocument();
+      expect(within(shelf).getByText("12 books")).toBeInTheDocument();
       expect(within(shelf).getAllByRole("article")).toHaveLength(12);
+      expect(shelf.querySelector(".library-carousel__track")).not.toBeNull();
+    });
+
+    it("opens Continue reading's own page with only the books in progress", async () => {
+      listMock.mockResolvedValueOnce(shelfBooks);
+      renderPage(
+        <MemoryRouter initialEntries={["/library?group=reading"]}>
+          <LibraryPage />
+        </MemoryRouter>,
+      );
+      expect(
+        await screen.findByRole("heading", { level: 2, name: "Continue reading" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Library" })).toHaveAttribute("href", "/library");
+      expect(document.querySelector(".library-carousel")).toBeNull();
+      expect(
+        screen.getAllByRole("article").map((card) => within(card).getByRole("heading").textContent),
+      ).toEqual(["Halfway Book"]);
     });
 
     it("supports menu keyboard navigation and returns focus to its trigger", async () => {

@@ -740,6 +740,13 @@
   gap: 0.375rem;
 }
 
+/* An address stays on one line and is cut at its end instead of breaking inside a word. */
+.settings-source-row--audio strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .settings-source-row__move.icon-button,
 .settings-source-row__remove.icon-button {
   width: 2.25rem;
@@ -1286,9 +1293,15 @@
   font-weight: 650;
 }
 
+/* A device's icon sits beside its name. */
+.devices-device strong {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .devices-device__icon {
-  margin-right: var(--space-2);
-  vertical-align: -0.15em;
+  flex: none;
 }
 
 .devices-problem {

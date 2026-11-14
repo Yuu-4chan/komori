@@ -121,7 +121,7 @@ export function WordAudioSettings() {
                 tabIndex={0}
               >
                 <div>
-                  <strong>{name(source)}</strong>
+                  <strong title={name(source)}>{name(source)}</strong>
                   <small>{kindLabel(source.kind)}</small>
                 </div>
                 <IconButton

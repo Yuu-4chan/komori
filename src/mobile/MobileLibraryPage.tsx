@@ -1,6 +1,7 @@
 import {
   ArrowCounterClockwiseIcon,
   BooksIcon,
+  CaretRightIcon,
   CheckCircleIcon,
   CheckIcon,
   DownloadSimpleIcon,
@@ -51,6 +52,7 @@ import { SeriesDialog, type SeriesChoice } from "../features/library/SeriesDialo
 import {
   bookTitle,
   canMarkCompleted,
+  groupAmounts,
   groupBooks,
   groupPageLink,
   hasReadingProgress,
@@ -60,6 +62,7 @@ import {
   progressLabel,
   progressPercent,
   readTotalLabel,
+  READING_GROUP,
   readingStatus,
   sectionGroup,
   seriesFromTitles,
@@ -329,7 +332,9 @@ function LibraryContent({ group }: { group: string | null }) {
   // unless a PC's group page chose another), as the PC's carousels show them; a group's page
   // shows its books in that order too.
   const groupKind = group === null ? null : sectionGroup(group);
-  const onGroupPage = groupKind !== null;
+  // Continue reading is a group too, with a page of its own.
+  const onReadingPage = group === READING_GROUP;
+  const onGroupPage = groupKind !== null || onReadingPage;
   const grouped = !onGroupPage && display.group !== "none";
   const sections = useMemo<ItemSection[]>(() => {
     const books = sortBooks(
@@ -338,6 +343,10 @@ function LibraryContent({ group }: { group: string | null }) {
       grouped || onGroupPage ? display.groupSortReversed : display.sortReversed,
     );
     const toItems = (each: LibraryBook[]) => each.flatMap((book) => byId.get(book.id) ?? []);
+    if (onReadingPage)
+      return [
+        { key: READING_GROUP, title: null, items: toItems(books.filter(hasReadingProgress)) },
+      ];
     if (groupKind !== null) {
       const own = groupBooks(books, groupKind).find((section) => section.key === group);
       return [{ key: group ?? "", title: null, items: toItems(own?.books ?? []) }];
@@ -359,25 +368,34 @@ function LibraryContent({ group }: { group: string | null }) {
     groupKind,
     grouped,
     onGroupPage,
+    onReadingPage,
     query,
   ]);
   const shown = useMemo(() => sections.flatMap((section) => section.items), [sections]);
   const placedBooks = useMemo(() => placed.map((item) => item.book), [placed]);
   // A group's page is named as its heading names it, whatever the filters and search.
   const groupTitle = useMemo(() => {
+    if (onReadingPage) return t("libraryCard.continue");
     if (groupKind === null || group === null) return "";
     const whole = groupBooks(placedBooks, groupKind).find((section) => section.key === group);
     return whole?.title ?? group.slice(group.indexOf(":") + 1);
-  }, [group, groupKind, placedBooks]);
-  // Books in progress head the Library while it shows all its books and nothing is searched.
+  }, [group, groupKind, onReadingPage, placedBooks, t]);
+  // Books in progress head the Library as its first group, most recently read first; searching
+  // and filtering narrow it as any group.
   const inProgress = useMemo(
     () =>
       sortBooks(
-        placedBooks.filter((book) => book.availability === "available" && hasReadingProgress(book)),
+        placedBooks.filter(
+          (book) =>
+            book.availability === "available" &&
+            hasReadingProgress(book) &&
+            matchesQuery(book, query) &&
+            (display.filter === "all" || readingStatus(book) === display.filter),
+        ),
         "recent",
         false,
       ).flatMap((book) => byId.get(book.id) ?? []),
-    [byId, placedBooks],
+    [byId, display.filter, placedBooks, query],
   );
   const ownBooks = useMemo(() => allBooks.filter((book) => !book.fromPc), [allBooks]);
   const seriesNames = useMemo(
@@ -858,11 +876,25 @@ function LibraryContent({ group }: { group: string | null }) {
           </div>
           {onGroupPage ? null : status}
 
-          {inProgress.length > 0 && !query && display.filter === "all" && !onGroupPage ? (
+          {inProgress.length > 0 && !onGroupPage ? (
             <section className="mobile-library__section" aria-labelledby="mobile-continue">
               <h2 className="mobile-section-heading">
-                <span id="mobile-continue">{t("libraryCard.continue")}</span>
-                <small>{tp("librarySummary.inProgress", inProgress.length)}</small>
+                {selecting ? (
+                  <>
+                    <span id="mobile-continue">{t("libraryCard.continue")}</span>
+                    <small>{tp("librarySummary.books", inProgress.length)}</small>
+                  </>
+                ) : (
+                  <Link className="mobile-group-heading__link" to={groupPageLink(READING_GROUP)}>
+                    <span id="mobile-continue">{t("libraryCard.continue")}</span>
+                    <small>{tp("librarySummary.books", inProgress.length)}</small>
+                    <CaretRightIcon
+                      aria-hidden="true"
+                      className="mobile-group-heading__caret"
+                      weight="bold"
+                    />
+                  </Link>
+                )}
               </h2>
               <ul
                 className={
@@ -906,7 +938,16 @@ function LibraryContent({ group }: { group: string | null }) {
                 </h2>
                 {complete ? (
                   <small className="mobile-books-heading__count">
-                    {tp("librarySummary.books", onGroupPage ? shown.length : filtered.length)}
+                    {onGroupPage
+                      ? [
+                          tp("librarySummary.books", shown.length),
+                          ...groupAmounts(
+                            shown.map((item) => item.book),
+                            true,
+                            true,
+                          ),
+                        ].join(" · ")
+                      : tp("librarySummary.books", filtered.length)}
                   </small>
                 ) : null}
               </div>

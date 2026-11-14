@@ -182,6 +182,8 @@ impl CoverQueue {
 pub(crate) fn wanted_covers(books: &[RemoteBook]) -> Vec<(String, i64)> {
     books
         .iter()
+        // A stored listing from before IDs were checked on arrival may name anything.
+        .filter(|book| uuid::Uuid::parse_str(&book.id).is_ok())
         .filter_map(|book| Some((book.id.clone(), book.cover?)))
         .collect()
 }
@@ -355,12 +357,27 @@ mod tests {
         let directory = tempdir().unwrap();
         let covers = directory.path().join("pc-covers");
         std::fs::create_dir_all(&covers).unwrap();
-        for name in ["a-1", "a-2", "b-5", "gone-3", "stray"] {
-            std::fs::write(covers.join(name), b"image/jpeg\nxx").unwrap();
+        const A: &str = "a0000000-0000-4000-8000-000000000001";
+        const B: &str = "a0000000-0000-4000-8000-000000000002";
+        const C: &str = "a0000000-0000-4000-8000-000000000003";
+        let (old, a, b) = (format!("{A}-1"), format!("{A}-2"), format!("{B}-5"));
+        for name in [&old, &a, &b, "gone-3", "stray"] {
+            std::fs::write(
+                covers.join(name),
+                b"image/jpeg
+xx",
+            )
+            .unwrap();
         }
-        let books = [book("a", Some(2)), book("b", Some(5)), book("c", None)];
+        // A name that is no catalog ID names no cover file.
+        let books = [
+            book(A, Some(2)),
+            book(B, Some(5)),
+            book(C, None),
+            book("../outside", Some(1)),
+        ];
         let wanted = wanted_covers(&books);
-        assert_eq!(wanted, [("a".to_owned(), 2), ("b".to_owned(), 5)]);
+        assert_eq!(wanted, [(A.to_owned(), 2), (B.to_owned(), 5)]);
 
         remove_stale_covers(&covers, &wanted);
         let mut left: Vec<String> = std::fs::read_dir(&covers)
@@ -368,7 +385,7 @@ mod tests {
             .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
             .collect();
         left.sort();
-        assert_eq!(left, ["a-2", "b-5"]);
+        assert_eq!(left, [a, b]);
         assert_eq!(size_of(&covers), 2 * 13);
         assert_eq!(size_of(&directory.path().join("missing")), 0);
     }

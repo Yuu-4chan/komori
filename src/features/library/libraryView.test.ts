@@ -16,6 +16,8 @@ import {
   seriesFromTitles,
   shownLanguage,
   sortBooks,
+  groupAmounts,
+  libraryRead,
 } from "./libraryView";
 
 function book(id: string, fields: Partial<LibraryBook> = {}): LibraryBook {
@@ -202,6 +204,24 @@ describe("counted characters and group keys", () => {
     expect(
       readTotalLabel(book("c", { characters: 10, lastReadAt: "2026-09-01T00:00:00Z" })),
     ).toBeNull();
+  });
+
+  it("adds up what has been read of a group's counted characters or words", () => {
+    const books = [
+      book("a", { characters: 1_000, progress: characters(400, 1_000) }),
+      // Never more than the book holds, and nothing for a book not opened.
+      book("b", { characters: 500, progress: characters(900, 900) }),
+      book("c", { characters: 2_000 }),
+      book("d", { words: 300, progress: { unit: "words", current: 120, total: 300 } }),
+    ];
+    expect(libraryRead(books, "characters")).toBe(900);
+    expect(libraryRead(books, "words")).toBe(120);
+    expect(libraryRead([book("e", { characters: 10 })], "characters")).toBe(0);
+    // A heading gives what was read with the total, and the total alone before anything is read.
+    expect(groupAmounts(books, false)).toEqual(["900 / 3,500 characters", "120 / 300 words"]);
+    expect(groupAmounts([book("e", { characters: 1_600_000 })], true)).toEqual(["1.6M characters"]);
+    expect(groupAmounts(books, true, true)).toEqual(["900 / 3.5K Ch.", "120 / 300 Wo."]);
+    expect(groupAmounts([book("f")], true)).toEqual([]);
   });
 
   it("reads the grouping from a section key", () => {

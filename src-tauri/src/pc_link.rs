@@ -1114,6 +1114,8 @@ pub async fn copy_pc_dictionary(
 /// of the rest, and `pc-cover` tells the Library when it arrives: the WebView's requests never
 /// wait for the PC, which would hold up everything else the WebView loads.
 pub(crate) fn pc_cover(app: &AppHandle, id: &str, revision: i64) -> Option<CoverImage> {
+    // The ID names the cover's file and its request: only a catalog ID does.
+    uuid::Uuid::parse_str(id).ok()?;
     let cache = covers_directory(app).ok()?;
     if let Some(cover) = cached_cover(&cache.join(pc_listing::cover_file(id, revision))) {
         return Some(cover);

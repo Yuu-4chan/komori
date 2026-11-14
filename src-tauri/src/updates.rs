@@ -175,9 +175,27 @@ fn phone_client(timeout: Duration) -> Result<reqwest::Client, String> {
 /// A release file's body; GitHub redirects release downloads to its file host.
 #[cfg(mobile)]
 async fn fetch(client: &reqwest::Client, url: &str) -> Option<Vec<u8>> {
-    let response = client.get(url).send().await.ok()?.error_for_status().ok()?;
-    Some(response.bytes().await.ok()?.to_vec())
+    let mut response = client.get(url).send().await.ok()?.error_for_status().ok()?;
+    if response
+        .content_length()
+        .is_some_and(|length| length > DOWNLOAD_LIMIT)
+    {
+        return None;
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.ok()? {
+        if (body.len() + chunk.len()) as u64 > DOWNLOAD_LIMIT {
+            return None;
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Some(body)
 }
+
+/// The largest release file the phone reads, well over an APK's size: it is held in memory to
+/// check its signature.
+#[cfg(mobile)]
+const DOWNLOAD_LIMIT: u64 = 512 * 1024 * 1024;
 
 #[cfg(test)]
 mod tests {

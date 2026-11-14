@@ -252,6 +252,11 @@ impl PushRequest {
 pub(crate) struct PushResponse {
     /// Books whose place moved on the PC since the pull; the next sync merges them again.
     pub(crate) refused: Vec<String>,
+    /// Bookmarks and notes the PC did not store, as their book is full there or the place is
+    /// bookmarked already; the phone does not count them as held by both sides. Left out when
+    /// empty, as an earlier phone reads no such field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) refused_items: Vec<String>,
 }
 
 fn digest(parts: &[&str]) -> String {
@@ -687,11 +692,16 @@ pub(crate) fn push(
         )?;
     }
     delete_items(&transaction, &request.deleted)?;
-    for bookmark in request.bookmarks.iter().filter(|each| each.is_valid()) {
-        upsert_bookmark(&transaction, &bookmark.book_id, bookmark)?;
+    let mut refused_items = Vec::new();
+    for bookmark in &request.bookmarks {
+        if !bookmark.is_valid() || !upsert_bookmark(&transaction, &bookmark.book_id, bookmark)? {
+            refused_items.push(bookmark.id.clone());
+        }
     }
-    for note in request.notes.iter().filter(|each| each.is_valid()) {
-        upsert_note(&transaction, &note.book_id, note)?;
+    for note in &request.notes {
+        if !note.is_valid() || !upsert_note(&transaction, &note.book_id, note)? {
+            refused_items.push(note.id.clone());
+        }
     }
     for session in request.sessions.iter().filter(|each| each.is_valid()) {
         let mut session = session.clone();
@@ -703,7 +713,10 @@ pub(crate) fn push(
     }
     reading_sessions::save_device(&transaction, phone)?;
     transaction.commit().map_err(storage_error)?;
-    Ok(PushResponse { refused })
+    Ok(PushResponse {
+        refused,
+        refused_items,
+    })
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -817,6 +830,11 @@ pub(crate) struct Plan {
     items: Vec<(&'static str, String, Option<String>, String)>,
     forget_items: Vec<(&'static str, String)>,
     devices: Vec<ReadingDevice>,
+    /// The books merged, as the phone and the PC name each, and the hash of each of their
+    /// bookmarks and notes on the phone then: one edited, added or deleted here since is left
+    /// as it is, and the next sync merges it.
+    held: Vec<(String, String)>,
+    seen: HashMap<String, String>,
 }
 
 impl Plan {
@@ -888,6 +906,8 @@ enum Outcome<T> {
 struct Baselines {
     books: HashMap<String, Reading>,
     items: HashMap<(String, String), String>,
+    /// The recorded items of each kind and book (no book for sessions).
+    scopes: HashMap<(String, Option<String>), Vec<String>>,
 }
 
 fn baselines(connection: &Connection) -> Result<Baselines, String> {
@@ -903,31 +923,52 @@ fn baselines(connection: &Connection) -> Result<Baselines, String> {
         .filter_map(|(book, reading)| Some((book, serde_json::from_str(&reading).ok()?)))
         .collect();
     let mut statement = connection
-        .prepare("SELECT kind, id, hash FROM sync_items")
+        .prepare("SELECT kind, id, hash, book_id FROM sync_items")
         .map_err(storage_error)?;
-    let items = statement
+    let mut items = HashMap::new();
+    let mut scopes: HashMap<(String, Option<String>), Vec<String>> = HashMap::new();
+    let rows = statement
         .query_map([], |row| {
             Ok((
-                (row.get::<_, String>(0)?, row.get::<_, String>(1)?),
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
                 row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
             ))
         })
         .map_err(storage_error)?
-        .filter_map(Result::ok)
-        .collect();
-    Ok(Baselines { books, items })
+        .filter_map(Result::ok);
+    for (kind, id, hash, book) in rows {
+        scopes
+            .entry((kind.clone(), book))
+            .or_default()
+            .push(id.clone());
+        items.insert((kind, id), hash);
+    }
+    Ok(Baselines {
+        books,
+        items,
+        scopes,
+    })
 }
 
-/// Merges one kind of item; `both` settles one changed on both sides.
+/// Merges one kind of item of `book` (none for sessions); `both` settles one changed on both
+/// sides. An item recorded that neither side has any more is forgotten.
 fn merge_items<T: Clone>(
     kind: &str,
+    book: Option<&str>,
     base: &Baselines,
     mine: &BTreeMap<String, T>,
     theirs: &BTreeMap<String, T>,
     hash: impl Fn(&T) -> String,
     mut both: impl FnMut(&T, &T) -> Vec<(String, Outcome<T>)>,
 ) -> Vec<(String, Outcome<T>)> {
-    let ids: BTreeSet<&String> = mine.keys().chain(theirs.keys()).collect();
+    let recorded = base.scopes.get(&(kind.to_owned(), book.map(str::to_owned)));
+    let ids: BTreeSet<&String> = mine
+        .keys()
+        .chain(theirs.keys())
+        .chain(recorded.into_iter().flatten())
+        .collect();
     let mut outcomes = Vec::new();
     for id in ids {
         let (my, their) = (mine.get(id), theirs.get(id));
@@ -1015,6 +1056,7 @@ pub(crate) fn plan(
         if !book_exists(connection, &local)? || !state.reading.is_valid() {
             continue;
         }
+        plan.held.push((local.clone(), state.id.clone()));
         plan_reading(connection, &base, &mut plan, &local, state)?;
         plan_bookmarks(connection, &base, &mut plan, &local, state)?;
         plan_notes(connection, &base, &mut plan, &local, state)?;
@@ -1089,8 +1131,11 @@ fn plan_bookmarks(
         .map(|bookmark| (bookmark.id.clone(), bookmark.clone()))
         .collect();
     // Renamed on both sides: the PC's name.
+    plan.seen
+        .extend(mine.iter().map(|(id, each)| (id.clone(), each.hash())));
     let mut outcomes = merge_items(
         "bookmark",
+        Some(&state.id),
         base,
         &mine,
         &theirs,
@@ -1151,6 +1196,21 @@ fn plan_bookmarks(
     Ok(())
 }
 
+/// The ID of the note that keeps the phone's text of a note edited on both sides: always the
+/// same for the same note and text.
+fn copy_id(note: &SyncNote) -> String {
+    let mut hash = Sha256::new();
+    for part in ["note-copy", &note.id, &note.hash()] {
+        hash.update((part.len() as u64).to_le_bytes());
+        hash.update(part.as_bytes());
+    }
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&hash.finalize()[..16]);
+    uuid::Builder::from_custom_bytes(bytes)
+        .into_uuid()
+        .to_string()
+}
+
 fn plan_notes(
     connection: &Connection,
     base: &Baselines,
@@ -1168,17 +1228,32 @@ fn plan_notes(
         .filter(|note| note.is_valid() && note.book_id == state.id)
         .map(|note| (note.id.clone(), note.clone()))
         .collect();
-    // Edited on both sides: the PC's keeps its ID, and the phone's is kept as a new note.
-    let outcomes = merge_items("note", base, &mine, &theirs, SyncNote::hash, |phone, pc| {
-        let copy = SyncNote {
-            id: Uuid::new_v4().to_string(),
-            ..phone.clone()
-        };
-        vec![
-            (pc.id.clone(), Outcome::Take(pc.clone())),
-            (copy.id.clone(), Outcome::New(copy)),
-        ]
-    });
+    // Edited on both sides: the PC's keeps its ID, and the phone's is kept as a new note. The
+    // new note's ID comes from the phone's text, so a sync cut off after the PC stored it makes
+    // the same note again rather than one more.
+    plan.seen
+        .extend(mine.iter().map(|(id, each)| (id.clone(), each.hash())));
+    let book = Some(state.id.as_str());
+    let outcomes = merge_items(
+        "note",
+        book,
+        base,
+        &mine,
+        &theirs,
+        SyncNote::hash,
+        |phone, pc| {
+            let copy = SyncNote {
+                id: copy_id(phone),
+                ..phone.clone()
+            };
+            let mut outcomes = vec![(pc.id.clone(), Outcome::Take(pc.clone()))];
+            // The PC has it from such a sync: it comes with the PC's notes.
+            if !theirs.contains_key(&copy.id) {
+                outcomes.push((copy.id.clone(), Outcome::New(copy)));
+            }
+            outcomes
+        },
+    );
     for (id, outcome) in outcomes {
         record(
             plan,
@@ -1227,6 +1302,7 @@ fn plan_sessions(
     // Changed on both sides: the device that read it keeps its version.
     let outcomes = merge_items(
         "session",
+        None,
         base,
         &mine,
         &theirs,
@@ -1331,12 +1407,38 @@ pub(crate) fn finish(
             }
         }
     }
-    delete_items(&transaction, &plan.deleted)?;
+    // A bookmark or note edited, added or deleted here since the merge stays as it is now.
+    let mut now: HashMap<String, String> = HashMap::new();
+    for (local, shared) in &plan.held {
+        now.extend(
+            bookmarks_of(&transaction, local, shared)?
+                .into_iter()
+                .map(|each| (each.id.clone(), each.hash())),
+        );
+        now.extend(
+            notes_of(&transaction, local, shared)?
+                .into_iter()
+                .map(|each| (each.id.clone(), each.hash())),
+        );
+    }
+    let changed = |id: &str| now.get(id) != plan.seen.get(id);
+    let mut deleted = plan.deleted.clone();
+    deleted.bookmarks.retain(|id| !changed(id));
+    deleted.notes.retain(|id| !changed(id));
+    delete_items(&transaction, &deleted)?;
+    // A bookmark or note either side did not store (its book is full there, or the place is
+    // bookmarked already) is not held by both: recorded as such, the next sync would take it
+    // for deleted and remove it from the side that has it.
+    let mut unwritten: HashSet<&str> = answer.refused_items.iter().map(String::as_str).collect();
     for (book, bookmark) in &plan.bookmarks {
-        upsert_bookmark(&transaction, book, bookmark)?;
+        if changed(&bookmark.id) || !upsert_bookmark(&transaction, book, bookmark)? {
+            unwritten.insert(&bookmark.id);
+        }
     }
     for (book, note) in &plan.notes {
-        upsert_note(&transaction, book, note)?;
+        if changed(&note.id) || !upsert_note(&transaction, book, note)? {
+            unwritten.insert(&note.id);
+        }
     }
     for session in &plan.sessions {
         upsert_session(&transaction, session)?;
@@ -1383,6 +1485,9 @@ pub(crate) fn finish(
             .map_err(storage_error)?;
     }
     for (kind, id, book, hash) in &plan.items {
+        if *kind != "session" && unwritten.contains(id.as_str()) {
+            continue;
+        }
         transaction
             .execute(
                 "INSERT INTO sync_items (kind, id, book_id, hash) VALUES (?1, ?2, ?3, ?4)

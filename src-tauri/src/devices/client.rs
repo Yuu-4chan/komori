@@ -155,6 +155,34 @@ const QUICK: Duration = Duration::from_secs(10);
 const LISTING: Duration = Duration::from_secs(30);
 const SYNCING: Duration = Duration::from_secs(120);
 
+/// The largest JSON answer the phone reads, as large as the sync bodies the PC takes.
+const ANSWER_LIMIT: usize = 64 * 1024 * 1024;
+/// The largest cover the phone reads, as large as an image Komori reads anywhere.
+const COVER_LIMIT: usize = 32 * 1024 * 1024;
+
+/// An answer's body, refused once it is longer than `limit` rather than read whole.
+async fn body_within(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8>, LinkError> {
+    let too_large = || LinkError::Failed("The PC's answer is too large.".into());
+    if response
+        .content_length()
+        .is_some_and(|length| length > limit as u64)
+    {
+        return Err(too_large());
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| LinkError::Failed(error.to_string()))?
+    {
+        if body.len() + chunk.len() > limit {
+            return Err(too_large());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
 pub(crate) struct Client {
     base: String,
     http: reqwest::Client,
@@ -248,11 +276,8 @@ impl Client {
         &self,
         request: reqwest::RequestBuilder,
     ) -> Result<T, LinkError> {
-        self.send(request)
-            .await?
-            .json()
-            .await
-            .map_err(|error| LinkError::Failed(error.to_string()))
+        let body = body_within(self.send(request).await?, ANSWER_LIMIT).await?;
+        serde_json::from_slice(&body).map_err(|error| LinkError::Failed(error.to_string()))
     }
 
     pub(crate) async fn hello(&self) -> Result<Hello, LinkError> {
@@ -326,12 +351,19 @@ impl Client {
         }
     }
 
+    /// The PC's Library. A book whose ID is not a catalog ID is left out: the phone names
+    /// files and requests after these IDs.
     pub(crate) async fn library(&self) -> Result<RemoteLibrary, LinkError> {
-        self.json(
-            self.request(reqwest::Method::GET, "/v1/library")
-                .timeout(LISTING),
-        )
-        .await
+        let mut library: RemoteLibrary = self
+            .json(
+                self.request(reqwest::Method::GET, "/v1/library")
+                    .timeout(LISTING),
+            )
+            .await?;
+        library
+            .books
+            .retain(|book| uuid::Uuid::parse_str(&book.id).is_ok());
+        Ok(library)
     }
 
     /// The kanji of the PC's Library, as its Statistics counts them.
@@ -416,11 +448,7 @@ impl Client {
             .and_then(|value| value.to_str().ok())
             .unwrap_or("image/jpeg")
             .to_owned();
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|error| LinkError::Failed(error.to_string()))?;
-        Ok((kind, bytes.to_vec()))
+        Ok((kind, body_within(response, COVER_LIMIT).await?))
     }
 
     /// Downloads `path` into `target`, through a `.part` file renamed once complete, telling

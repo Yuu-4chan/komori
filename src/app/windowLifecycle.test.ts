@@ -10,6 +10,8 @@ import {
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true, invoke: vi.fn(async () => true) }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async () => () => {}) }));
 const windowShown = vi.hoisted(() => ({ value: true }));
+const platform = vi.hoisted(() => ({ isAndroid: false }));
+vi.mock("./platform", () => platform);
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({ isVisible: async () => windowShown.value }),
 }));
@@ -76,6 +78,20 @@ describe("Native close handshake", () => {
     expect(visibility).toHaveBeenLastCalledWith(true);
     stopVisibility();
     stop();
+    windowShown.value = true;
+  });
+
+  it("never starts hidden on the phone, where Android reports no visible window", async () => {
+    windowShown.value = false;
+    platform.isAndroid = true;
+    const stop = installWindowLifecycle();
+    const visibility = vi.fn();
+    const stopVisibility = watchWindowVisibility(visibility);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(visibility).toHaveBeenLastCalledWith(true);
+    stopVisibility();
+    stop();
+    platform.isAndroid = false;
     windowShown.value = true;
   });
 });

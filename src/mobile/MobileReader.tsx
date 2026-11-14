@@ -78,6 +78,7 @@ import {
   systemBarIcons,
   useBackCloser,
 } from "./system";
+import { amount, amountOf } from "../i18n/amounts";
 
 /** The Reader's tools, as the PC's sidebar shows them. */
 export interface MobileReaderTools {
@@ -191,7 +192,7 @@ export function MobileReader({
   onBack,
   onFeedback,
 }: MobileReaderProps) {
-  const { t, number } = useI18n();
+  const { t } = useI18n();
   const [shown, setShown] = useState(false);
   const [chaptersOpen, setChaptersOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -233,8 +234,7 @@ export function MobileReader({
   // Each part with its widest form (the book's total for each number), so whether the pill
   // needs a second line changes only with the settings, the book or the screen, never while
   // reading.
-  const position = (total: number) =>
-    `${number(total)} / ${number(total)} ${unitShort(progress?.unit ?? "characters")}`;
+  const position = (total: number) => amountOf(progress?.unit ?? "characters", total, total);
   type FooterPart = { node: ReactNode; widest: string; book: boolean };
   const parts: FooterPart[] = progress?.total
     ? (
@@ -891,7 +891,7 @@ function ChaptersSheet({
     onCommit: () => void;
   };
 }) {
-  const { t, number } = useI18n();
+  const { t } = useI18n();
   const currentRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (open) currentRef.current?.scrollIntoView?.({ block: "center" });
@@ -952,7 +952,7 @@ function ChaptersSheet({
                 </span>
                 {entry.location ? (
                   <span className="mobile-chapter__at">
-                    {number(entry.location.current)} {unitShort(entry.location.unit)}
+                    {amount(entry.location.unit, entry.location.current)}
                   </span>
                 ) : null}
               </button>
@@ -1310,16 +1310,8 @@ function BookPosition({
   total: number;
   unit: ReaderBookProgress["unit"];
 }) {
-  const { number } = useI18n();
-  return (
-    <span>
-      {number(Math.min(current, total))} / {number(total)} {unitShort(unit)}
-    </span>
-  );
-}
-
-function unitShort(unit: ReaderBookProgress["unit"]): string {
-  return i18n().t(unit === "words" ? "readerFooter.wo" : "readerFooter.ch");
+  useI18n();
+  return <span>{amountOf(unit, Math.min(current, total), total)}</span>;
 }
 
 const percent = (current: number, total: number) =>

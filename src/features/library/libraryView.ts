@@ -4,6 +4,7 @@ import { i18n } from "../../i18n/i18n";
  * each book. Keep the choices in step with `src-tauri/src/appearance_preferences.rs`.
  */
 import type { LibraryBook } from "./libraryApi";
+import { amount, amountOf, spelledAmount, spelledAmountOf } from "../../i18n/amounts";
 
 export type LibraryView = "grid" | "list";
 export type LibrarySort =
@@ -165,10 +166,7 @@ export function sortBooks(
 export function readTotalLabel(book: LibraryBook): string | null {
   const counts = readCounts(book);
   if (!counts) return null;
-  return i18n().t(
-    counts.unit === "characters" ? "libraryCard.readCharacters" : "libraryCard.readWords",
-    { read: counts.read, total: counts.total },
-  );
+  return spelledAmountOf(counts.unit, counts.read, counts.total);
 }
 
 /**
@@ -267,13 +265,19 @@ export function languageName(tag: string): string {
 export interface LibrarySection {
   /**
    * `series:<name>`, `language:<tag>` or `author:<name>` (empty after the colon for books
-   * without one).
+   * without one), `reading` for Continue reading, `all` for the ungrouped Library.
    */
   key: string;
   /** The heading; null for the ungrouped Library. */
   title: string | null;
   books: LibraryBook[];
 }
+
+/** The key of Continue reading, the group of the books in progress, and of its page. */
+export const READING_GROUP = "reading";
+
+/** The key of the ungrouped Library's one section. */
+export const ALL_BOOKS = "all";
 
 // No series, language or author is ever empty, so the empty key stands for books without one.
 const NO_GROUP = "";
@@ -329,7 +333,7 @@ export function groupBooks(
   sort: LibrarySort = "title",
   reversed = false,
 ): LibrarySection[] {
-  if (group === "none") return [{ key: "all", title: null, books: [...books] }];
+  if (group === "none") return [{ key: ALL_BOOKS, title: null, books: [...books] }];
   const sections = new Map<string, LibraryBook[]>();
   for (const book of books) {
     const value =
@@ -463,4 +467,36 @@ export function libraryCharacters(books: readonly LibraryBook[]): number {
 /** Words across every other book Komori counted. */
 export function libraryWords(books: readonly LibraryBook[]): number {
   return books.reduce((sum, book) => sum + (book.words ?? 0), 0);
+}
+
+/**
+ * A group's characters and words, each with how much of it has been read once any has:
+ * "120K / 1.6M characters", or "1.6M characters" for a group nobody has started. Nothing for
+ * a unit the group's books were not counted in. The phone's narrow headings take the short
+ * unit ("Ch.").
+ */
+export function groupAmounts(
+  books: readonly LibraryBook[],
+  compact: boolean,
+  short = false,
+): string[] {
+  const { number } = i18n();
+  const shown = (count: number) => (compact ? i18n().compact(count, 1) : number(count));
+  const totals = { characters: libraryCharacters(books), words: libraryWords(books) };
+  return (["characters", "words"] as const)
+    .filter((unit) => totals[unit] > 0)
+    .map((unit) => {
+      const read = libraryRead(books, unit);
+      const [one, of] = short ? [amount, amountOf] : [spelledAmount, spelledAmountOf];
+      return read > 0 ? of(unit, shown(read), shown(totals[unit])) : one(unit, shown(totals[unit]));
+    });
+}
+
+/** How much of those characters or words has been read, never more than a book holds. */
+export function libraryRead(books: readonly LibraryBook[], unit: "characters" | "words"): number {
+  return books.reduce((sum, book) => {
+    const total = book[unit];
+    if (typeof total !== "number" || book.progress?.unit !== unit) return sum;
+    return sum + Math.min(Math.max(book.progress.current, 0), total);
+  }, 0);
 }

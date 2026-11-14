@@ -407,7 +407,11 @@ describe("the Library on a phone paired with a PC", () => {
         "三四郎",
       ]),
     );
-    expect(within(shelf).getByText("2 books in progress")).toBeTruthy();
+    expect(within(shelf).getByText("2 books")).toBeTruthy();
+    // Its heading opens the group's own page, as any group's.
+    expect(shelf.querySelector(".mobile-group-heading__link")!.getAttribute("href")).toBe(
+      "/library?group=reading",
+    );
     // The PC's book shows how much was read as the phone's own does.
     expect(
       [...shelf.querySelectorAll(".mobile-continue__count")].map((each) => each.textContent),
