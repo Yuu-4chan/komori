@@ -795,7 +795,7 @@ fn name_series_from_titles(books: &mut [LibraryBook], context: &[RemoteBook]) {
     for (book, named) in books.iter_mut().zip(named) {
         if let Some((series, index)) = named {
             book.series = Some(series);
-            book.series_index = Some(index);
+            book.series_index = index;
         }
     }
 }
@@ -934,7 +934,7 @@ fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<Lib
         if appearance_preferences::series_from_titles(connection) {
             if let Some((series, index)) = series_from_catalog_titles(connection, id)? {
                 book.series = Some(series);
-                book.series_index = Some(index);
+                book.series_index = index;
             }
         } else {
             without_automatic_series(book);
@@ -948,7 +948,7 @@ fn get_book_from_catalog(connection: &Connection, id: &str) -> Result<Option<Lib
 fn series_from_catalog_titles(
     connection: &Connection,
     id: &str,
-) -> Result<Option<(String, f64)>, String> {
+) -> Result<Option<(String, Option<f64>)>, String> {
     let mut statement = connection
         .prepare(
             "SELECT books.id, coalesce(named.title, books.title), books.file_name,
