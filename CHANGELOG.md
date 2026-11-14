@@ -2,6 +2,17 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 2.3.2
+
+- Automatic series group many more books from their titles and file names. Komori now reads more ways of numbering a volume:
+  - Roman numerals inside Japanese titles (`キノの旅XIV`), numeral signs (`Ⅳ`), circled numbers (`①`) and kanji volumes (`四巻`);
+  - `〔上〕` and ` 下` halves;
+  - a spin-off's own subtitle after its number;
+  - file names starting with `【小説9巻】`, `【2】` or `09`.
+- A first volume without a number joins its series, also when only one other volume exists (`Title` and `Title２`).
+- Side stories and extras whose titles start with a series' name join that series without a volume number. A spin-off with its own numbered volumes keeps its own group.
+- Books that were wrongly grouped under `小説`, `The` or a file name's abbreviation now group under their real series.
+
 ## 2.3.1
 
 - The phone records reading statistics again. Since 2.3.0 it counted no reading time.
