@@ -2,6 +2,15 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 2.3.1
+
+- The phone records reading statistics again. Since 2.3.0 it counted no reading time.
+- Sync between the phone and the PC no longer loses things: the phone's place in a book always reaches the PC, bookmarks and notes the other side could not keep are no longer deleted on the next sync, a note edited on both sides is kept once as two notes instead of being copied again, and a bookmark or note changed during a sync waits for the next one. Update Komori on the PC and the phone together.
+- Continue reading is the Library's first group, with See all and a page of its own like any group.
+- Group headings in the Library show how much of their characters or words has been read.
+- The image viewer enlarges a small picture no more than three times.
+- Each preset theme draws the logo in its own accent color.
+
 ## 2.3.0
 
 - Start in tray (Settings > General) opens Komori in the tray, its window shown from the tray icon.
