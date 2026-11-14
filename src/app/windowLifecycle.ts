@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isAndroid } from "./platform";
 
 const flushers = new Set<() => Promise<unknown>>();
 const visibilityListeners = new Set<(visible: boolean) => void>();
@@ -57,13 +58,15 @@ export function installWindowLifecycle(): () => void {
   ];
   // A failed registration must not create an unhandled rejection; native still has its deadline.
   for (const stop of stops) void stop.catch(() => {});
-  // Komori may start in the tray, its window hidden until the tray shows it.
-  void getCurrentWindow()
-    .isVisible()
-    .then((shown) => {
-      if (active && !shown) visibility(false);
-    })
-    .catch(() => {});
+  // Komori may start in the tray, its window hidden until the tray shows it. The phone has no
+  // tray, and Android answers that its window is not visible while it is on screen.
+  if (!isAndroid)
+    void getCurrentWindow()
+      .isVisible()
+      .then((shown) => {
+        if (active && !shown) visibility(false);
+      })
+      .catch(() => {});
   return () => {
     active = false;
     for (const stop of stops) void stop.then((unlisten) => unlisten()).catch(() => {});
