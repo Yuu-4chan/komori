@@ -2,6 +2,13 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 2.4.0
+
+- Double-click a series or author group's name, in the Library or on the group's own page, to rename it. Each book keeps its volume number, and a name that is already in use joins that group.
+- On the phone, double-tap the title of a group's page to rename it. Renaming books that are on the PC needs the PC on 2.4.0 too.
+- The phone has one Remove button. By default it removes the books from the phone and they stay on the PC; a switch in its confirmation also removes them from the Library.
+- The Discord activity's button opens the Komori website.
+
 ## 2.3.2
 
 - Automatic series group many more books from their titles and file names. Komori now reads more ways of numbering a volume:
