@@ -354,41 +354,172 @@ fn apply_edits(connection: &mut Connection, edits: &[BookEdit]) -> Result<Series
         let Some((own_title, own_author)) = own else {
             continue;
         };
-        let fields = [
-            ("book_titles", "title", &edit.title, own_title, "a title"),
-            (
-                "book_authors",
-                "author",
-                &edit.author,
-                own_author,
-                "an author",
-            ),
-        ];
         let mut changed = false;
-        for (table, column, value, own, field) in fields {
-            let Some(value) = value else { continue };
-            let count = match hand_set(value, own.as_deref(), field)? {
-                Some(value) => transaction.execute(
-                    &format!(
-                        "INSERT INTO {table} (book_id, {column}) VALUES (?1, ?2)
-                         ON CONFLICT(book_id) DO UPDATE
-                            SET {column} = excluded.{column},
-                                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
-                    ),
-                    params![edit.id, value],
-                ),
-                None => transaction.execute(
-                    &format!("DELETE FROM {table} WHERE book_id = ?1"),
-                    [&edit.id],
-                ),
-            }
-            .map_err(storage_error)?;
-            changed |= count > 0;
+        if let Some(title) = &edit.title {
+            changed |= set_hand(&transaction, TITLE, &edit.id, title, own_title.as_deref())?;
+        }
+        if let Some(author) = &edit.author {
+            changed |= set_hand(
+                &transaction,
+                AUTHOR,
+                &edit.id,
+                author,
+                own_author.as_deref(),
+            )?;
         }
         updated += usize::from(changed);
     }
     transaction.commit().map_err(storage_error)?;
     Ok(SeriesResult { updated })
+}
+
+/// A hand-set field's table, column and name in a refusal.
+struct HandField {
+    table: &'static str,
+    column: &'static str,
+    field: &'static str,
+}
+
+const TITLE: HandField = HandField {
+    table: "book_titles",
+    column: "title",
+    field: "a title",
+};
+const AUTHOR: HandField = HandField {
+    table: "book_authors",
+    column: "author",
+    field: "an author",
+};
+
+/// Keeps `value` as the book's hand-set field, or none when it is blank or the book's own.
+fn set_hand(
+    connection: &Connection,
+    field: HandField,
+    id: &str,
+    value: &str,
+    own: Option<&str>,
+) -> Result<bool, String> {
+    let HandField {
+        table,
+        column,
+        field,
+    } = field;
+    let count = match hand_set(value, own, field)? {
+        Some(value) => connection.execute(
+            &format!(
+                "INSERT INTO {table} (book_id, {column}) VALUES (?1, ?2)
+                 ON CONFLICT(book_id) DO UPDATE
+                    SET {column} = excluded.{column},
+                        updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
+            ),
+            params![id, value],
+        ),
+        None => connection.execute(&format!("DELETE FROM {table} WHERE book_id = ?1"), [id]),
+    }
+    .map_err(storage_error)?;
+    Ok(count > 0)
+}
+
+/// One book of a renamed group: its series set by hand under the new name with the number it
+/// shows, or its author as the new name leads it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GroupRename {
+    pub(crate) id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) series: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) series_index: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) author: Option<String>,
+}
+
+/// Renames a series or author group: each book takes its new series or author by hand, all or
+/// none. A name another group has joins the two. Returns the books changed.
+#[tauri::command]
+pub async fn rename_book_group(
+    catalog: State<'_, CatalogState>,
+    renames: Vec<GroupRename>,
+) -> Result<SeriesResult, String> {
+    let database = catalog.database.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut connection = open_catalog(&database)?;
+        rename_group(&mut connection, &renames).map(|changed| SeriesResult {
+            updated: changed.len(),
+        })
+    })
+    .await
+    .map_err(|error| format!("Rename task failed: {error}"))?
+}
+
+pub(crate) fn rename_group(
+    connection: &mut Connection,
+    renames: &[GroupRename],
+) -> Result<Vec<String>, String> {
+    if renames.is_empty() || renames.len() > MAX_SERIES_IDS {
+        return Err("Choose between 1 and 10,000 books.".into());
+    }
+    if renames
+        .iter()
+        .any(|rename| Uuid::parse_str(&rename.id).is_err())
+    {
+        return Err("A book could not be identified.".into());
+    }
+    if renames.iter().any(|rename| {
+        rename
+            .series_index
+            .is_some_and(|index| !index.is_finite() || !(0.0..=1_000_000.0).contains(&index))
+    }) {
+        return Err("A volume number could not be read.".into());
+    }
+    let transaction = connection.transaction().map_err(storage_error)?;
+    let mut changed = Vec::new();
+    for rename in renames {
+        let own: Option<Option<String>> = transaction
+            .query_row(
+                "SELECT author FROM books WHERE id = ?1",
+                [&rename.id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(storage_error)?;
+        // Unknown books are not created.
+        let Some(own_author) = own else { continue };
+        let mut renamed = false;
+        if let Some(series) = &rename.series {
+            let series =
+                clean_series_name(series).ok_or("Enter a series name of up to 200 characters.")?;
+            renamed |= transaction
+                .execute(
+                    "INSERT INTO book_series (book_id, series, series_index) VALUES (?1, ?2, ?3)
+                     ON CONFLICT(book_id) DO UPDATE
+                        SET series = excluded.series,
+                            series_index = excluded.series_index,
+                            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')",
+                    params![rename.id, series, rename.series_index],
+                )
+                .map_err(storage_error)?
+                > 0;
+        }
+        if let Some(author) = &rename.author {
+            if author.trim().is_empty() {
+                return Err("Enter an author of up to 500 characters.".into());
+            }
+            set_hand(
+                &transaction,
+                AUTHOR,
+                &rename.id,
+                author,
+                own_author.as_deref(),
+            )?;
+            renamed = true;
+        }
+        if renamed {
+            changed.push(rename.id.clone());
+        }
+    }
+    transaction.commit().map_err(storage_error)?;
+    Ok(changed)
 }
 
 fn valid_ids(ids: &[String]) -> Result<(), String> {
@@ -922,5 +1053,66 @@ mod tests {
             )
             .unwrap();
         assert_eq!(left, 0);
+    }
+    #[test]
+    fn renaming_a_group_keeps_each_books_volume_and_joins_a_group_of_that_name() {
+        let directory = tempdir().unwrap();
+        let paths: Vec<_> = ["a", "b", "c"]
+            .iter()
+            .map(|name| directory.path().join(format!("{name}.epub")))
+            .collect();
+        for path in &paths {
+            book(path, None, None, &["<p>本</p>"]);
+        }
+        let mut connection = open_catalog(&directory.path().join("library.sqlite3")).unwrap();
+        import_paths(&mut connection, &paths);
+        let ids: Vec<String> = listed(&connection)
+            .iter()
+            .map(|book| book["id"].as_str().unwrap().to_string())
+            .collect();
+        let rename = |id: &str, series: Option<&str>, index: Option<f64>, author: Option<&str>| {
+            GroupRename {
+                id: id.into(),
+                series: series.map(Into::into),
+                series_index: index,
+                author: author.map(Into::into),
+            }
+        };
+
+        let renames = [
+            rename(&ids[0], Some(" New   Saga "), Some(3.0), None),
+            rename(&ids[1], Some("New Saga"), None, Some("Lead & Second")),
+        ];
+        assert_eq!(rename_group(&mut connection, &renames).unwrap(), ids[..2]);
+        let books = listed(&connection);
+        assert_eq!(books[0]["series"], "New Saga");
+        assert_eq!(books[0]["seriesIndex"], 3.0);
+        assert_eq!(books[1]["series"], "New Saga");
+        assert_eq!(books[1]["seriesIndex"], Value::Null);
+        assert_eq!(books[1]["author"], "Lead & Second");
+        assert_eq!(books[1]["authorManual"], true);
+        assert_eq!(books[2]["series"], Value::Null);
+
+        // An invalid name or number changes none of the books; unknown books are not created.
+        let unknown = Uuid::new_v4().to_string();
+        for bad in [
+            vec![
+                rename(&ids[2], Some("Fine"), None, None),
+                rename(&ids[0], Some(" "), None, None),
+            ],
+            vec![rename(&ids[2], Some("Fine"), Some(f64::NAN), None)],
+            vec![rename(&ids[2], Some("Fine"), Some(-1.0), None)],
+            vec![rename(&ids[2], None, None, Some("  "))],
+            vec![rename("../path", Some("Fine"), None, None)],
+            vec![],
+        ] {
+            assert!(rename_group(&mut connection, &bad).is_err());
+        }
+        assert_eq!(listed(&connection)[2]["series"], Value::Null);
+        assert!(
+            rename_group(&mut connection, &[rename(&unknown, Some("A"), None, None)])
+                .unwrap()
+                .is_empty()
+        );
     }
 }

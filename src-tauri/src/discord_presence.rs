@@ -25,7 +25,7 @@ pub(crate) const RECORD: &str = "discord";
 /// Komori's application in the Discord Developer Portal; Discord shows its name and icon.
 const CLIENT_ID: &str = "1562070752675766322";
 /// Where the status image leads. Discord loads the image itself; Komori sends only the links.
-const WEBSITE: &str = "https://github.com/Yuu-4chan/komori";
+const WEBSITE: &str = "https://yuu-4chan.github.io/komori/";
 const ICON: &str =
     "https://raw.githubusercontent.com/Yuu-4chan/komori/main/src-tauri/icons/128x128@2x.png";
 /// No reading for this long clears the status.
@@ -878,7 +878,7 @@ mod tests {
                 "assets": {
                     "large_image": ICON,
                     "large_text": "Komori",
-                    "large_url": "https://github.com/Yuu-4chan/komori"
+                    "large_url": WEBSITE
                 }
             })
         );

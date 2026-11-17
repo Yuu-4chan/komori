@@ -4,11 +4,13 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode
 import { CardTabStop, useCardRoving } from "./cardRoving";
 import type { LibraryBook } from "./libraryApi";
 import type { ScrollPlace } from "./libraryCache";
+import { GroupName } from "./GroupName";
 import { LibraryCarousel } from "./LibraryCarousel";
 import {
   ALL_BOOKS,
   groupAmounts,
   READING_GROUP,
+  renamableGroup,
   type LibrarySection,
   type LibraryView,
 } from "./libraryView";
@@ -28,6 +30,8 @@ interface LibraryCollectionProps {
   /** How far each group's carousel was scrolled sideways, by the group's key. */
   rowOffset?: (key: string) => number | undefined;
   onRowOffset?: (key: string, offset: number) => void;
+  /** Renames a series or author group, whose heading a double click then edits. */
+  renameGroup?: (section: LibrarySection, name: string) => Promise<void>;
 }
 
 interface GridLayout {
@@ -60,6 +64,7 @@ export function LibraryCollection({
   renderReadingBook,
   rowOffset,
   onRowOffset,
+  renameGroup,
 }: LibraryCollectionProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const probeRef = useRef<HTMLDivElement>(null);
@@ -168,7 +173,7 @@ export function LibraryCollection({
                 <LibraryCarousel
                   books={section.books}
                   gap={gap}
-                  heading={<SectionHeading section={section} />}
+                  heading={<SectionHeading rename={renameGroup} section={section} />}
                   initialOffset={rowOffset?.(section.key)}
                   itemWidth={itemWidth}
                   onOffset={onRowOffset ? (offset) => onRowOffset(section.key, offset) : undefined}
@@ -179,7 +184,9 @@ export function LibraryCollection({
                 />
               ) : (
                 <>
-                  {section.title !== null ? <SectionHeading section={section} /> : null}
+                  {section.title !== null ? (
+                    <SectionHeading rename={renameGroup} section={section} />
+                  ) : null}
                   <div className={`library-books library-books--${view}`}>
                     {section.books.map(renderBook)}
                   </div>
@@ -219,7 +226,7 @@ export function LibraryCollection({
                 <LibraryCarousel
                   books={row.section.books}
                   gap={gap}
-                  heading={<SectionHeading section={row.section} />}
+                  heading={<SectionHeading rename={renameGroup} section={row.section} />}
                   initialOffset={rowOffset?.(row.section.key)}
                   itemWidth={itemWidth}
                   onOffset={
@@ -240,7 +247,7 @@ export function LibraryCollection({
               ref={virtualRows.measureRef}
               style={{ transform: `translateY(${start}px)` }}
             >
-              <SectionHeading section={row.section} />
+              <SectionHeading rename={renameGroup} section={row.section} />
             </div>
           ) : (
             <div
@@ -263,7 +270,13 @@ export function LibraryCollection({
 }
 
 /** A group's name, then its books and the characters and words they hold, as the Library's summary. */
-function SectionHeading({ section }: { section: LibrarySection }) {
+function SectionHeading({
+  section,
+  rename,
+}: {
+  section: LibrarySection;
+  rename?: (section: LibrarySection, name: string) => Promise<void>;
+}) {
   const { tp } = useI18n();
   const full = groupAmounts(section.books, false);
   // All books names the Library's own books under Continue reading; the Library's summary
@@ -276,7 +289,12 @@ function SectionHeading({ section }: { section: LibrarySection }) {
     );
   return (
     <h3 className="library-group-heading">
-      <span title={section.title ?? undefined}>{section.title}</span>
+      <GroupName
+        name={section.title ?? ""}
+        onRename={
+          rename && renamableGroup(section.key) ? (name) => rename(section, name) : undefined
+        }
+      />
       <small>
         {tp("librarySummary.books", section.books.length)}
         {groupAmounts(section.books, true).map((short, index) => (

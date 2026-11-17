@@ -21,6 +21,7 @@ import { flushPendingWrites } from "../app/windowLifecycle";
 import { BrandMark } from "../brand/BrandMark";
 import { isLibraryReturn } from "../features/library/libraryCache";
 import { MobileHeaderContext, type MobileHeaderProps } from "../components/layout/mobileHeader";
+import { GroupName } from "../features/library/GroupName";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { StatisticsSourceContext } from "../features/statistics/statisticsSource";
 import { useI18n } from "../i18n/i18n";
@@ -194,7 +195,15 @@ function useDockAway(content: RefObject<HTMLElement | null>, enabled: boolean, p
 /**
  * A page's heading on the phone: the brand, its title, Settings and its own actions.
  */
-export function MobilePageHeader({ title, actions, back = false }: MobileHeaderProps) {
+export function MobilePageHeader({
+  title,
+  actions,
+  back = false,
+  onRename,
+}: MobileHeaderProps & {
+  /** Renames what the page shows, such as a series, whose title a double tap then edits. */
+  onRename?: (name: string) => Promise<void>;
+}) {
   const { t } = useI18n();
   const navigate = useNavigate();
   return (
@@ -213,7 +222,7 @@ export function MobilePageHeader({ title, actions, back = false }: MobileHeaderP
           <BrandMark className="mobile-header__brand" />
         )}
         <div className="mobile-header__title">
-          <h1>{title}</h1>
+          <h1>{onRename ? <GroupName name={title} onRename={onRename} /> : title}</h1>
         </div>
         {back ? null : (
           <Link aria-label={t("shell.settings")} className="mobile-round-button" to="/settings">

@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 
-import type { LibraryBook, LibraryBookProgress } from "../features/library/libraryApi";
+import type { GroupRename, LibraryBook, LibraryBookProgress } from "../features/library/libraryApi";
 import { libraryCache } from "../features/library/libraryCache";
 import type { ReaderLocator } from "../features/reader/renderer";
 import type { MessageKey } from "../i18n/i18n";
@@ -149,6 +149,9 @@ export const removePcBook = (book: PcBook) => invoke<void>("remove_pc_book", { i
  */
 export const changePcBooks = (change: "completed" | "unread" | "remove", ids: string[]) =>
   invoke<string[]>("change_pc_books", { change, ids });
+/** Renames a series or author group on the PC and the copies here, returning the books changed. */
+export const renamePcGroup = (renames: GroupRename[]) =>
+  invoke<string[]>("rename_pc_group", { renames });
 export const listPcDictionaries = () => invoke<PcDictionary[]>("list_pc_dictionaries");
 export const copyPcDictionary = (id: number) =>
   invoke<"imported" | "alreadyImported">("copy_pc_dictionary", { id });

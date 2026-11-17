@@ -29,7 +29,9 @@ in its view sheet; books stay where they are, and a moved or deleted one offers 
 A long press selects a book or a group's books, then taps select more, with Done and Select all
 staying at the top as the page scrolls, and a bar of icons (each named for screen readers) offers Information for one book (its details, the series opening its page), Series…
 (which also renames or removes a series), Edit…, Mark as completed and
-Remove, or Keep on this phone and Remove from this phone for the PC's books. The Reader is read by touch: in paginated and VN
+Remove, with Keep on this phone for the PC's books; Remove asks first, and takes a PC book's copy off
+the phone unless Also remove from the Library is on (with no copy here, it removes the book from the PC's Library).
+Double-tapping a series or author group page's title renames the group, the PC's books on the PC. The Reader is read by touch: in paginated and VN
 views tap the sides to turn a page (in the book's page progression), tap the paragraph in VN
 view to read on, swipe in paginated view,
 scroll in continuous views, where a tap anywhere shows the controls, optionally turn pages with
@@ -54,7 +56,8 @@ idle limits), Sync and About.
 
 A Calibre-like Library of real covers and progress: Continue reading (books read past their start) as the first group under the toolbar, a row with See all and a page of its own like any group, its heading giving how much of its books is read, narrowed by search and filters;
 grid/list, search, status filters, Cards details, sort (Author sorts by name, then title) and direction, which order groups too; grouping by series,
-language or first author (`A & B`, `A／B` and `A、B` group under A) as carousels whose headings give the group's books and its characters or words (`120K / 1.6M characters` once any of them is read, `1.6M characters` before; the Library spells the unit out, the phone's group pages keep `Ch.`), with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too; Automatic series in Settings > General, on
+language or first author (`A & B`, `A／B` and `A、B` group under A) as carousels whose headings give the group's books and its characters or words (`120K / 1.6M characters` once any of them is read, `1.6M characters` before; the Library spells the unit out, the phone's group pages keep `Ch.`), with See all pages, which keep a saved sort of their own (their carousels' books follow it too) and which a card's series or language chip opens too;
+double-clicking a series or author group's name (on its heading or its page) renames it in place, Enter or leaving the field saving and Escape keeping the name, each book keeping its volume, a name another group has joining the two; Automatic series in Settings > General, on
 by default, makes series in this order: what you set by hand, then numbered file names
 (`Harry Potter 1.epub`, `Harry Potter 2.epub`, `09 Title.epub`, `【小説9巻】Title～…～第三部….epub` and `【2】Title - Author.epub`, ignoring a copy's `(1)`, notes such as `(2020)`, a checksum or the sites it was downloaded from, and the store tags titles drop, such as `【電子版限定特典付き】`, spelled as the books' titles spell the same words, taking the number after `Vol`, `Volume` or `第` before a later year, as in `Baccano! - Vol 13 - 2002`, and leaving to the titles file names that only spell a Japanese title's katakana reading or that a few files name apart from the series their titles name, such as `SUN_6.epub`),
 then a book's own series, then numbered volumes sharing a title (`Title 01`, `Title 02`), full-width
@@ -241,7 +244,8 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   title, book progress as a percentage, chapter progress and reading speed, each of
   which can be hidden; outside the Reader, Komori pages (on by default) shows the page in
   use: Browsing the library, Using the dictionary, Viewing statistics or Changing settings;
-  and Idle after 5 minutes without reading or using the page, or with nothing to show.
+  and Idle after 5 minutes without reading or using the page, or with nothing to show. Its
+  Komori button opens Komori's website.
 
 The application and Reader themes default to Hojicha. The Library initially sorts
 by Title and shows Series, Language, Last read and Unique kanji, with automatic series. Reader popup mouse

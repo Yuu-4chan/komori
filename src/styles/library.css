@@ -1042,6 +1042,21 @@
   white-space: nowrap;
 }
 
+/* A group's name edited in place keeps the heading's type and line. */
+.group-name-field {
+  min-width: 0;
+  width: min(100%, 28rem);
+  margin: -0.15em -0.4em;
+  padding: 0.1em 0.4em;
+  color: var(--text-primary);
+  font: inherit;
+  letter-spacing: inherit;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  outline: 0;
+}
+
 .library-group-heading small {
   flex: none;
   color: var(--text-muted);

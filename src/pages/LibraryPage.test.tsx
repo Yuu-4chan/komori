@@ -19,6 +19,7 @@ import {
   scanLibraryFolders,
   setBookSeries,
   editBooks,
+  renameBookGroup,
 } from "../features/library/libraryApi";
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 import type { AppearancePreferences } from "../features/appearance/appearancePreferences";
@@ -50,6 +51,7 @@ vi.mock("../features/library/libraryApi", () => ({
   setBookSeries: vi.fn(),
   resetBookSeries: vi.fn(),
   editBooks: vi.fn(),
+  renameBookGroup: vi.fn(),
   scanLibraryFolders: vi.fn(async () => []),
   onLibraryDetailsUpdated: vi.fn(() => () => {}),
 }));
@@ -1769,6 +1771,93 @@ describe("Library page", () => {
           "English1 book",
           "Japanese2 books · 220K characters",
           "Unknown language1 book",
+        ]);
+      });
+
+      it("renames a series or author group by double-clicking its name, here or on its page", async () => {
+        const user = userEvent.setup();
+        vi.mocked(renameBookGroup).mockReset().mockResolvedValue();
+        await showLibrary(user);
+        await user.click(screen.getByRole("button", { name: /^(Group by|No grouping)/ }));
+        await user.click(screen.getByRole("menuitemradio", { name: /Series/ }));
+        const heading = (name: string) =>
+          within(
+            Array.from(document.querySelectorAll<HTMLElement>(".library-group-heading")).find(
+              (each) => each.textContent?.startsWith(name),
+            )!,
+          ).getByText(name);
+
+        // No series has a name of its own; Escape keeps the name.
+        await user.dblClick(heading("No series"));
+        expect(screen.queryByRole("textbox", { name: "Group name" })).toBeNull();
+        await user.dblClick(heading("Cat Tales"));
+        let field = screen.getByRole("textbox", { name: "Group name" });
+        expect(field).toHaveValue("Cat Tales");
+        await user.keyboard("Other{Escape}");
+        expect(screen.queryByRole("textbox", { name: "Group name" })).toBeNull();
+        expect(renameBookGroup).not.toHaveBeenCalled();
+
+        // Each book takes the new name with its own number, and the Library is listed again.
+        const listed = listMock.mock.calls.length;
+        await user.dblClick(heading("Cat Tales"));
+        field = screen.getByRole("textbox", { name: "Group name" });
+        await user.clear(field);
+        await user.type(field, "  Cat   Stories {Enter}");
+        await waitFor(() =>
+          expect(renameBookGroup).toHaveBeenCalledWith([
+            { id: "vol-2", series: "Cat Stories", seriesIndex: 2 },
+            { id: "vol-1", series: "Cat Stories", seriesIndex: 1 },
+          ]),
+        );
+        await waitFor(() => expect(listMock.mock.calls.length).toBe(listed + 1));
+
+        // An author group gives each book the new lead author, keeping the others.
+        listMock.mockResolvedValue(
+          detailed.map((book) =>
+            book.id === "plain" ? { ...book, author: "An Author & A Friend" } : book,
+          ),
+        );
+        await user.click(screen.getByRole("button", { name: /^(Group by|No grouping)/ }));
+        await user.click(screen.getByRole("menuitemradio", { name: /Author/ }));
+        vi.mocked(renameBookGroup).mockRejectedValueOnce(Error("Enter an author."));
+        await user.dblClick(heading("An Author"));
+        field = screen.getByRole("textbox", { name: "Group name" });
+        await user.clear(field);
+        await user.type(field, "A Writer{Enter}");
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+          "Could not rename the group: Enter an author.",
+        );
+        expect(vi.mocked(renameBookGroup).mock.lastCall?.[0]).toContainEqual({
+          id: "vol-1",
+          author: "A Writer",
+        });
+        expect(heading("An Author")).toBeInTheDocument();
+      });
+
+      it("renames a group from its own page, which follows the new name", async () => {
+        const user = userEvent.setup();
+        vi.mocked(renameBookGroup).mockReset().mockResolvedValue();
+        listMock.mockResolvedValue(detailed);
+        renderPage(
+          <MemoryRouter initialEntries={["/library?group=series%3ACat%20Tales"]}>
+            <Routes>
+              <Route path="/library" element={<LibraryPage />} />
+            </Routes>
+          </MemoryRouter>,
+        );
+        const page = await screen.findByRole("region", { name: "Cat Tales" });
+        listMock.mockResolvedValue(
+          detailed.map((book) => ("series" in book ? { ...book, series: "Cat Stories" } : book)),
+        );
+        await user.dblClick(within(page).getByRole("heading", { level: 2 }).firstElementChild!);
+        const field = screen.getByRole("textbox", { name: "Group name" });
+        await user.clear(field);
+        await user.type(field, "Cat Stories{Enter}");
+        const renamed = await screen.findByRole("region", { name: "Cat Stories" });
+        expect(within(renamed).getAllByRole("article")).toHaveLength(2);
+        expect(renameBookGroup).toHaveBeenCalledWith([
+          { id: "vol-2", series: "Cat Stories", seriesIndex: 2 },
+          { id: "vol-1", series: "Cat Stories", seriesIndex: 1 },
         ]);
       });
 

@@ -1033,6 +1033,8 @@ export const ptBR: MessageCatalog = {
   "library.markUnread": "Marcar como não lido",
   "library.markCompleted": "Marcar como concluído",
   "library.completeFailed": "Não foi possível marcar os livros como concluídos: {error}",
+  "library.groupName": "Nome do grupo",
+  "library.renameFailed": "Não foi possível renomear o grupo: {error}",
   "library.unreadDescription":
     "O Komori esquece onde você está neste livro e o progresso dele, então ele abre no início, e as Estatísticas deixam de contá-lo como concluído. O tempo de leitura já registrado continua.",
   "library.unreadTitle": "Marcar este livro como não lido?",
@@ -1938,7 +1940,11 @@ export const ptBR: MessageCatalog = {
   "sync.storageCovers": "Capas",
   "sync.clear": "Limpar",
   "sync.keep": "Manter neste celular",
-  "sync.removeFromPhone": "Remover deste celular",
+  "sync.alsoRemoveFromLibrary": "Remover também da biblioteca",
+  "sync.removeCopiesDescription_one": "O livro continua em {name}.",
+  "sync.removeCopiesDescription_other": "Os livros continuam em {name}.",
+  "sync.removeCopiesTitle_one": "Remover {count} livro deste celular?",
+  "sync.removeCopiesTitle_other": "Remover {count} livros deste celular?",
   "sync.saving": "Salvando, {percent}%",
   "sync.error.unreachable":
     "O PC não está respondendo. Abra o Komori nele e permita que celulares se conectem.",

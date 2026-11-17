@@ -214,8 +214,13 @@
 }
 
 /* A field a dialog adds sits as far below its description as its other added content. */
-.confirm-dialog__content > :is(.select-field, .stepper-field, .choice-field, .text-field) {
+.confirm-dialog__content
+  > :is(.select-field, .stepper-field, .choice-field, .text-field, .toggle-setting) {
   margin-top: var(--space-4);
+}
+
+.confirm-dialog__content > .toggle-setting {
+  width: 100%;
 }
 
 .confirm-dialog__list {

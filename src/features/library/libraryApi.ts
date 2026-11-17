@@ -247,6 +247,20 @@ export async function editBooks(edits: BookEdit[]): Promise<void> {
   await invoke<{ updated: number }>("edit_books", { edits });
 }
 
+/** One book of a renamed group: its series by hand with the number it shows, or its author. */
+export interface GroupRename {
+  id: string;
+  series?: string;
+  seriesIndex?: number | null;
+  author?: string;
+}
+
+/** Renames a series or author group by giving its books the new name, all or none. */
+export async function renameBookGroup(renames: GroupRename[]): Promise<void> {
+  requireDesktop();
+  await invoke<{ updated: number }>("rename_book_group", { renames });
+}
+
 /** Lets the books follow their own metadata's series again. */
 export async function resetBookSeries(ids: string[]): Promise<number> {
   requireDesktop();
