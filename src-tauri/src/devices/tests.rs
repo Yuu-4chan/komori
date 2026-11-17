@@ -394,6 +394,56 @@ fn a_paired_phone_marks_the_pcs_books_and_removes_them_from_its_library() {
 }
 
 #[test]
+fn a_paired_phone_renames_a_group_of_the_pcs_books() {
+    use crate::book_details::GroupRename;
+    let pc = pc();
+    let pairing = pair(&pc, &pc.shared.code()).unwrap();
+    let client = paired(&pc, &pairing);
+    let book = run(client.library()).unwrap().books.remove(0);
+    let other = "00000000-0000-4000-8000-000000000000".to_owned();
+    let renames = [
+        GroupRename {
+            id: book.id.clone(),
+            series: Some("Wonderland".into()),
+            series_index: Some(2.0),
+            author: Some("Carroll".into()),
+        },
+        GroupRename {
+            id: other.clone(),
+            series: Some("Wonderland".into()),
+            series_index: None,
+            author: None,
+        },
+    ];
+    // A book the PC lacks is left out.
+    assert_eq!(
+        run(client.rename_books(&renames)).unwrap(),
+        std::slice::from_ref(&book.id)
+    );
+    let listed = run(client.library()).unwrap().books.remove(0);
+    assert_eq!(listed.series.as_deref(), Some("Wonderland"));
+    assert_eq!(listed.series_index, Some(2.0));
+    assert_eq!(listed.author.as_deref(), Some("Carroll"));
+
+    // A name the PC refuses changes nothing; only a paired phone may rename.
+    let blank = [GroupRename {
+        id: book.id.clone(),
+        series: Some(" ".into()),
+        series_index: None,
+        author: None,
+    }];
+    assert!(matches!(
+        run(client.rename_books(&blank)).unwrap_err(),
+        LinkError::Failed(_)
+    ));
+    let unpaired = Client::new("127.0.0.1", pc.port, Some(pairing.fingerprint), None).unwrap();
+    assert_eq!(
+        run(unpaired.rename_books(&renames)).unwrap_err(),
+        LinkError::NotPaired
+    );
+}
+
+#[test]
 fn the_pc_answers_each_new_connection_at_once_and_stops_listening_when_turned_off() {
     let pc = pc();
     let client = Client::new("127.0.0.1", pc.port, None, None).unwrap();

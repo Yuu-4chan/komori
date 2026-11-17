@@ -1048,6 +1048,8 @@ export const en = {
   "library.markUnread": "Mark as unread",
   "library.markCompleted": "Mark as completed",
   "library.completeFailed": "Could not mark as completed: {error}",
+  "library.groupName": "Group name",
+  "library.renameFailed": "Could not rename the group: {error}",
   "library.unreadDescription":
     "Komori forgets where you are in this book and its progress, so it opens at the start, and Statistics no longer counts it as finished. Reading time already recorded stays.",
   "library.unreadTitle": "Mark this book as unread?",
@@ -1986,7 +1988,11 @@ export const en = {
   "sync.storageCovers": "Covers",
   "sync.clear": "Clear",
   "sync.keep": "Keep on this phone",
-  "sync.removeFromPhone": "Remove from this phone",
+  "sync.alsoRemoveFromLibrary": "Also remove from the Library",
+  "sync.removeCopiesDescription_one": "The book stays on {name}.",
+  "sync.removeCopiesDescription_other": "The books stay on {name}.",
+  "sync.removeCopiesTitle_one": "Remove {count} book from this phone?",
+  "sync.removeCopiesTitle_other": "Remove {count} books from this phone?",
   "sync.saving": "Saving, {percent}%",
   "sync.error.unreachable":
     "The PC isn't answering. Open Komori there and allow phones to connect.",

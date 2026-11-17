@@ -3,7 +3,7 @@ import { i18n } from "../../i18n/i18n";
  * The Library's saved view choices and the reading status, sort, and search it derives from
  * each book. Keep the choices in step with `src-tauri/src/appearance_preferences.rs`.
  */
-import type { LibraryBook } from "./libraryApi";
+import type { GroupRename, LibraryBook } from "./libraryApi";
 import { amount, amountOf, spelledAmount, spelledAmountOf } from "../../i18n/amounts";
 
 export type LibraryView = "grid" | "list";
@@ -103,9 +103,11 @@ export function bookTitle(book: LibraryBook): string {
  * and `A、B` list several, as Calibre and Japanese stores write them.
  */
 export function leadAuthor(book: LibraryBook): string | null {
-  const lead = book.author?.split(/\s*(?:[&＆;；、／/]|,\s)\s*/u)[0]?.trim();
+  const lead = book.author?.split(AUTHORS)[0]?.trim();
   return lead || null;
 }
+
+const AUTHORS = /\s*(?:[&＆;；、／/]|,\s)\s*/u;
 
 /** Title, author, series, and file name contain every word of the query, ignoring case. */
 export function matchesQuery(book: LibraryBook, query: string): boolean {
@@ -386,6 +388,42 @@ export function groupBooks(
 export function sectionGroup(key: string): Exclude<LibraryGroup, "none"> | null {
   const group = key.slice(0, key.indexOf(":"));
   return group === "series" || group === "language" || group === "author" ? group : null;
+}
+
+/** A series or author group with a name, which can be renamed; others have names of their own. */
+export function renamableGroup(key: string): "series" | "author" | null {
+  const group = sectionGroup(key);
+  return (group === "series" || group === "author") && key.length > group.length + 1 ? group : null;
+}
+
+/** A group name as the Library keeps it: its whitespace collapsed, or null when blank. */
+export function cleanGroupName(name: string): string | null {
+  return name.trim().replace(/\s+/gu, " ") || null;
+}
+
+/**
+ * What renaming a series or author group to `name` sets on each of its books: the series by
+ * hand with the number it shows, or the author with the new name leading, the others kept.
+ */
+export function groupRenames(
+  key: string,
+  books: readonly LibraryBook[],
+  name: string,
+): GroupRename[] {
+  const group = renamableGroup(key);
+  if (group === "series")
+    return books.map((book) => ({
+      id: book.id,
+      series: name,
+      seriesIndex: book.seriesIndex ?? null,
+    }));
+  if (group === "author")
+    return books.map((book) => {
+      const author = book.author?.trim() ?? "";
+      const others = AUTHORS.exec(author);
+      return { id: book.id, author: name + (others ? author.slice(others.index) : "") };
+    });
+  return [];
 }
 
 /** `/library?group=<section key>` is one group's own page, opened from its See all or a card's chip. */

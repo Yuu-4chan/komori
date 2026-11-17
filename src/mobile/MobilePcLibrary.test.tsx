@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation, useParams } from "react-route
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
-import { listLibrary, type LibraryBook } from "../features/library/libraryApi";
+import { listLibrary, renameBookGroup, type LibraryBook } from "../features/library/libraryApi";
 import { libraryCache } from "../features/library/libraryCache";
 import { pcSession } from "./pcLibrarySession";
 import * as api from "./pcLinkApi";
@@ -15,6 +15,7 @@ vi.mock("../features/library/libraryApi", () => ({
   listLibrary: vi.fn(),
   scanLibraryFolders: vi.fn(async () => []),
   getLibraryBook: vi.fn(async () => null),
+  renameBookGroup: vi.fn(async () => {}),
   onLibraryDetailsUpdated: vi.fn(() => () => {}),
 }));
 vi.mock("./pcLinkApi", async (importOriginal) => {
@@ -30,6 +31,7 @@ vi.mock("./pcLinkApi", async (importOriginal) => {
     keepPcBook: vi.fn(),
     removePcBook: vi.fn(async () => {}),
     changePcBooks: vi.fn(async (_change: string, ids: string[]) => ids),
+    renamePcGroup: vi.fn(async (renames: { id: string }[]) => renames.map((each) => each.id)),
     onPcTransfer: vi.fn(async () => () => {}),
     syncPc: vi.fn(),
     autoSync: vi.fn(async () => null),
@@ -85,12 +87,13 @@ function SettingsRoute() {
   return <p>Settings {useLocation().search}</p>;
 }
 
-function page() {
+function page(entry = "/") {
   return render(
     <AppearanceProvider store={null}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route element={<MobileLibraryPage />} path="/" />
+          <Route element={<MobileLibraryPage />} path="/library" />
           <Route element={<ReaderRoute />} path="/reader/:id" />
           <Route element={<SettingsRoute />} path="/settings" />
         </Routes>
@@ -521,7 +524,7 @@ describe("the Library on a phone paired with a PC", () => {
     }
   });
 
-  it("selects PC books on a long press, keeping them or removing their copies here", async () => {
+  it("selects PC books on a long press, keeping them or removing their copies here or from the PC", async () => {
     library(paired);
     const books = await allBooks();
     await waitFor(() => expect(titles(books)).toHaveLength(3));
@@ -536,19 +539,12 @@ describe("the Library on a phone paired with a PC", () => {
       bar()
         .getAllByRole("button")
         .map((each) => each.getAttribute("aria-label"));
-    expect(actions()).toEqual([
-      "Information",
-      "Mark as completed",
-      "Mark as unread",
-      "Remove from this phone",
-      "Remove",
-    ]);
+    expect(actions()).toEqual(["Information", "Mark as completed", "Mark as unread", "Remove"]);
     await userEvent.click(tile(books, "それから"));
     expect(actions()).toEqual([
       "Mark as completed",
       "Mark as unread",
       "Keep on this phone",
-      "Remove from this phone",
       "Remove",
     ]);
     await userEvent.click(tile(books, "羅生門"));
@@ -558,14 +554,69 @@ describe("the Library on a phone paired with a PC", () => {
       "Mark as completed",
       "Mark as unread",
       "Keep on this phone",
-      "Remove from this phone",
       "Remove",
     ]);
     await userEvent.click(tile(books, "羅生門"));
-    await userEvent.click(bar().getByRole("button", { name: "Remove from this phone" }));
+    await userEvent.click(tile(books, "それから"));
+
+    // One Remove: a copy here leaves the phone, unless the Library is asked for too.
+    await userEvent.click(bar().getByRole("button", { name: "Remove" }));
+    let remove = screen.getByRole("alertdialog", { name: "Remove 1 book from this phone?" });
+    expect(within(remove).getByText("The book stays on KOMORI-PC.")).toBeTruthy();
+    await userEvent.click(within(remove).getByRole("button", { name: "Remove book" }));
     await waitFor(() => expect(api.removePcBook).toHaveBeenCalledWith(kept));
     expect(screen.queryByRole("toolbar")).toBeNull();
+    expect(api.changePcBooks).not.toHaveBeenCalled();
+
+    vi.spyOn(Date, "now").mockReturnValue(now + 2_000);
+    fireEvent.contextMenu(tile(books, "三四郎"));
+    fireEvent.click(tile(books, "三四郎"));
+    vi.spyOn(Date, "now").mockReturnValue(now + 3_000);
+    await userEvent.click(bar().getByRole("button", { name: "Remove" }));
+    remove = screen.getByRole("alertdialog", { name: "Remove 1 book from this phone?" });
+    await userEvent.click(
+      within(remove).getByRole("button", { name: "Also remove from the Library" }),
+    );
+    expect(screen.getByRole("alertdialog", { name: "Remove 1 book from Komori?" })).toBe(remove);
+    await userEvent.click(within(remove).getByRole("button", { name: "Remove book" }));
+    await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
+    expect(api.changePcBooks).toHaveBeenLastCalledWith("remove", ["pc-2"]);
+    expect(api.removePcBook).toHaveBeenCalledTimes(1);
     vi.restoreAllMocks();
+  });
+
+  it("renames a series from its page's title, the phone's books here and the PC's on the PC", async () => {
+    vi.mocked(api.usePcLink).mockReturnValue(paired);
+    const saga = (series: string) => {
+      vi.mocked(listLibrary).mockResolvedValue([{ ...own, series, seriesIndex: 2 }, copied]);
+      vi.mocked(api.listPcLibrary).mockResolvedValue([{ ...remote, series, seriesIndex: 1 }, kept]);
+    };
+    saga("Saga");
+    page("/library?group=series%3ASaga");
+    const title = await screen.findByRole("heading", { level: 1, name: "Saga" });
+    await waitFor(() => expect(document.querySelectorAll(".mobile-tile")).toHaveLength(2));
+    await userEvent.dblClick(title.firstElementChild!);
+    const field = screen.getByRole("textbox", { name: "Group name" });
+    saga("New Saga");
+    await userEvent.clear(field);
+    await userEvent.type(field, "New Saga{Enter}");
+    await screen.findByRole("heading", { level: 1, name: "New Saga" });
+    expect(renameBookGroup).toHaveBeenCalledWith([
+      { id: "phone-1", series: "New Saga", seriesIndex: 2 },
+    ]);
+    expect(api.renamePcGroup).toHaveBeenCalledWith([
+      { id: "pc-1", series: "New Saga", seriesIndex: 1 },
+    ]);
+    await waitFor(() => expect(document.querySelectorAll(".mobile-tile")).toHaveLength(2));
+
+    // A PC without renaming says so, and the name stays.
+    vi.mocked(api.renamePcGroup).mockRejectedValueOnce("otherVersion");
+    await userEvent.dblClick(
+      screen.getByRole("heading", { level: 1, name: "New Saga" }).firstElementChild!,
+    );
+    await userEvent.type(screen.getByRole("textbox", { name: "Group name" }), " 2{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not rename the group");
+    expect(screen.getByRole("heading", { level: 1, name: "New Saga" })).toBeTruthy();
   });
 
   it("marks the PC's books completed or unread and removes them from the PC's Library", async () => {

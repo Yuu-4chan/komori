@@ -114,6 +114,14 @@ pub(crate) struct ChangeBooks {
     pub(crate) ids: Vec<String>,
 }
 
+/// A series or author group renamed on the paired phone, each book with its new series or
+/// author, at most `MAX_CHANGED_BOOKS`.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct RenameBooks {
+    pub(crate) renames: Vec<crate::book_details::GroupRename>,
+}
+
 /// The books the change applied to; a book not in the Library, or not counted for Completed,
 /// is left out.
 #[derive(Debug, Serialize, Deserialize)]

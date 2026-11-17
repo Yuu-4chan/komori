@@ -196,6 +196,7 @@ pub fn run() {
             book_details::set_book_series,
             book_details::reset_book_series,
             book_details::edit_books,
+            book_details::rename_book_group,
             reader_content::prepare_book_content,
             reading_position::get_reading_position,
             reading_position::save_reading_position,
@@ -277,6 +278,8 @@ pub fn run() {
             pc_link::remove_pc_book,
             #[cfg(mobile)]
             pc_link::change_pc_books,
+            #[cfg(mobile)]
+            pc_link::rename_pc_group,
             #[cfg(mobile)]
             pc_link::list_pc_dictionaries,
             #[cfg(mobile)]

@@ -1050,6 +1050,8 @@ export const de: MessageCatalog = {
   "library.markUnread": "Als ungelesen markieren",
   "library.markCompleted": "Als abgeschlossen markieren",
   "library.completeFailed": "Konnte nicht als abgeschlossen markiert werden: {error}",
+  "library.groupName": "Name der Gruppe",
+  "library.renameFailed": "Die Gruppe konnte nicht umbenannt werden: {error}",
   "library.unreadDescription":
     "Komori vergisst deine Position und den Fortschritt in diesem Buch. Es öffnet sich also am Anfang, und die Statistik zählt es nicht mehr als beendet. Bereits erfasste Lesezeit bleibt erhalten.",
   "library.unreadTitle": "Dieses Buch als ungelesen markieren?",
@@ -1962,7 +1964,11 @@ export const de: MessageCatalog = {
   "sync.storageCovers": "Cover",
   "sync.clear": "Leeren",
   "sync.keep": "Auf diesem Handy behalten",
-  "sync.removeFromPhone": "Von diesem Handy entfernen",
+  "sync.alsoRemoveFromLibrary": "Auch aus der Bibliothek entfernen",
+  "sync.removeCopiesDescription_one": "Das Buch bleibt auf {name}.",
+  "sync.removeCopiesDescription_other": "Die Bücher bleiben auf {name}.",
+  "sync.removeCopiesTitle_one": "{count} Buch von diesem Handy entfernen?",
+  "sync.removeCopiesTitle_other": "{count} Bücher von diesem Handy entfernen?",
   "sync.saving": "Wird gespeichert, {percent} %",
   "sync.error.unreachable":
     "Der PC antwortet nicht. Öffne dort Komori und erlaube Verbindungen von Handys.",

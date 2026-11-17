@@ -59,10 +59,12 @@ import {
   groupBooks,
   ALL_BOOKS,
   groupPageLink,
+  groupRenames,
   READING_GROUP,
   matchesQuery,
   hasReadingProgress,
   readingStatus,
+  renamableGroup,
   sectionGroup,
   seriesFromTitles,
   sortBooks,
@@ -80,9 +82,11 @@ import {
   resetBookSeries,
   setBookSeries,
   editBooks,
+  renameBookGroup,
   type BookEdit,
   type LibraryBook,
 } from "../features/library/libraryApi";
+import { GroupName } from "../features/library/GroupName";
 import { useSelection } from "../features/selection/useSelection";
 import { selectAllKey, selectionKeyTarget } from "../features/selection/selectionKeyboard";
 
@@ -151,6 +155,7 @@ function LibraryContent({ group }: { group: string | null }) {
   const [unreadError, setUnreadError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false);
@@ -318,6 +323,28 @@ function LibraryContent({ group }: { group: string | null }) {
       return false;
     }
   }, []);
+
+  // A renamed series or author group renames all its books, whatever the search or filters
+  // show; a group's page follows its new name.
+  const libraryBooks = library.books;
+  const renameGroup = useCallback(
+    async (section: Pick<LibrarySection, "key">, name: string) => {
+      const kind = renamableGroup(section.key);
+      if (!kind) return;
+      const books =
+        groupBooks(libraryBooks, kind).find((each) => each.key === section.key)?.books ?? [];
+      if (books.length === 0) return;
+      setRenameError(null);
+      try {
+        await renameBookGroup(groupRenames(section.key, books, name));
+        await refresh();
+        if (onGroupPage) navigate(groupPageLink(`${kind}:${name}`), { replace: true });
+      } catch (error) {
+        setRenameError(errorMessage(error));
+      }
+    },
+    [libraryBooks, navigate, onGroupPage, refresh],
+  );
 
   // Import results show while the Library is open and are cleared once it is left.
   const { view: viewImports } = imports;
@@ -777,6 +804,12 @@ function LibraryContent({ group }: { group: string | null }) {
             <NoticeClose onClose={() => setCompleteError(null)} />
           </div>
         ) : null}
+        {renameError ? (
+          <div className="library-notice" role="alert">
+            <span>{t("library.renameFailed", { error: failureText(renameError, t) })}</span>
+            <NoticeClose onClose={() => setRenameError(null)} />
+          </div>
+        ) : null}
         {relinkNotice ? (
           <RelinkNotice notice={relinkNotice} onClose={() => setRelinkNotice(null)} />
         ) : null}
@@ -806,8 +839,19 @@ function LibraryContent({ group }: { group: string | null }) {
                 <ArrowLeftIcon aria-hidden="true" size={15} weight="bold" />
                 {t("shell.library")}
               </Link>
-              <h2 id="library-collection-title" title={wholeGroup?.title ?? undefined}>
-                {wholeGroup?.title ?? t("library.groupNotFound")}
+              <h2 id="library-collection-title">
+                {wholeGroup?.title ? (
+                  <GroupName
+                    name={wholeGroup.title}
+                    onRename={
+                      group && renamableGroup(group)
+                        ? (name) => renameGroup({ key: group }, name)
+                        : undefined
+                    }
+                  />
+                ) : (
+                  t("library.groupNotFound")
+                )}
               </h2>
               {wholeGroup ? <LibrarySummary books={wholeGroup.books} shown={sectionBooks} /> : null}
             </div>
@@ -878,6 +922,7 @@ function LibraryContent({ group }: { group: string | null }) {
         {ready && sectionBooks.length > 0 ? (
           <LibraryCollection
             groupLink={onGroupPage ? undefined : sectionPageLink}
+            renameGroup={renameGroup}
             renderReadingBook={renderShelfBook}
             sections={collectionSections}
             onRowOffset={libraryCache.setRowOffset}

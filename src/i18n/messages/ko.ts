@@ -963,6 +963,8 @@ export const ko: MessageCatalog = {
   "library.markUnread": "읽지 않음으로 표시",
   "library.markCompleted": "다 읽음으로 표시",
   "library.completeFailed": "다 읽음으로 표시하지 못했습니다: {error}",
+  "library.groupName": "그룹 이름",
+  "library.renameFailed": "그룹 이름을 바꾸지 못했습니다: {error}",
   "library.unreadDescription":
     "이 책의 위치와 진행률을 지워 처음부터 열리게 하고, 통계에서도 다 읽은 책으로 세지 않습니다. 이미 기록된 읽은 시간은 남습니다.",
   "library.unreadTitle": "이 책을 읽지 않음으로 표시할까요?",
@@ -1828,7 +1830,9 @@ export const ko: MessageCatalog = {
   "sync.storageCovers": "표지",
   "sync.clear": "지우기",
   "sync.keep": "이 휴대폰에 보관",
-  "sync.removeFromPhone": "이 휴대폰에서 제거",
+  "sync.alsoRemoveFromLibrary": "서재에서도 제거",
+  "sync.removeCopiesDescription_other": "책은 {name}에 남습니다.",
+  "sync.removeCopiesTitle_other": "이 휴대폰에서 책 {count}권을 제거할까요?",
   "sync.saving": "저장 중, {percent}%",
   "sync.error.unreachable":
     "PC가 응답하지 않습니다. PC에서 Komori를 열고 휴대폰 연결을 허용하세요.",

@@ -1085,6 +1085,8 @@ export const es: MessageCatalog = {
   "library.markUnread": "Marcar como no leído",
   "library.markCompleted": "Marcar como terminado",
   "library.completeFailed": "No se pudo marcar como terminado: {error}",
+  "library.groupName": "Nombre del grupo",
+  "library.renameFailed": "No se pudo cambiar el nombre del grupo: {error}",
   "library.unreadDescription":
     "Komori olvida por dónde vas en este libro y su progreso, así que se abrirá desde el principio y las estadísticas dejarán de contarlo como terminado. El tiempo de lectura ya registrado se conserva.",
   "library.unreadTitle": "¿Marcar este libro como no leído?",
@@ -2001,7 +2003,13 @@ export const es: MessageCatalog = {
   "sync.storageCovers": "Portadas",
   "sync.clear": "Borrar",
   "sync.keep": "Guardar en este móvil",
-  "sync.removeFromPhone": "Quitar de este móvil",
+  "sync.alsoRemoveFromLibrary": "Quitar también de la biblioteca",
+  "sync.removeCopiesDescription_one": "El libro sigue en {name}.",
+  "sync.removeCopiesDescription_many": "Los libros siguen en {name}.",
+  "sync.removeCopiesDescription_other": "Los libros siguen en {name}.",
+  "sync.removeCopiesTitle_one": "¿Quitar {count} libro de este móvil?",
+  "sync.removeCopiesTitle_many": "¿Quitar {count} libros de este móvil?",
+  "sync.removeCopiesTitle_other": "¿Quitar {count} libros de este móvil?",
   "sync.saving": "Guardando, {percent} %",
   "sync.error.unreachable":
     "El PC no responde. Abre Komori en él y permite que se conecten móviles.",

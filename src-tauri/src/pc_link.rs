@@ -1012,6 +1012,49 @@ pub async fn change_pc_books(
     Ok(changed)
 }
 
+/// Renames a series or author group on the PC, as the PC's Library does, and the books'
+/// copies here with it. Returns the books changed.
+#[tauri::command]
+pub async fn rename_pc_group(
+    catalog: State<'_, CatalogState>,
+    renames: Vec<crate::book_details::GroupRename>,
+) -> Result<Vec<String>, String> {
+    let database = catalog_path(&catalog);
+    let link = {
+        let database = database.clone();
+        blocking(move || read_link(&database)).await?
+    };
+    let client = link.client()?;
+    let mut changed = Vec::new();
+    for chunk in renames.chunks(crate::devices::protocol::MAX_CHANGED_BOOKS) {
+        changed.extend(
+            client
+                .rename_books(chunk)
+                .await
+                .map_err(|error| error.code())?,
+        );
+    }
+    let renamed: HashSet<String> = changed.iter().cloned().collect();
+    blocking(move || {
+        let mut connection = open_catalog(&database)?;
+        let mut copies = Vec::new();
+        for rename in renames.iter().filter(|rename| renamed.contains(&rename.id)) {
+            if let Some(copy) = copy_of(&connection, &rename.id)? {
+                copies.push(crate::book_details::GroupRename {
+                    id: copy.book,
+                    ..rename.clone()
+                });
+            }
+        }
+        if !copies.is_empty() {
+            crate::book_details::rename_group(&mut connection, &copies)?;
+        }
+        Ok(())
+    })
+    .await?;
+    Ok(changed)
+}
+
 /// Deletes a copy's file when it is one Komori downloaded, with its folder once empty.
 fn remove_owned_file(roots: &[PathBuf], source: &Path) {
     let owned = roots.iter().any(|root| {

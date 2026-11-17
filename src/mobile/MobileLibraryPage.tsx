@@ -21,6 +21,7 @@ import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { EmptyState } from "../components/ui/EmptyState";
 import { NoticeClose } from "../components/ui/NoticeClose";
+import { ToggleSetting } from "../components/ui/ToggleSetting";
 import { useAppearance } from "../features/appearance/AppearanceProvider";
 import { BookCover } from "../features/library/BookCover";
 import { BookEditDialog } from "../features/library/BookEditDialog";
@@ -34,9 +35,11 @@ import {
   relinkBook,
   removeBook,
   removeBooks,
+  renameBookGroup,
   resetBookSeries,
   setBookSeries,
   type BookEdit,
+  type GroupRename,
   type LibraryBook,
 } from "../features/library/libraryApi";
 import { libraryCache } from "../features/library/libraryCache";
@@ -55,6 +58,7 @@ import {
   groupAmounts,
   groupBooks,
   groupPageLink,
+  groupRenames,
   hasReadingProgress,
   languageName,
   lastReadLabel,
@@ -64,6 +68,7 @@ import {
   readTotalLabel,
   READING_GROUP,
   readingStatus,
+  renamableGroup,
   sectionGroup,
   seriesFromTitles,
   sortBooks,
@@ -93,6 +98,7 @@ import {
 import {
   PcContinueCard,
   PcStatusRow,
+  removePcCopies,
   usePcBookActions,
   usePcLibrary,
   type PcEntry,
@@ -105,6 +111,7 @@ import {
   changesPcListing,
   onPcSynced,
   pcErrorKey,
+  renamePcGroup,
   syncPc,
   usePcLinkState,
 } from "./pcLinkApi";
@@ -137,7 +144,8 @@ const onThisPhone = (item: Item) => item.kind === "phone" || item.entry.pc.kept;
  * downloads first unless it is here; a missing one offers Relink and Remove). A long press
  * selects a book, or a group's books from its heading; then taps select more, and a bar offers
  * what applies to them: Information for one book, Series…, Edit…, Mark as completed and Remove
- * for the phone's books, Keep on this phone and Remove from this phone for the PC's.
+ * for the phone's books, Keep on this phone for the PC's. Remove takes a PC book's copy off the
+ * phone, or, asked to or with none here, the book out of the PC's Library.
  */
 // Wherever the phone is, a sync that changed its books and books' details read in the
 // background make the Library's listing old, so its next showing lists the catalog again.
@@ -173,7 +181,10 @@ function LibraryContent({ group }: { group: string | null }) {
   const [seriesOpen, setSeriesOpen] = useState(false);
   const [seriesError, setSeriesError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false);
+  // Whether Remove takes the PC's books out of its Library too, not only their copies here.
+  const [removeFromLibrary, setRemoveFromLibrary] = useState(false);
   const [unreadOpen, setUnreadOpen] = useState(false);
   const [unreadError, setUnreadError] = useState<string | null>(null);
   const [bulkError, setBulkError] = useState<string | null>(null);
@@ -444,6 +455,12 @@ function LibraryContent({ group }: { group: string | null }) {
     () => chosen.flatMap((item) => (item.kind === "pc" ? [item.entry] : [])),
     [chosen],
   );
+  // With PC books copied here chosen, Remove takes only the copies unless asked for the Library.
+  const copiesChosen = chosenPc.some((entry) => entry.pc.onPhone);
+  const copiesOnly = copiesChosen && !removeFromLibrary;
+  const removeCount = copiesOnly
+    ? chosenOwn.length + chosenPc.filter((entry) => entry.pc.onPhone).length
+    : chosen.length;
   // Books read some, or opened, can be marked unread.
   const unreadOwn = chosenOwn.filter((book) => book.progress || book.lastReadAt);
   const unreadPc = chosenPc.filter((entry) => entry.book.progress || entry.book.lastReadAt);
@@ -553,10 +570,13 @@ function LibraryContent({ group }: { group: string | null }) {
     }
   }
 
-  // The phone's books leave its Library; the PC's leave the PC's, as removing them there does.
-  async function removeChosen() {
+  /**
+   * The phone's books leave its Library. The PC's lose their copies here, or, with
+   * `fromLibrary` or none of them copied here, leave the PC's Library as removing them there does.
+   */
+  async function removeChosen(fromLibrary: boolean) {
     const ids = chosenOwn.map((book) => book.id);
-    const entries = chosenPc;
+    const entries = fromLibrary ? chosenPc : chosenPc.filter((entry) => entry.pc.onPhone);
     if (ids.length === 0 && entries.length === 0) return;
     setBusy(true);
     setBulkError(null);
@@ -579,12 +599,14 @@ function LibraryContent({ group }: { group: string | null }) {
       }
       if (entries.length) {
         try {
-          // A book the PC no longer lists is gone all the same.
-          await changePc("remove", entries);
-          // Copies of the removed books left this phone's catalog too.
-          await refresh();
+          if (fromLibrary) {
+            // A book the PC no longer lists is gone all the same.
+            await changePc("remove", entries);
+            // Copies of the removed books left this phone's catalog too.
+            await refresh();
+          } else await removePcCopies(entries);
         } catch (error) {
-          setBulkError(errorMessage(error));
+          setBulkError(fromLibrary ? errorMessage(error) : t(pcErrorKey(error), { name: pcName }));
           left.push(...entries.map((entry) => `pc:${entry.pc.id}`));
         }
       }
@@ -600,14 +622,48 @@ function LibraryContent({ group }: { group: string | null }) {
     }
   }
 
-  // Each PC book is kept, or its copy here removed, one after another.
+  // Each PC book is kept here, one after another.
   async function keepChosen(entries: PcEntry[]) {
     cancel();
     for (const entry of entries) await pcActions.keep(entry);
   }
-  async function removeChosenCopies(entries: PcEntry[]) {
-    cancel();
-    for (const entry of entries) await pcActions.remove(entry);
+
+  /**
+   * Renames the series or author group whose page this is, in every place: the phone's books
+   * here and the PC's on the PC (with their copies here). The page follows the new name.
+   */
+  async function renameGroup(name: string) {
+    const kind = group === null ? null : renamableGroup(group);
+    if (kind === null || group === null) return;
+    const byId = new Map(items.map((item) => [item.book.id, item]));
+    const members =
+      groupBooks(
+        items.map((item) => item.book),
+        kind,
+      ).find((section) => section.key === group)?.books ?? [];
+    const own: GroupRename[] = [];
+    const onPc: GroupRename[] = [];
+    for (const rename of groupRenames(group, members, name)) {
+      const item = byId.get(rename.id);
+      if (item?.kind === "phone") own.push(rename);
+      else if (item?.kind === "pc") onPc.push({ ...rename, id: item.entry.pc.id });
+    }
+    setRenameError(null);
+    try {
+      if (own.length) await renameBookGroup(own);
+      if (onPc.length) {
+        try {
+          await renamePcGroup(onPc);
+        } catch (error) {
+          throw new Error(t(pcErrorKey(error), { name: pcName }));
+        }
+      }
+      await refresh();
+      if (onPc.length) await relistPc();
+      navigate(groupPageLink(`${kind}:${name}`), { replace: true });
+    } catch (error) {
+      setRenameError(errorMessage(error));
+    }
   }
 
   async function relink(book: LibraryBook) {
@@ -767,16 +823,6 @@ function LibraryContent({ group }: { group: string | null }) {
           },
         ]
       : []),
-    ...(chosenPc.some((entry) => entry.pc.onPhone)
-      ? [
-          {
-            key: "remove-copy",
-            label: t("sync.removeFromPhone"),
-            icon: <TrashIcon aria-hidden="true" />,
-            onClick: () => void removeChosenCopies(chosenPc.filter((entry) => entry.pc.onPhone)),
-          },
-        ]
-      : []),
     ...(chosen.length
       ? [
           {
@@ -787,6 +833,7 @@ function LibraryContent({ group }: { group: string | null }) {
             disabled: busy,
             onClick: () => {
               setBulkError(null);
+              setRemoveFromLibrary(false);
               setBulkRemoveOpen(true);
             },
           },
@@ -809,6 +856,7 @@ function LibraryContent({ group }: { group: string | null }) {
         <MobilePageHeader
           actions={onGroupPage ? undefined : addBooks}
           back={onGroupPage}
+          onRename={group !== null && renamableGroup(group) ? renameGroup : undefined}
           title={onGroupPage ? groupTitle : t("shell.library")}
         />
       )}
@@ -828,6 +876,12 @@ function LibraryContent({ group }: { group: string | null }) {
           <div className="library-notice" role="alert">
             <span>{completeError}</span>
             <NoticeClose onClose={() => setCompleteError(null)} />
+          </div>
+        ) : null}
+        {renameError ? (
+          <div className="library-notice" role="alert">
+            <span>{t("library.renameFailed", { error: renameError })}</span>
+            <NoticeClose onClose={() => setRenameError(null)} />
           </div>
         ) : null}
         {pcActions.problem ? (
@@ -1096,14 +1150,31 @@ function LibraryContent({ group }: { group: string | null }) {
       <ConfirmDialog
         busy={busy}
         busyLabel={t("library.removing")}
-        confirmLabel={tp("library.bulkConfirm", chosen.length)}
-        description={tp("library.bulkDescription", chosen.length)}
+        confirmLabel={tp("library.bulkConfirm", removeCount)}
+        description={
+          copiesOnly
+            ? tp("sync.removeCopiesDescription", removeCount, { name: pcName })
+            : tp("library.bulkDescription", removeCount)
+        }
         error={bulkError}
         onCancel={() => setBulkRemoveOpen(false)}
-        onConfirm={() => void removeChosen()}
+        onConfirm={() => void removeChosen(!copiesChosen || removeFromLibrary)}
         open={bulkRemoveOpen}
-        title={tp("library.bulkTitle", chosen.length)}
-      />
+        title={
+          copiesOnly
+            ? tp("sync.removeCopiesTitle", removeCount)
+            : tp("library.bulkTitle", removeCount)
+        }
+      >
+        {copiesChosen ? (
+          <ToggleSetting
+            checked={removeFromLibrary}
+            disabled={busy}
+            label={t("sync.alsoRemoveFromLibrary")}
+            onChange={setRemoveFromLibrary}
+          />
+        ) : null}
+      </ConfirmDialog>
       <ConfirmDialog
         busy={busy}
         busyLabel={t("library.markingUnread")}

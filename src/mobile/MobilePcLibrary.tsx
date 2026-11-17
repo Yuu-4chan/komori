@@ -93,6 +93,15 @@ async function relistCopies() {
   if (books) pcSession.set({ books });
 }
 
+/** Removes these PC books' copies from the phone; the books stay in the PC's Library. */
+export async function removePcCopies(entries: PcEntry[]) {
+  try {
+    for (const entry of entries) await removePcBook(entry.pc);
+  } finally {
+    await relistCopies();
+  }
+}
+
 let readingSaved: Promise<void> | null = null;
 
 /**

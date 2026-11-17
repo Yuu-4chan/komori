@@ -719,6 +719,7 @@ fn route(
             result
         }
         ("POST", ["v1", "library", "change"]) => change_books(shared, request, stream),
+        ("POST", ["v1", "library", "rename"]) => rename_books(shared, request, stream),
         ("POST", ["v1", "sync", "pull"]) => sync_pull(shared, request, stream),
         ("POST", ["v1", "sync", "push"]) => sync_push(shared, &device, request, stream),
         ("DELETE", ["v1", "device"]) => {
@@ -787,6 +788,34 @@ fn change_books(
         Err(message) => {
             eprintln!("Komori devices could not change books: {message}");
             error(stream, 500, "failed")
+        }
+    }
+}
+
+/// Renames a series or author group for the paired phone, as the PC's Library does.
+fn rename_books(
+    shared: &Shared,
+    request: &http::Request,
+    stream: &mut impl Write,
+) -> io::Result<()> {
+    let Ok(rename) = serde_json::from_slice::<protocol::RenameBooks>(&request.body) else {
+        return error(stream, 400, "malformed");
+    };
+    if rename.renames.is_empty() || rename.renames.len() > protocol::MAX_CHANGED_BOOKS {
+        return error(stream, 400, "malformed");
+    }
+    let renamed = open_catalog(&shared.catalog).and_then(|mut connection| {
+        crate::book_details::rename_group(&mut connection, &rename.renames)
+    });
+    match renamed {
+        Ok(changed) => {
+            shared.emit(crate::book_details::DETAILS_EVENT);
+            http::respond_json(stream, 200, &protocol::ChangedBooks { changed })
+        }
+        // A name or number the PC refuses is the request's fault.
+        Err(message) => {
+            eprintln!("Komori devices could not rename books: {message}");
+            error(stream, 400, "malformed")
         }
     }
 }

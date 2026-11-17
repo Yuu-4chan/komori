@@ -1083,6 +1083,8 @@ export const it: MessageCatalog = {
   "library.markUnread": "Segna come non letto",
   "library.markCompleted": "Segna come completato",
   "library.completeFailed": "Impossibile segnare come completato: {error}",
+  "library.groupName": "Nome del gruppo",
+  "library.renameFailed": "Impossibile rinominare il gruppo: {error}",
   "library.unreadDescription":
     "Komori dimentica dove sei arrivato in questo libro e i suoi progressi, quindi si aprirà dall’inizio e le statistiche non lo conteranno più come finito. Il tempo di lettura già registrato resta.",
   "library.unreadTitle": "Segnare questo libro come non letto?",
@@ -1998,7 +2000,13 @@ export const it: MessageCatalog = {
   "sync.storageCovers": "Copertine",
   "sync.clear": "Cancella",
   "sync.keep": "Tieni su questo telefono",
-  "sync.removeFromPhone": "Rimuovi da questo telefono",
+  "sync.alsoRemoveFromLibrary": "Rimuovi anche dalla libreria",
+  "sync.removeCopiesDescription_one": "Il libro resta su {name}.",
+  "sync.removeCopiesDescription_many": "I libri restano su {name}.",
+  "sync.removeCopiesDescription_other": "I libri restano su {name}.",
+  "sync.removeCopiesTitle_one": "Rimuovere {count} libro da questo telefono?",
+  "sync.removeCopiesTitle_many": "Rimuovere {count} libri da questo telefono?",
+  "sync.removeCopiesTitle_other": "Rimuovere {count} libri da questo telefono?",
   "sync.saving": "Salvataggio, {percent}%",
   "sync.error.unreachable":
     "Il PC non risponde. Apri Komori lì e consenti ai telefoni di connettersi.",

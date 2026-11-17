@@ -6,7 +6,9 @@ import {
   groupBooks,
   languageName,
   lastReadLabel,
+  groupRenames,
   leadAuthor,
+  renamableGroup,
   matchesQuery,
   progressLabel,
   progressPercent,
@@ -164,6 +166,30 @@ describe("authors", () => {
       "a",
       "none",
     ]);
+  });
+
+  it("renames a series group keeping each number, or an author group's lead author", () => {
+    expect(renamableGroup("series:Saga")).toBe("series");
+    expect(renamableGroup("author:Ann")).toBe("author");
+    for (const key of ["series:", "author:", "language:ja", "reading", "all"])
+      expect(renamableGroup(key)).toBeNull();
+    expect(
+      groupRenames("series:Saga", [book("1", { seriesIndex: 2 }), book("2")], "New Saga"),
+    ).toEqual([
+      { id: "1", series: "New Saga", seriesIndex: 2 },
+      { id: "2", series: "New Saga", seriesIndex: null },
+    ]);
+    expect(
+      groupRenames(
+        "author:猫又ぬこ",
+        [book("1", { author: " 猫又ぬこ & あろあ" }), book("2", { author: "猫又ぬこ／ひげ猫" })],
+        "ねこ",
+      ),
+    ).toEqual([
+      { id: "1", author: "ねこ & あろあ" },
+      { id: "2", author: "ねこ／ひげ猫" },
+    ]);
+    expect(groupRenames("language:ja", [book("1")], "x")).toEqual([]);
   });
 
   it("groups each book under its first author, by name, with unknown authors last", () => {

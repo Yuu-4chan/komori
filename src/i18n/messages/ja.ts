@@ -971,6 +971,8 @@ export const ja: MessageCatalog = {
   "library.markUnread": "未読にする",
   "library.markCompleted": "読了にする",
   "library.completeFailed": "読了にできませんでした：{error}",
+  "library.groupName": "グループ名",
+  "library.renameFailed": "グループ名を変更できませんでした：{error}",
   "library.unreadDescription":
     "この本の読書位置と進み具合を消去して最初から開くようにし、統計でも読了として数えなくなります。記録済みの読書時間は残ります。",
   "library.unreadTitle": "この本を未読にしますか？",
@@ -1844,7 +1846,9 @@ export const ja: MessageCatalog = {
   "sync.storageCovers": "表紙",
   "sync.clear": "消去",
   "sync.keep": "このスマートフォンに保存",
-  "sync.removeFromPhone": "このスマートフォンから削除",
+  "sync.alsoRemoveFromLibrary": "本棚からも削除",
+  "sync.removeCopiesDescription_other": "本は{name}に残ります。",
+  "sync.removeCopiesTitle_other": "{count}冊をこのスマートフォンから削除しますか？",
   "sync.saving": "保存中、{percent}%",
   "sync.error.unreachable":
     "PCが応答しません。PCでKomoriを開き、スマートフォンからの接続を許可してください。",
