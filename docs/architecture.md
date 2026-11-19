@@ -1655,6 +1655,26 @@ the particles و ف ب ك ل and the article ال off a noun (لل before a stem
   imperfect and imperative forms alike). The rules read the bare spelling imports store as the
   reading.
 
+Komori's own rules cover the other inflecting lookup languages, whose Wiktionary dictionaries
+name no word classes and list most inflected forms as form entries. A rule candidate that a
+dictionary lists as a form entry leads on to the word that entry names, with the entry's
+inflection names before the rules' (talossanikin: talossa, then talo as singular inessive,
+possessive, -kin). Turkish (`deinflect/tr.rs`) takes a noun's or adjective's plural, possessive,
+case and copula suffixes off in any order, restoring a softened final consonant (kitabı → kitap)
+and dropping a proper noun's apostrophe, and a verb's tense with its person ending, participle or
+converb, then its negative, ability, passive and causative suffixes, adding -mek or -mak
+(gideceğim → gitmek); its suffixes are written once with harmony letters (`I`, `A`, `D`, `C`) and
+a tense is named by its suffix (-iyor). Finnish (`deinflect/fi.rs`) takes clitics and then one
+possessive suffix off. Swedish, Norwegian and Danish (`deinflect/nordic.rs`) take a genitive -s off
+a stem not ending in s, x or z. Polish (`deinflect/pl.rs`) has verbs' past, conditional and regular
+present endings and adjectives' case endings with naj-. Greek (`deinflect/el.rs`) has ξανα- (from
+`ext/js/language/el/modern-greek-transforms.js` at commit d3c54c1), -ος endings and regular present
+endings. Indonesian (`deinflect/id.rs`) takes particles (-nya, -lah), then -kan, -i or -an, then a
+prefix (meN- and peN- restoring the stem's first letter, di-, ber-, ke-) or a prefix and suffix
+together (ke-…-an), each named by the affix. Turkish keeps up to 256 candidates and Indonesian 128.
+Dutch and Hindi dictionaries list their inflected forms, and Thai and Vietnamese do not inflect, so
+they have no rules. A rule without a name (a sound change) adds no inflection name.
+
 A candidate from a language's rules must be a term its rules allow. Japanese dictionaries name
 every inflecting word's class, so a term must name the candidate's. Other languages' dictionaries
 vary, so their rules are read with the common other names for verbs, nouns, adjectives and adverbs

@@ -47,7 +47,7 @@ const PLACEHOLDERS: &[(char, &[&str])] = &[
     ('C', &["c", "ç"]),
 ];
 
-const VOWELS: &str = "aeıioöuü";
+const VOWELS: [char; 8] = ['a', 'e', 'ı', 'i', 'o', 'ö', 'u', 'ü'];
 
 /// Person endings after -miş, the aorist and the necessitative's stem.
 const PERSONS: &[&str] = &["Im", "sIn", "", "Iz", "sInIz", "lAr"];
@@ -73,7 +73,7 @@ fn suffixes(
     for pattern in patterns {
         for ending in after {
             for suffix in harmony(&format!("{pattern}{ending}"), PLACEHOLDERS) {
-                let vowel = suffix.starts_with(|letter| VOWELS.contains(letter));
+                let vowel = suffix.starts_with(VOWELS);
                 let gives = if vowel { gives | before_vowel } else { gives };
                 rules.push(rule(name, suffix.leak(), base, applies_to, gives));
             }

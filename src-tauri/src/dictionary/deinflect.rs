@@ -19,13 +19,17 @@
 
 pub(crate) mod ar;
 pub(crate) mod de;
+pub(crate) mod el;
 pub(crate) mod en;
 pub(crate) mod es;
 pub(crate) mod fi;
 pub(crate) mod fr;
+pub(crate) mod id;
 pub(crate) mod it;
 pub(crate) mod ja;
 pub(crate) mod ko;
+pub(crate) mod nordic;
+pub(crate) mod pl;
 pub(crate) mod pt;
 pub(crate) mod ru;
 pub(crate) mod tr;

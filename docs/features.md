@@ -197,7 +197,11 @@ in traditional or simplified characters as the dictionary lists them, and its re
 beside the headword.
 Dutch, Polish, Swedish, Norwegian, Danish, Finnish, Greek, Turkish, Arabic, Hindi, Vietnamese and
 Indonesian lookups start at the word under the pointer like English and find dictionary forms and the
-inflected forms their dictionaries list, and Settings > Dictionary offers their Wiktionary downloads;
+inflected forms their dictionaries list, and Settings > Dictionary offers their Wiktionary downloads.
+Komori's own rules also find words under Turkish suffixes (evlerimizden → ev, gideceğim → gitmek), Finnish
+clitics and possessives (talossanikin → talo), Swedish, Norwegian and Danish genitives (husets → hus), Polish
+past, conditional and adjective endings (zrobiłbym → zrobić), Greek endings and ξανα-, and Indonesian affixes
+(bukunya → buku, kebersihan → bersih);
 Arabic ignores short vowels and tatweel and finds a noun after its article and particles and a verb or noun under its
 prefixes and suffixes (والكتاب → كتاب, يكتبون → كتب, مدرستي → مدرسة), Turkish matches I/ı
 and İ/i, Greek ignores the second accent before an enclitic, Vietnamese matches hòa and hoà, and
