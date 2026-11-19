@@ -594,8 +594,9 @@ div.statistics-card__empty p {
   margin: 0;
   padding: 1.1rem 1.25rem;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(4.75rem, 1fr));
-  gap: 0.85rem;
+  /* 7rem covers; a narrow phone still fits three in a row. */
+  grid-template-columns: repeat(auto-fill, minmax(min(7rem, calc((100% - 2rem) / 3)), 1fr));
+  gap: 1rem;
   list-style: none;
 }
 
