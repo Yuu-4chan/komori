@@ -278,7 +278,11 @@ export function PcStatusRow({
           type="button"
         >
           {status}
-          <CaretRightIcon aria-hidden="true" className="mobile-pc-status__caret" weight="bold" />
+          <CaretRightIcon
+            aria-hidden="true"
+            className="mobile-pc-status__caret flip-rtl"
+            weight="bold"
+          />
         </button>
       ) : (
         status

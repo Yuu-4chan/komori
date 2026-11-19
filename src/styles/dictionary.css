@@ -126,7 +126,7 @@
   grid-template-columns: 0.4rem minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
-  text-align: left;
+  text-align: start;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);

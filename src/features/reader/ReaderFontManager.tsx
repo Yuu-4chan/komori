@@ -33,7 +33,7 @@ export function ReaderFontManager({
   category: FontCategory;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, percentLabel } = useI18n();
   const { fonts, pending, completed, total, error } = useReaderFonts();
   const [query, setQuery] = useState("");
   const [chosenTab, setTab] = useState<Tab>(category);
@@ -106,7 +106,7 @@ export function ReaderFontManager({
           <p role="status">
             {t(pending === "import" ? "fonts.importing" : "fonts.downloading", {
               name: fonts.find((f) => f.id === pending)?.family ?? "",
-              progress: total ? `${Math.round((completed / total) * 100)}%` : "",
+              progress: total ? percentLabel(Math.round((completed / total) * 100)) : "",
             })}
           </p>
         )}

@@ -136,7 +136,7 @@ export function ContinueFromDialog({
     const chapter = progress ? chapterAt(progress.current) : undefined;
     const percent =
       progress && progress.total > 0
-        ? `${Math.min(100, Math.floor((progress.current / progress.total) * 100))}%`
+        ? i18n().percentLabel(Math.min(100, Math.floor((progress.current / progress.total) * 100)))
         : null;
     const rest = [percent, readAt(at)].filter(Boolean).join(" · ");
     const Icon = keep === "pc" ? MonitorIcon : DeviceMobileIcon;
@@ -161,7 +161,7 @@ export function ContinueFromDialog({
             {rest}
           </span>
         </span>
-        <CaretRightIcon aria-hidden="true" className="mobile-continue-from__caret" />
+        <CaretRightIcon aria-hidden="true" className="mobile-continue-from__caret flip-rtl" />
       </button>
     );
   };

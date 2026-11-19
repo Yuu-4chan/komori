@@ -944,7 +944,7 @@ function LibraryContent({ group }: { group: string | null }) {
                     <small>{tp("librarySummary.books", inProgress.length)}</small>
                     <CaretRightIcon
                       aria-hidden="true"
-                      className="mobile-group-heading__caret"
+                      className="mobile-group-heading__caret flip-rtl"
                       weight="bold"
                     />
                   </Link>

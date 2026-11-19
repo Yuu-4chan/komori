@@ -196,7 +196,7 @@ export function readCounts(
 /** The percentage beside a progress bar: "Completed" at the end. */
 export function progressLabel(book: LibraryBook): string {
   const percent = progressPercent(book);
-  return percent >= 100 ? i18n().t("libraryCard.completed") : `${percent}%`;
+  return percent >= 100 ? i18n().t("libraryCard.completed") : i18n().percentLabel(percent);
 }
 
 const units: [Intl.RelativeTimeFormatUnit, number][] = [

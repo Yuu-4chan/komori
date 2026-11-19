@@ -199,5 +199,6 @@ describe("Lookup trigger preferences", () => {
       expect(screen.queryByRole("button", { name: t("popupSettings.cjkOnly") })).toBeNull();
       cleanup();
     }
-  });
+    // Mounts the card twice per interface language.
+  }, 60_000);
 });

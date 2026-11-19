@@ -215,14 +215,14 @@
   grid-row: 1;
   align-self: start;
   justify-self: end;
-  margin-right: calc(var(--space-5) * -1);
+  margin-inline-end: calc(var(--space-5) * -1);
 }
 
 .window-controls {
   display: flex;
   border: 1px solid transparent;
   border-width: 0 0 1px 1px;
-  border-bottom-left-radius: var(--radius-sm);
+  border-end-start-radius: var(--radius-sm);
   overflow: hidden;
   transition:
     background-color var(--duration-normal) var(--ease-out),
@@ -367,7 +367,7 @@
   }
 
   .app-topbar__window {
-    margin-right: calc(var(--space-3) * -1);
+    margin-inline-end: calc(var(--space-3) * -1);
   }
 
   .app-topbar__brand {

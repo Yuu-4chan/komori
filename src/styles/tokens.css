@@ -1,4 +1,6 @@
 :root {
+  /* 1 left to right, -1 right to left: flips sideways movement with the interface. */
+  --inline-sign: 1;
   --accent-base: #5874df;
   /* Keep custom accents expressive while anchoring text and actions to accessible tones:
      accent text leans toward the theme's text color, and actions toward black. */
@@ -150,4 +152,77 @@
 }
 [lang|="ja"] {
   --font-lookup: var(--font-lookup-ja);
+}
+
+/* Arabic mirrors the interface; book and dictionary text keep their own direction. */
+:root[dir="rtl"] {
+  --inline-sign: -1;
+}
+
+/* Arrows and carets that point along the reading direction (Back, previous, next, open). */
+:root[dir="rtl"] .flip-rtl {
+  transform: scaleX(-1);
+}
+
+/* Imported text (titles, authors, chapters, dictionary entries) takes its direction from its own
+   first letters, so a Japanese or English title reads left to right in the mirrored interface. */
+:root[dir="rtl"]
+  :is(
+    .library-book__identity,
+    .mobile-tile__title,
+    .mobile-tile__author,
+    .mobile-book-row,
+    .reader-sidebar__title,
+    .reader-sidebar__series,
+    .reader-contents__entry,
+    .reader-contents__group,
+    .reader-bookmarks__jump,
+    .reader-search-result,
+    .reader-note-passage,
+    .statistics-day-book__copy,
+    .statistics-book-dialog__book,
+    .lookup-entry__headline,
+    .lookup-source__meanings,
+    .dictionary-entry__headword,
+    .dictionary-entry__senses,
+    .dictionary-glossary
+  ),
+:root[dir="rtl"]
+  :is(
+    .library-book__identity,
+    .mobile-book-row,
+    .reader-contents__entry,
+    .reader-contents__group,
+    .reader-search-result,
+    .statistics-day-book__copy,
+    .statistics-book-dialog__book,
+    .lookup-source__meanings,
+    .dictionary-entry__senses,
+    .dictionary-glossary
+  )
+  * {
+  unicode-bidi: plaintext;
+}
+/* Short imported labels still line up with the mirrored cards and rows around them (start, which
+   plaintext would resolve by the label's own script; WebView2 lacks match-parent). */
+:root[dir="rtl"]
+  :is(
+    .library-book__identity,
+    .mobile-tile__title,
+    .mobile-tile__author,
+    .mobile-book-row,
+    .reader-sidebar__title,
+    .reader-sidebar__series,
+    .statistics-day-book__copy,
+    .statistics-book-dialog__book
+  ),
+:root[dir="rtl"]
+  :is(
+    .library-book__identity,
+    .mobile-book-row,
+    .statistics-day-book__copy,
+    .statistics-book-dialog__book
+  )
+  * {
+  text-align: right;
 }

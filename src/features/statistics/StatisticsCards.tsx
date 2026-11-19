@@ -48,6 +48,7 @@ import {
 } from "./statistics";
 import type { LibraryKanji } from "./statisticsApi";
 import { amount } from "../../i18n/amounts";
+import { inlineSign } from "../../i18n/direction";
 
 /** Whole numbers in the interface language. */
 export const numbers = { format: (value: number) => i18n().number(value) };
@@ -155,9 +156,10 @@ export function ActivityCalendar({
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const index = keys.indexOf((event.target as HTMLElement).dataset.day ?? "");
     if (index < 0) return;
+    const side = inlineSign();
     const next = {
-      ArrowLeft: index - 1,
-      ArrowRight: index + 1,
+      ArrowLeft: index - side,
+      ArrowRight: index + side,
       ArrowUp: index - 7,
       ArrowDown: index + 7,
       Home: 0,
@@ -567,7 +569,7 @@ export function MonthSwitcher({
         onClick={() => onChange(previous)}
         type="button"
       >
-        <CaretLeftIcon aria-hidden="true" size={16} weight="bold" />
+        <CaretLeftIcon aria-hidden="true" className="flip-rtl" size={16} weight="bold" />
       </button>
       <strong aria-live="polite">{formatMonth(month)}</strong>
       <button
@@ -576,7 +578,7 @@ export function MonthSwitcher({
         onClick={() => onChange(next)}
         type="button"
       >
-        <CaretRightIcon aria-hidden="true" size={16} weight="bold" />
+        <CaretRightIcon aria-hidden="true" className="flip-rtl" size={16} weight="bold" />
       </button>
     </div>
   );
@@ -729,7 +731,7 @@ export function CompletionOverview({
               className={`completion-dot completion-dot--${status}`}
               key={book.id}
               title={`${bookTitle(book)}: ${t(statusLabels[status])}${
-                status === "reading" ? ` (${progressPercent(book)}%)` : ""
+                status === "reading" ? ` (${i18n().percentLabel(progressPercent(book))})` : ""
               }`}
             />
           ))}

@@ -170,7 +170,7 @@ export function ReaderSidebar({
             label={t("sidebar.backToControls")}
             onClick={onCloseAppearance}
           >
-            <ArrowLeftIcon aria-hidden="true" />
+            <ArrowLeftIcon aria-hidden="true" className="flip-rtl" />
           </IconButton>
         ) : (
           <Link
@@ -180,7 +180,7 @@ export function ReaderSidebar({
             aria-label={t("statistics.back")}
             title={t("statistics.back")}
           >
-            <ArrowLeftIcon aria-hidden="true" />
+            <ArrowLeftIcon aria-hidden="true" className="flip-rtl" />
           </Link>
         )}
         <span className="reader-sidebar__title visually-hidden">{panelTitle}</span>
@@ -373,7 +373,7 @@ function ReadingProgress({
   chapterLabel: string | null;
 }) {
   const { total, chapter } = progress;
-  const { t } = useI18n();
+  const { t, percentLabel } = useI18n();
   const current = Math.min(progress.current, total);
   const percent = Math.floor((current / total) * 100);
   const chapterPercent = chapter.total
@@ -389,14 +389,14 @@ function ReadingProgress({
               className="reader-sidebar__chapter-percent"
               aria-label={t("sidebar.chapterRead", { percent: chapterPercent })}
             >
-              {chapterPercent}%
+              {percentLabel(chapterPercent)}
             </span>
           )}
         </div>
       ) : null}
       <div className="reader-sidebar__progress">
         <small>
-          {amountOf(progress.unit, current, total)} · {percent}%
+          {amountOf(progress.unit, current, total)} · {percentLabel(percent)}
         </small>
         <span
           className="reader-sidebar__progress-bar"

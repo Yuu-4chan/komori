@@ -744,8 +744,8 @@ export function ReaderShell({
             chapter = { label: entry.label, at };
         }
       return chapter && offset
-        ? `${chapter.label} · ${Math.round((offset.current / offset.total) * 100)}%`
-        : `${t("reader.section", { number: locator.spineIndex + 1 })} · ${Math.round(locator.progress * 100)}%`;
+        ? `${chapter.label} · ${i18n().percentLabel(Math.round((offset.current / offset.total) * 100))}`
+        : `${t("reader.section", { number: locator.spineIndex + 1 })} · ${i18n().percentLabel(Math.round(locator.progress * 100))}`;
     },
     [contents, locatorOffset, t],
   );
@@ -2266,7 +2266,7 @@ function ProgressValues({
           })}
         >
           {book ? "" : `${t("readerFooter.chapterPrefix")} `}
-          {percent}%
+          {i18n().percentLabel(percent)}
         </span>
       )}
     </span>

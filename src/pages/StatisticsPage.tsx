@@ -190,7 +190,7 @@ export function StatisticsPage() {
           onClick={() => navigate("/library")}
           type="button"
         >
-          <ArrowLeftIcon aria-hidden="true" size={19} />
+          <ArrowLeftIcon aria-hidden="true" className="flip-rtl" size={19} />
         </button>
         <div>
           <h1>{t("shell.statistics")}</h1>

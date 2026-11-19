@@ -125,7 +125,11 @@ import {
 } from "../reader/popupThemes";
 
 import { I18nProvider } from "../../i18n/i18n";
-import { isInterfaceLanguage, type InterfaceLanguage } from "../../i18n/languages";
+import {
+  isInterfaceLanguage,
+  rightToLeftLanguages,
+  type InterfaceLanguage,
+} from "../../i18n/languages";
 import { type AppIconId, isAppIcon } from "../../brand/appIcons";
 
 export type { AppTheme } from "./appearancePreferences";
@@ -995,9 +999,11 @@ export function AppearanceProvider({
     ],
   );
 
-  // The language is set before the first paint, so fonts and line breaking match it at once.
+  // The language and its direction are set before the first paint, so fonts, line breaking and
+  // the mirrored layout match it at once.
   useLayoutEffect(() => {
     document.documentElement.lang = interfaceLanguage;
+    document.documentElement.dir = rightToLeftLanguages.has(interfaceLanguage) ? "rtl" : "ltr";
   }, [interfaceLanguage]);
 
   return (

@@ -836,7 +836,7 @@ function LibraryContent({ group }: { group: string | null }) {
           {onGroupPage ? (
             <div className="library-section-heading__title">
               <Link className="library-back" to="/library">
-                <ArrowLeftIcon aria-hidden="true" size={15} weight="bold" />
+                <ArrowLeftIcon aria-hidden="true" className="flip-rtl" size={15} weight="bold" />
                 {t("shell.library")}
               </Link>
               <h2 id="library-collection-title">

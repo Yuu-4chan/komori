@@ -248,7 +248,7 @@
   position: absolute;
   z-index: 20;
   top: calc(100% + 0.4rem);
-  right: 0;
+  inset-inline-end: 0;
   min-width: 15rem;
   padding: 0.3rem;
   display: flex;
@@ -285,11 +285,12 @@
 .floating-menu__option,
 .floating-menu__toggle {
   width: 100%;
-  padding: 0.45rem 0.6rem 0.45rem 0.45rem;
+  padding-block: 0.45rem;
+  padding-inline: 0.45rem 0.6rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  text-align: left;
+  text-align: start;
   color: var(--text-primary);
   background: transparent;
   border-radius: 0.55rem;
@@ -298,7 +299,7 @@
 
 .floating-menu__toggle {
   justify-content: space-between;
-  padding-left: 0.6rem;
+  padding-inline-start: 0.6rem;
 }
 
 .floating-menu__option:hover,
@@ -434,7 +435,7 @@
   position: absolute;
   z-index: 3;
   top: 0.5rem;
-  right: 0.5rem;
+  inset-inline-end: 0.5rem;
   width: 2rem;
   height: 2rem;
   min-height: 0;
@@ -470,7 +471,7 @@
   position: absolute;
   z-index: 3;
   top: 0.55rem;
-  left: 0.55rem;
+  inset-inline-start: 0.55rem;
   cursor: pointer;
   opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-out);
@@ -758,7 +759,7 @@
 
 .library-progress__percent {
   min-width: 2.2rem;
-  text-align: right;
+  text-align: end;
   color: var(--text-secondary);
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
@@ -775,7 +776,8 @@
 
 /* List rows */
 .library-book--list {
-  padding: 0.7rem 1rem 0.7rem 0.7rem;
+  padding-block: 0.7rem;
+  padding-inline: 0.7rem 1rem;
   display: grid;
   grid-template-columns: 3.4rem minmax(0, 1.2fr) minmax(12rem, 1fr) auto;
   align-items: center;
@@ -797,7 +799,7 @@
 .library-book--list .library-book__actions {
   position: relative;
   top: auto;
-  right: auto;
+  inset-inline-end: auto;
   grid-column: 4;
   color: var(--text-secondary);
   background: transparent;
@@ -811,7 +813,7 @@
 
 .library-book--list .library-book__selection {
   top: 0.35rem;
-  left: 0.35rem;
+  inset-inline-start: 0.35rem;
 }
 
 .library-book--list .library-book__selection {
@@ -897,7 +899,8 @@
   width: max-content;
   max-width: calc(100vw - 2rem);
   margin: 0 auto;
-  padding: 0.4rem 0.4rem 0.4rem 1rem;
+  padding-block: 0.4rem;
+  padding-inline: 1rem 0.4rem;
   display: flex;
   align-items: center;
   gap: 0.3rem;
@@ -1140,11 +1143,11 @@
 }
 
 .library-carousel__arrow--previous {
-  left: -0.75rem;
+  inset-inline-start: -0.75rem;
 }
 
 .library-carousel__arrow--next {
-  right: -0.75rem;
+  inset-inline-end: -0.75rem;
 }
 
 .library-carousel__arrow:hover {
@@ -1270,7 +1273,8 @@
 }
 
 .series-dialog__name {
-  margin: 0 0 var(--space-2) 1.75rem;
+  margin-block: 0 var(--space-2);
+  margin-inline: 1.75rem 0;
 }
 
 .series-dialog__name input {

@@ -496,7 +496,7 @@ export function LibraryBooks({
                     className="mobile-carousel__more"
                     to={groupPageLink(section.key)}
                   >
-                    <CaretRightIcon aria-hidden="true" weight="bold" />
+                    <CaretRightIcon aria-hidden="true" className="flip-rtl" weight="bold" />
                     {t("libraryCarousel.seeAll")}
                   </Link>
                 ) : null}
@@ -565,7 +565,11 @@ export function GroupHeading({
     <h3 className="mobile-group-heading">
       <Link className="mobile-group-heading__link" to={groupPageLink(section.key)} {...longPress}>
         {content}
-        <CaretRightIcon aria-hidden="true" className="mobile-group-heading__caret" weight="bold" />
+        <CaretRightIcon
+          aria-hidden="true"
+          className="mobile-group-heading__caret flip-rtl"
+          weight="bold"
+        />
       </Link>
     </h3>
   );
@@ -605,7 +609,7 @@ export function BookInfoSheet({
             type="button"
           >
             {series}
-            <CaretRightIcon aria-hidden="true" weight="bold" />
+            <CaretRightIcon aria-hidden="true" className="flip-rtl" weight="bold" />
           </button>
         ),
       });

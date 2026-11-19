@@ -251,8 +251,8 @@ export function MobileReader({
             book: true,
           },
           readerShowPercentage && {
-            node: `${percent(progress.current, progress.total)}%`,
-            widest: "100%",
+            node: i18n().percentLabel(percent(progress.current, progress.total)),
+            widest: i18n().percentLabel(100),
             book: true,
           },
           chapterProgress &&
@@ -270,8 +270,8 @@ export function MobileReader({
             },
           chapterProgress &&
             readerShowChapterPercentage && {
-              node: `${t("readerFooter.chapterPrefix")} ${percent(chapterProgress.current, chapterProgress.total)}%`,
-              widest: `${t("readerFooter.chapterPrefix")} 100%`,
+              node: `${t("readerFooter.chapterPrefix")} ${i18n().percentLabel(percent(chapterProgress.current, chapterProgress.total))}`,
+              widest: `${t("readerFooter.chapterPrefix")} ${i18n().percentLabel(100)}`,
               book: false,
             },
           speed && {
@@ -702,7 +702,7 @@ export function MobileReader({
               onClick={onBack}
               type="button"
             >
-              <ArrowLeftIcon aria-hidden="true" size={20} />
+              <ArrowLeftIcon aria-hidden="true" className="flip-rtl" size={20} />
             </button>
             <button
               aria-label={t("mobileReader.contents")}
@@ -743,7 +743,9 @@ export function MobileReader({
               type="button"
             >
               <span lang={bookLanguage(identity)}>{chapter?.label ?? title}</span>
-              {total ? <small>· {percent(progress?.current ?? 0, total)}%</small> : null}
+              {total ? (
+                <small>· {i18n().percentLabel(percent(progress?.current ?? 0, total))}</small>
+              ) : null}
             </button>
             <button
               aria-label={t(bookmark ? "mobileReader.removeBookmark" : "mobileReader.bookmark")}
@@ -965,7 +967,9 @@ function ChaptersSheet({
           <div className="mobile-reader-controls__chapter">
             <span lang={language}>{position.chapter}</span>
             {position.chapterPercent === null ? null : (
-              <span className="mobile-reader-chip">{position.chapterPercent}%</span>
+              <span className="mobile-reader-chip">
+                {i18n().percentLabel(position.chapterPercent)}
+              </span>
             )}
           </div>
           <input
@@ -983,7 +987,7 @@ function ChaptersSheet({
           />
           <div className="mobile-reader-controls__counts">
             <BookPosition current={position.at} total={position.total} unit={position.unit} />
-            <span>{percent(position.at, position.total)}%</span>
+            <span>{i18n().percentLabel(percent(position.at, position.total))}</span>
           </div>
         </div>
       ) : null}

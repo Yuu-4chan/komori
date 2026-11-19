@@ -464,6 +464,8 @@ it("accepts a typed missing family on Enter or blur, cancels with Escape and ref
     </AppearanceProvider>,
   );
   const input = await screen.findByRole("combobox", { name: "Western font" });
+  // The saved font fills the field once it loads; typing before then would append to it.
+  await waitFor(() => expect(input).toHaveValue("Georgia"));
   await user.clear(input);
   await user.type(input, "My missing font{Enter}");
   await waitFor(() =>

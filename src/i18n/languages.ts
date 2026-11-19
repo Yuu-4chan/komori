@@ -11,6 +11,19 @@ export const interfaceLanguages = [
   "it",
   "pt-BR",
   "ru",
+  "nl",
+  "pl",
+  "sv",
+  "nb",
+  "da",
+  "fi",
+  "el",
+  "tr",
+  "ar",
+  "hi",
+  "th",
+  "vi",
+  "id",
 ] as const;
 
 export type InterfaceLanguage = (typeof interfaceLanguages)[number];
@@ -33,8 +46,27 @@ export const interfaceLanguageNames: Record<InterfaceLanguage, string> = {
   it: "Italiano",
   "pt-BR": "Português (Brasil)",
   ru: "Русский",
+  nl: "Nederlands",
+  pl: "Polski",
+  sv: "Svenska",
+  nb: "Norsk",
+  da: "Dansk",
+  fi: "Suomi",
+  el: "Ελληνικά",
+  tr: "Türkçe",
+  ar: "العربية",
+  hi: "हिन्दी",
+  th: "ไทย",
+  vi: "Tiếng Việt",
+  id: "Bahasa Indonesia",
 };
 
-/** The locale used for numbers, dates and sorting: English formats as United States English. */
+/**
+ * The locale used for numbers, dates and sorting: English formats as United States English and
+ * Arabic writes Western digits.
+ */
 export const formattingLocale = (language: InterfaceLanguage) =>
-  language === "en" ? "en-US" : language;
+  language === "en" ? "en-US" : language === "ar" ? "ar-u-nu-latn" : language;
+
+/** Interface languages written right to left, whose layout mirrors. */
+export const rightToLeftLanguages: ReadonlySet<InterfaceLanguage> = new Set(["ar"]);

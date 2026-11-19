@@ -20,6 +20,7 @@ import { en } from "./messages/en";
 afterEach(() => {
   render(<I18nProvider language="en">{null}</I18nProvider>).unmount();
   document.documentElement.lang = "";
+  document.documentElement.dir = "";
 });
 
 const placeholders = (text: string) =>
@@ -73,6 +74,19 @@ describe("interface language catalogs", () => {
       "it",
       "pt-BR",
       "ru",
+      "nl",
+      "pl",
+      "sv",
+      "nb",
+      "da",
+      "fi",
+      "el",
+      "tr",
+      "ar",
+      "hi",
+      "th",
+      "vi",
+      "id",
     ]);
     expect(interfaceLanguageNames).toEqual({
       en: "English",
@@ -86,6 +100,19 @@ describe("interface language catalogs", () => {
       it: "Italiano",
       "pt-BR": "Português (Brasil)",
       ru: "Русский",
+      nl: "Nederlands",
+      pl: "Polski",
+      sv: "Svenska",
+      nb: "Norsk",
+      da: "Dansk",
+      fi: "Suomi",
+      el: "Ελληνικά",
+      tr: "Türkçe",
+      ar: "العربية",
+      hi: "हिन्दी",
+      th: "ไทย",
+      vi: "Tiếng Việt",
+      id: "Bahasa Indonesia",
     });
   });
 
@@ -133,18 +160,69 @@ describe("interface language catalogs", () => {
     expect(translatorFor("en").date(day, options)).toBe("October 5, 2026");
     expect(translatorFor("ja").date(day, options)).toBe("2026年10月5日");
     expect(translatorFor("pt-BR").date(day, options)).toBe("5 de outubro de 2026");
-    // Latin-script European counts use English suffixes, with localized decimal separators.
+    // Latin-script counts use English suffixes, with localized decimal separators.
     expect(translatorFor("en").compact(12_345_678, 1)).toBe("12.3M");
-    for (const language of ["pt-BR", "de", "es", "fr", "it"] as const)
+    const latin = [
+      "pt-BR",
+      "de",
+      "es",
+      "fr",
+      "it",
+      "nl",
+      "pl",
+      "sv",
+      "nb",
+      "da",
+      "fi",
+      "tr",
+      "vi",
+      "id",
+    ] as const;
+    for (const language of latin)
       expect(translatorFor(language).compact(12_345_678, 1), language).toBe("12,3M");
+    // Other scripts keep their own short forms; Arabic writes Western digits.
+    expect(translatorFor("el").compact(12_345_678, 1)).toMatch(/^12,3\sεκ\.$/);
+    expect(translatorFor("ar").compact(12_345_678, 1)).toMatch(/^12\.3\sمليون$/);
+    expect(translatorFor("ar").number(1_234_567)).toBe("1,234,567");
+    expect(translatorFor("hi").number(1_234_567)).toBe("12,34,567");
     expect(translatorFor("es").compact(1_234, 1)).toBe("1,2K");
     expect(translatorFor("ru").compact(12_345_678, 1)).toBe("12,3 млн");
     expect(translatorFor("pt-BR").compact(1_234_567_890, 1)).toBe("1,2B");
     // Western durations take one letter a unit, joined to its number.
-    for (const language of ["pt-BR", "de", "es", "fr", "it"] as const)
+    for (const language of latin)
       expect(translatorFor(language).t("duration.hoursMinutes", { hours: 8, minutes: 20 })).toBe(
         "8h 20m",
       );
+    // The approved short units: two letters and a stop in Latin scripts, the language's own
+    // words elsewhere.
+    const units = {
+      nl: "Te.",
+      pl: "Zn.",
+      sv: "Te.",
+      nb: "Te.",
+      da: "Te.",
+      fi: "Me.",
+      tr: "Ka.",
+      vi: "Kt.",
+      id: "Kr.",
+      el: "χαρ.",
+      ar: "حرف",
+      hi: "अक्षर",
+      th: "ตัว",
+    } as const;
+    for (const [language, unit] of Object.entries(units))
+      expect(
+        translatorFor(language as InterfaceLanguage).t("amount.characters", { count: 5 }),
+      ).toBe(`5 ${unit}`);
+    // Percentages: Turkish leads with the sign; Arabic marks keep it beside the digits after
+    // Arabic words, as in its catalog.
+    expect(translatorFor("en").percentLabel(42)).toBe("42%");
+    expect(translatorFor("de").percentLabel(42)).toBe("42%");
+    expect(translatorFor("tr").percentLabel(42)).toBe("%42");
+    expect(translatorFor("ar").percentLabel(42)).toBe("42‎%‎");
+    expect(translatorFor("ar").t("libraryCard.percentRead", { percent: 42 })).toContain(
+      translatorFor("ar").percentLabel(42),
+    );
     expect(translatorFor("pt-BR").compact(12_345, 1)).toBe("12,3K");
     expect(translatorFor("pt-BR").compact(23_000, 0)).toBe("23K");
     expect(translatorFor("pt-BR").compact(219_000_000, 0)).toBe("219M");
@@ -226,7 +304,7 @@ describe("interface language preference", () => {
       expect(normalizeAppearancePreferences({ interfaceLanguage: language })).toEqual({
         interfaceLanguage: language,
       });
-    for (const invalid of ["zh-HK", "fr-FR", "ar", "JA", "", null, 1, {}])
+    for (const invalid of ["zh-HK", "fr-FR", "xx", "no", "JA", "", null, 1, {}])
       expect(normalizeAppearancePreferences({ interfaceLanguage: invalid })).toEqual({});
   });
 
@@ -275,6 +353,8 @@ describe("interface language preference", () => {
         screen.getByRole("heading", { name: translatorFor(language).t("appearance.title") }),
       ).toBeInTheDocument();
       expect(document.documentElement.lang).toBe(language);
+      // Arabic mirrors the interface.
+      expect(document.documentElement.dir).toBe(language === "ar" ? "rtl" : "ltr");
       await waitFor(() => expect(saved.interfaceLanguage).toBe(language));
     }
   });
