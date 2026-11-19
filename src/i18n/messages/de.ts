@@ -1296,6 +1296,7 @@ export const de: MessageCatalog = {
   "statisticsCards.wordsLabel": "Wörter",
   "statisticsCards.booksRead": "Gelesene Bücher",
   "statisticsCards.bookRead": "Gelesenes Buch",
+  "statisticsCards.daysRead": "Lesetage",
   "statisticsCards.editFor": "Tägliche Aktivität für {title} bearbeiten",
   "statisticsCards.editTitle": "Tägliche Aktivität bearbeiten (oder Rechtsklick auf dieses Buch)",
   "statisticsCards.noBookRead": "Kein Buch gelesen",

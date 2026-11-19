@@ -95,6 +95,21 @@ describe("statistics", () => {
       [A, 21_000],
       [B, 2_000],
     ]);
+    // Each book's own totals: its sessions, the days they began on, and the last one's end.
+    expect(
+      month.books.map(({ bookId, activeMs, sessions, days, lastReadAt }) => [
+        bookId,
+        activeMs,
+        sessions,
+        days,
+        lastReadAt,
+      ]),
+    ).toEqual([
+      [A, 70 * 60_000, 2, 2, +new Date(2026, 9, 15, 20, 10)],
+      [B, 20 * 60_000, 1, 1, +new Date(2026, 9, 15, 7, 20)],
+    ]);
+    const all = summarize(sessions, null);
+    expect(all.books[0]).toMatchObject({ bookId: A, sessions: 3, days: 3, unitsRead: 30_000 });
     expect(speed(month.characters, month.characterMs)).toBe(18_000);
     expect(speed(month.words, month.wordMs)).toBe(6_000);
     expect(speed(10, 59_000)).toBeNull();

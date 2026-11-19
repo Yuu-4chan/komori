@@ -1131,6 +1131,7 @@ export const zhTW: MessageCatalog = {
   "statisticsCards.wordsLabel": "詞數",
   "statisticsCards.booksRead": "讀過的圖書",
   "statisticsCards.bookRead": "讀過的圖書",
+  "statisticsCards.daysRead": "閱讀天數",
   "statisticsCards.editFor": "編輯{title}的每日活動",
   "statisticsCards.editTitle": "編輯每日活動（也可在這本書上按右鍵）",
   "statisticsCards.noBookRead": "沒有讀書",

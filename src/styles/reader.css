@@ -1821,6 +1821,32 @@
   gap: 6px;
 }
 
+/* The session's play/stop button between the clock and the time read, as on the phone. */
+.reader-reading-status__session {
+  width: 22px;
+  height: 22px;
+  margin-inline: -5px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.reader-reading-status__session:hover {
+  background: color-mix(in srgb, var(--reader-ink) 8%, transparent);
+}
+
+.reader-reading-status__session:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
 .reader-footer__values {
   display: inline-flex;
   align-items: center;

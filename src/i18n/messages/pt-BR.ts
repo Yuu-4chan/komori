@@ -1279,6 +1279,7 @@ export const ptBR: MessageCatalog = {
   "statisticsCards.wordsLabel": "Palavras",
   "statisticsCards.booksRead": "Livros lidos",
   "statisticsCards.bookRead": "Livro lido",
+  "statisticsCards.daysRead": "Dias de leitura",
   "statisticsCards.editFor": "Editar a atividade diária de {title}",
   "statisticsCards.editTitle":
     "Editar a atividade diária (ou clique com o botão direito neste livro)",

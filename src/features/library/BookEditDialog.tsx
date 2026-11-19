@@ -134,7 +134,7 @@ function BookEditForm({
       onConfirm={() => onConfirm(edits)}
       open={open}
       title={t("edit.title")}
-      wide={several}
+      wide="large"
     >
       <form
         className="book-edit"

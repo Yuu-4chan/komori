@@ -1196,6 +1196,7 @@ export const ko: MessageCatalog = {
   "statisticsCards.wordsLabel": "단어",
   "statisticsCards.booksRead": "읽은 책",
   "statisticsCards.bookRead": "읽은 책",
+  "statisticsCards.daysRead": "읽은 날",
   "statisticsCards.editFor": "{title}의 일별 활동 편집",
   "statisticsCards.editTitle": "일별 활동 편집(이 책을 오른쪽 클릭해도 됨)",
   "statisticsCards.noBookRead": "읽은 책 없음",

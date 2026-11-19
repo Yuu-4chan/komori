@@ -53,6 +53,7 @@ import {
 import { StatisticsSourceContext } from "../features/statistics/statisticsSource";
 import {
   ActivityCalendar,
+  BookTotals,
   CharacterExplorer,
   CompletionOverview,
   DailyBooks,
@@ -323,6 +324,18 @@ export function StatisticsPage() {
           />
         </div>
       </section>
+
+      {summary.books.length ? (
+        <section className="statistics-card" aria-labelledby="statistics-books">
+          <div className="statistics-card__heading">
+            <div>
+              <h2 id="statistics-books">{t("statisticsCards.booksRead")}</h2>
+              <span>{rangeDescription}</span>
+            </div>
+          </div>
+          <BookTotals books={summary.books} library={library} />
+        </section>
+      ) : null}
 
       <section
         className="statistics-card statistics-activity-card"

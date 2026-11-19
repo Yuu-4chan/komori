@@ -1131,6 +1131,7 @@ export const zhCN: MessageCatalog = {
   "statisticsCards.wordsLabel": "词数",
   "statisticsCards.booksRead": "读过的图书",
   "statisticsCards.bookRead": "读过的图书",
+  "statisticsCards.daysRead": "阅读天数",
   "statisticsCards.editFor": "编辑{title}的每日活动",
   "statisticsCards.editTitle": "编辑每日活动（也可右键单击这本书）",
   "statisticsCards.noBookRead": "没有读书",

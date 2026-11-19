@@ -2048,6 +2048,12 @@ export function ReaderShell({
             readingTime={appearance.readerShowReadingTime}
             readingMs={session.readingMs}
             session={session.state}
+            onToggleSession={() => {
+              session.toggle();
+              // Reading keys keep turning pages after a click on the button.
+              viewportRef.current?.focus({ preventScroll: true });
+            }}
+            manual={appearance.statisticsSessionStart === "manual"}
           />
         )}
         {status === "ready" && returnPoint && (

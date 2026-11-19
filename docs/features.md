@@ -69,7 +69,7 @@ on the Library to add them; a drag overlay shows the accepted file type or a bus
 operation, and imports report progress and per-file outcomes. Authors show in full, wrapping long names.
 Titles drop store, edition and bonus tags in brackets, such as 【電子版】, (Kindle版), (HJ文庫), (学研ムック), [雑誌], 【単行本版特典ペーパー付き】 or
 (Light Novel), in full- or half-width brackets (even mixed, as in （電子版)), keeping a title's own
-bracketed words such as （上）. Edit… in a card's menu or the selection shows books under a title and author of your own, kept
+bracketed words such as （上）. Edit… in a card's menu or the selection opens a wide dialog, fitting long titles, that shows books under a title and author of your own, kept
 through title cleaning, relink, backups and restores and used by search, sort, groups, series, the
 Reader, statistics, Anki and Discord; Use the original returns to the book's own, and the EPUB is
 never changed. With several books, typing the first title retitles the rest the same way, each with
@@ -123,7 +123,8 @@ back. The search stays in the top bar even in an empty Library.
 - **VN.** Centered groups of the chosen number of paragraphs; images alone and at once.
   A click in the book or Space finishes the reveal, then reads on.
 - **Footer.** Book and chapter position and percentage in a lower pill with reading speed;
-  clock and session reading time in an upper pill; both center over the available
+  clock and session reading time in an upper pill, with the session's play/stop button
+  between them while statistics are recorded (alone with Manual start); both center over the available
   reading area, including while the sidebar is pinned. Empty pills disappear.
 - **Images.** The book's illustrations as cards and a modal viewer with zoom, rotation,
   reset, panning, pinch to zoom on a touch screen and Go to location, fitting the picture to the window but enlarging a small one no more than three times; clicking an unblurred book image opens it.
@@ -199,7 +200,9 @@ Only look up Japanese/CJK text, the kanji entry and JapanesePod101 are for Japan
 
 Range menu; reading activity metrics (characters or words read, time, speed per hour,
 books finished); the daily activity calendar with day details and editable daily
-books (right-click or pencil); Library overview, language breakdown, completion
+books (right-click or pencil); Books read in the range as covers, most time first, each opening
+a popup with its time, sessions, characters or words read, speed, days read and last read;
+Library overview, language breakdown, completion
 and the character explorer whose tiles open their Dictionary search.
 Completion shows 300 books until Show all.
 Reader statistics pause while Komori's window is unfocused, hidden or minimized

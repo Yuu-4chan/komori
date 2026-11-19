@@ -242,4 +242,47 @@ describe("Reader upper status", () => {
     visibility.mockRestore();
     remove.mockRestore();
   });
+
+  it("puts the session's play/stop button between the clock and the time read", async () => {
+    const toggle = vi.fn();
+    const view = render(
+      <ReaderReadingStatus clock readingTime onToggleSession={toggle} session="counting" />,
+    );
+    const pill = screen.getByRole("group", { name: "Reading status" });
+    const stop = within(pill).getByRole("button", { name: "Pause counting" });
+    expect(stop).toHaveAttribute("aria-pressed", "true");
+    expect([...pill.children].indexOf(stop)).toBe(1);
+    await userEvent.click(stop);
+    expect(toggle).toHaveBeenCalledOnce();
+    view.rerender(
+      <ReaderReadingStatus clock readingTime onToggleSession={toggle} session="paused" />,
+    );
+    expect(screen.getByRole("button", { name: "Start counting" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    // Without statistics there is no session to start.
+    view.rerender(<ReaderReadingStatus clock readingTime onToggleSession={toggle} session="off" />);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    // A Manual session shows the button alone when the clock and the time are hidden.
+    view.rerender(
+      <ReaderReadingStatus
+        clock={false}
+        readingTime={false}
+        onToggleSession={toggle}
+        session="paused"
+      />,
+    );
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
+    view.rerender(
+      <ReaderReadingStatus
+        clock={false}
+        readingTime={false}
+        manual
+        onToggleSession={toggle}
+        session="paused"
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Start counting" })).toBeInTheDocument();
+  });
 });
