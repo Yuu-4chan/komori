@@ -200,8 +200,9 @@ Indonesian lookups start at the word under the pointer like English and find dic
 inflected forms their dictionaries list, and Settings > Dictionary offers their Wiktionary downloads.
 Komori's own rules also find words under Turkish suffixes (evlerimizden → ev, gideceğim → gitmek), Finnish
 clitics and possessives (talossanikin → talo), Swedish, Norwegian and Danish genitives (husets → hus), Polish
-past, conditional and adjective endings (zrobiłbym → zrobić), Greek endings and ξανα-, and Indonesian affixes
-(bukunya → buku, kebersihan → bersih);
+past, conditional and adjective endings (zrobiłbym → zrobić), Greek endings and ξανα-, Indonesian affixes
+(bukunya → buku, kebersihan → bersih), Dutch plurals, adjective endings and regular verb forms (huizen → huis,
+gewerkt → werken) and Hindi noun, adjective and verb endings (लड़कों → लड़का, पढ़ूँगा → पढ़ना);
 Arabic ignores short vowels and tatweel and finds a noun after its article and particles and a verb or noun under its
 prefixes and suffixes (والكتاب → كتاب, يكتبون → كتب, مدرستي → مدرسة), Turkish matches I/ı
 and İ/i, Greek ignores the second accent before an enclitic, Vietnamese matches hòa and hoà, and

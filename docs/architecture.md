@@ -1671,9 +1671,15 @@ present endings and adjectives' case endings with naj-. Greek (`deinflect/el.rs`
 `ext/js/language/el/modern-greek-transforms.js` at commit d3c54c1), -ος endings and regular present
 endings. Indonesian (`deinflect/id.rs`) takes particles (-nya, -lah), then -kan, -i or -an, then a
 prefix (meN- and peN- restoring the stem's first letter, di-, ber-, ke-) or a prefix and suffix
-together (ke-…-an), each named by the affix. Turkish keeps up to 256 candidates and Indonesian 128.
-Dutch and Hindi dictionaries list their inflected forms, and Thai and Vietnamese do not inflect, so
-they have no rules. A rule without a name (a sound change) adds no inflection name.
+together (ke-…-an), each named by the affix. Dutch (`deinflect/nl.rs`) has nouns' plurals and
+diminutives, adjectives' -e, comparative and superlative, and regular verbs' present, past and ge-…-t
+participle, which give the stem and then -en, each restoring a respelled last syllable (bomen →
+boom, huizen → huis, loopt → lopen, zit → zitten). Hindi (`deinflect/hi.rs`) has nouns' plural and
+oblique endings, adjectives' agreement, and verbs' habitual, perfect, future (named -गा),
+subjunctive, imperative and conjunctive endings, which give the stem and then -ना, plus the
+irregular perfects of करना, जाना, देना and लेना; endings with a chandrabindu also match an anusvara.
+Turkish keeps up to 256 candidates, and Indonesian, Dutch and Hindi 128. Thai and Vietnamese do not
+inflect, so they have no rules. A rule without a name (a sound change) adds no inflection name.
 
 A candidate from a language's rules must be a term its rules allow. Japanese dictionaries name
 every inflecting word's class, so a term must name the candidate's. Other languages' dictionaries
