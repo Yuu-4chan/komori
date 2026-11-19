@@ -27,6 +27,7 @@ pub(crate) mod ja;
 pub(crate) mod ko;
 pub(crate) mod pt;
 pub(crate) mod ru;
+pub(crate) mod tr;
 
 #[cfg(test)]
 pub(crate) use ja::{ADJ_I, V1, V5, VK, VS, VZ};
@@ -179,6 +180,30 @@ fn endings(
             rule(name, inflected, base, applies_to, gives)
         })
         .collect()
+}
+
+/// Every spelling of `pattern` with each placeholder letter replaced by each of its spellings
+/// (Turkish and Finnish vowel harmony: `lAr` is lar and ler).
+fn harmony(pattern: &str, placeholders: &[(char, &[&str])]) -> Vec<String> {
+    let mut spellings = vec![String::new()];
+    for letter in pattern.chars() {
+        let choices: Vec<String> = placeholders
+            .iter()
+            .find(|(placeholder, _)| *placeholder == letter)
+            .map_or_else(
+                || vec![letter.to_string()],
+                |(_, choices)| choices.iter().map(|&choice| choice.to_owned()).collect(),
+            );
+        spellings = spellings
+            .iter()
+            .flat_map(|spelling| {
+                choices
+                    .iter()
+                    .map(move |choice| format!("{spelling}{choice}"))
+            })
+            .collect();
+    }
+    spellings
 }
 
 /// The word classes a term's space-separated rules name, each rule by `names`.
@@ -491,7 +516,11 @@ fn deinflect_bounded(
                     if !seen.insert((text.clone(), rule.gives)) {
                         continue;
                     }
-                    let mut inflections = vec![rule.name];
+                    // A rule without a name (a sound change between steps) is not an inflection.
+                    let mut inflections: Vec<&'static str> = Some(rule.name)
+                        .filter(|name| !name.is_empty())
+                        .into_iter()
+                        .collect();
                     inflections.extend(&current.inflections);
                     let candidate = Candidate {
                         text,
