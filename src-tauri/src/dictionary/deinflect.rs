@@ -24,6 +24,7 @@ pub(crate) mod en;
 pub(crate) mod es;
 pub(crate) mod fi;
 pub(crate) mod fr;
+pub(crate) mod hi;
 pub(crate) mod id;
 pub(crate) mod it;
 pub(crate) mod ja;
