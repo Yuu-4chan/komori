@@ -181,6 +181,7 @@ impl Language {
             Self::German => deinflect::de::deinflect(text),
             Self::Russian => deinflect::ru::deinflect(text),
             Self::Arabic => deinflect::ar::deinflect(text),
+            Self::Dutch => deinflect::nl::deinflect(text),
             Self::Danish => deinflect::nordic::deinflect(text),
             Self::Norwegian => deinflect::nordic::deinflect(text),
             Self::Swedish => deinflect::nordic::deinflect(text),
@@ -189,9 +190,9 @@ impl Language {
             Self::Polish => deinflect::pl::deinflect(text),
             Self::Finnish => deinflect::fi::deinflect(text),
             Self::Turkish => deinflect::tr::deinflect(text),
-            // Thai and Vietnamese do not inflect; Dutch and Hindi dictionaries list their inflected
-            // forms as form entries.
-            Self::Dutch | Self::Hindi | Self::Thai | Self::Vietnamese => Vec::new(),
+            // Thai and Vietnamese do not inflect; Hindi dictionaries list their inflected forms as
+            // form entries.
+            Self::Hindi | Self::Thai | Self::Vietnamese => Vec::new(),
         }
     }
 
@@ -209,6 +210,7 @@ impl Language {
             Self::German => deinflect::de::word_classes(rules),
             Self::Russian => deinflect::ru::word_classes(rules),
             Self::Arabic => deinflect::ar::word_classes(rules),
+            Self::Dutch => deinflect::nl::word_classes(rules),
             Self::Danish => deinflect::nordic::word_classes(rules),
             Self::Norwegian => deinflect::nordic::word_classes(rules),
             Self::Swedish => deinflect::nordic::word_classes(rules),
@@ -217,7 +219,7 @@ impl Language {
             Self::Polish => deinflect::pl::word_classes(rules),
             Self::Finnish => deinflect::fi::word_classes(rules),
             Self::Turkish => deinflect::tr::word_classes(rules),
-            Self::Dutch | Self::Hindi | Self::Thai | Self::Vietnamese => 0,
+            Self::Hindi | Self::Thai | Self::Vietnamese => 0,
         }
     }
 
@@ -246,6 +248,7 @@ impl Language {
             Self::German => deinflect::de::DICTIONARY_FORMS,
             Self::Russian => deinflect::ru::DICTIONARY_FORMS,
             Self::Arabic => deinflect::ar::DICTIONARY_FORMS,
+            Self::Dutch => deinflect::nl::DICTIONARY_FORMS,
             Self::Danish => deinflect::nordic::DICTIONARY_FORMS,
             Self::Norwegian => deinflect::nordic::DICTIONARY_FORMS,
             Self::Swedish => deinflect::nordic::DICTIONARY_FORMS,
@@ -254,7 +257,7 @@ impl Language {
             Self::Polish => deinflect::pl::DICTIONARY_FORMS,
             Self::Finnish => deinflect::fi::DICTIONARY_FORMS,
             Self::Turkish => deinflect::tr::DICTIONARY_FORMS,
-            Self::Dutch | Self::Hindi | Self::Thai | Self::Vietnamese => 0,
+            Self::Hindi | Self::Thai | Self::Vietnamese => 0,
         }
     }
 

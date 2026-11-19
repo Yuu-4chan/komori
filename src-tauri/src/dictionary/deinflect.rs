@@ -28,6 +28,7 @@ pub(crate) mod id;
 pub(crate) mod it;
 pub(crate) mod ja;
 pub(crate) mod ko;
+pub(crate) mod nl;
 pub(crate) mod nordic;
 pub(crate) mod pl;
 pub(crate) mod pt;
