@@ -34,7 +34,7 @@ use super::archive::{
     BankKind, DictionaryArchive, DictionaryArchiveError, TermEntry, TermMetaMode,
 };
 use super::deinflect::ja::{self, VS};
-use super::language::Language;
+use super::language::{without_arabic_marks, Language};
 use super::sources::SourcePolicy;
 
 const SCHEMA_VERSION: i64 = 9;
@@ -2562,7 +2562,9 @@ fn write_dictionary(
             statement.execute(params![
                 dictionary,
                 term.expression,
-                term.reading,
+                without_arabic_marks(&term.reading)
+                    .as_deref()
+                    .unwrap_or(&term.reading),
                 term.definition_tags,
                 term.rules,
                 term.score,
@@ -6323,6 +6325,66 @@ mod tests {
                 ("Untagged".to_owned(), Language::Japanese),
             ]
         );
+    }
+
+    #[test]
+    fn arabic_headwords_keep_their_bare_spelling_as_the_reading_lookups_match() {
+        let directory = tempdir().unwrap();
+        let database = directory.path().join(DATABASE_FILE_NAME);
+        let tagged = |name: &str, language: &str, terms: &str| {
+            let index = format!(
+                r#"{{"title":"{name}","revision":"1","format":3,"sourceLanguage":"{language}"}}"#
+            );
+            fixture_with(
+                directory.path(),
+                &format!("{name}.zip"),
+                &[("index.json", &index), ("term_bank_1.json", terms)],
+            )
+        };
+        let paths = [tagged(
+            "Arabic",
+            "ar",
+            r#"[["كِتَابٌ","","n","",0,["book"],1,""],["قلم","","n","",0,["pen"],2,""]]"#,
+        )];
+        let readings = |connection: &Connection| {
+            connection
+                .prepare("SELECT expression, reading FROM terms ORDER BY rowid")
+                .unwrap()
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .unwrap()
+                .collect::<Result<Vec<(String, String)>, _>>()
+                .unwrap()
+        };
+        {
+            let mut connection = open_store(&database).unwrap();
+            for path in &paths {
+                assert_eq!(
+                    import_one_into(&mut connection, path, Language::Japanese).0,
+                    ImportStatus::Imported
+                );
+            }
+            assert_eq!(
+                readings(&connection),
+                [
+                    ("كِتَابٌ".to_owned(), "كتاب".to_owned()),
+                    ("قلم".to_owned(), "قلم".to_owned()),
+                ]
+            );
+            let sources =
+                language_sources(&connection, &SourcePolicy::default(), Language::Arabic).unwrap();
+            for query in ["كتاب", "الكتاب", "كِتَابٌ"] {
+                let found = lookup_longest_start_in(
+                    &connection,
+                    query,
+                    &sources,
+                    Language::Arabic,
+                    None,
+                    GLOSSARY_LIMITS,
+                )
+                .unwrap();
+                assert_eq!(found.groups.len(), 1, "{query}");
+            }
+        }
     }
 
     #[test]

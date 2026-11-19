@@ -273,7 +273,8 @@ impl Language {
     /// of those for the text without the elided word that begins it (l'homme: homme; dell'Italia:
     /// Italia; d'água: água).
     /// Russian then also tries each without its stress marks, with ё as е, and with each one е as ё (a word has one ё).
-    /// Arabic also tries each without short vowels and tatweel; Turkish also tries its own lowercase and
+    /// Arabic also tries each without short vowels and tatweel, and without the article al- and
+    /// the wa-, fa-, bi- or ka- joined before it (li- with it is لل); Turkish also tries its own lowercase and
     /// capitalized forms (I: ı, İ: i). Thai, like Japanese and Chinese, does not space its words.
     /// Japanese and Chinese try only the text.
     pub(crate) fn variants(self, text: &str) -> Vec<String> {
@@ -326,18 +327,21 @@ impl Language {
             }
         }
         let respellings: Vec<String> = match self {
-            // Dictionaries write Arabic headwords bare, without short vowels or tatweel.
-            Self::Arabic => variants
-                .iter()
-                .map(|variant| {
-                    variant
-                        .chars()
-                        .filter(|&letter| {
-                            !matches!(letter, '\u{64B}'..='\u{65F}' | '\u{670}' | '\u{640}')
-                        })
-                        .collect()
-                })
-                .collect(),
+            // Imports keep Arabic headwords' bare spelling (see `without_arabic_marks`); the
+            // article al- and the and/so/with/as/for joined before it are dropped as well.
+            Self::Arabic => {
+                let bare: Vec<String> = variants
+                    .iter()
+                    .filter_map(|variant| without_arabic_marks(variant))
+                    .collect();
+                let mut respelled = bare.clone();
+                for word in variants.iter().chain(&bare) {
+                    if let Some(noun) = without_arabic_article(word) {
+                        respelled.push(noun);
+                    }
+                }
+                respelled
+            }
             // Turkish pairs I with ı and İ with i.
             Self::Turkish => {
                 let lower = text.replace('I', "ı").replace('İ', "i").to_lowercase();
@@ -420,6 +424,25 @@ fn capitalized(text: &str) -> String {
     })
 }
 
+/// Arabic text without its short vowels and other marks (U+064B–U+065F, U+0670) and tatweel, or
+/// None when it has none or is nothing else. Dictionaries mostly write Arabic headwords with their
+/// vowels and books mostly without, so imports keep the bare spelling as the reading lookups match.
+pub(crate) fn without_arabic_marks(text: &str) -> Option<String> {
+    let mark = |letter: char| matches!(letter, '\u{64B}'..='\u{65F}' | '\u{670}' | '\u{640}');
+    let bare: String = text.chars().filter(|&letter| !mark(letter)).collect();
+    (bare.len() != text.len() && !bare.is_empty()).then_some(bare)
+}
+
+/// An Arabic word without the article al- (ال) and the conjunction or preposition joined before
+/// it (wa-, fa-, bi-, ka-; li- with the article is لل), when at least two letters remain.
+fn without_arabic_article(word: &str) -> Option<String> {
+    ["وال", "فال", "بال", "كال", "ال", "لل"]
+        .iter()
+        .find_map(|prefix| word.strip_prefix(prefix))
+        .filter(|rest| rest.chars().count() >= 2)
+        .map(str::to_owned)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -495,6 +518,24 @@ mod tests {
         assert!(Language::Arabic
             .variants("كتــاب")
             .contains(&"كتاب".to_owned()));
+    }
+
+    #[test]
+    fn arabic_also_tries_its_words_without_the_article() {
+        for text in ["الكتاب", "والكتاب", "بالكتاب", "الكِتَاب"] {
+            assert!(
+                Language::Arabic.variants(text).contains(&"كتاب".to_owned()),
+                "{text}"
+            );
+        }
+        assert!(Language::Arabic
+            .variants("للبيت")
+            .contains(&"بيت".to_owned()));
+        // Two letters at least remain: "the" alone is not a word to look up.
+        assert_eq!(Language::Arabic.variants("ال"), ["ال"]);
+        assert_eq!(super::without_arabic_marks("كِتَابٌ").as_deref(), Some("كتاب"));
+        assert_eq!(super::without_arabic_marks("كتاب"), None);
+        assert_eq!(super::without_arabic_marks("ـ"), None);
     }
 
     #[test]

@@ -1538,9 +1538,13 @@ reads it as `Language` (`src-tauri/src/dictionary/language.rs`), Japanese when a
 
 Dutch, Polish, Swedish, Norwegian (Bokmål), Danish, Finnish, Greek, Turkish, Arabic, Hindi, Thai,
 Vietnamese and Indonesian have no deinflection rules: their lookups find dictionary forms and the
-inflected forms their dictionaries list as entries of their own. Arabic starts are also tried
-without short vowels (U+064B–U+065F, U+0670) and tatweel; Turkish starts also in Turkish lowercase and
-capitalization (I: ı, İ: i). Word boundaries count combining marks (a virama, Arabic short vowels)
+inflected forms their dictionaries list as entries of their own. Dictionaries mostly write Arabic
+headwords with their short vowels (U+064B–U+065F, U+0670) and books mostly without, so an import
+stores a reading's bare spelling (`without_arabic_marks`, also dropping tatweel) as the reading, and
+Arabic starts are also tried bare and without the article al- and the wa-, fa-, bi- or ka- joined
+before it (li- with it is لل), so والكتاب finds كِتَاب. Dictionaries imported before these languages
+keep their readings and their language (Japanese) until moved or imported again. Turkish starts are
+also tried in Turkish lowercase and capitalization (I: ı, İ: i). Word boundaries count combining marks (a virama, Arabic short vowels)
 and ZWNJ/ZWJ as part of the word. Thai, like Japanese and Chinese, does not space its words, so its
 lookups read on from the pointer and `sentenceAt` ends its sentences at whitespace; Arabic-script
 marks (؟ ۔), the danda (। ॥) and Greek's question mark (;) end the other languages' sentences.
