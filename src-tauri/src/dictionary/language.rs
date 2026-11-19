@@ -274,7 +274,9 @@ impl Language {
     /// Italia; d'água: água).
     /// Russian then also tries each without its stress marks, with ё as е, and with each one е as ё (a word has one ё).
     /// Arabic also tries each without short vowels and tatweel, and without the article al- and
-    /// the wa-, fa-, bi- or ka- joined before it (li- with it is لل); Turkish also tries its own lowercase and
+    /// the wa-, fa-, bi- or ka- joined before it (li- with it is لل), and with a hamza on a bare alif,
+    /// ى as ي or ه as ة at the end; Greek also without a second accent (πρόσωπό); Vietnamese also with its
+    /// tone marks placed by the older and newer rules (hòa, hoà); Turkish also tries its own lowercase and
     /// capitalized forms (I: ı, İ: i). Thai, like Japanese and Chinese, does not space its words.
     /// Japanese and Chinese try only the text.
     pub(crate) fn variants(self, text: &str) -> Vec<String> {
@@ -340,8 +342,28 @@ impl Language {
                         respelled.push(noun);
                     }
                 }
+                // Spellings books simplify: a hamza left off an alif (اكبر: أكبر, اسلام: إسلام),
+                // a final ى for ي, a final ه for ة.
+                let simplified: Vec<String> = variants
+                    .iter()
+                    .chain(&respelled)
+                    .flat_map(|word| arabic_spellings(word))
+                    .collect();
+                respelled.extend(simplified);
                 respelled
             }
+            // Vietnamese writes a tone mark on one of two vowels by older or newer rules (hòa or
+            // hoà, thủy or thuỷ); dictionaries keep one or the other.
+            Self::Vietnamese => [false, true]
+                .into_iter()
+                .map(|newer| vietnamese_tones(text, newer))
+                .collect(),
+            // A word before an enclitic takes a second accent (το πρόσωπό μου): dictionaries have
+            // one.
+            Self::Greek => variants
+                .iter()
+                .filter_map(|variant| without_second_greek_accent(variant))
+                .collect(),
             // Turkish pairs I with ı and İ with i.
             Self::Turkish => {
                 let lower = text.replace('I', "ı").replace('İ', "i").to_lowercase();
@@ -424,13 +446,178 @@ fn capitalized(text: &str) -> String {
     })
 }
 
-/// Arabic text without its short vowels and other marks (U+064B–U+065F, U+0670) and tatweel, or
-/// None when it has none or is nothing else. Dictionaries mostly write Arabic headwords with their
-/// vowels and books mostly without, so imports keep the bare spelling as the reading lookups match.
+/// Arabic text without its short vowels and other marks (U+0618–U+061A, U+064B–U+065F, U+0670) and
+/// tatweel, or None when it has none or is nothing else. Dictionaries mostly write Arabic headwords
+/// with their vowels and books mostly without, so imports keep the bare spelling as the reading
+/// lookups match.
 pub(crate) fn without_arabic_marks(text: &str) -> Option<String> {
-    let mark = |letter: char| matches!(letter, '\u{64B}'..='\u{65F}' | '\u{670}' | '\u{640}');
+    let mark = |letter: char| matches!(letter, '\u{618}'..='\u{61A}' | '\u{64B}'..='\u{65F}' | '\u{670}' | '\u{640}');
     let bare: String = text.chars().filter(|&letter| !mark(letter)).collect();
     (bare.len() != text.len() && !bare.is_empty()).then_some(bare)
+}
+
+/// Vietnamese vowels and their five toned forms: huyền, hỏi, ngã, sắc, nặng.
+const VIETNAMESE_TONES: [(char, [char; 5]); 12] = [
+    ('a', ['à', 'ả', 'ã', 'á', 'ạ']),
+    ('ă', ['ằ', 'ẳ', 'ẵ', 'ắ', 'ặ']),
+    ('â', ['ầ', 'ẩ', 'ẫ', 'ấ', 'ậ']),
+    ('e', ['è', 'ẻ', 'ẽ', 'é', 'ẹ']),
+    ('ê', ['ề', 'ể', 'ễ', 'ế', 'ệ']),
+    ('i', ['ì', 'ỉ', 'ĩ', 'í', 'ị']),
+    ('o', ['ò', 'ỏ', 'õ', 'ó', 'ọ']),
+    ('ô', ['ồ', 'ổ', 'ỗ', 'ố', 'ộ']),
+    ('ơ', ['ờ', 'ở', 'ỡ', 'ớ', 'ợ']),
+    ('u', ['ù', 'ủ', 'ũ', 'ú', 'ụ']),
+    ('ư', ['ừ', 'ử', 'ữ', 'ứ', 'ự']),
+    ('y', ['ỳ', 'ỷ', 'ỹ', 'ý', 'ỵ']),
+];
+
+/// Text with each Vietnamese syllable's tone mark where the older (hòa, thủy) or newer (hoà,
+/// thuỷ) rules put it: on the vowel with a breve, circumflex or horn (the later of ươ); else in an
+/// open oa, oe or uy on the first vowel by the older rules and the second by the newer; else on
+/// the middle of three vowels, the second of two before a consonant, or the first of two.
+fn vietnamese_tones(text: &str, newer: bool) -> String {
+    let split = |letter: char| {
+        let lower = letter.to_lowercase().next().unwrap_or(letter);
+        let upper = lower != letter;
+        VIETNAMESE_TONES.iter().find_map(|(base, toned)| {
+            if *base == lower {
+                Some((*base, None, upper))
+            } else {
+                toned
+                    .iter()
+                    .position(|form| *form == lower)
+                    .map(|tone| (*base, Some(tone), upper))
+            }
+        })
+    };
+    let join = |base: char, tone: Option<usize>, upper: bool| {
+        let letter = tone.map_or(base, |tone| {
+            VIETNAMESE_TONES
+                .iter()
+                .find(|(vowel, _)| *vowel == base)
+                .map_or(base, |(_, toned)| toned[tone])
+        });
+        if upper {
+            letter.to_uppercase().next().unwrap_or(letter)
+        } else {
+            letter
+        }
+    };
+    text.split(' ')
+        .map(|syllable| {
+            let letters: Vec<char> = syllable.chars().collect();
+            let vowels: Vec<(usize, char, Option<usize>, bool)> = letters
+                .iter()
+                .enumerate()
+                .filter_map(|(at, &letter)| {
+                    split(letter).map(|(base, tone, upper)| (at, base, tone, upper))
+                })
+                .collect();
+            let tones: Vec<usize> = vowels.iter().filter_map(|vowel| vowel.2).collect();
+            let [tone] = tones[..] else {
+                return syllable.to_owned();
+            };
+            // The vowels of the syllable's one run, without the u of qu or the i of gi before a vowel.
+            let Some(first) = vowels.first().map(|vowel| vowel.0) else {
+                return syllable.to_owned();
+            };
+            let mut run: Vec<_> = vowels
+                .iter()
+                .enumerate()
+                .take_while(|(index, vowel)| vowel.0 == first + index)
+                .map(|(_, vowel)| *vowel)
+                .collect();
+            let onset = letters[..first].iter().collect::<String>().to_lowercase();
+            if run.len() > 1
+                && ((onset == "q" && run[0].1 == 'u') || (onset == "g" && run[0].1 == 'i'))
+            {
+                run.remove(0);
+            }
+            let closed = run.last().is_some_and(|last| last.0 + 1 < letters.len());
+            let pair: String = run.iter().map(|vowel| vowel.1).collect();
+            let marked = run
+                .iter()
+                .rposition(|vowel| matches!(vowel.1, 'ă' | 'â' | 'ê' | 'ô' | 'ơ' | 'ư'))
+                .unwrap_or(match run.len() {
+                    0 | 1 => 0,
+                    2 if closed || (newer && matches!(pair.as_str(), "oa" | "oe" | "uy")) => 1,
+                    2 => 0,
+                    _ => 1,
+                });
+            let Some(target) = run.get(marked).map(|vowel| vowel.0) else {
+                return syllable.to_owned();
+            };
+            letters
+                .iter()
+                .enumerate()
+                .map(
+                    |(at, &letter)| match vowels.iter().find(|vowel| vowel.0 == at) {
+                        Some(&(_, base, _, upper)) => {
+                            join(base, (at == target).then_some(tone), upper)
+                        }
+                        None => letter,
+                    },
+                )
+                .collect()
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// An Arabic word's fuller spellings: its first bare alif with a hamza above or below, a final ى
+/// as ي and a final ه as ة.
+fn arabic_spellings(word: &str) -> Vec<String> {
+    let mut spellings = Vec::new();
+    if word.contains('ا') {
+        spellings.push(word.replacen('ا', "أ", 1));
+        spellings.push(word.replacen('ا', "إ", 1));
+    }
+    for (last, fuller) in [('ى', 'ي'), ('ه', 'ة')] {
+        if let Some(stem) = word.strip_suffix(last) {
+            spellings.push(format!("{stem}{fuller}"));
+        }
+    }
+    spellings
+}
+
+/// A Greek word with a second accent (πρόσωπό) without it, or None.
+fn without_second_greek_accent(word: &str) -> Option<String> {
+    const ACCENTED: [(char, char); 9] = [
+        ('ά', 'α'),
+        ('έ', 'ε'),
+        ('ή', 'η'),
+        ('ί', 'ι'),
+        ('ό', 'ο'),
+        ('ύ', 'υ'),
+        ('ώ', 'ω'),
+        ('ΐ', 'ϊ'),
+        ('ΰ', 'ϋ'),
+    ];
+    let unaccented = |letter: char| {
+        ACCENTED
+            .iter()
+            .find(|(accented, _)| *accented == letter)
+            .map(|(_, bare)| *bare)
+    };
+    let mut accents = 0;
+    let mut changed = false;
+    let respelled: String = word
+        .chars()
+        .map(|letter| match unaccented(letter) {
+            Some(bare) => {
+                accents += 1;
+                if accents > 1 {
+                    changed = true;
+                    bare
+                } else {
+                    letter
+                }
+            }
+            None => letter,
+        })
+        .collect();
+    changed.then_some(respelled)
 }
 
 /// An Arabic word without the article al- (ال) and the conjunction or preposition joined before
@@ -532,10 +719,69 @@ mod tests {
             .variants("للبيت")
             .contains(&"بيت".to_owned()));
         // Two letters at least remain: "the" alone is not a word to look up.
-        assert_eq!(Language::Arabic.variants("ال"), ["ال"]);
+        assert!(Language::Arabic
+            .variants("ال")
+            .iter()
+            .all(|variant| variant.chars().count() == 2));
         assert_eq!(super::without_arabic_marks("كِتَابٌ").as_deref(), Some("كتاب"));
         assert_eq!(super::without_arabic_marks("كتاب"), None);
         assert_eq!(super::without_arabic_marks("ـ"), None);
+    }
+
+    #[test]
+    fn arabic_also_tries_the_spellings_books_simplify() {
+        for (text, spelled) in [
+            ("اكبر", "أكبر"),
+            ("اسلام", "إسلام"),
+            ("فى", "في"),
+            ("لغه", "لغة"),
+            ("اللغه", "لغة"),
+        ] {
+            assert!(
+                Language::Arabic
+                    .variants(text)
+                    .contains(&spelled.to_owned()),
+                "{text}"
+            );
+        }
+        assert_eq!(
+            super::without_arabic_marks("\u{618}كتاب").as_deref(),
+            Some("كتاب")
+        );
+    }
+
+    #[test]
+    fn vietnamese_also_tries_its_tone_marks_by_the_older_and_newer_rules() {
+        for (text, older, newer) in [
+            ("hoà", "hòa", "hoà"),
+            ("hòa", "hòa", "hoà"),
+            ("thuỷ", "thủy", "thuỷ"),
+            ("Thủy", "Thủy", "Thuỷ"),
+            ("hoè", "hòe", "hoè"),
+            ("toán", "toán", "toán"),
+            ("mùa", "mùa", "mùa"),
+            ("người", "người", "người"),
+            ("quý", "quý", "quý"),
+            ("giá", "giá", "giá"),
+            ("học sinh hoà", "học sinh hòa", "học sinh hoà"),
+        ] {
+            assert_eq!(super::vietnamese_tones(text, false), older, "{text}");
+            assert_eq!(super::vietnamese_tones(text, true), newer, "{text}");
+        }
+        assert!(Language::Vietnamese
+            .variants("hoà bình")
+            .contains(&"hòa bình".to_owned()));
+    }
+
+    #[test]
+    fn greek_also_tries_a_word_without_its_second_accent() {
+        assert_eq!(
+            Language::Greek.variants("πρόσωπό"),
+            ["πρόσωπό", "Πρόσωπό", "πρόσωπο", "Πρόσωπο"]
+        );
+        assert!(!Language::Greek
+            .variants("πρόσωπο")
+            .contains(&"προσωπο".to_owned()));
     }
 
     #[test]

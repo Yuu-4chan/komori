@@ -1542,7 +1542,10 @@ inflected forms their dictionaries list as entries of their own. Dictionaries mo
 headwords with their short vowels (U+064B–U+065F, U+0670) and books mostly without, so an import
 stores a reading's bare spelling (`without_arabic_marks`, also dropping tatweel) as the reading, and
 Arabic starts are also tried bare and without the article al- and the wa-, fa-, bi- or ka- joined
-before it (li- with it is لل), so والكتاب finds كِتَاب. Dictionaries imported before these languages
+before it (li- with it is لل), so والكتاب finds كِتَاب, and with the spellings books simplify (a
+hamza added to the first bare alif, a final ى as ي and ه as ة). Greek starts are also tried without a
+second accent (πρόσωπό μου), and Vietnamese ones with each syllable's tone mark placed by the older
+and the newer rules (hòa/hoà, thủy/thuỷ: `vietnamese_tones`). Dictionaries imported before these languages
 keep their readings and their language (Japanese) until moved or imported again. Turkish starts are
 also tried in Turkish lowercase and capitalization (I: ı, İ: i). Word boundaries count combining marks (a virama, Arabic short vowels)
 and ZWNJ/ZWJ as part of the word. Thai, like Japanese and Chinese, does not space its words, so its
