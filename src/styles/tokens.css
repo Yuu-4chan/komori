@@ -1,3 +1,57 @@
+/* Arabic and Thai drawn by Windows' own UI fonts, sized to sit beside Inter: Segoe UI's Arabic
+   letters are about 70% of Inter's x-height at the same size, and without a named font Thai falls
+   back to Tahoma. Each face covers only its script; where the font is missing (Android) the stack
+   falls through to the system's own. */
+@font-face {
+  font-family: "Komori Arabic";
+  src: local("Segoe UI Semilight"), local("SegoeUI-Semilight");
+  font-weight: 100 349;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF;
+  size-adjust: 118%;
+}
+@font-face {
+  font-family: "Komori Arabic";
+  src: local("Segoe UI"), local("SegoeUI");
+  font-weight: 350 549;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF;
+  size-adjust: 118%;
+}
+@font-face {
+  font-family: "Komori Arabic";
+  src: local("Segoe UI Semibold"), local("SegoeUI-Semibold");
+  font-weight: 550 649;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF;
+  size-adjust: 118%;
+}
+@font-face {
+  font-family: "Komori Arabic";
+  src: local("Segoe UI Bold"), local("SegoeUI-Bold");
+  font-weight: 650 1000;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+FB50-FDFF, U+FE70-FEFF;
+  size-adjust: 118%;
+}
+@font-face {
+  font-family: "Komori Thai";
+  src: local("Leelawadee UI Semilight"), local("LeelawadeeUI-Semilight");
+  font-weight: 100 349;
+  unicode-range: U+0E00-0E7F;
+  size-adjust: 106%;
+}
+@font-face {
+  font-family: "Komori Thai";
+  src: local("Leelawadee UI"), local("LeelawadeeUI");
+  font-weight: 350 549;
+  unicode-range: U+0E00-0E7F;
+  size-adjust: 106%;
+}
+@font-face {
+  font-family: "Komori Thai";
+  src: local("Leelawadee UI Bold"), local("LeelawadeeUI-Bold");
+  font-weight: 550 1000;
+  unicode-range: U+0E00-0E7F;
+  size-adjust: 106%;
+}
+
 :root {
   /* 1 left to right, -1 right to left: flips sideways movement with the interface. */
   --inline-sign: 1;
@@ -51,8 +105,9 @@
   --reader-footer-text: #77787a;
 
   --font-interface:
-    "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", "Yu Gothic UI", "Yu Gothic", Meiryo,
-    "Microsoft YaHei UI", "Microsoft JhengHei UI", "Malgun Gothic", sans-serif;
+    "Inter Variable", Inter, "Komori Arabic", "Komori Thai", "Segoe UI Variable", "Segoe UI",
+    "Nirmala UI", "Yu Gothic UI", "Yu Gothic", Meiryo, "Microsoft YaHei UI",
+    "Microsoft JhengHei UI", "Malgun Gothic", sans-serif;
   --font-lookup-ja:
     "Noto Serif JP", "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "Microsoft YaHei",
     "Microsoft JhengHei", "Malgun Gothic", serif;
@@ -131,18 +186,20 @@
    above lack many of their characters, and their stand-ins look thinner than the rest. */
 :root:lang(zh-CN) {
   --font-interface:
-    "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI",
-    "Microsoft JhengHei UI", "Malgun Gothic", "Yu Gothic UI", sans-serif;
+    "Inter Variable", Inter, "Komori Arabic", "Komori Thai", "Segoe UI Variable", "Segoe UI",
+    "Nirmala UI", "Microsoft YaHei UI", "Microsoft JhengHei UI", "Malgun Gothic", "Yu Gothic UI",
+    sans-serif;
 }
 :root:lang(zh-TW) {
   --font-interface:
-    "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", "Microsoft JhengHei UI",
-    "Microsoft YaHei UI", "Malgun Gothic", "Yu Gothic UI", sans-serif;
+    "Inter Variable", Inter, "Komori Arabic", "Komori Thai", "Segoe UI Variable", "Segoe UI",
+    "Nirmala UI", "Microsoft JhengHei UI", "Microsoft YaHei UI", "Malgun Gothic", "Yu Gothic UI",
+    sans-serif;
 }
 :root:lang(ko) {
   --font-interface:
-    "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", "Malgun Gothic", "Microsoft YaHei UI",
-    "Yu Gothic UI", sans-serif;
+    "Inter Variable", Inter, "Komori Arabic", "Komori Thai", "Segoe UI Variable", "Segoe UI",
+    "Nirmala UI", "Malgun Gothic", "Microsoft YaHei UI", "Yu Gothic UI", sans-serif;
 }
 [lang|="zh"] {
   --font-lookup: "Microsoft YaHei", "Microsoft JhengHei", "Malgun Gothic", serif;
