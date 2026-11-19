@@ -181,6 +181,7 @@ impl Language {
             Self::German => deinflect::de::deinflect(text),
             Self::Russian => deinflect::ru::deinflect(text),
             Self::Arabic => deinflect::ar::deinflect(text),
+            Self::Finnish => deinflect::fi::deinflect(text),
             Self::Turkish => deinflect::tr::deinflect(text),
             // No rule tables yet: their dictionaries' own form entries find inflected words.
             Self::Dutch
@@ -188,7 +189,6 @@ impl Language {
             | Self::Swedish
             | Self::Norwegian
             | Self::Danish
-            | Self::Finnish
             | Self::Greek
             | Self::Hindi
             | Self::Thai
@@ -211,13 +211,13 @@ impl Language {
             Self::German => deinflect::de::word_classes(rules),
             Self::Russian => deinflect::ru::word_classes(rules),
             Self::Arabic => deinflect::ar::word_classes(rules),
+            Self::Finnish => deinflect::fi::word_classes(rules),
             Self::Turkish => deinflect::tr::word_classes(rules),
             Self::Dutch
             | Self::Polish
             | Self::Swedish
             | Self::Norwegian
             | Self::Danish
-            | Self::Finnish
             | Self::Greek
             | Self::Hindi
             | Self::Thai
@@ -251,13 +251,13 @@ impl Language {
             Self::German => deinflect::de::DICTIONARY_FORMS,
             Self::Russian => deinflect::ru::DICTIONARY_FORMS,
             Self::Arabic => deinflect::ar::DICTIONARY_FORMS,
+            Self::Finnish => deinflect::fi::DICTIONARY_FORMS,
             Self::Turkish => deinflect::tr::DICTIONARY_FORMS,
             Self::Dutch
             | Self::Polish
             | Self::Swedish
             | Self::Norwegian
             | Self::Danish
-            | Self::Finnish
             | Self::Greek
             | Self::Hindi
             | Self::Thai

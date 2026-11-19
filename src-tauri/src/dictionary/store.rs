@@ -1397,8 +1397,28 @@ fn add_start_groups(
                 inflections: form.inflections.iter().map(|&name| name.into()).collect(),
             };
             let mut found = exact_groups(connection, text, filter, sources, limits)?;
+            // A candidate a dictionary lists as a form leads on to the word it is a form of
+            // (Finnish talossanikin: talossa, a form of talo).
+            let mut candidate_lemmas = Vec::new();
+            for term in found.iter().flat_map(|group| &group.terms) {
+                if term.is_form_entry() {
+                    add_form_lemmas(term, &mut candidate_lemmas, limits)?;
+                }
+            }
             drop_form_entries(&mut found);
             add(found, Some(&deinflection));
+            for lemma in candidate_lemmas {
+                let mut found =
+                    exact_groups(connection, &lemma.form, TermFilter::All, sources, limits)?;
+                drop_form_entries(&mut found);
+                let mut inflections = lemma.inflections;
+                inflections.extend(deinflection.inflections.iter().cloned());
+                let deinflection = Deinflection {
+                    form: lemma.form,
+                    inflections,
+                };
+                add(found, Some(&deinflection));
+            }
         }
     }
     if language.is_japanese() {
@@ -4934,6 +4954,59 @@ mod tests {
         let hide = look("hide");
         assert_eq!(hide[0], ("hide".to_owned(), "hide".to_owned(), None));
         assert_eq!(hide[1], group("mouse", "hide", &["plural"]));
+    }
+
+    #[test]
+    fn a_rule_candidate_listed_as_a_form_leads_to_the_word_it_is_a_form_of() {
+        let directory = tempdir().unwrap();
+        let words = fixture_with(
+            directory.path(),
+            "fi.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"fi","revision":"1","format":3,"sourceLanguage":"fi"}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["talo","","","",0,["house"],1,""],
+                        ["talossa","","non-lemma","",0,[["talo",["singular inessive"]]],2,""]]"#,
+                ),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        let (status, _) = import_one_into(&mut connection, &words, Language::Japanese);
+        assert_eq!(status, ImportStatus::Imported);
+        let sources =
+            language_sources(&connection, &SourcePolicy::default(), Language::Finnish).unwrap();
+        let found = lookup_longest_start_in(
+            &connection,
+            "talossanikin",
+            &sources,
+            Language::Finnish,
+            None,
+            GLOSSARY_LIMITS,
+        )
+        .unwrap();
+        let groups: Vec<_> = found
+            .groups
+            .into_iter()
+            .map(|group| (group.expression, group.deinflection))
+            .collect();
+        assert_eq!(
+            groups,
+            [(
+                "talo".to_owned(),
+                Some(Deinflection {
+                    form: "talo".into(),
+                    inflections: vec![
+                        "singular inessive".into(),
+                        "possessive".into(),
+                        "-kin".into()
+                    ],
+                })
+            )]
+        );
     }
 
     #[test]
