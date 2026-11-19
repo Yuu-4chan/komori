@@ -1640,6 +1640,21 @@ continue from. Irregular forms rely on the dictionaries' own form entries. A Rus
 tries each spelling without its stress marks (U+0301), with ё as е and with each one е as ё. Its classes
 are `v`, `n` and `adj`.
 
+Arabic (`deinflect/ar.rs`, from `ext/js/language/ar/arabic-transforms.js` at commit d3c54c1) takes
+the particles و ف ب ك ل and the article ال off a noun (لل before a stem not starting with ل, or ل
+
+- ال assimilated before one that does), then its possessive pronouns, ة, duals and sound plurals;
+  a perfect verb's person suffixes and object pronouns, after و ف ل; an imperfect verb's person
+  prefix and suffix together, with the particles و ف س ل and object pronouns joined to them, also
+  tried with أ and ا before the stem (يكرم → أكرم, يستخدمون → استخدم); and an imperative's. Each rule
+  of this kind (an affix rule) takes a prefix and suffix off a stem of letters, with the stem's
+  first or last letter guarded where the transforms guard it, and is indexed by its suffix's last
+  letter or else its prefix's first. Arabic keeps up to 256 candidates. A prefix's inflection name
+  is the prefix itself (ال-, وال-); the others are `possessive`, `feminine`, `plural`, `case`,
+  `past`, `present` and `imperative`, and a dual's suffix (-ان). Its classes are `n` and `v` (perfect,
+  imperfect and imperative forms alike). The rules read the bare spelling imports store as the
+  reading.
+
 A candidate from a language's rules must be a term its rules allow. Japanese dictionaries name
 every inflecting word's class, so a term must name the candidate's. Other languages' dictionaries
 vary, so their rules are read with the common other names for verbs, nouns, adjectives and adverbs

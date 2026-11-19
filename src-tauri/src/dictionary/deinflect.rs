@@ -17,6 +17,7 @@
 //! can have. Only candidates whose classes include one of the language's dictionary forms can
 //! match a term, and then only a term whose rules name one of them.
 
+pub(crate) mod ar;
 pub(crate) mod de;
 pub(crate) mod en;
 pub(crate) mod es;
@@ -68,6 +69,15 @@ enum Kind {
         strip: &'static [&'static str],
         starts: &'static str,
         not_starts: &'static str,
+    },
+    /// The rule's inflected form as a prefix and `suffix` around a stem of letters, replaced by
+    /// its base and `base_suffix`; the stem's first letter is none of `not_first` and its last
+    /// none of `not_last` (Arabic's prefixes and suffixes).
+    Affix {
+        suffix: &'static str,
+        base_suffix: &'static str,
+        not_first: &'static str,
+        not_last: &'static str,
     },
 }
 
@@ -202,7 +212,49 @@ const fn stem_change(
     }
 }
 
+/// A rule taking `prefix` and `suffix` off a stem of letters, either of them possibly empty, and
+/// putting `base_prefix` and `base_suffix` in their place.
+fn affix(
+    name: &'static str,
+    prefix: &'static str,
+    base_prefix: &'static str,
+    suffix: &'static str,
+    base_suffix: &'static str,
+    applies_to: u32,
+    gives: u32,
+) -> Rule {
+    Rule {
+        kind: Kind::Affix {
+            suffix,
+            base_suffix,
+            not_first: "",
+            not_last: "",
+        },
+        ..rule(name, prefix, base_prefix, applies_to, gives)
+    }
+}
+
 impl Rule {
+    /// An affix rule whose stem starts with none of `letters` and ends with none of `last`.
+    fn guarded(self, letters: &'static str, last: &'static str) -> Self {
+        match self.kind {
+            Kind::Affix {
+                suffix,
+                base_suffix,
+                ..
+            } => Self {
+                kind: Kind::Affix {
+                    suffix,
+                    base_suffix,
+                    not_first: letters,
+                    not_last: last,
+                },
+                ..self
+            },
+            _ => self,
+        }
+    }
+
     /// This stem change, applying only to text beginning with `starts` and replacing the longest
     /// of `strip` with its base.
     const fn only_starting(self, starts: &'static str, strip: &'static [&'static str]) -> Self {
@@ -311,6 +363,20 @@ impl Rule {
                     self.base
                 ))
             }
+            Kind::Affix {
+                suffix,
+                base_suffix,
+                not_first,
+                not_last,
+            } => {
+                let stem = text.strip_prefix(self.inflected)?.strip_suffix(suffix)?;
+                let first = stem.chars().next()?;
+                let last = stem.chars().next_back()?;
+                (stem.chars().all(char::is_alphabetic)
+                    && !not_first.contains(first)
+                    && !not_last.contains(last))
+                .then(|| format!("{}{stem}{base_suffix}", self.base))
+            }
         }
     }
 }
@@ -320,12 +386,14 @@ impl Rule {
 /// first rules.
 struct RuleSet<'a> {
     by_last: HashMap<char, Vec<(bool, &'a Rule)>>,
+    by_first: HashMap<char, Vec<(bool, &'a Rule)>>,
     others: Vec<(bool, &'a Rule)>,
 }
 
 impl<'a> RuleSet<'a> {
     fn new(first: &'a [Rule], more: &'a [Rule]) -> Self {
         let mut by_last: HashMap<char, Vec<(bool, &'a Rule)>> = HashMap::new();
+        let mut by_first: HashMap<char, Vec<(bool, &'a Rule)>> = HashMap::new();
         let mut others = Vec::new();
         let tagged = first
             .iter()
@@ -337,10 +405,21 @@ impl<'a> RuleSet<'a> {
                 (Kind::Suffix | Kind::WholeWord, Some(last)) => {
                     by_last.entry(last).or_default().push((is_first, rule));
                 }
+                (Kind::Affix { suffix, .. }, _) => match suffix.chars().next_back() {
+                    Some(last) => by_last.entry(last).or_default().push((is_first, rule)),
+                    None => match rule.inflected.chars().next() {
+                        Some(first) => by_first.entry(first).or_default().push((is_first, rule)),
+                        None => others.push((is_first, rule)),
+                    },
+                },
                 _ => others.push((is_first, rule)),
             }
         }
-        Self { by_last, others }
+        Self {
+            by_last,
+            by_first,
+            others,
+        }
     }
 }
 
@@ -390,6 +469,15 @@ fn deinflect_bounded(
                     .and_then(|last| rules.by_last.get(&last))
                     .into_iter()
                     .flatten()
+                    .chain(
+                        current
+                            .text
+                            .chars()
+                            .next()
+                            .and_then(|first| rules.by_first.get(&first))
+                            .into_iter()
+                            .flatten(),
+                    )
                     .chain(&rules.others);
                 for &(rule_first, rule) in matching {
                     if (*current_first && rule_first) != first_pass

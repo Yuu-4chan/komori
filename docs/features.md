@@ -198,7 +198,8 @@ beside the headword.
 Dutch, Polish, Swedish, Norwegian, Danish, Finnish, Greek, Turkish, Arabic, Hindi, Vietnamese and
 Indonesian lookups start at the word under the pointer like English and find dictionary forms and the
 inflected forms their dictionaries list, and Settings > Dictionary offers their Wiktionary downloads;
-Arabic ignores short vowels and tatweel and finds a noun after its article (الكتاب → كتاب), Turkish matches I/ı
+Arabic ignores short vowels and tatweel and finds a noun after its article and particles and a verb or noun under its
+prefixes and suffixes (والكتاب → كتاب, يكتبون → كتب, مدرستي → مدرسة), Turkish matches I/ı
 and İ/i, Greek ignores the second accent before an enclitic, Vietnamese matches hòa and hoà, and
 the popup's sentence ends at ؟, । or the Greek ; as well. Thai lookups read on from the
 letter under the pointer like Chinese, and a Thai sentence ends at a space.
