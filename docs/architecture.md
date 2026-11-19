@@ -1528,12 +1528,24 @@ publisher colors, use a soft yellow note highlight.
 
 ## Lookup language
 
-The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko`, `zh`, `de` or `ru`, default `ja`; anything else is dropped, so
+The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko`, `zh`, `de`, `ru`, `nl`, `pl`, `sv`, `nb`,
+`da`, `fi`, `el`, `tr`, `ar`, `hi`, `th`, `vi` or `id`, default `ja`; anything else is dropped, so
 older records read as Japanese) is the language every lookup reads text in. Settings >
 Dictionary chooses it as Lookup language, above that language's dictionaries; the Reader popup, its
 child popups, the Dictionary page, Anki and word audio follow it at once. The frontend sends
 `language` to `lookup_terms` and `lookup_kanji` only when it is not Japanese, and native code
 reads it as `Language` (`src-tauri/src/dictionary/language.rs`), Japanese when absent.
+
+Dutch, Polish, Swedish, Norwegian (Bokmål), Danish, Finnish, Greek, Turkish, Arabic, Hindi, Thai,
+Vietnamese and Indonesian have no deinflection rules: their lookups find dictionary forms and the
+inflected forms their dictionaries list as entries of their own. Arabic starts are also tried
+without short vowels (U+064B–U+065F, U+0670) and tatweel; Turkish starts also in Turkish lowercase and
+capitalization (I: ı, İ: i). Word boundaries count combining marks (a virama, Arabic short vowels)
+and ZWNJ/ZWJ as part of the word. Thai, like Japanese and Chinese, does not space its words, so its
+lookups read on from the pointer and `sentenceAt` ends its sentences at whitespace; Arabic-script
+marks (؟ ۔), the danda (। ॥) and Greek's question mark (;) end the other languages' sentences.
+Books and dictionaries naming these languages by three-letter codes (`nld`/`dut`, `nob`/`nor`,
+`ell`/`gre`, `ara`/`arb`, …) are read as them; Nynorsk (`nn`) is not Bokmål.
 
 A language decides its deinflection rules and word classes, the spellings of a start a lookup
 also tries, whether starts end at word boundaries, which dictionaries it uses, and whether the
@@ -1574,7 +1586,7 @@ participles of regular verbs with their spelling changes (fiquei → ficar, cerc
 adjective plurals, feminines, diminutives, superlatives and adverbs in -mente. Their tense rules
 take only the scanned text or a verb a pronoun was removed from (class `VF`, never a dictionary
 form), so a dictionary form never takes a second tense. Irregular verbs come from the
-dictionaries' own form entries, as in English. Every language but Japanese spaces its words, so
+dictionaries' own form entries, as in English. Every language but Japanese, Chinese and Thai spaces its words, so
 its starts end at word boundaries and are tried with the same apostrophe and capitalization
 spellings as English; French, Italian and Portuguese also try a start without the elided word that
 begins it (l', d', qu'; dell', un'; d', n'), so l'homme finds homme. Their classes are `v`, `n`, `adj` and `adv`

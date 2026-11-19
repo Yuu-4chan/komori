@@ -158,6 +158,19 @@ fn commons_search(term: &str, language: Language) -> Option<String> {
         Language::Chinese => "9192",
         Language::German => "188",
         Language::Russian => "7737",
+        Language::Dutch => "7411",
+        Language::Polish => "809",
+        Language::Swedish => "9027",
+        Language::Norwegian => "25167",
+        Language::Danish => "9035",
+        Language::Finnish => "1412",
+        Language::Greek => "36510",
+        Language::Turkish => "256",
+        Language::Arabic => "13955",
+        Language::Hindi => "1568",
+        Language::Thai => "9217",
+        Language::Vietnamese => "9199",
+        Language::Indonesian => "9240",
     };
     Some(format!(r#"intitle:"LL-Q{item}" intitle:"{term}.wav""#))
 }

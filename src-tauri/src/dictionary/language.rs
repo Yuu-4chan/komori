@@ -2,7 +2,8 @@
 //! classes, the variants of a text it also looks up, whether a lookup's starts must end at a word
 //! boundary, and whether the Japanese-only behaviors apply (the kana ranking, する nouns, the
 //! trailing-particle reorder and the kanji lookup). Each dictionary belongs to one language, and a
-//! lookup uses only that language's dictionaries. Every language but Japanese spaces its words.
+//! lookup uses only that language's dictionaries. Every language but Japanese, Chinese and Thai
+//! spaces its words.
 //! Adding a language is adding a variant here and its rule table in `deinflect`.
 
 use serde::{Deserialize, Serialize};
@@ -33,10 +34,37 @@ pub enum Language {
     German,
     #[serde(rename = "ru")]
     Russian,
+    #[serde(rename = "nl")]
+    Dutch,
+    #[serde(rename = "pl")]
+    Polish,
+    #[serde(rename = "sv")]
+    Swedish,
+    /// Norwegian Bokmål.
+    #[serde(rename = "nb")]
+    Norwegian,
+    #[serde(rename = "da")]
+    Danish,
+    #[serde(rename = "fi")]
+    Finnish,
+    #[serde(rename = "el")]
+    Greek,
+    #[serde(rename = "tr")]
+    Turkish,
+    #[serde(rename = "ar")]
+    Arabic,
+    #[serde(rename = "hi")]
+    Hindi,
+    #[serde(rename = "th")]
+    Thai,
+    #[serde(rename = "vi")]
+    Vietnamese,
+    #[serde(rename = "id")]
+    Indonesian,
 }
 
 impl Language {
-    const ALL: [Self; 10] = [
+    const ALL: [Self; 23] = [
         Self::Japanese,
         Self::English,
         Self::French,
@@ -47,6 +75,19 @@ impl Language {
         Self::Chinese,
         Self::German,
         Self::Russian,
+        Self::Dutch,
+        Self::Polish,
+        Self::Swedish,
+        Self::Norwegian,
+        Self::Danish,
+        Self::Finnish,
+        Self::Greek,
+        Self::Turkish,
+        Self::Arabic,
+        Self::Hindi,
+        Self::Thai,
+        Self::Vietnamese,
+        Self::Indonesian,
     ];
 
     /// The language's ISO 639-1 code, as word audio sources and dictionaries name it.
@@ -62,6 +103,19 @@ impl Language {
             Self::Chinese => "zh",
             Self::German => "de",
             Self::Russian => "ru",
+            Self::Dutch => "nl",
+            Self::Polish => "pl",
+            Self::Swedish => "sv",
+            Self::Norwegian => "nb",
+            Self::Danish => "da",
+            Self::Finnish => "fi",
+            Self::Greek => "el",
+            Self::Turkish => "tr",
+            Self::Arabic => "ar",
+            Self::Hindi => "hi",
+            Self::Thai => "th",
+            Self::Vietnamese => "vi",
+            Self::Indonesian => "id",
         }
     }
 
@@ -94,6 +148,19 @@ impl Language {
                 Self::Chinese => &["zho", "chi", "cmn", "yue"],
                 Self::German => &["deu", "ger"],
                 Self::Russian => &["rus"],
+                Self::Dutch => &["nld", "dut"],
+                Self::Polish => &["pol"],
+                Self::Swedish => &["swe"],
+                Self::Norwegian => &["nob", "nor", "no"],
+                Self::Danish => &["dan"],
+                Self::Finnish => &["fin"],
+                Self::Greek => &["ell", "gre"],
+                Self::Turkish => &["tur"],
+                Self::Arabic => &["ara", "arb"],
+                Self::Hindi => &["hin"],
+                Self::Thai => &["tha"],
+                Self::Vietnamese => &["vie"],
+                Self::Indonesian => &["ind"],
             };
             primary == language.code() || three.contains(&primary.as_str())
         })
@@ -113,6 +180,20 @@ impl Language {
             Self::Chinese => Vec::new(),
             Self::German => deinflect::de::deinflect(text),
             Self::Russian => deinflect::ru::deinflect(text),
+            // No rule tables yet: their dictionaries' own form entries find inflected words.
+            Self::Dutch
+            | Self::Polish
+            | Self::Swedish
+            | Self::Norwegian
+            | Self::Danish
+            | Self::Finnish
+            | Self::Greek
+            | Self::Turkish
+            | Self::Arabic
+            | Self::Hindi
+            | Self::Thai
+            | Self::Vietnamese
+            | Self::Indonesian => Vec::new(),
         }
     }
 
@@ -129,6 +210,19 @@ impl Language {
             Self::Chinese => 0,
             Self::German => deinflect::de::word_classes(rules),
             Self::Russian => deinflect::ru::word_classes(rules),
+            Self::Dutch
+            | Self::Polish
+            | Self::Swedish
+            | Self::Norwegian
+            | Self::Danish
+            | Self::Finnish
+            | Self::Greek
+            | Self::Turkish
+            | Self::Arabic
+            | Self::Hindi
+            | Self::Thai
+            | Self::Vietnamese
+            | Self::Indonesian => 0,
         }
     }
 
@@ -156,6 +250,19 @@ impl Language {
             Self::Chinese => 0,
             Self::German => deinflect::de::DICTIONARY_FORMS,
             Self::Russian => deinflect::ru::DICTIONARY_FORMS,
+            Self::Dutch
+            | Self::Polish
+            | Self::Swedish
+            | Self::Norwegian
+            | Self::Danish
+            | Self::Finnish
+            | Self::Greek
+            | Self::Turkish
+            | Self::Arabic
+            | Self::Hindi
+            | Self::Thai
+            | Self::Vietnamese
+            | Self::Indonesian => 0,
         }
     }
 
@@ -166,6 +273,8 @@ impl Language {
     /// of those for the text without the elided word that begins it (l'homme: homme; dell'Italia:
     /// Italia; d'água: água).
     /// Russian then also tries each without its stress marks, with ё as е, and with each one е as ё (a word has one ё).
+    /// Arabic also tries each without short vowels and tatweel; Turkish also tries its own lowercase and
+    /// capitalized forms (I: ı, İ: i). Thai, like Japanese and Chinese, does not space its words.
     /// Japanese and Chinese try only the text.
     pub(crate) fn variants(self, text: &str) -> Vec<String> {
         let mut variants = vec![text.to_owned()];
@@ -216,6 +325,40 @@ impl Language {
                 }
             }
         }
+        let respellings: Vec<String> = match self {
+            // Dictionaries write Arabic headwords bare, without short vowels or tatweel.
+            Self::Arabic => variants
+                .iter()
+                .map(|variant| {
+                    variant
+                        .chars()
+                        .filter(|&letter| {
+                            !matches!(letter, '\u{64B}'..='\u{65F}' | '\u{670}' | '\u{640}')
+                        })
+                        .collect()
+                })
+                .collect(),
+            // Turkish pairs I with ı and İ with i.
+            Self::Turkish => {
+                let lower = text.replace('I', "ı").replace('İ', "i").to_lowercase();
+                let mut letters = lower.chars();
+                let capitalized = letters.next().map_or_else(String::new, |first| {
+                    let first: String = match first {
+                        'i' => "İ".to_owned(),
+                        'ı' => "I".to_owned(),
+                        other => other.to_uppercase().collect(),
+                    };
+                    first + letters.as_str()
+                });
+                vec![lower, capitalized]
+            }
+            _ => Vec::new(),
+        };
+        for respelled in respellings {
+            if !variants.contains(&respelled) {
+                variants.push(respelled);
+            }
+        }
         variants
     }
 
@@ -241,7 +384,7 @@ impl Language {
     /// Whether a lookup's starts end only at word boundaries, as in languages that space their
     /// words: `looked` is not also looked up as `look` or `lo`.
     pub(crate) fn spaces_words(self) -> bool {
-        !matches!(self, Self::Japanese | Self::Chinese)
+        !matches!(self, Self::Japanese | Self::Chinese | Self::Thai)
     }
 
     /// Whether the Japanese-only lookup behaviors apply: the kana ranking, する nouns, the
@@ -345,6 +488,40 @@ mod tests {
     }
 
     #[test]
+    fn arabic_also_tries_its_text_without_short_vowels_or_tatweel() {
+        let variants = Language::Arabic.variants("كِتَابٌ");
+        assert_eq!(variants[0], "كِتَابٌ");
+        assert!(variants.contains(&"كتاب".to_owned()));
+        assert!(Language::Arabic
+            .variants("كتــاب")
+            .contains(&"كتاب".to_owned()));
+    }
+
+    #[test]
+    fn turkish_pairs_dotless_and_dotted_i_in_its_case_forms() {
+        let variants = Language::Turkish.variants("Istanbul");
+        assert!(variants.contains(&"ıstanbul".to_owned()), "{variants:?}");
+        let variants = Language::Turkish.variants("İzmir");
+        assert!(variants.contains(&"izmir".to_owned()), "{variants:?}");
+        let variants = Language::Turkish.variants("ilk");
+        assert!(variants.contains(&"İlk".to_owned()), "{variants:?}");
+    }
+
+    #[test]
+    fn thai_like_japanese_and_chinese_does_not_space_its_words() {
+        for language in Language::ALL {
+            assert_eq!(
+                language.spaces_words(),
+                !matches!(
+                    language,
+                    Language::Japanese | Language::Chinese | Language::Thai
+                ),
+                "{language:?}"
+            );
+        }
+    }
+
+    #[test]
     fn declared_source_languages_name_a_language_by_primary_subtag() {
         for tag in ["ja", "JA", "ja-JP", " jpn "] {
             assert_eq!(
@@ -377,6 +554,25 @@ mod tests {
             ("ger", Language::German),
             ("ru", Language::Russian),
             ("rus", Language::Russian),
+            ("nl-BE", Language::Dutch),
+            ("nld", Language::Dutch),
+            ("dut", Language::Dutch),
+            ("pol", Language::Polish),
+            ("sv-SE", Language::Swedish),
+            ("nb", Language::Norwegian),
+            ("nob", Language::Norwegian),
+            ("no", Language::Norwegian),
+            ("dan", Language::Danish),
+            ("fin", Language::Finnish),
+            ("ell", Language::Greek),
+            ("gre", Language::Greek),
+            ("tur", Language::Turkish),
+            ("ar-EG", Language::Arabic),
+            ("arb", Language::Arabic),
+            ("hin", Language::Hindi),
+            ("th", Language::Thai),
+            ("vie", Language::Vietnamese),
+            ("ind", Language::Indonesian),
         ] {
             assert_eq!(Language::declared(Some(tag)), Some(language), "{tag}");
         }
@@ -384,7 +580,7 @@ mod tests {
             None,
             Some(""),
             Some(" "),
-            Some("nl"),
+            Some("nn"),
             Some("jav"),
             Some("english"),
             Some("e"),
@@ -421,8 +617,8 @@ mod tests {
             assert_eq!(serde_json::from_str::<Language>(&json).unwrap(), language);
             assert_eq!(Language::from_code(language.code()), Some(language));
         }
-        assert_eq!(Language::from_code("nl"), None);
-        assert!(serde_json::from_str::<Language>("\"nl\"").is_err());
+        assert_eq!(Language::from_code("xx"), None);
+        assert!(serde_json::from_str::<Language>("\"xx\"").is_err());
         assert_eq!(Language::default(), Language::Japanese);
     }
 }

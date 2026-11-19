@@ -534,4 +534,21 @@ describe("English scanning and sentences", () => {
     expect(sentence("left")).toBe("“Stop!” she said. Mr.Smith waved... and left? Yes");
     expect(sentence("left", "ja")).toBe(sentence("left"));
   });
+
+  it("ends Arabic, Hindi and Greek sentences at their own marks, and Thai ones at spaces", () => {
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    const doc = iframe.contentDocument!;
+    const sentence = (html: string, word: string, language: "ar" | "hi" | "el" | "th") => {
+      doc.body.innerHTML = `<p>${html}</p>`;
+      const text = doc.querySelector("p")!.firstChild as Text;
+      const range = doc.createRange();
+      range.setStart(text, text.data.indexOf(word));
+      return sentenceAt(range, language);
+    };
+    expect(sentence("هل قرأت الكتاب؟ نعم قرأته.", "نعم", "ar")).toBe("نعم قرأته.");
+    expect(sentence("हम घर गए। वह सो गया।", "वह", "hi")).toBe("वह सो गया।");
+    expect(sentence("Τι κάνεις; Καλά.", "κάνεις", "el")).toBe("Τι κάνεις;");
+    expect(sentence("ฉันกินข้าว แล้วไปนอน", "แล้ว", "th")).toBe("แล้วไปนอน");
+  });
 });

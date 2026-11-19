@@ -1215,9 +1215,16 @@ fn add_transcriptions(
 /// Whether `start`, a start of `query`, ends a word: it does not end in a space, and the query
 /// ends with it or goes on with a character that is not a letter, digit or apostrophe (`looked`
 /// in `looked up`, `up` in `up.`, but not `look` in `looked` or `cat` in `cat's`).
+static COMBINING_MARK: std::sync::LazyLock<regex::Regex> =
+    std::sync::LazyLock::new(|| regex::Regex::new(r"^\p{M}$").expect("valid pattern"));
+
 fn ends_word(query: &str, start: &str) -> bool {
-    let word =
-        |character: char| character.is_alphanumeric() || matches!(character, '\'' | '\u{2019}');
+    // Combining marks (a virama, a nukta, Arabic short vowels) and joiners belong to their word.
+    let word = |character: char| {
+        character.is_alphanumeric()
+            || matches!(character, '\'' | '\u{2019}' | '\u{200C}' | '\u{200D}')
+            || COMBINING_MARK.is_match(character.encode_utf8(&mut [0; 4]))
+    };
     !start.ends_with(char::is_whitespace)
         && query[start.len()..]
             .chars()
@@ -2732,6 +2739,17 @@ mod tests {
     use sha2::{Digest, Sha256};
     use std::{io::Read, time::Instant};
     use tempfile::tempdir;
+
+    #[test]
+    fn a_start_ends_a_word_only_before_a_letter_free_boundary() {
+        assert!(ends_word("cat sat", "cat"));
+        assert!(!ends_word("cats", "cat"));
+        // A virama, an Arabic short vowel or a joiner still belongs to the word before it.
+        assert!(!ends_word("नमस्ते", "नमस"));
+        assert!(!ends_word("كِتَاب", "ك"));
+        assert!(!ends_word("می\u{200C}روم", "می"));
+        assert!(ends_word("كتاب جديد", "كتاب"));
+    }
 
     #[test]
     fn bulk_progress_counts_refused_imports_and_automatically_reclaims_partial_removals() {
@@ -6270,7 +6288,7 @@ mod tests {
             tagged("French", Some("fr")),
             tagged("Spanish", Some("es")),
             tagged("German", Some("de")),
-            tagged("Dutch", Some("nl")),
+            tagged("Javanese", Some("jv")),
             tagged("Untagged", None),
         ];
         {
@@ -6301,7 +6319,7 @@ mod tests {
                 ("French".to_owned(), Language::French),
                 ("Spanish".to_owned(), Language::Spanish),
                 ("German".to_owned(), Language::German),
-                ("Dutch".to_owned(), Language::Japanese),
+                ("Javanese".to_owned(), Language::Japanese),
                 ("Untagged".to_owned(), Language::Japanese),
             ]
         );

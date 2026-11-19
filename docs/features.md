@@ -183,7 +183,9 @@ Pitch row with nasal and devoiced marks, then its position and tags, its sources
 lookup popup (and its Settings preview) offer Get dictionaries, linking to Settings; the
 Dictionary page says it has no dictionaries only in that offer.
 
-The lookup language, Japanese by default, English, French, Portuguese, Italian, Spanish, Korean, Chinese, German or Russian (Settings > Dictionary), decides
+The lookup language, Japanese by default, English, French, Portuguese, Italian, Spanish, Korean, Chinese, German, Russian,
+Dutch, Polish, Swedish, Norwegian, Danish, Finnish, Greek, Turkish, Arabic, Hindi, Thai, Vietnamese or Indonesian
+(Settings > Dictionary), decides
 how the popup and the Dictionary read words. English lookups start at the word under the pointer
 and read on across spaces, so phrasal verbs match (looked it up → look up); capitalized words and
 ’ apostrophes match their entries; inflections are named (past, plural, -ing); only English's dictionaries are
@@ -193,6 +195,11 @@ an elided l', d' or dell'. Korean lookups find the dictionary form of a word's v
 endings (먹었어요 → 먹다). Chinese lookups read on from the character under the pointer like Japanese,
 in traditional or simplified characters as the dictionary lists them, and its readings (pinyin) show
 beside the headword.
+Dutch, Polish, Swedish, Norwegian, Danish, Finnish, Greek, Turkish, Arabic, Hindi, Vietnamese and
+Indonesian lookups start at the word under the pointer like English and find dictionary forms and the
+inflected forms their dictionaries list; Arabic ignores short vowels and tatweel, Turkish matches I/ı
+and İ/i, and the popup's sentence ends at ؟, । or the Greek ; as well. Thai lookups read on from the
+letter under the pointer like Chinese, and a Thai sentence ends at a space.
 Entries show the word's pronunciation when a dictionary with IPA data is on, and Anki can use it as a field.
 Only look up Japanese/CJK text, the kanji entry and JapanesePod101 are for Japanese.
 

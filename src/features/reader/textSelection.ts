@@ -516,12 +516,21 @@ function isLowSurrogate(code: number): boolean {
 
 /**
  * Surrounding sentence in its readable block. Uses detached ranges, never selection. Japanese
- * sentences end at 。！？; a language that spaces its words ends them at . ! ? (and any closing
- * quotes or brackets) followed by whitespace. Line breaks and the block end every sentence.
+ * and Chinese sentences end at 。！？; a language that spaces its words ends them at . ! ? (the
+ * Arabic ؟ and ۔, the Hindi । and ॥, and the Greek question mark ;) and any closing quotes or
+ * brackets, followed by whitespace. Thai, which marks no sentence end, ends them at a space. Line
+ * breaks and the block end every sentence.
  */
 export function sentenceAt(range: Range, language?: LookupLanguage): string {
-  const spaced = !!language && spacesWords(language);
-  const end = spaced ? /[.!?]["'”’)\]]*\s|\n/u : /[。！？\n]/u;
+  const spaced = !!language && (spacesWords(language) || language === "th");
+  const end =
+    language === "th"
+      ? /\s/u
+      : language === "el"
+        ? /[.!?;;]["'”’)\]»]*\s|\n/u
+        : language && spacesWords(language)
+          ? /[.!?؟۔।॥]["'”’)\]»]*\s|\n/u
+          : /[。！？\n]/u;
   const document = range.startContainer.ownerDocument!;
   let block =
     range.startContainer.nodeType === 1
