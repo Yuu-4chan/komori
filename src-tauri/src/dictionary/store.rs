@@ -34,10 +34,10 @@ use super::archive::{
     BankKind, DictionaryArchive, DictionaryArchiveError, TermEntry, TermMetaMode,
 };
 use super::deinflect::ja::{self, VS};
-use super::language::{without_arabic_marks, Language};
+use super::language::{without_arabic_marks, without_turkish_circumflex, Language};
 use super::sources::SourcePolicy;
 
-const SCHEMA_VERSION: i64 = 9;
+const SCHEMA_VERSION: i64 = 10;
 pub(crate) const DATABASE_FILE_NAME: &str = "dictionaries.sqlite3";
 /// The most pronunciations an entry shows.
 const MAX_TRANSCRIPTIONS: usize = 4;
@@ -749,6 +749,14 @@ fn exact_groups(
         }
         let expression: String = row.get(2).map_err(storage_error)?;
         let reading: String = row.get(3).map_err(storage_error)?;
+        // A Turkish reading kept bare for lookups (daimi) matches the query, but shows as its
+        // expression's own spelling.
+        let bare_match = reading == query;
+        let reading = if without_turkish_circumflex(&expression).as_deref() == Some(&reading) {
+            expression.clone()
+        } else {
+            reading
+        };
         if reading != expression {
             explicit_readings
                 .entry(expression.clone())
@@ -771,11 +779,11 @@ fn exact_groups(
             term_tags,
             tags,
         };
-        matches.push((expression, reading, term));
+        matches.push((expression, reading, bare_match, term));
     }
     let mut groups: Vec<TermGroup> = Vec::new();
     let mut positions: HashMap<(String, String), usize> = HashMap::new();
-    for (expression, mut reading, term) in matches {
+    for (expression, mut reading, bare_match, term) in matches {
         // The archive reader uses the expression for an omitted reading. Such definitions
         // belong once under the first matching supplied reading, not in a duplicate card.
         // Kana-only headwords already have a reading; genuine supplied variants stay separate.
@@ -786,7 +794,7 @@ fn exact_groups(
         }
         // A reading query's extra expression-only rows require an eligible supplied match.
         // Disabled/unselected sources or a rejected word class must not supply that match.
-        if expression != query && reading != query {
+        if expression != query && reading != query && !bare_match {
             continue;
         }
         let key = (expression.clone(), reading_key(&reading));
@@ -1997,10 +2005,21 @@ fn set_language_in_store(
     let transaction = connection.unchecked_transaction()?;
     let mut changed = 0;
     {
+        let mut current = transaction.prepare("SELECT language FROM dictionaries WHERE id = ?1")?;
         let mut statement =
             transaction.prepare("UPDATE dictionaries SET language = ?2 WHERE id = ?1")?;
         for id in ids {
+            let Some(was) = current
+                .query_row(params![id], |row| row.get::<_, String>(0))
+                .optional()?
+            else {
+                continue;
+            };
             changed += statement.execute(params![id, language.code()])?;
+            let turkish = language == Language::Turkish;
+            if turkish != (was == Language::Turkish.code()) {
+                turkish_readings(&transaction, *id, turkish)?;
+            }
         }
     }
     transaction.commit()?;
@@ -2287,7 +2306,56 @@ pub(crate) fn open_store(path: &Path) -> Result<Connection, String> {
             .map_err(storage_error)?;
         transaction.commit().map_err(storage_error)?;
     }
+    if version < 10 {
+        // Turkish dictionaries keep the bare spelling of a reading with a circumflex, as imports
+        // into Turkish do from now on.
+        let transaction = connection.unchecked_transaction().map_err(storage_error)?;
+        let turkish = transaction
+            .prepare("SELECT id FROM dictionaries WHERE language = 'tr'")
+            .map_err(storage_error)?
+            .query_map([], |row| row.get::<_, i64>(0))
+            .map_err(storage_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(storage_error)?;
+        for id in turkish {
+            turkish_readings(&transaction, id, true).map_err(storage_error)?;
+        }
+        transaction
+            .execute_batch("PRAGMA user_version = 10;")
+            .map_err(storage_error)?;
+        transaction.commit().map_err(storage_error)?;
+    }
     Ok(connection)
+}
+
+/// `column` with â, î and û (and their capitals) as a, i and u, in SQL, as
+/// `without_turkish_circumflex` spells it.
+fn sql_without_circumflex(column: &str) -> String {
+    format!(
+        "replace(replace(replace(replace(replace(replace({column}, 'â', 'a'), 'î', 'i'), 'û', 'u'),
+                 'Â', 'A'), 'Î', 'I'), 'Û', 'U')"
+    )
+}
+
+/// Into Turkish, a dictionary's readings with a circumflex take their bare spelling (daimî:
+/// daimi), which Turkish lookups match; out of it, a reading that is only its expression's bare
+/// spelling is the expression again.
+fn turkish_readings(
+    transaction: &Transaction<'_>,
+    dictionary: i64,
+    turkish: bool,
+) -> Result<usize, rusqlite::Error> {
+    let sql = if turkish {
+        let bare = sql_without_circumflex("reading");
+        format!("UPDATE terms SET reading = {bare} WHERE dictionary = ?1 AND reading <> {bare}")
+    } else {
+        let bare = sql_without_circumflex("expression");
+        format!(
+            "UPDATE terms SET reading = expression
+              WHERE dictionary = ?1 AND reading <> expression AND reading = {bare}"
+        )
+    };
+    transaction.execute(&sql, params![dictionary])
 }
 
 /// Whether a term row has anything to show. A glossary longer than `MAX_GLOSSARY_BYTES` is not
@@ -2591,9 +2659,13 @@ fn write_dictionary(
             statement.execute(params![
                 dictionary,
                 term.expression,
-                without_arabic_marks(&term.reading)
-                    .as_deref()
-                    .unwrap_or(&term.reading),
+                if language == Language::Turkish {
+                    without_turkish_circumflex(&term.reading)
+                } else {
+                    without_arabic_marks(&term.reading)
+                }
+                .as_deref()
+                .unwrap_or(&term.reading),
                 term.definition_tags,
                 term.rules,
                 term.score,
@@ -6388,6 +6460,120 @@ mod tests {
         );
     }
 
+    /// A Turkish dictionary with circumflex spellings and a word the bare one could be read as.
+    fn turkish_fixture(directory: &Path, declared: bool) -> PathBuf {
+        let index = if declared {
+            r#"{"title":"Turkish","revision":"1","format":3,"sourceLanguage":"tr"}"#
+        } else {
+            r#"{"title":"Turkish","revision":"1","format":3}"#
+        };
+        fixture_with(
+            directory,
+            "turkish.zip",
+            &[
+                ("index.json", index),
+                (
+                    "term_bank_1.json",
+                    r#"[["daimî","","adj","",0,["permanent"],1,""],
+                        ["kağıt","","n","n",0,["paper"],2,""],
+                        ["da","","conj","",0,["too"],3,""]]"#,
+                ),
+            ],
+        )
+    }
+
+    fn stored_reading(connection: &Connection, expression: &str) -> String {
+        connection
+            .query_row(
+                "SELECT reading FROM terms WHERE expression = ?1",
+                params![expression],
+                |row| row.get(0),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn turkish_lookups_find_a_circumflex_spelling_without_it_and_with_it() {
+        let directory = tempdir().unwrap();
+        let turkish = turkish_fixture(directory.path(), true);
+        let french = fixture_with(
+            directory.path(),
+            "french.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"French","revision":"1","format":3,"sourceLanguage":"fr"}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["pâte","","n","n",0,["dough"],1,""]]"#,
+                ),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        for path in [&turkish, &french] {
+            assert_eq!(
+                import_one_into(&mut connection, path, Language::English).0,
+                ImportStatus::Imported
+            );
+        }
+        assert_eq!(stored_reading(&connection, "daimî"), "daimi");
+        assert_eq!(stored_reading(&connection, "pâte"), "pâte");
+        let lookup = |text: &str, language: Language| {
+            let sources =
+                language_sources(&connection, &SourcePolicy::default(), language).unwrap();
+            lookup_longest_start_in(&connection, text, &sources, language, None, GLOSSARY_LIMITS)
+                .unwrap()
+                .groups
+                .into_iter()
+                .map(|group| (group.expression, group.reading))
+                .collect::<Vec<_>>()
+        };
+        // daimi is daimî before da with a possessive ending; the reading shows as written.
+        assert_eq!(
+            lookup("daimi", Language::Turkish).first(),
+            Some(&("daimî".to_owned(), "daimî".to_owned()))
+        );
+        assert_eq!(
+            lookup("kâğıt", Language::Turkish).first(),
+            Some(&("kağıt".to_owned(), "kağıt".to_owned()))
+        );
+        assert!(lookup("pate", Language::French).is_empty());
+    }
+
+    #[test]
+    fn turkish_readings_follow_a_dictionary_into_turkish_and_out_and_version_10_keeps_them() {
+        let directory = tempdir().unwrap();
+        let database = directory.path().join(DATABASE_FILE_NAME);
+        let undeclared = turkish_fixture(directory.path(), false);
+        {
+            let mut connection = open_store(&database).unwrap();
+            assert_eq!(
+                import_one_into(&mut connection, &undeclared, Language::Japanese).0,
+                ImportStatus::Imported
+            );
+            assert_eq!(stored_reading(&connection, "daimî"), "daimî");
+            let id: i64 = connection
+                .query_row("SELECT id FROM dictionaries", [], |row| row.get(0))
+                .unwrap();
+            assert_eq!(
+                set_language_in_store(&connection, &[id], Language::Turkish).unwrap(),
+                1
+            );
+            assert_eq!(stored_reading(&connection, "daimî"), "daimi");
+            assert_eq!(stored_reading(&connection, "kağıt"), "kağıt");
+            set_language_in_store(&connection, &[id], Language::English).unwrap();
+            assert_eq!(stored_reading(&connection, "daimî"), "daimî");
+            // A store from before version 10 with a Turkish dictionary.
+            connection
+                .execute_batch("UPDATE dictionaries SET language = 'tr'; PRAGMA user_version = 9;")
+                .unwrap();
+        }
+        let connection = open_store(&database).unwrap();
+        assert_eq!(pragma(&connection, "user_version"), SCHEMA_VERSION);
+        assert_eq!(stored_reading(&connection, "daimî"), "daimi");
+    }
+
     #[test]
     fn version_9_puts_each_dictionary_in_its_declared_language_or_japanese() {
         let directory = tempdir().unwrap();
@@ -9085,7 +9271,7 @@ mod tests {
         assert!(open_store(&database).is_ok());
         Connection::open(&database)
             .unwrap()
-            .execute_batch("PRAGMA user_version = 10")
+            .execute_batch(&format!("PRAGMA user_version = {}", SCHEMA_VERSION + 1))
             .unwrap();
         assert!(open_store(&database).is_err());
     }
