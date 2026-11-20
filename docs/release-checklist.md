@@ -30,7 +30,7 @@ The updater signing key and its password never enter the repository, a build out
 
 ## Making a release
 
-1. Add the `CHANGELOG.md` section and set the version in the four files.
+1. Add the `CHANGELOG.md` section, set the version in the four files, and set it in the README's download buttons and their version line (a test checks them). The buttons link to the release's own files, so they work once it is published.
 2. Run `pnpm validate:full`, and `pnpm validate:release` when the Reader, the window lifecycle, the CSP or the updater changed.
 3. Optionally, run the Release workflow by hand (Actions > Release > Run workflow). It builds, checks and signs without releasing; the files are in its `komori-release` artifact.
 4. Tag and push: `git tag v<version>` and `git push origin v<version>`. The workflow checks that the tag names the version, runs `pnpm validate:release`, builds and signs with the secrets, runs `node scripts/check-release.mjs`, builds the signed arm64 APK on Linux and checks its signature, package, version and that it is not debuggable, and attaches the release files to a draft release.

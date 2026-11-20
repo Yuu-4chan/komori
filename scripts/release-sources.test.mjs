@@ -23,6 +23,22 @@ describe("release version", () => {
     const { version } = JSON.parse(readFileSync("package.json", "utf8"));
     expect(readFileSync("CHANGELOG.md", "utf8")).toMatch(new RegExp(`^## ${version}$`, "mu"));
   });
+
+  // The README's download buttons point at this release's files, which exist once it is published.
+  it("is the version the README's download buttons fetch", () => {
+    const { version } = JSON.parse(readFileSync("package.json", "utf8"));
+    const readme = readFileSync("README.md", "utf8");
+    const base = `https://github.com/Yuu-4chan/komori/releases/download/v${version}/Komori_${version}`;
+    const links = [
+      ...readme.matchAll(
+        /https:\/\/github\.com\/Yuu-4chan\/komori\/releases\/download\/[^"\s)]+/gu,
+      ),
+    ];
+    expect(links.map((link) => link[0]).sort()).toEqual(
+      [`${base}_android-arm64.apk`, `${base}_x64-setup.exe`].sort(),
+    );
+    expect(readme).toContain(`Version ${version} ·`);
+  });
 });
 
 // The updater signing key lives only in the owner's environment and the release workflow's

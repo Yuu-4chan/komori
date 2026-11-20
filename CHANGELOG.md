@@ -2,6 +2,17 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 2.5.0
+
+- Thirteen more interface languages: Dutch, Polish, Swedish, Norwegian, Danish, Finnish, Greek, Turkish, Arabic, Hindi, Thai, Vietnamese and Indonesian. In Arabic the whole layout reads right to left.
+- Look words up in the same thirteen languages, with free Wiktionary dictionaries to download for each. Inflected words are found under their dictionary form: Turkish and Finnish suffixes, Arabic prefixes and suffixes, Greek past tenses, Polish, Dutch, Hindi, Indonesian and Nordic word forms. Arabic words are found as books write them, without short vowels, and Greek and Vietnamese words in either accent or tone-mark placement (hòa, hoà), and older Turkish spellings with a circumflex (daimî, kâğıt) are found as books write them.
+- Statistics lists the books you finished in the range as covers. Choosing one shows its time, sessions, amount read, speed, days read and the day you finished it, which you can change from a calendar.
+- Mark as completed asks the day you finished, today by default, and a book marked completed stays completed when you read it again.
+- Resting the pointer on the Reader's upper or lower pill shows this session's and this book's statistics and how long the rest of the book will take. On the PC, the upper pill also has the play/stop button, as on the phone.
+- When you stop reading for longer than Stop counting after, the pill now shows that counting stopped, and reading on or the play button starts it again. The idle time is left out.
+- Thai words are looked up from their first letter when you point at or tap a vowel sign above it, and a Korean noun with a particle shows the noun first.
+- The Edit dialog is wider, fitting long titles.
+
 ## 2.4.0
 
 - Double-click a series or author group's name, in the Library or on the group's own page, to rename it. Each book keeps its volume number, and a name that is already in use joins that group.

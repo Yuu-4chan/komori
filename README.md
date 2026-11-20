@@ -10,6 +10,14 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Yuu-4chan/komori/releases/download/v2.5.0/Komori_2.5.0_x64-setup.exe"><img src="docs/images/download-windows.svg" alt="Download for Windows" height="52"></a>
+  &nbsp;
+  <a href="https://github.com/Yuu-4chan/komori/releases/download/v2.5.0/Komori_2.5.0_android-arm64.apk"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/download-android-dark.svg"><img src="docs/images/download-android.svg" alt="Download for Android" height="52"></picture></a>
+  <br>
+  <sub>Version 2.5.0 · Free and open source · <a href="#install">Installation guide</a> · <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a></sub>
+</p>
+
+<p align="center">
   <img src="src-tauri/icons/app/beige.png" alt="" width="32">
   <img src="src-tauri/icons/app/sunrise.png" alt="" width="32">
   <img src="src-tauri/icons/app/peach.png" alt="" width="32">
@@ -58,14 +66,16 @@
 - **Lookup in 23 languages.** Look words up in Japanese, English, Spanish, French,
   Portuguese, Italian, German, Russian, Korean, Chinese, Dutch, Polish, Swedish, Norwegian,
   Danish, Finnish, Greek, Turkish, Arabic, Hindi, Thai, Vietnamese or Indonesian books with
-  Shift, a shortcut, selection, click or hover. Each language has its own dictionaries and word
-  audio, and the first ten their own deinflection. Readings with furigana, IPA, pitch accent, frequency, tags, kanji cards and nested
-  lookups.
+  Shift, a shortcut, selection, click or hover. Each language has its own dictionaries, word
+  audio and word-form rules, so inflected words are found under their dictionary form.
+  Readings with furigana, IPA, pitch accent, frequency, tags, kanji cards and nested lookups.
 - **Dictionary.** A full dictionary page with the same results, sources in your order and
   a kanji card for single characters.
 - **Statistics.** Characters (or words) read, time, speed, an activity calendar with
-  editable days, library overview and a character explorer. Recording pauses while
-  Komori's window is in the background.
+  editable days, the books you finished with their totals and a finished day you can change,
+  library overview and a character explorer. In the Reader, the pills show this session's
+  and the book's statistics and the time left to finish. Recording pauses while Komori's
+  window is in the background or you stop reading for a while.
 - **Anki.** Configure once in Settings, then create a card with one click from the popup,
   with the reading, definitions, frequency, word audio and book cover, in a deck for each
   lookup language. The Lapis note type is bundled.
@@ -91,8 +101,8 @@
 
 ### Windows
 
-1. Download the latest `Komori_<version>_x64-setup.exe` from the
-   [Releases](https://github.com/Yuu-4chan/komori/releases) page.
+1. Choose **Download for Windows** above, or download the latest
+   `Komori_<version>_x64-setup.exe` from the [Releases](https://github.com/Yuu-4chan/komori/releases) page.
 2. Run it. The installer is not code-signed, so Windows SmartScreen may warn about an
    unknown publisher; choose **More info**, then **Run anyway**.
 
@@ -105,8 +115,8 @@ Windows 11 already includes; if it is missing, the installer downloads and insta
 
 ### Android
 
-1. On the phone, download the latest `Komori_<version>_android-arm64.apk` from the
-   [Releases](https://github.com/Yuu-4chan/komori/releases) page.
+1. On the phone, choose **Download for Android** above, or download the latest
+   `Komori_<version>_android-arm64.apk` from the [Releases](https://github.com/Yuu-4chan/komori/releases) page.
 2. Open it and allow your browser or file manager to install apps when Android asks.
 
 Komori runs on 64-bit Android 10 and later. It checks for a newer release when it starts
