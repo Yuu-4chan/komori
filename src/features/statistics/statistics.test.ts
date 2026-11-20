@@ -6,6 +6,7 @@ import {
   calendarMonth,
   completionOrder,
   currentStreak,
+  finishDates,
   heatLevel,
   languageBreakdown,
   libraryOverview,
@@ -219,5 +220,48 @@ describe("statistics", () => {
       { ...valid, endUnits: valid.totalUnits + 1 },
     ])
       expect(normalizeSession(invalid)).toBeNull();
+  });
+});
+
+describe("finished dates", () => {
+  const month = (index: number) => ({
+    start: +new Date(2026, index, 1),
+    end: +new Date(2026, index + 1, 1),
+  });
+  const toEnd = { startUnits: 99_000, endUnits: 100_000 };
+
+  it("counts a book on the day the reader set instead of the day it was read to the end", () => {
+    const read = session(A, new Date(2026, 9, 20, 8), 30, 1000, toEnd);
+    const later = session(A, new Date(2026, 9, 22, 8), 10, 0, {
+      startUnits: 100_000,
+      endUnits: 100_000,
+      finishedAt: +new Date(2026, 8, 30, 12),
+    });
+    expect(summarize([read], month(9)).finished).toBe(1);
+    expect(summarize([read, later], month(9)).finished).toBe(0);
+    expect(summarize([read, later], month(8)).finished).toBe(1);
+    expect(summarize([read, later], null).finished).toBe(1);
+    expect(finishDates([read])).toEqual(new Map([[A, { at: read.startedAt, set: false }]]));
+    expect(finishDates([read, later])).toEqual(
+      new Map([[A, { at: +new Date(2026, 8, 30, 12), set: true }]]),
+    );
+  });
+
+  it("finishes a book its sessions never read to the end, and none marked unread", () => {
+    const partial = session(B, new Date(2026, 9, 5, 8), 30, 1000, {
+      finishedAt: +new Date(2026, 9, 6, 12),
+    });
+    expect(summarize([partial], month(9)).finished).toBe(1);
+    const cleared = { ...partial, finishCleared: true };
+    expect(summarize([cleared], month(9)).finished).toBe(0);
+    expect(finishDates([cleared, session(A, new Date(2026, 9, 5), 5, 10)]).size).toBe(0);
+  });
+
+  it("keeps a valid finished date from native sessions and drops anything else", () => {
+    const valid = session(A, new Date(2026, 9, 5, 8), 30, 1000);
+    const at = +new Date(2026, 9, 6, 12);
+    expect(normalizeSession({ ...valid, finishedAt: at })?.finishedAt).toBe(at);
+    for (const finishedAt of [0, 1.5, "x", Date.now() + 2 * 86_400_000])
+      expect(normalizeSession({ ...valid, finishedAt })).not.toHaveProperty("finishedAt");
   });
 });

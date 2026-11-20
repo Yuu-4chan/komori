@@ -214,6 +214,11 @@ export class ReadingSessionTracker {
     }
   }
 
+  /** The units read so far. */
+  get unitsCounted() {
+    return this.unitsRead;
+  }
+
   /** The active time so far, for the Reader's footer. */
   get readingMs() {
     return this.confirmedMs + this.pendingMs;

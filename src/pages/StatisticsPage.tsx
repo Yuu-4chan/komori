@@ -37,6 +37,7 @@ import {
   languageBreakdown,
   libraryOverview,
   rangePeriods,
+  finishDates,
   speed,
   startOfMonth,
   summarize,
@@ -155,6 +156,7 @@ export function StatisticsPage() {
   const sessions = useMemo(() => loaded?.sessions ?? [], [loaded]);
   const periods = useMemo(() => rangePeriods(range, now), [range, now]);
   const summary = useMemo(() => summarize(sessions, periods.current), [sessions, periods]);
+  const finishes = useMemo(() => finishDates(sessions), [sessions]);
   const previous = useMemo(
     () => (periods.previous ? summarize(sessions, periods.previous) : null),
     [sessions, periods],
@@ -333,7 +335,17 @@ export function StatisticsPage() {
               <span>{rangeDescription}</span>
             </div>
           </div>
-          <BookTotals books={summary.books} library={library} />
+          <BookTotals
+            books={summary.books}
+            finishes={finishes}
+            library={library}
+            onSessionsChanged={(updated) => {
+              ++loadVersion.current;
+              setData((current) =>
+                typeof current === "object" ? { ...current, sessions: updated } : current,
+              );
+            }}
+          />
         </section>
       ) : null}
 

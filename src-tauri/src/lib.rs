@@ -204,6 +204,8 @@ pub fn run() {
             reading_position::mark_books_completed,
             reading_sessions::save_reading_session,
             reading_sessions::list_reading_sessions,
+            reading_sessions::list_book_reading_sessions,
+            reading_sessions::set_book_finished_date,
             reading_sessions::list_reading_devices,
             reading_sessions::edit_daily_activity,
             reading_sessions::list_library_kanji,

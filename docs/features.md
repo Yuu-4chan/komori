@@ -124,8 +124,10 @@ back. The search stays in the top bar even in an empty Library.
   A click in the book or Space finishes the reveal, then reads on.
 - **Footer.** Book and chapter position and percentage in a lower pill with reading speed;
   clock and session reading time in an upper pill, with the session's play/stop button
-  between them while statistics are recorded (alone with Manual start); both center over the available
-  reading area, including while the sidebar is pinned. Empty pills disappear.
+  between them while statistics are recorded (alone with Manual start); resting on the button or
+  the time shows this session's time, amount and speed, the book's progress, time, sessions,
+  days, amount and speed, and what is left with the time it takes at each speed; both center
+  over the available reading area, including while the sidebar is pinned. Empty pills disappear.
 - **Images.** The book's illustrations as cards and a modal viewer with zoom, rotation,
   reset, panning, pinch to zoom on a touch screen and Go to location, fitting the picture to the window but enlarging a small one no more than three times; clicking an unblurred book image opens it.
 - **Find in book.** Whole book or this chapter, up to 100 results with excerpts.
@@ -216,7 +218,8 @@ Only look up Japanese/CJK text, the kanji entry and JapanesePod101 are for Japan
 Range menu; reading activity metrics (characters or words read, time, speed per hour,
 books finished); the daily activity calendar with day details and editable daily
 books (right-click or pencil); Books read in the range as covers, most time first, each opening
-a popup with its time, sessions, characters or words read, speed, days read and last read;
+a popup with its time, sessions, characters or words read, speed, days read, last read and the
+day it was finished, which can be changed (it then counts as finished on that day) or reset;
 Library overview, language breakdown, completion
 and the character explorer whose tiles open their Dictionary search.
 Completion shows 300 books until Show all.

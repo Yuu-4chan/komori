@@ -243,6 +243,47 @@ describe("Reader upper status", () => {
     remove.mockRestore();
   });
 
+  it("shows the session's and the book's statistics while resting on the button or the time", async () => {
+    const live = () => ({ readingMs: 30 * 60_000, unitsRead: 3000, session: null });
+    render(
+      <ReaderReadingStatus
+        clock
+        readingTime
+        readingMs={() => 30 * 60_000}
+        onToggleSession={() => {}}
+        session="counting"
+        stats={{
+          bookId: "11111111-1111-4111-8111-111111111111",
+          progress: {
+            unit: "characters",
+            current: 4000,
+            total: 10_000,
+            chapter: { current: 0, total: 0 },
+          },
+          live,
+        }}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Pause counting" });
+    expect(button).not.toHaveAttribute("title");
+    await userEvent.hover(button);
+    const panel = await screen.findByRole("tooltip");
+    expect(button).toHaveAttribute("aria-describedby", panel.id);
+    const row = (section: string, label: string) =>
+      within(within(panel).getByText(section).closest("section")!).getByText(label).closest("div")!
+        .lastChild;
+    expect(row("This session", "Reading time")).toHaveTextContent("30m 00s");
+    expect(row("This session", "Reading speed")).toHaveTextContent("6,000 Ch./h");
+    expect(row("This book", "Progress")).toHaveTextContent("40%");
+    expect(row("This book", "Reading speed")).toHaveTextContent("—");
+    expect(row("To finish", "Characters left")).toHaveTextContent("6,000");
+    expect(row("To finish", "At this session's speed")).toHaveTextContent("1h 00m");
+    await userEvent.unhover(button);
+    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+    await userEvent.hover(screen.getByLabelText("Reading time this session: 30m 00s"));
+    expect(await screen.findByRole("tooltip")).toBeInTheDocument();
+  });
+
   it("puts the session's play/stop button between the clock and the time read", async () => {
     const toggle = vi.fn();
     const view = render(

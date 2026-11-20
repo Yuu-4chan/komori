@@ -10,6 +10,7 @@ import {
   type SessionStart,
 } from "../statistics/readingSession";
 import type { SessionStartMode } from "../statistics/statisticsPreferences";
+import type { LiveReading } from "./readingStats";
 import type { ReaderBookProgress, ReaderRendererFactory } from "./renderer";
 
 /** How often a session in progress is saved again. */
@@ -41,7 +42,8 @@ export type SessionState = "off" | "waiting" | "counting" | "paused";
  * in every mode; a session paused with `P` stays paused until `P`. A move past the jump limit
  * ends an automatic session, so the next forward move starts a new one, and pauses a manual one.
  * After `idleMinutes` without reading forward, counting stops and that stretch is dropped.
- * `readingMs` reads the session's active time and `readingSpeed` its speed.
+ * `readingMs` reads the session's active time, `readingSpeed` its speed and `live` the whole
+ * session so far.
  */
 export function useReadingSession(
   factory: ReaderRendererFactory | undefined,
@@ -199,7 +201,15 @@ export function useReadingSession(
   const toggle = useCallback(() => toggleRef.current(), []);
   const readingMs = useCallback(() => trackerRef.current?.readingMs ?? 0, []);
   const readingSpeed = useCallback(() => trackerRef.current?.readingSpeed ?? null, []);
-  return { toggle, state, readingMs, readingSpeed };
+  const live = useCallback((): LiveReading => {
+    const tracker = trackerRef.current;
+    return {
+      readingMs: tracker?.readingMs ?? 0,
+      unitsRead: tracker?.unitsCounted ?? 0,
+      session: tracker?.record() ?? null,
+    };
+  }, []);
+  return { toggle, state, readingMs, readingSpeed, live };
 }
 
 /** Use native window focus rather than DOM blur, which also fires on entering a book iframe. */

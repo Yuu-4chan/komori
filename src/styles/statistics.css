@@ -684,6 +684,41 @@ div.statistics-card__empty p {
   font-variant-numeric: tabular-nums;
 }
 
+/* The day the book was finished, under its totals: a row with the date to change. */
+.statistics-book-dialog__finished {
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.statistics-book-dialog__finished label {
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+}
+
+.statistics-book-dialog__finished > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.statistics-book-dialog__finished input {
+  width: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.statistics-book-dialog__finished small {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-size: var(--font-size-1);
+}
+
 .statistics-books + .character-show-all {
   margin-top: -0.25rem;
 }

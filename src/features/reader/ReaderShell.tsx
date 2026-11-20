@@ -2054,6 +2054,7 @@ export function ReaderShell({
               viewportRef.current?.focus({ preventScroll: true });
             }}
             manual={appearance.statisticsSessionStart === "manual"}
+            stats={openedId ? { bookId: openedId, progress, live: session.live } : undefined}
           />
         )}
         {status === "ready" && returnPoint && (

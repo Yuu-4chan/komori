@@ -150,6 +150,10 @@ pub(crate) struct SyncSession {
     pub(crate) adjustment: SessionAdjustment,
     pub(crate) device: Option<String>,
     pub(crate) session: ReadingSession,
+    /// When the reader set the book as finished (see `StoredSession::finished_at`); left out
+    /// when unset, so a device that knows nothing of it still reads every other session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) finished_at: Option<i64>,
 }
 
 impl SyncSession {
@@ -166,6 +170,9 @@ impl SyncSession {
                 .device
                 .as_deref()
                 .is_none_or(|device| Uuid::parse_str(device).is_ok())
+            && self
+                .finished_at
+                .is_none_or(|time| (946_684_800_000..=253_402_214_400_000).contains(&time))
     }
 
     /// Who read it is fixed when it is recorded, so it is not part of what changes.
@@ -178,7 +185,11 @@ impl SyncSession {
             &self.session,
         ))
         .unwrap_or_default();
-        digest(&["session", &content])
+        // A finished date joins the hash only when set, so sessions without one keep theirs.
+        match self.finished_at {
+            Some(time) => digest(&["session", &content, &time.to_string()]),
+            None => digest(&["session", &content]),
+        }
     }
 }
 
@@ -459,6 +470,7 @@ fn sessions_of(connection: &Connection) -> Result<Vec<SyncSession>, String> {
             adjustment: stored.adjustment,
             device: stored.device,
             session: stored.session,
+            finished_at: stored.finished_at,
         })
         .filter(SyncSession::is_valid)
         .collect())
@@ -552,14 +564,15 @@ fn upsert_session(connection: &Connection, session: &SyncSession) -> Result<(), 
         adjustment,
         device,
         session,
+        finished_at,
     } = session;
     connection
         .execute(
             "INSERT INTO reading_sessions
                (id, book_id, started_at, ended_at, active_ms, unit, units_read, start_units,
                 end_units, total_units, book_title, finish_cleared, units_adjustment,
-                active_adjustment, device)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+                active_adjustment, device, finished_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
              ON CONFLICT(id) DO UPDATE SET
                book_id = excluded.book_id, started_at = excluded.started_at,
                ended_at = excluded.ended_at, active_ms = excluded.active_ms,
@@ -568,7 +581,8 @@ fn upsert_session(connection: &Connection, session: &SyncSession) -> Result<(), 
                total_units = excluded.total_units, book_title = excluded.book_title,
                finish_cleared = excluded.finish_cleared,
                units_adjustment = excluded.units_adjustment,
-               active_adjustment = excluded.active_adjustment",
+               active_adjustment = excluded.active_adjustment,
+               finished_at = excluded.finished_at",
             params![
                 session.id,
                 book_id,
@@ -584,7 +598,8 @@ fn upsert_session(connection: &Connection, session: &SyncSession) -> Result<(), 
                 finish_cleared,
                 adjustment.units_delta,
                 adjustment.active_ms_delta,
-                device
+                device,
+                finished_at
             ],
         )
         .map(|_| ())

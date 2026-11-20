@@ -558,6 +558,21 @@ fn a_session_changed_on_both_sides_keeps_the_version_of_the_device_that_read_it(
 }
 
 #[test]
+fn a_finished_date_crosses_and_its_clearing_follows() {
+    let mut sides = sides();
+    reading_sessions::save_to(&sides.phone, BOOK, &session(ID_A, T)).unwrap();
+    sync(&mut sides);
+    let finished =
+        |connection: &Connection| reading_sessions::list_from(connection).unwrap()[0].finished_at;
+    reading_sessions::set_finished_date(&mut sides.pc, BOOK, Some(T + 1000), T).unwrap();
+    sync(&mut sides);
+    assert_eq!(finished(&sides.phone), Some(T + 1000));
+    reading_sessions::set_finished_date(&mut sides.phone, BOOK, None, T).unwrap();
+    sync(&mut sides);
+    assert_eq!(finished(&sides.pc), None);
+}
+
+#[test]
 fn malformed_items_from_the_phone_are_left_out() {
     let mut sides = sides();
     let mut request = PushRequest::default();
@@ -568,6 +583,7 @@ fn malformed_items_from_the_phone_are_left_out() {
         adjustment: SessionAdjustment::default(),
         device: None,
         session: session(ID_A, T),
+        finished_at: None,
     });
     request.bookmarks.push(SyncBookmark {
         id: ID_B.into(),

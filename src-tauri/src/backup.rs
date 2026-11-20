@@ -250,6 +250,9 @@ struct BackupSession {
     /// The device that read it, when another one did.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     device: Option<String>,
+    /// When the reader set the book as finished.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    finished_at: Option<i64>,
 }
 
 /// SQLite's `strftime('%Y-%m-%dT%H:%M:%fZ')`, the only timestamp form Komori stores.
@@ -1132,7 +1135,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
             .prepare(
                 "SELECT id, book_id, started_at, ended_at, active_ms, unit, units_read,
                         start_units, end_units, total_units, book_title, finish_cleared,
-                        units_adjustment, active_adjustment, device
+                        units_adjustment, active_adjustment, device, finished_at
                    FROM reading_sessions ORDER BY started_at, id",
             )
             .map_err(storage_error)?;
@@ -1158,6 +1161,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
                         active_ms_delta: row.get(13)?,
                     }),
                     device: row.get(14)?,
+                    finished_at: row.get(15)?,
                 })
             })
             .map_err(storage_error)?;
@@ -1727,8 +1731,8 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                 "INSERT INTO reading_sessions
                    (id, book_id, started_at, ended_at, active_ms, unit, units_read,
                     start_units, end_units, total_units, book_title, finish_cleared,
-                    units_adjustment, active_adjustment, device)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+                    units_adjustment, active_adjustment, device, finished_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
                  ON CONFLICT(id) DO UPDATE SET
                    book_id = excluded.book_id, started_at = excluded.started_at,
                    ended_at = excluded.ended_at, active_ms = excluded.active_ms,
@@ -1738,7 +1742,8 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                    finish_cleared = excluded.finish_cleared,
                    units_adjustment = excluded.units_adjustment,
                    active_adjustment = excluded.active_adjustment,
-                   device = excluded.device",
+                   device = excluded.device,
+                   finished_at = excluded.finished_at",
                 params![
                     session.id,
                     book_id,
@@ -1754,7 +1759,8 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                     stored.finish_cleared,
                     stored.adjustment.as_ref().map_or(0, |a| a.units_delta),
                     stored.adjustment.as_ref().map_or(0, |a| a.active_ms_delta),
-                    stored.device
+                    stored.device,
+                    stored.finished_at
                 ],
             )
             .map_err(storage_error)?;

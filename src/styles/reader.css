@@ -1858,6 +1858,66 @@
   outline-offset: 1px;
 }
 
+/* The session's and the book's statistics, centered below the pill while the pointer rests on
+   the session's button or time. */
+.reader-reading-stats {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  width: 252px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 10px;
+  transform: translateX(-50%);
+  color: var(--reader-ink);
+  background: color-mix(in srgb, var(--reader-page) 97%, var(--reader-ink));
+  border: 1px solid color-mix(in srgb, var(--reader-ink) 10%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px color-mix(in srgb, #0c1224 16%, transparent);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: start;
+  white-space: normal;
+}
+
+.reader-reading-stats h3 {
+  margin: 0 0 3px;
+  color: var(--reader-footer-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.reader-reading-stats dl {
+  margin: 0;
+  display: grid;
+}
+
+.reader-reading-stats dl > div {
+  min-height: 21px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reader-reading-stats dl > div + div {
+  border-top: 1px solid color-mix(in srgb, var(--reader-ink) 6%, transparent);
+}
+
+.reader-reading-stats dt {
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--reader-ink) 70%, var(--reader-page));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-reading-stats dd {
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .reader-footer__values {
   display: inline-flex;
   align-items: center;

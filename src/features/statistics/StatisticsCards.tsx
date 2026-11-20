@@ -1,5 +1,6 @@
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
 import {
+  ArrowCounterClockwiseIcon,
   BookOpenTextIcon,
   CaretDownIcon,
   CaretLeftIcon,
@@ -26,6 +27,7 @@ import { createPortal } from "react-dom";
 
 import { DialogCaption } from "../../components/layout/WindowControls";
 import { Button } from "../../components/ui/Button";
+import { IconButton } from "../../components/ui/IconButton";
 import { useBackdropDismiss } from "../../components/ui/backdropDismiss";
 
 import { BookCover } from "../library/BookCover";
@@ -43,10 +45,11 @@ import {
   startOfMonth,
   type ActivitySummary,
   type BookActivity,
+  type BookFinish,
   type CalendarDay,
   type LanguageShare,
 } from "./statistics";
-import type { LibraryKanji } from "./statisticsApi";
+import { setBookFinishedDate, type LibraryKanji, type StoredReadingSession } from "./statisticsApi";
 import { amount } from "../../i18n/amounts";
 import { inlineSign } from "../../i18n/direction";
 
@@ -399,9 +402,15 @@ const BOOKS_PREVIEW = 16;
 export function BookTotals({
   books,
   library,
+  finishes = noFinishes,
+  onSessionsChanged,
 }: {
   books: BookActivity[];
   library: ReadonlyMap<string, LibraryBook>;
+  /** When each finished book was finished. */
+  finishes?: ReadonlyMap<string, BookFinish>;
+  /** Every session, after a book's finished date changed. */
+  onSessionsChanged?: (sessions: StoredReadingSession[]) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const [open, setOpen] = useState<BookActivity | null>(null);
@@ -452,10 +461,103 @@ export function BookTotals({
         <BookStatisticsDialog
           activity={open}
           book={library.get(open.bookId)!}
+          finish={finishes.get(open.bookId) ?? null}
           onClose={() => setOpen(null)}
+          onSessionsChanged={onSessionsChanged}
         />
       ) : null}
     </>
+  );
+}
+
+const noFinishes: ReadonlyMap<string, BookFinish> = new Map();
+
+/** A date input's `YYYY-MM-DD` for the local day of `time`. */
+export function dateValue(time: number): string {
+  const day = new Date(time);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+}
+
+/**
+ * Noon of a date input's local day, so the day stays the same across time zone changes, or
+ * null for anything that is not a day from 2000 to today.
+ */
+export function finishedDayTime(value: string, now = Date.now()): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const time = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12).getTime();
+  if (dateValue(time) !== value || value < "2000-01-01" || value > dateValue(now)) return null;
+  return time;
+}
+
+/**
+ * The day a book was finished, changed in place: a chosen day replaces the day its sessions
+ * read it to the end, and resetting goes back to that day.
+ */
+function FinishedDate({
+  bookId,
+  finish,
+  onSessionsChanged,
+}: {
+  bookId: string;
+  finish: BookFinish | null;
+  onSessionsChanged?: (sessions: StoredReadingSession[]) => void;
+}) {
+  const { t } = useI18n();
+  const id = useId();
+  const shown = finish ? dateValue(finish.at) : "";
+  const [value, setValue] = useState(shown);
+  const [failed, setFailed] = useState(false);
+  const saving = useRef(0);
+  useEffect(() => setValue(shown), [shown]);
+  const save = async (finishedAt: number | null) => {
+    const version = ++saving.current;
+    setFailed(false);
+    try {
+      const sessions = await setBookFinishedDate(bookId, finishedAt);
+      if (version === saving.current) onSessionsChanged?.(sessions);
+    } catch {
+      if (version === saving.current) setFailed(true);
+    }
+  };
+  return (
+    <div className="statistics-book-dialog__finished">
+      <label htmlFor={id}>{t("statisticsCards.finishedDate")}</label>
+      <span>
+        <input
+          className="text-field__input"
+          id={id}
+          max={dateValue(Date.now())}
+          min="2000-01-01"
+          onChange={(event) => {
+            const next = event.currentTarget.value;
+            setValue(next);
+            // An emptied field resets; a partly typed year is no day yet.
+            if (!next) {
+              if (finish?.set) void save(null);
+              return;
+            }
+            const time = finishedDayTime(next);
+            if (time !== null && next !== shown) void save(time);
+          }}
+          onBlur={() => setValue(shown)}
+          type="date"
+          value={value}
+        />
+        {finish?.set ? (
+          <IconButton
+            compact
+            label={t("statisticsCards.resetFinishedDate")}
+            onClick={() => void save(null)}
+            quiet
+          >
+            <ArrowCounterClockwiseIcon aria-hidden="true" size={16} />
+          </IconButton>
+        ) : null}
+      </span>
+      {failed ? <small role="alert">{t("statisticsCards.finishedDateFailed")}</small> : null}
+    </div>
   );
 }
 
@@ -463,11 +565,15 @@ export function BookTotals({
 function BookStatisticsDialog({
   activity,
   book,
+  finish,
   onClose,
+  onSessionsChanged,
 }: {
   activity: BookActivity;
   book: LibraryBook;
+  finish: BookFinish | null;
   onClose: () => void;
+  onSessionsChanged?: (sessions: StoredReadingSession[]) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -535,6 +641,11 @@ function BookStatisticsDialog({
             </div>
           ))}
         </dl>
+        <FinishedDate
+          bookId={activity.bookId}
+          finish={finish}
+          onSessionsChanged={onSessionsChanged}
+        />
         <div className="confirm-dialog__actions">
           <Button data-dialog-cancel onClick={onClose} tone="secondary">
             {t("common.close")}

@@ -86,6 +86,37 @@ export interface DeviceActivity {
   activeMs: number;
 }
 
+/** Whether a session read its book to the end. */
+function readsToEnd(session: StoredReadingSession): boolean {
+  return (
+    !session.finishCleared &&
+    session.endUnits >= session.totalUnits &&
+    session.startUnits < session.totalUnits
+  );
+}
+
+export interface BookFinish {
+  /** When the book was finished: the day the reader set, or the start of the last session that read it to the end. */
+  at: number;
+  /** The reader set it. */
+  set: boolean;
+}
+
+/** When each finished book was finished, by book ID. */
+export function finishDates(sessions: readonly StoredReadingSession[]): Map<string, BookFinish> {
+  const dates = new Map<string, BookFinish>();
+  for (const session of sessions) {
+    const known = dates.get(session.bookId);
+    if (!session.finishCleared && session.finishedAt !== undefined) {
+      if (!known?.set || session.finishedAt > known.at)
+        dates.set(session.bookId, { at: session.finishedAt, set: true });
+    } else if (readsToEnd(session) && !known?.set && (!known || session.startedAt > known.at)) {
+      dates.set(session.bookId, { at: session.startedAt, set: false });
+    }
+  }
+  return dates;
+}
+
 /** Totals over the sessions in a period. */
 export function summarize(
   sessions: readonly StoredReadingSession[],
@@ -108,6 +139,16 @@ export function summarize(
   const devices = new Map<string | null, number>();
   const started = new Set<string>();
   const finished = new Set<string>();
+  // A finished date the reader set replaces the sessions that read the book to its end.
+  const setFinishes = new Map<string, number>();
+  for (const session of sessions)
+    if (!session.finishCleared && session.finishedAt !== undefined)
+      setFinishes.set(
+        session.bookId,
+        Math.max(setFinishes.get(session.bookId) ?? 0, session.finishedAt),
+      );
+  for (const [bookId, at] of setFinishes)
+    if (!period || (at >= period.start && at < period.end)) finished.add(bookId);
   for (const session of sessions) {
     if (!inPeriod(session, period)) continue;
     const { unitsRead, activeMs } = sessionMeasurements(session);
@@ -121,12 +162,7 @@ export function summarize(
       summary.wordMs += activeMs;
     }
     if (session.startUnits === 0 && session.unitsRead > 0) started.add(session.bookId);
-    if (
-      !session.finishCleared &&
-      session.endUnits >= session.totalUnits &&
-      session.startUnits < session.totalUnits
-    )
-      finished.add(session.bookId);
+    if (readsToEnd(session) && !setFinishes.has(session.bookId)) finished.add(session.bookId);
     const book = books.get(session.bookId) ?? {
       bookId: session.bookId,
       unit: session.unit,
