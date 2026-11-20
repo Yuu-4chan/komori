@@ -384,50 +384,59 @@ describe("Statistics", () => {
     expect(screen.queryByRole("region", { name: /volume/i })).not.toBeInTheDocument();
   });
 
-  it("shows the books read in the range as covers, each opening its own totals", async () => {
-    renderPage();
+  it("shows only the books finished in the range as covers, each opening its own totals", async () => {
+    let page = renderPage();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const card = await screen.findByRole("region", { name: "Books read" });
     const covers = () => within(card).getAllByRole("button", { name: /秋の手紙|Harbor Notes/ });
-    // Most time read first: this month's hour of 秋の手紙, then 20 minutes of Harbor Notes.
-    expect(covers().map((cover) => cover.getAttribute("aria-label"))).toEqual([
-      "秋の手紙",
-      "Harbor Notes",
-    ]);
+    // 秋の手紙 was read this month but not finished.
+    expect(covers().map((cover) => cover.getAttribute("aria-label"))).toEqual(["Harbor Notes"]);
     const value = (dialog: HTMLElement, label: string) =>
       within(dialog).getByText(label, { selector: "dt" }).nextElementSibling;
 
     await user.click(covers()[0]);
-    let dialog = screen.getByRole("dialog", { name: "秋の手紙" });
-    expect(dialog).toHaveTextContent("山田 花子");
-    expect(dialog).toHaveTextContent("25%");
-    expect(value(dialog, "Reading time")).toHaveTextContent("1h 00m");
-    expect(value(dialog, "Sessions")).toHaveTextContent("1");
-    expect(value(dialog, "Characters read")).toHaveTextContent("18,000");
-    expect(value(dialog, "Avg. Ch./h")).toHaveTextContent("18,000");
-    expect(value(dialog, "Days read")).toHaveTextContent("1");
-    await user.click(within(dialog).getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(covers()[0]).toHaveFocus();
-
-    await user.click(covers()[1]);
-    dialog = screen.getByRole("dialog", { name: "Harbor Notes" });
+    let dialog = screen.getByRole("dialog", { name: "Harbor Notes" });
     expect(dialog).toHaveTextContent("Completed");
     expect(value(dialog, "Words read")).toHaveTextContent("6,000");
     expect(value(dialog, "Avg. Wo./h")).toHaveTextContent("18,000");
-    // Escape, as the browser reports it to a modal dialog.
-    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    expect(screen.getByRole("button", { name: "Finished Oct 15, 2026" })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(covers()[0]).toHaveFocus();
+    page.unmount();
 
-    await user.click(screen.getByRole("button", { name: "Statistics range: This month" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /All time/ }));
-    await user.click(covers()[0]);
+    // Given a finished day, 秋の手紙 is listed after the book finished later, with all its sessions.
+    vi.mocked(listReadingSessions).mockResolvedValueOnce([
+      session(JA, new Date(2026, 8, 20, 9), 30, 6_000),
+      session(JA, new Date(2026, 9, 14, 9), 60, 18_000, {
+        finishedAt: +new Date(2026, 9, 10, 12),
+      }),
+      session(EN, new Date(2026, 9, 15, 8), 20, 6_000, {
+        unit: "words",
+        startUnits: 182_000,
+        endUnits: 188_000,
+        totalUnits: 188_000,
+      }),
+    ]);
+    page = renderPage();
+    const finished = await screen.findByRole("region", { name: "Books read" });
+    expect(
+      within(finished)
+        .getAllByRole("button", { name: /秋の手紙|Harbor Notes/ })
+        .map((cover) => cover.getAttribute("aria-label")),
+    ).toEqual(["Harbor Notes", "秋の手紙"]);
+    await user.click(within(finished).getByRole("button", { name: "秋の手紙" }));
     dialog = screen.getByRole("dialog", { name: "秋の手紙" });
+    expect(dialog).toHaveTextContent("山田 花子");
+    expect(dialog).toHaveTextContent("25%");
     expect(value(dialog, "Reading time")).toHaveTextContent("1h 30m");
     expect(value(dialog, "Sessions")).toHaveTextContent("2");
     expect(value(dialog, "Characters read")).toHaveTextContent("24,000");
     expect(value(dialog, "Avg. Ch./h")).toHaveTextContent("16,000");
     expect(value(dialog, "Days read")).toHaveTextContent("2");
+    // Escape, as the browser reports it to a modal dialog.
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("leaves out the word cards when no book is counted in words", async () => {

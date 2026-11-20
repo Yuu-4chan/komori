@@ -1858,8 +1858,8 @@
   outline-offset: 1px;
 }
 
-/* The session's and the book's statistics, centered below the pill while the pointer rests on
-   the session's button or time. */
+/* The session's and the book's statistics, centered below the upper pill (above the lower one)
+   while the pointer rests on it. */
 .reader-reading-stats {
   position: absolute;
   top: calc(100% + 8px);
@@ -1878,6 +1878,25 @@
   line-height: 1.35;
   text-align: start;
   white-space: normal;
+}
+
+.reader-reading-stats--above {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+/* A pill that shows the statistics on hover answers the pointer. */
+.reader-stats-area {
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.reader-stats-area:hover {
+  background: color-mix(in srgb, var(--reader-page) 94%, var(--reader-ink));
+  border-color: color-mix(in srgb, var(--reader-ink) 16%, transparent);
+  box-shadow: 0 2px 10px color-mix(in srgb, #0c1224 10%, transparent);
 }
 
 .reader-reading-stats h3 {

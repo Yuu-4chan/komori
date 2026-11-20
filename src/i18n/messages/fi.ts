@@ -1299,6 +1299,7 @@ export const fi: MessageCatalog = {
   "statisticsCards.daysRead": "Lukupäivät",
   "statisticsCards.finishedDate": "Luettu loppuun",
   "statisticsCards.resetFinishedDate": "Palauta lopetuspäivä",
+  "statisticsCards.finishedNotSet": "Ei asetettu",
   "statisticsCards.finishedDateFailed": "Lopetuspäivää ei voitu tallentaa.",
   "statisticsCards.editFor": "Muokkaa päivittäistä aktiivisuutta: {title}",
   "statisticsCards.editTitle":

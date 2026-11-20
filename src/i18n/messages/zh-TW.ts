@@ -1147,6 +1147,7 @@ export const zhTW: MessageCatalog = {
   "statisticsCards.daysRead": "閱讀天數",
   "statisticsCards.finishedDate": "讀完日期",
   "statisticsCards.resetFinishedDate": "重設讀完日期",
+  "statisticsCards.finishedNotSet": "未設定",
   "statisticsCards.finishedDateFailed": "無法儲存讀完日期。",
   "statisticsCards.editFor": "編輯{title}的每日活動",
   "statisticsCards.editTitle": "編輯每日活動（也可在這本書上按右鍵）",

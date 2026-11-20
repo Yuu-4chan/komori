@@ -1318,6 +1318,7 @@ export const en = {
   "statisticsCards.daysRead": "Days read",
   "statisticsCards.finishedDate": "Finished",
   "statisticsCards.resetFinishedDate": "Reset finished date",
+  "statisticsCards.finishedNotSet": "Not set",
   "statisticsCards.finishedDateFailed": "The finished date could not be saved.",
   "statisticsCards.editFor": "Edit daily activity for {title}",
   "statisticsCards.editTitle": "Edit daily activity (or right-click this book)",

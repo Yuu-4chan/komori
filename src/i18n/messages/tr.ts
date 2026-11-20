@@ -1273,6 +1273,7 @@ export const tr: MessageCatalog = {
   "statisticsCards.daysRead": "Okunan günler",
   "statisticsCards.finishedDate": "Bitirildi",
   "statisticsCards.resetFinishedDate": "Bitiş tarihini sıfırla",
+  "statisticsCards.finishedNotSet": "Ayarlanmadı",
   "statisticsCards.finishedDateFailed": "Bitiş tarihi kaydedilemedi.",
   "statisticsCards.editFor": "Günlük etkinliği düzenle: {title}",
   "statisticsCards.editTitle": "Günlük etkinliği düzenle (veya bu kitaba sağ tıklayın)",

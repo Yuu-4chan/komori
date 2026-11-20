@@ -1277,6 +1277,7 @@ export const da: MessageCatalog = {
   "statisticsCards.daysRead": "Læsedage",
   "statisticsCards.finishedDate": "Færdig",
   "statisticsCards.resetFinishedDate": "Nulstil færdigdato",
+  "statisticsCards.finishedNotSet": "Ikke angivet",
   "statisticsCards.finishedDateFailed": "Færdigdatoen kunne ikke gemmes.",
   "statisticsCards.editFor": "Rediger daglig aktivitet for {title}",
   "statisticsCards.editTitle": "Rediger daglig aktivitet (eller højreklik på denne bog)",

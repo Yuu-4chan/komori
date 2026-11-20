@@ -708,9 +708,140 @@ div.statistics-card__empty p {
   gap: 0.25rem;
 }
 
-.statistics-book-dialog__finished input {
-  width: auto;
+.day-picker {
+  position: relative;
+  display: inline-flex;
+}
+
+.day-picker__trigger {
+  min-height: 2rem;
+  padding: 0 0.55rem 0 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-size-2);
   font-variant-numeric: tabular-nums;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.day-picker__trigger svg {
+  color: var(--text-muted);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.day-picker__trigger:hover,
+.day-picker__trigger[aria-expanded="true"] {
+  color: var(--accent-ink);
+  background: var(--accent-faint);
+  border-color: var(--border-accent);
+}
+
+.day-picker__trigger:hover svg,
+.day-picker__trigger[aria-expanded="true"] svg {
+  color: var(--accent-ink);
+}
+
+.day-picker__popover {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  inset-inline-end: 0;
+  width: 16.5rem;
+  padding: 0.6rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-float);
+}
+
+.day-picker__popover--above {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.day-picker__month {
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.day-picker__month strong {
+  font-size: var(--font-size-2);
+}
+
+.day-picker__month button,
+.day-picker__day {
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  font: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.day-picker__month button {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.day-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.day-picker__weekday {
+  padding-bottom: 0.2rem;
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  text-align: center;
+}
+
+.day-picker__day {
+  height: 2rem;
+  font-size: var(--font-size-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.day-picker__month button:hover:not(:disabled),
+.day-picker__day:hover:not(:disabled) {
+  color: var(--accent-ink);
+  background: var(--accent-faint);
+}
+
+.day-picker__day--today {
+  border-color: var(--border-accent);
+}
+
+.day-picker__day--chosen,
+.day-picker__day--chosen:hover:not(:disabled) {
+  color: var(--text-on-accent);
+  background: var(--accent-action);
+  border-color: var(--accent-action);
+}
+
+.day-picker__month button:disabled,
+.day-picker__day:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .statistics-book-dialog__finished small {

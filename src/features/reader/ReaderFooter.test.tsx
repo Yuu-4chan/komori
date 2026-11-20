@@ -243,7 +243,7 @@ describe("Reader upper status", () => {
     remove.mockRestore();
   });
 
-  it("shows the session's and the book's statistics while resting on the button or the time", async () => {
+  it("shows the session's and the book's statistics while resting on the pill", async () => {
     const live = () => ({ readingMs: 30 * 60_000, unitsRead: 3000, session: null });
     render(
       <ReaderReadingStatus
@@ -280,8 +280,10 @@ describe("Reader upper status", () => {
     expect(row("To finish", "At this session's speed")).toHaveTextContent("1h 00m");
     await userEvent.unhover(button);
     await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
-    await userEvent.hover(screen.getByLabelText("Reading time this session: 30m 00s"));
-    expect(await screen.findByRole("tooltip")).toBeInTheDocument();
+    // Anywhere on the pill, the clock too.
+    await userEvent.hover(screen.getByLabelText(/^Local time/));
+    expect(await screen.findByRole("tooltip")).not.toHaveClass("reader-reading-stats--above");
+    expect(screen.getByRole("group", { name: "Reading status" })).toHaveClass("reader-stats-area");
   });
 
   it("puts the session's play/stop button between the clock and the time read", async () => {

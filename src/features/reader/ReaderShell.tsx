@@ -70,7 +70,14 @@ import type {
 import { ReaderLookupPopup, type ChildLookupRequest } from "./ReaderLookupPopup";
 import { useDefinitionSources } from "../dictionary/definitionSources";
 import { lookupLanguageOf } from "../dictionary/lookupLanguage";
-import { ReaderReadingStatus, ReadingSpeedValue, useReadingSpeed } from "./ReaderReadingStatus";
+import {
+  ReaderReadingStatus,
+  ReadingSpeedValue,
+  useReadingSpeed,
+  useStatsHover,
+  type ReadingStatsSource,
+} from "./ReaderReadingStatus";
+import { ReadingStatsPanel } from "./ReadingStatsPanel";
 import type { ReadingSpeed } from "../statistics/readingSession";
 import type { ReaderFooterPreferences } from "./footerPreferences";
 import { ReaderScrollbar } from "./ReaderScrollbar";
@@ -2081,6 +2088,11 @@ export function ReaderShell({
             progress={status === "ready" ? progress : null}
             visibility={appearance}
             speed={speed}
+            stats={
+              openedId && session.state !== "off"
+                ? { bookId: openedId, progress, live: session.live }
+                : undefined
+            }
           />
         )}
         <p className="reader-floating-feedback" role="status" aria-live="polite">
@@ -2173,18 +2185,22 @@ export function ReaderShell({
 
 /**
  * Book and chapter positions and percentages, in that order. Empty
- * until the book is counted.
+ * until the book is counted. Resting on it shows the reading statistics above it.
  */
 function BookProgress({
   progress,
   visibility,
   speed,
+  stats,
 }: {
   progress: ReaderBookProgress | null;
   visibility: ReaderFooterPreferences;
   /** The session's speed when shown and a minute was read. */
   speed: ReadingSpeed | null;
+  /** Given while statistics are recorded, resting on the pill shows them. */
+  stats?: ReadingStatsSource;
 }) {
+  const statsHover = useStatsHover(Boolean(stats && progress?.total));
   if (!progress?.total) return null;
   const chapter = progress.chapter;
   const bookShown = visibility.readerShowReadingPosition || visibility.readerShowPercentage;
@@ -2193,7 +2209,10 @@ function BookProgress({
     (visibility.readerShowChapterPosition || visibility.readerShowChapterPercentage);
   if (!bookShown && !chapterShown && !speed) return null;
   return (
-    <footer className="reader-footer">
+    <footer
+      className={`reader-footer${statsHover.area ? " reader-stats-area" : ""}`}
+      {...statsHover.area}
+    >
       {bookShown && (
         <ProgressValues
           kind="book"
@@ -2215,6 +2234,9 @@ function BookProgress({
         />
       ) : null}
       {speed && <ReadingSpeedValue speed={speed} />}
+      {statsHover.open && stats ? (
+        <ReadingStatsPanel above bookId={stats.bookId} live={stats.live} progress={progress} />
+      ) : null}
     </footer>
   );
 }

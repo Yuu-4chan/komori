@@ -94,7 +94,8 @@ export function useReadingSession(
     let saved = "";
     let writing = Promise.resolve();
     const flush = () => {
-      const session = tracker.record();
+      // Once saved, the session is saved again even when an idle stop leaves too little to record.
+      const session = tracker.record(saved !== "");
       if (!session || !save) return writing;
       const key = JSON.stringify(session);
       if (key === saved) return writing;
@@ -138,8 +139,14 @@ export function useReadingSession(
     });
     let lastSave = Date.now();
     const timer = setInterval(() => {
+      const counting = tracker.counting;
       tracker.tick(shown());
-      if (Date.now() - lastSave >= saveEveryMs) {
+      if (counting && !tracker.counting) {
+        // Stopped for want of progress: it waits for the next forward move or the button.
+        show();
+        lastSave = Date.now();
+        flush();
+      } else if (Date.now() - lastSave >= saveEveryMs) {
         lastSave = Date.now();
         flush();
       }

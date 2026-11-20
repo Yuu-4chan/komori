@@ -1212,6 +1212,7 @@ export const ko: MessageCatalog = {
   "statisticsCards.daysRead": "읽은 날",
   "statisticsCards.finishedDate": "완독일",
   "statisticsCards.resetFinishedDate": "완독일 재설정",
+  "statisticsCards.finishedNotSet": "설정 안 됨",
   "statisticsCards.finishedDateFailed": "완독일을 저장할 수 없습니다.",
   "statisticsCards.editFor": "{title}의 일별 활동 편집",
   "statisticsCards.editTitle": "일별 활동 편집(이 책을 오른쪽 클릭해도 됨)",

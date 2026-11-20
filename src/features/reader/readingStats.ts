@@ -62,7 +62,12 @@ export function readingStats(
   let unitsRead = 0;
   let unitMs = 0;
   const days = new Set<string>();
+  let counted = 0;
   for (const session of sessions.values()) {
+    // A session emptied by an idle stop read nothing; one corrected to nothing still counts.
+    if (session.activeMs <= 0 && session.unitsRead <= 0 && session.ms <= 0 && session.units <= 0)
+      continue;
+    counted += 1;
     readingMs += session.ms;
     days.add(dayKey(new Date(session.startedAt)));
     if (session.unit !== unit) continue;
@@ -78,7 +83,7 @@ export function readingStats(
     book: {
       readingMs,
       unitsRead,
-      sessions: sessions.size,
+      sessions: counted,
       days: days.size,
       speed: bookSpeed,
       // As the footer shows it.

@@ -1385,6 +1385,7 @@ export const ru: MessageCatalog = {
   "statisticsCards.daysRead": "Дней чтения",
   "statisticsCards.finishedDate": "Дочитана",
   "statisticsCards.resetFinishedDate": "Сбросить дату завершения",
+  "statisticsCards.finishedNotSet": "Не задана",
   "statisticsCards.finishedDateFailed": "Не удалось сохранить дату завершения.",
   "statisticsCards.editFor": "Изменить активность по дням для {title}",
   "statisticsCards.editTitle": "Изменить активность по дням (или щёлкните книгу правой кнопкой)",

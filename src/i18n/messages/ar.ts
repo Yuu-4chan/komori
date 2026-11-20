@@ -1425,6 +1425,7 @@ export const ar: MessageCatalog = {
   "statisticsCards.daysRead": "أيام القراءة",
   "statisticsCards.finishedDate": "تاريخ الإنهاء",
   "statisticsCards.resetFinishedDate": "إعادة تعيين تاريخ الإنهاء",
+  "statisticsCards.finishedNotSet": "غير محدد",
   "statisticsCards.finishedDateFailed": "تعذّر حفظ تاريخ الإنهاء.",
   "statisticsCards.editFor": "تحرير النشاط اليومي لـ{title}",
   "statisticsCards.editTitle": "تحرير النشاط اليومي (أو انقر بزر الماوس الأيمن على هذا الكتاب)",

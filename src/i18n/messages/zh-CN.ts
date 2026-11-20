@@ -1147,6 +1147,7 @@ export const zhCN: MessageCatalog = {
   "statisticsCards.daysRead": "阅读天数",
   "statisticsCards.finishedDate": "读完日期",
   "statisticsCards.resetFinishedDate": "重置读完日期",
+  "statisticsCards.finishedNotSet": "未设置",
   "statisticsCards.finishedDateFailed": "无法保存读完日期。",
   "statisticsCards.editFor": "编辑{title}的每日活动",
   "statisticsCards.editTitle": "编辑每日活动（也可右键单击这本书）",

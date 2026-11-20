@@ -31,6 +31,7 @@ import { IconButton } from "../../components/ui/IconButton";
 import { useBackdropDismiss } from "../../components/ui/backdropDismiss";
 
 import { BookCover } from "../library/BookCover";
+import { DayPicker, dayValue } from "./DayPicker";
 import type { LibraryBook } from "../library/libraryApi";
 import {
   bookTitle,
@@ -472,15 +473,13 @@ export function BookTotals({
 
 const noFinishes: ReadonlyMap<string, BookFinish> = new Map();
 
-/** A date input's `YYYY-MM-DD` for the local day of `time`. */
+/** The `YYYY-MM-DD` of the local day of `time`. */
 export function dateValue(time: number): string {
-  const day = new Date(time);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+  return dayValue(new Date(time));
 }
 
 /**
- * Noon of a date input's local day, so the day stays the same across time zone changes, or
+ * Noon of a `YYYY-MM-DD` local day, so the day stays the same across time zone changes, or
  * null for anything that is not a day from 2000 to today.
  */
 export function finishedDayTime(value: string, now = Date.now()): number | null {
@@ -507,10 +506,8 @@ function FinishedDate({
   const { t } = useI18n();
   const id = useId();
   const shown = finish ? dateValue(finish.at) : "";
-  const [value, setValue] = useState(shown);
   const [failed, setFailed] = useState(false);
   const saving = useRef(0);
-  useEffect(() => setValue(shown), [shown]);
   const save = async (finishedAt: number | null) => {
     const version = ++saving.current;
     setFailed(false);
@@ -523,27 +520,21 @@ function FinishedDate({
   };
   return (
     <div className="statistics-book-dialog__finished">
-      <label htmlFor={id}>{t("statisticsCards.finishedDate")}</label>
+      <label htmlFor={id} id={`${id}-label`}>
+        {t("statisticsCards.finishedDate")}
+      </label>
       <span>
-        <input
-          className="text-field__input"
+        <DayPicker
+          empty={t("statisticsCards.finishedNotSet")}
           id={id}
+          labelledBy={`${id}-label`}
           max={dateValue(Date.now())}
           min="2000-01-01"
-          onChange={(event) => {
-            const next = event.currentTarget.value;
-            setValue(next);
-            // An emptied field resets; a partly typed year is no day yet.
-            if (!next) {
-              if (finish?.set) void save(null);
-              return;
-            }
+          onChoose={(next) => {
             const time = finishedDayTime(next);
-            if (time !== null && next !== shown) void save(time);
+            if (time !== null) void save(time);
           }}
-          onBlur={() => setValue(shown)}
-          type="date"
-          value={value}
+          value={shown}
         />
         {finish?.set ? (
           <IconButton
@@ -561,7 +552,7 @@ function FinishedDate({
   );
 }
 
-/** One book's totals over the range: time read, sessions, amount read, speed, days and last read. */
+/** A finished book's totals over all its sessions: time read, sessions, amount read, speed, days and last read. */
 function BookStatisticsDialog({
   activity,
   book,

@@ -1203,6 +1203,7 @@ export const th: MessageCatalog = {
   "statisticsCards.daysRead": "วันที่อ่าน",
   "statisticsCards.finishedDate": "อ่านจบ",
   "statisticsCards.resetFinishedDate": "รีเซ็ตวันที่อ่านจบ",
+  "statisticsCards.finishedNotSet": "ยังไม่ได้ตั้ง",
   "statisticsCards.finishedDateFailed": "ไม่สามารถบันทึกวันที่อ่านจบได้",
   "statisticsCards.editFor": "แก้ไขกิจกรรมรายวันของ {title}",
   "statisticsCards.editTitle": "แก้ไขกิจกรรมรายวัน (หรือคลิกขวาที่หนังสือเล่มนี้)",

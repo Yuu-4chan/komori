@@ -1295,6 +1295,7 @@ export const ptBR: MessageCatalog = {
   "statisticsCards.daysRead": "Dias de leitura",
   "statisticsCards.finishedDate": "Concluído",
   "statisticsCards.resetFinishedDate": "Redefinir data de conclusão",
+  "statisticsCards.finishedNotSet": "Não definida",
   "statisticsCards.finishedDateFailed": "Não foi possível salvar a data de conclusão.",
   "statisticsCards.editFor": "Editar a atividade diária de {title}",
   "statisticsCards.editTitle":

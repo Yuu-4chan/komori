@@ -1284,6 +1284,7 @@ export const nb: MessageCatalog = {
   "statisticsCards.daysRead": "Dager med lesing",
   "statisticsCards.finishedDate": "Ferdig",
   "statisticsCards.resetFinishedDate": "Tilbakestill ferdigdato",
+  "statisticsCards.finishedNotSet": "Ikke angitt",
   "statisticsCards.finishedDateFailed": "Ferdigdatoen kunne ikke lagres.",
   "statisticsCards.editFor": "Rediger daglig aktivitet for {title}",
   "statisticsCards.editTitle": "Rediger daglig aktivitet (eller høyreklikk på denne boken)",

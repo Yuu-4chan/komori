@@ -1312,6 +1312,7 @@ export const de: MessageCatalog = {
   "statisticsCards.daysRead": "Lesetage",
   "statisticsCards.finishedDate": "Beendet",
   "statisticsCards.resetFinishedDate": "Enddatum zurücksetzen",
+  "statisticsCards.finishedNotSet": "Nicht festgelegt",
   "statisticsCards.finishedDateFailed": "Das Enddatum konnte nicht gespeichert werden.",
   "statisticsCards.editFor": "Tägliche Aktivität für {title} bearbeiten",
   "statisticsCards.editTitle": "Tägliche Aktivität bearbeiten (oder Rechtsklick auf dieses Buch)",

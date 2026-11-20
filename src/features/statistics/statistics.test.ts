@@ -18,6 +18,7 @@ import { normalizeSession, type StoredReadingSession } from "./statisticsApi";
 
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
+const C = "44444444-4444-4444-8444-444444444444";
 let sessionIds = 0;
 
 function session(
@@ -255,6 +256,38 @@ describe("finished dates", () => {
     const cleared = { ...partial, finishCleared: true };
     expect(summarize([cleared], month(9)).finished).toBe(0);
     expect(finishDates([cleared, session(A, new Date(2026, 9, 5), 5, 10)]).size).toBe(0);
+  });
+
+  it("lists only the books finished in the range, with all their sessions, the last first", () => {
+    const earlier = session(A, new Date(2026, 8, 20, 8), 40, 2000);
+    const finishA = session(A, new Date(2026, 9, 3, 8), 30, 1000, toEnd);
+    const finishB = session(B, new Date(2026, 9, 10, 8), 20, 500, toEnd);
+    const unfinished = session(C, new Date(2026, 9, 12, 8), 60, 3000);
+    const all = [earlier, finishA, finishB, unfinished];
+    const october = summarize(all, month(9));
+    expect(october.books.map((book) => book.bookId)).toEqual([C, A, B]);
+    expect(october.finishedBooks.map((book) => book.bookId)).toEqual([B, A]);
+    expect(october.finishedBooks[1]).toMatchObject({
+      activeMs: 70 * 60_000,
+      unitsRead: 3000,
+      sessions: 2,
+      days: 2,
+    });
+    expect(summarize(all, month(8)).finishedBooks).toEqual([]);
+    expect(summarize([unfinished], null).finishedBooks).toEqual([]);
+  });
+
+  it("leaves out a session an idle stop emptied, but not one corrected to nothing", () => {
+    const read = session(A, new Date(2026, 9, 3, 8), 30, 1000);
+    const emptied = session(A, new Date(2026, 9, 4, 8), 0, 0, { activeMs: 0 });
+    const corrected = session(A, new Date(2026, 9, 5, 8), 10, 100, {
+      adjustment: { unitsDelta: -100, activeMsDelta: -600_000 },
+    });
+    expect(summarize([read, emptied], month(9)).sessions).toBe(1);
+    expect(summarize([read, emptied, corrected], month(9)).books[0]).toMatchObject({
+      sessions: 2,
+      days: 2,
+    });
   });
 
   it("keeps a valid finished date from native sessions and drops anything else", () => {

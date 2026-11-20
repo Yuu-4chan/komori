@@ -23,14 +23,46 @@ export interface ReadingStatsSource {
   live: () => LiveReading;
 }
 
-/** How long the pointer rests on the session's button or time before its statistics show. */
+/** How long the pointer rests on a pill before its statistics show, and leaves before they go. */
 const STATS_OPEN_MS = 250;
 const STATS_CLOSE_MS = 200;
 
 /**
+ * The statistics panel of a Reader pill: it opens while the pointer rests on the pill (or on the
+ * panel, which is inside it) and closes shortly after it leaves; nothing opens while not `shown`.
+ */
+export function useStatsHover(shown: boolean) {
+  const [open, setOpen] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hovering = useRef(false);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    if (shown) return;
+    clearTimeout(timer.current);
+    hovering.current = false;
+    setOpen(false);
+  }, [shown]);
+  const hover = (next: boolean) => {
+    hovering.current = next;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setOpen(next), next ? STATS_OPEN_MS : STATS_CLOSE_MS);
+  };
+  return {
+    open: shown && open,
+    setOpen,
+    hovering,
+    /** For the pill: its pointer opens and closes the panel. */
+    area: shown
+      ? { onPointerEnter: () => hover(true), onPointerLeave: () => hover(false) }
+      : undefined,
+  };
+}
+
+/**
  * The upper-center status pill, separate from the book's layout: the clock and the time read,
  * with the session's play/stop button between them while statistics are recorded. Resting on
- * the button or the time shows the session's and the book's statistics below the pill.
+ * the pill, or focusing its button from the keyboard, shows the session's and the book's
+ * statistics below it.
  */
 export function ReaderReadingStatus({
   clock,
@@ -55,11 +87,7 @@ export function ReaderReadingStatus({
   stats?: ReadingStatsSource;
 }) {
   const [now, setNow] = useState(() => new Date());
-  const [statsOpen, setStatsOpen] = useState(false);
-  const statsTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const hovering = useRef(false);
   const statsId = useId();
-  useEffect(() => () => clearTimeout(statsTimer.current), []);
   const [elapsed, setElapsed] = useState(readingMs);
   const { t, date } = useI18n();
   const refresh = useCallback(() => {
@@ -70,36 +98,18 @@ export function ReaderReadingStatus({
 
   const toggle = onToggleSession && session !== "off" ? onToggleSession : null;
   const statsShown = Boolean(stats?.progress) && session !== "off";
-  useEffect(() => {
-    if (!statsShown) setStatsOpen(false);
-  }, [statsShown]);
-  const hover = (open: boolean) => {
-    hovering.current = open;
-    clearTimeout(statsTimer.current);
-    statsTimer.current = setTimeout(
-      () => setStatsOpen(open),
-      open ? STATS_OPEN_MS : STATS_CLOSE_MS,
-    );
-  };
-  const statsTarget = statsShown
-    ? {
-        "aria-describedby": statsOpen ? statsId : undefined,
-        onPointerEnter: () => hover(true),
-        onPointerLeave: () => hover(false),
-        onFocus: (event: { currentTarget: Element }) => {
-          // Keyboard focus shows it; a click's focus leaves it to the pointer.
-          if (focusVisible(event.currentTarget)) setStatsOpen(true);
-        },
-        onBlur: () => {
-          if (!hovering.current) setStatsOpen(false);
-        },
-      }
-    : {};
+  const statsHover = useStatsHover(statsShown);
+  const statsOpen = statsHover.open;
   if (!clock && !readingTime && !(toggle && manual)) return null;
   const time = date(now, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   const duration = formatDurationSeconds(elapsed);
   return (
-    <div className="reader-reading-status-top" role="group" aria-label={t("readingStatus.label")}>
+    <div
+      className={`reader-reading-status-top${statsShown ? " reader-stats-area" : ""}`}
+      role="group"
+      aria-label={t("readingStatus.label")}
+      {...statsHover.area}
+    >
       {clock && (
         <span aria-label={t("readingStatus.localTime", { time })}>
           <Clock size={14} aria-hidden="true" />
@@ -114,7 +124,14 @@ export function ReaderReadingStatus({
           aria-pressed={session === "counting"}
           className="reader-reading-status__session"
           onClick={toggle}
-          {...statsTarget}
+          aria-describedby={statsOpen ? statsId : undefined}
+          onFocus={(event) => {
+            // Keyboard focus shows it; a click's focus leaves it to the pointer.
+            if (statsShown && focusVisible(event.currentTarget)) statsHover.setOpen(true);
+          }}
+          onBlur={() => {
+            if (!statsHover.hovering.current) statsHover.setOpen(false);
+          }}
           title={
             statsShown
               ? undefined
@@ -140,18 +157,15 @@ export function ReaderReadingStatus({
           <span
             title={statsShown ? undefined : t("readingStatus.time")}
             aria-label={t("readingStatus.timeLabel", { duration })}
-            {...statsTarget}
           >
             {duration}
           </span>
         ))}
-      {statsShown && statsOpen && stats?.progress ? (
+      {statsOpen && stats?.progress ? (
         <ReadingStatsPanel
           bookId={stats.bookId}
           id={statsId}
           live={stats.live}
-          onPointerEnter={() => hover(true)}
-          onPointerLeave={() => hover(false)}
           progress={stats.progress}
         />
       ) : null}

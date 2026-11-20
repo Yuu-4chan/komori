@@ -327,7 +327,7 @@ export function StatisticsPage() {
         </div>
       </section>
 
-      {summary.books.length ? (
+      {summary.finishedBooks.length ? (
         <section className="statistics-card" aria-labelledby="statistics-books">
           <div className="statistics-card__heading">
             <div>
@@ -336,7 +336,7 @@ export function StatisticsPage() {
             </div>
           </div>
           <BookTotals
-            books={summary.books}
+            books={summary.finishedBooks}
             finishes={finishes}
             library={library}
             onSessionsChanged={(updated) => {

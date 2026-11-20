@@ -18,23 +18,23 @@ function speedText(perHour: number | null, unit: ReaderProgressUnit): string {
 }
 
 /**
- * The statistics below the Reader's status pill: this session, the whole book with its saved
- * sessions, and the time left to its end at each speed. Refreshed each second while shown.
+ * The statistics of a Reader pill, below the upper one and above the lower one: this session,
+ * the whole book with its saved sessions, and the time left to its end at each speed.
+ * Refreshed each second while shown.
  */
 export function ReadingStatsPanel({
   bookId,
   id,
   live,
   progress,
-  onPointerEnter,
-  onPointerLeave,
+  above = false,
 }: {
   bookId: string;
-  id: string;
+  id?: string;
   live: () => LiveReading;
   progress: ReaderBookProgress;
-  onPointerEnter: () => void;
-  onPointerLeave: () => void;
+  /** Opens above its pill, the lower one, rather than below. */
+  above?: boolean;
 }) {
   const { t } = useI18n();
   const [stored, setStored] = useState<StoredReadingSession[]>([]);
@@ -96,10 +96,8 @@ export function ReadingStatsPanel({
   ];
   return (
     <div
-      className="reader-reading-stats"
+      className={`reader-reading-stats${above ? " reader-reading-stats--above" : ""}`}
       id={id}
-      onPointerEnter={onPointerEnter}
-      onPointerLeave={onPointerLeave}
       role="tooltip"
     >
       {sections.map(([heading, rows]) => (

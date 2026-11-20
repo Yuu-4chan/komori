@@ -1281,6 +1281,7 @@ export const sv: MessageCatalog = {
   "statisticsCards.daysRead": "Lästa dagar",
   "statisticsCards.finishedDate": "Utläst",
   "statisticsCards.resetFinishedDate": "Återställ utläsningsdatum",
+  "statisticsCards.finishedNotSet": "Inte angivet",
   "statisticsCards.finishedDateFailed": "Utläsningsdatumet kunde inte sparas.",
   "statisticsCards.editFor": "Redigera daglig aktivitet för {title}",
   "statisticsCards.editTitle": "Redigera daglig aktivitet (eller högerklicka på boken)",

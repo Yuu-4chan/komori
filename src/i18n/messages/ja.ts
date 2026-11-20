@@ -1221,6 +1221,7 @@ export const ja: MessageCatalog = {
   "statisticsCards.daysRead": "読書日数",
   "statisticsCards.finishedDate": "読了日",
   "statisticsCards.resetFinishedDate": "読了日をリセット",
+  "statisticsCards.finishedNotSet": "未設定",
   "statisticsCards.finishedDateFailed": "読了日を保存できませんでした。",
   "statisticsCards.editFor": "{title}の日ごとの記録を編集",
   "statisticsCards.editTitle": "日ごとの記録を編集（この本を右クリックしても可）",

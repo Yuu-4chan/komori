@@ -1234,6 +1234,7 @@ export const id: MessageCatalog = {
   "statisticsCards.daysRead": "Hari membaca",
   "statisticsCards.finishedDate": "Selesai",
   "statisticsCards.resetFinishedDate": "Atur ulang tanggal selesai",
+  "statisticsCards.finishedNotSet": "Belum diatur",
   "statisticsCards.finishedDateFailed": "Tanggal selesai tidak dapat disimpan.",
   "statisticsCards.editFor": "Edit aktivitas harian untuk {title}",
   "statisticsCards.editTitle": "Edit aktivitas harian (atau klik kanan buku ini)",

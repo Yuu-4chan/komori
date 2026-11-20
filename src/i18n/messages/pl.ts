@@ -1375,6 +1375,7 @@ export const pl: MessageCatalog = {
   "statisticsCards.daysRead": "Dni czytania",
   "statisticsCards.finishedDate": "Ukończono",
   "statisticsCards.resetFinishedDate": "Przywróć datę ukończenia",
+  "statisticsCards.finishedNotSet": "Nie ustawiono",
   "statisticsCards.finishedDateFailed": "Nie udało się zapisać daty ukończenia.",
   "statisticsCards.editFor": "Edytuj aktywność dzienną: {title}",
   "statisticsCards.editTitle": "Edytuj aktywność dzienną (lub kliknij książkę prawym przyciskiem)",

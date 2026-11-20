@@ -1352,6 +1352,7 @@ export const it: MessageCatalog = {
   "statisticsCards.daysRead": "Giorni di lettura",
   "statisticsCards.finishedDate": "Finito",
   "statisticsCards.resetFinishedDate": "Reimposta data di fine",
+  "statisticsCards.finishedNotSet": "Non impostata",
   "statisticsCards.finishedDateFailed": "Impossibile salvare la data di fine.",
   "statisticsCards.editFor": "Modifica l’attività giornaliera di {title}",
   "statisticsCards.editTitle":

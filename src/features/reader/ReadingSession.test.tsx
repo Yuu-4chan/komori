@@ -1,10 +1,11 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppearanceProvider } from "../appearance/AppearanceProvider";
 import type { ReadingSession } from "../statistics/readingSession";
 import { ReaderShell } from "./ReaderShell";
+import type { ReaderIdentity } from "./readerIdentity";
 import type { ReaderBookProgress, ReaderPositionStore, ReaderRendererFactory } from "./renderer";
 
 afterEach(() => vi.useRealTimers());
@@ -17,7 +18,7 @@ const progress = (current: number): ReaderBookProgress => ({
 });
 
 /** A Reader whose book opens at 1,000 characters; `move` turns a page to a new position. */
-function openBook(preferences: Record<string, unknown>) {
+function openBook(preferences: Record<string, unknown>, identity?: ReaderIdentity) {
   const book = { publish: (_value: ReaderBookProgress) => {}, next: 1_000 };
   const factory: ReaderRendererFactory = () => ({
     mount: async (...args) => {
@@ -43,7 +44,7 @@ function openBook(preferences: Record<string, unknown>) {
   const view = render(
     <MemoryRouter>
       <AppearanceProvider store={{ load: async () => preferences, save: async () => {} }}>
-        <ReaderShell rendererFactory={factory} positionStore={store} />
+        <ReaderShell rendererFactory={factory} positionStore={store} identity={identity} />
       </AppearanceProvider>
     </MemoryRouter>,
   );
@@ -167,6 +168,28 @@ describe("Reader sessions", () => {
     expect(sessions.at(-1)!.activeMs).toBeLessThan(13_000);
   });
 
+  it("shows an idle stop as stopped, corrects its save, and resumes from the button", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(2026, 9, 2, 20, 0, 0));
+    const { view, sessions } = openBook({ readerShowReadingTime: true, statisticsIdleMinutes: 1 });
+    await screen.findByText("Reader ready");
+    await screen.findByRole("button", { name: "Pause counting" });
+    // Saved at 30 s with the time so far, nothing read forward.
+    await act(async () => vi.advanceTimersByTimeAsync(40_000));
+    expect(sessions.at(-1)!.activeMs).toBeGreaterThanOrEqual(30_000);
+    await act(async () => vi.advanceTimersByTimeAsync(25_000));
+    // Past the minute: the stretch is dropped, the button offers to start, and the save follows.
+    expect(screen.getByRole("button", { name: "Start counting" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Reading time this session: 0m 00s")).toBeInTheDocument();
+    expect(sessions.at(-1)).toMatchObject({ activeMs: 0, unitsRead: 0 });
+    fireEvent.click(screen.getByRole("button", { name: "Start counting" }));
+    expect(screen.getByRole("button", { name: "Pause counting" })).toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTimeAsync(5_000));
+    expect(screen.getByLabelText(/^Reading time this session: 0m 0[1-9]s$/)).toBeInTheDocument();
+    view.unmount();
+    await act(async () => {});
+  });
+
   it("ends an automatic session at a jump past the limit and starts another on reading", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date(2026, 9, 2, 20, 0, 0));
@@ -232,6 +255,28 @@ describe("Reader sessions", () => {
     view.unmount();
     await act(async () => {});
     expect(sessions.at(-1)).toMatchObject({ unitsRead: 250, startUnits: 1_000, endUnits: 1_250 });
+  });
+
+  it("shows the reading statistics above the lower pill while resting on it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const book = {
+      id: "11111111-1111-4111-8111-111111111111",
+      title: "Book A",
+      availability: "available" as const,
+      hasCover: false,
+    };
+    const { view } = openBook({}, { status: "book", book, cover: null } as ReaderIdentity);
+    await screen.findByText("Reader ready");
+    const footer = view.container.querySelector<HTMLElement>(".reader-footer")!;
+    expect(footer).toHaveClass("reader-stats-area");
+    fireEvent.pointerOver(footer);
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+    expect(within(footer).getByRole("tooltip")).toHaveClass("reader-reading-stats--above");
+    fireEvent.pointerOut(footer);
+    await act(async () => vi.advanceTimersByTimeAsync(300));
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    view.unmount();
+    await act(async () => {});
   });
 
   it("records nothing and says so while statistics are off", async () => {

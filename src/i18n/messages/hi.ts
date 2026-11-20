@@ -1288,6 +1288,7 @@ export const hi: MessageCatalog = {
   "statisticsCards.daysRead": "पढ़ाई के दिन",
   "statisticsCards.finishedDate": "पूरी हुई",
   "statisticsCards.resetFinishedDate": "पूरा होने की तारीख रीसेट करें",
+  "statisticsCards.finishedNotSet": "सेट नहीं",
   "statisticsCards.finishedDateFailed": "पूरा होने की तारीख सहेजी नहीं जा सकी।",
   "statisticsCards.editFor": "{title} की रोज़ की गतिविधि संपादित करें",
   "statisticsCards.editTitle": "रोज़ की गतिविधि संपादित करें (या इस किताब पर राइट-क्लिक करें)",

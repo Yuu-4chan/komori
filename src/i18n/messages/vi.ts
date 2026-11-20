@@ -1220,6 +1220,7 @@ export const vi: MessageCatalog = {
   "statisticsCards.daysRead": "Ngày đã đọc",
   "statisticsCards.finishedDate": "Đã đọc xong",
   "statisticsCards.resetFinishedDate": "Đặt lại ngày đọc xong",
+  "statisticsCards.finishedNotSet": "Chưa đặt",
   "statisticsCards.finishedDateFailed": "Không thể lưu ngày đọc xong.",
   "statisticsCards.editFor": "Sửa hoạt động hằng ngày của {title}",
   "statisticsCards.editTitle": "Sửa hoạt động hằng ngày (hoặc nhấp phải vào sách này)",

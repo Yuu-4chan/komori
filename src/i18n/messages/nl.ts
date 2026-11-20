@@ -1319,6 +1319,7 @@ export const nl: MessageCatalog = {
   "statisticsCards.daysRead": "Leesdagen",
   "statisticsCards.finishedDate": "Uitgelezen",
   "statisticsCards.resetFinishedDate": "Uitleesdatum herstellen",
+  "statisticsCards.finishedNotSet": "Niet ingesteld",
   "statisticsCards.finishedDateFailed": "De uitleesdatum kon niet worden opgeslagen.",
   "statisticsCards.editFor": "Dagelijkse activiteit voor {title} bewerken",
   "statisticsCards.editTitle": "Dagelijkse activiteit bewerken (of klik met rechts op dit boek)",

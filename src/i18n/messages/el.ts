@@ -1330,6 +1330,7 @@ export const el: MessageCatalog = {
   "statisticsCards.daysRead": "Ημέρες ανάγνωσης",
   "statisticsCards.finishedDate": "Ολοκληρώθηκε",
   "statisticsCards.resetFinishedDate": "Επαναφορά ημερομηνίας ολοκλήρωσης",
+  "statisticsCards.finishedNotSet": "Δεν έχει οριστεί",
   "statisticsCards.finishedDateFailed": "Δεν ήταν δυνατή η αποθήκευση της ημερομηνίας ολοκλήρωσης.",
   "statisticsCards.editFor": "Επεξεργασία ημερήσιας δραστηριότητας για {title}",
   "statisticsCards.editTitle":
