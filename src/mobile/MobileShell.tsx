@@ -216,7 +216,7 @@ export function MobilePageHeader({
             onClick={() => navigate(-1)}
             type="button"
           >
-            <ArrowLeftIcon aria-hidden="true" weight="bold" />
+            <ArrowLeftIcon aria-hidden="true" className="flip-rtl" weight="bold" />
           </button>
         ) : (
           <BrandMark className="mobile-header__brand" />

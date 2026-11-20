@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { CardTabStop, useCardRoving } from "./cardRoving";
 import type { LibraryBook } from "./libraryApi";
 import type { LibraryView } from "./libraryView";
+import { inlineSign } from "../../i18n/direction";
 
 interface LibraryCarouselProps {
   heading: ReactNode;
@@ -55,9 +56,11 @@ export function LibraryCarousel({
     const track = trackRef.current;
     if (!track) return;
     // Until the row is restored, its offset is not the reader's yet.
-    if (restoreOffset.current === undefined) onOffsetRef.current?.(track.scrollLeft);
+    // Offsets count from the row's start, which is its right end while the interface is mirrored.
+    const left = Math.abs(track.scrollLeft);
+    if (restoreOffset.current === undefined) onOffsetRef.current?.(left);
     const next = {
-      left: track.scrollLeft,
+      left,
       width: track.clientWidth,
       max: Math.max(0, track.scrollWidth - track.clientWidth),
     };
@@ -73,7 +76,7 @@ export function LibraryCarousel({
   useLayoutEffect(() => {
     const track = trackRef.current;
     if (track && itemWidth > 0 && restoreOffset.current !== undefined) {
-      track.scrollLeft = restoreOffset.current;
+      track.scrollLeft = restoreOffset.current * inlineSign();
       restoreOffset.current = undefined;
     }
     measure();
@@ -117,7 +120,10 @@ export function LibraryCarousel({
   const cards = useCardRoving(trackRef, books, 0);
   const { t } = useI18n();
   function move(direction: 1 | -1) {
-    trackRef.current?.scrollBy({ left: direction * perView * step, behavior: "smooth" });
+    trackRef.current?.scrollBy({
+      left: direction * inlineSign() * perView * step,
+      behavior: "smooth",
+    });
   }
 
   return (
@@ -156,7 +162,7 @@ export function LibraryCarousel({
             title={t("libraryCarousel.previous")}
             type="button"
           >
-            <CaretLeftIcon aria-hidden="true" size={18} weight="bold" />
+            <CaretLeftIcon aria-hidden="true" className="flip-rtl" size={18} weight="bold" />
           </button>
         ) : null}
         {canNext ? (
@@ -167,7 +173,7 @@ export function LibraryCarousel({
             title={t("libraryCarousel.next")}
             type="button"
           >
-            <CaretRightIcon aria-hidden="true" size={18} weight="bold" />
+            <CaretRightIcon aria-hidden="true" className="flip-rtl" size={18} weight="bold" />
           </button>
         ) : null}
       </div>

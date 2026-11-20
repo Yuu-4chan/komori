@@ -83,7 +83,8 @@
 - **Your data stays yours.** Automatic snapshots, backup export and import, signed
   updates you approve, and no telemetry. The interface is available in English, Japanese,
   Simplified and Traditional Chinese, Korean, German, Spanish, French, Italian, Brazilian
-  Portuguese and Russian.
+  Portuguese, Russian, Dutch, Polish, Swedish, Norwegian, Danish, Finnish, Greek, Turkish,
+  Arabic (right to left), Hindi, Thai, Vietnamese and Indonesian.
 
 ## Install
 

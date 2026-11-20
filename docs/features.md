@@ -220,8 +220,11 @@ Eight categories, each a stack of cards whose settings are rows of one grouped l
   custom theme, initially Hojicha), Library (card size and book folders) and Startup and behavior (launch
   at startup, restore last book, remember window size and position, minimize to tray, middle-click
   autoscroll, check for updates automatically) with an Updates row (version, Check for
-  updates). A found update opens a dialog with its changes, Later and Install and restart. The interface reads in English, Japanese, Simplified Chinese, Korean or
-  Brazilian Portuguese; books, dictionaries and Anki data keep their own language.
+  updates). A found update opens a dialog with its changes, Later and Install and restart. The interface reads in English, Japanese, Simplified or Traditional
+  Chinese, Korean, German, Spanish, French, Italian, Brazilian Portuguese, Russian, Dutch, Polish,
+  Swedish, Norwegian, Danish, Finnish, Greek, Turkish, Arabic (the interface mirrors, right to
+  left), Hindi, Thai, Vietnamese or Indonesian; books, dictionaries and Anki data keep their own
+  language and direction.
 - **Storage.** Disk space of the Library and dictionaries (given back automatically on
   removal), Backup (automatic snapshots, frequency, keep, export, import, create) and
   Snapshots (restore with a preview, delete).

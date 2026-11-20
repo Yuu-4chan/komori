@@ -61,7 +61,7 @@ export function ReaderImageViewer({
   onClose: (jumped?: boolean) => void;
 }) {
   const [index, setIndex] = useState(session.index);
-  const { t } = useI18n();
+  const { t, percentLabel } = useI18n();
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [retry, setRetry] = useState(0);
@@ -302,7 +302,7 @@ export function ReaderImageViewer({
           >
             <MagnifyingGlassMinusIcon />
           </IconButton>
-          <span aria-live="polite">{Math.round(zoom * 100)}%</span>
+          <span aria-live="polite">{percentLabel(Math.round(zoom * 100))}</span>
           <IconButton
             label={t("viewer.zoomIn")}
             disabled={zoom >= 4}

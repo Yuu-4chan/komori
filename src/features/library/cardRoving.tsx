@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import type { LibraryBook } from "./libraryApi";
+import { inlineSign } from "../../i18n/direction";
 
 /** Which card of a collection holds its one Tab stop; each card subscribes to its own flag. */
 class TabStop {
@@ -89,7 +90,8 @@ export function useCardRoving(
     if (!card || card.parentElement?.closest(`[${roving}]`) !== container) return;
     if (from.closest('[role="menu"]')) return;
     const rows = columns === "measure" ? measuredColumns(ownCards(container)) : columns;
-    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -rows, ArrowDown: rows }[event.key];
+    const side = inlineSign();
+    const step = { ArrowLeft: -side, ArrowRight: side, ArrowUp: -rows, ArrowDown: rows }[event.key];
     if (!step) return;
     const index = books.findIndex((book) => book.id === card.dataset.catalogId);
     const next = index < 0 ? undefined : books[index + step];

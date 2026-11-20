@@ -75,7 +75,7 @@
 
 .library-notice ul {
   margin: var(--space-2) 0 0;
-  padding-left: var(--space-5);
+  padding-inline-start: var(--space-5);
 }
 
 .library-notice p {
@@ -90,7 +90,7 @@
 /* The Library's notices float in a corner, in reach however far its books are scrolled. */
 .library-notices {
   position: fixed;
-  right: var(--space-5);
+  inset-inline-end: var(--space-5);
   bottom: var(--space-5);
   z-index: 30;
   width: min(24rem, calc(100vw - 2rem));
@@ -128,7 +128,8 @@
 
 .library-notice__close {
   flex: none;
-  margin: -0.35rem -0.5rem -0.35rem auto;
+  margin-block: -0.35rem;
+  margin-inline: auto -0.5rem;
 }
 
 .search-field {
@@ -211,7 +212,7 @@
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  text-align: left;
+  text-align: start;
   color: var(--text-primary);
   background: transparent;
   border: 0;
@@ -312,7 +313,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  text-align: left;
+  text-align: start;
   background: var(--surface-subtle);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
@@ -799,7 +800,7 @@
 
 /* App icon: a row whose choices wrap on the right, each the icon itself. */
 .settings-list > .settings-field.app-icon-field {
-  padding-right: 1rem;
+  padding-inline-end: 1rem;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
@@ -867,7 +868,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  text-align: left;
+  text-align: start;
   color: var(--text-primary);
   background: var(--surface-subtle);
   border: 1px solid var(--border-soft);
@@ -927,7 +928,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  border-right: 1px solid color-mix(in srgb, var(--preview-text) 10%, transparent);
+  border-inline-end: 1px solid color-mix(in srgb, var(--preview-text) 10%, transparent);
 }
 
 .app-theme-preview__sidebar i:first-child {
@@ -1009,7 +1010,8 @@
 
 .app-theme-editor__preset {
   min-height: 2.1rem;
-  padding: 0 0.7rem 0 0.4rem;
+  padding-block: 0;
+  padding-inline: 0.4rem 0.7rem;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -1145,7 +1147,7 @@
 
 .settings-rows li > div {
   min-width: 0;
-  margin-right: auto;
+  margin-inline-end: auto;
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -1189,7 +1191,7 @@
 
 .backup-preview {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-inline-start: 1.1rem;
   display: grid;
   gap: var(--space-2);
   color: var(--text-secondary);
@@ -1223,7 +1225,7 @@
   min-width: 36rem;
   table-layout: fixed;
   border-collapse: collapse;
-  text-align: left;
+  text-align: start;
   font-size: var(--font-size-2);
 }
 

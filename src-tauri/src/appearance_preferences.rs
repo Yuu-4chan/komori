@@ -1847,7 +1847,7 @@ mod tests {
                 serde_json::to_value(&chosen).unwrap()["interfaceLanguage"],
                 language
             );
-            for invalid in ["ar", "pt", "zh", "zh-HK", "fr-FR", "JA", ""] {
+            for invalid in ["xx", "pt", "zh", "zh-HK", "fr-FR", "JA", "no", ""] {
                 assert!(!save(
                     &database,
                     &AppearancePreferences {
@@ -1862,7 +1862,7 @@ mod tests {
         // A stored invalid language loads as absent and keeps the other fields.
         let connection = open_catalog(&database).unwrap();
         for record in [
-            r#"{"interfaceLanguage":"ar","theme":"dark"}"#,
+            r#"{"interfaceLanguage":"xx","theme":"dark"}"#,
             r#"{"interfaceLanguage":7,"theme":"dark"}"#,
         ] {
             connection

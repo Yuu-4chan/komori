@@ -1,15 +1,33 @@
 import { createContext, Fragment, useContext, type ReactNode } from "react";
 
-import { defaultInterfaceLanguage, formattingLocale, type InterfaceLanguage } from "./languages";
+import {
+  defaultInterfaceLanguage,
+  formattingLocale,
+  rightToLeftLanguages,
+  type InterfaceLanguage,
+} from "./languages";
+import { ar } from "./messages/ar";
+import { da } from "./messages/da";
 import { de } from "./messages/de";
+import { el } from "./messages/el";
 import { en } from "./messages/en";
 import { es } from "./messages/es";
+import { fi } from "./messages/fi";
 import { fr } from "./messages/fr";
+import { hi } from "./messages/hi";
+import { id } from "./messages/id";
 import { it } from "./messages/it";
 import { ja } from "./messages/ja";
 import { ko } from "./messages/ko";
+import { nb } from "./messages/nb";
+import { nl } from "./messages/nl";
+import { pl } from "./messages/pl";
 import { ptBR } from "./messages/pt-BR";
 import { ru } from "./messages/ru";
+import { sv } from "./messages/sv";
+import { th } from "./messages/th";
+import { tr } from "./messages/tr";
+import { vi } from "./messages/vi";
 import { zhCN } from "./messages/zh-CN";
 import { zhTW } from "./messages/zh-TW";
 
@@ -37,10 +55,41 @@ export const catalogs: Record<InterfaceLanguage, MessageCatalog> = {
   it,
   "pt-BR": ptBR,
   ru,
+  nl,
+  pl,
+  sv,
+  nb,
+  da,
+  fi,
+  el,
+  tr,
+  ar,
+  hi,
+  th,
+  vi,
+  id,
 };
 
-/** Languages whose own compact forms ("1,2 mil", "1,2 Mio.") read long beside a count. */
-const englishCompactSuffixes = new Set<InterfaceLanguage>(["de", "es", "fr", "it", "pt-BR"]);
+/**
+ * Latin-script languages, whose own compact forms ("1,2 mil", "1,2 Mio.", "1,2 mln.") read long
+ * beside a count or mix forms.
+ */
+const englishCompactSuffixes = new Set<InterfaceLanguage>([
+  "de",
+  "es",
+  "fr",
+  "it",
+  "pt-BR",
+  "nl",
+  "pl",
+  "sv",
+  "nb",
+  "da",
+  "fi",
+  "tr",
+  "vi",
+  "id",
+]);
 
 const numberFormats = new Map<string, Intl.NumberFormat>();
 const dateFormats = new Map<string, Intl.DateTimeFormat>();
@@ -113,6 +162,8 @@ export interface Translator {
   /** The message with placeholders replaced by elements, such as a link inside a sentence. */
   rich(key: MessageKey, parts: Record<string, ReactNode>): ReactNode;
   number(value: number, options?: Intl.NumberFormatOptions): string;
+  /** A whole percentage as the language writes it: "42%", Turkish "%42", Arabic kept beside its digits. */
+  percentLabel(value: number): string;
   /** A large count shortened for the language, such as 1.2M, 1,2M or 120万. */
   compact(value: number, maximumFractionDigits: number): string;
   date(value: Date | number, options?: Intl.DateTimeFormatOptions): string;
@@ -148,6 +199,13 @@ function createTranslator(language: InterfaceLanguage): Translator {
           return <Fragment key={index}>{part}</Fragment>;
         }),
     number: (value, options) => numberFormat(language, options).format(value),
+    percentLabel: (value) =>
+      language === "tr"
+        ? `%${value}`
+        : // Marks keep the sign beside digits that follow right-to-left words, as Intl does.
+          rightToLeftLanguages.has(language)
+          ? `${value}‎%‎`
+          : `${value}%`,
     compact: (value, maximumFractionDigits) => {
       const options = { notation: "compact", maximumFractionDigits } as const;
       if (!englishCompactSuffixes.has(language))

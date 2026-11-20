@@ -322,7 +322,7 @@ div.statistics-card__empty p {
   border: 1px solid var(--border-soft);
   cursor: pointer;
   font: inherit;
-  text-align: left;
+  text-align: start;
   transition:
     transform var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),

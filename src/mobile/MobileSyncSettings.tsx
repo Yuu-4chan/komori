@@ -47,7 +47,7 @@ const validPort = (port: number) => Number.isInteger(port) && port >= 1024 && po
  * dictionaries to copy here, and unpairing.
  */
 export function MobileSyncSettings() {
-  const { t } = useI18n();
+  const { t, percentLabel } = useI18n();
   const ids = { address: useId(), port: useId(), code: useId() };
   const [link, setLink] = useState<PcLink | null>(null);
   const [address, setAddress] = useState("");
@@ -388,7 +388,7 @@ export function MobileSyncSettings() {
                           <span className="mobile-sync__bar">
                             <span style={{ width: `${percent}%` }} />
                           </span>
-                          {percent}%
+                          {percentLabel(percent)}
                         </span>
                       ) : (
                         <button

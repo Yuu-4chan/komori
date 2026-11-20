@@ -105,7 +105,11 @@ export function MobileSettingsPage() {
               ) : (
                 <span className="mobile-row__label">{t(label)}</span>
               )}
-              <CaretRightIcon aria-hidden="true" className="mobile-row__chevron" weight="bold" />
+              <CaretRightIcon
+                aria-hidden="true"
+                className="mobile-row__chevron flip-rtl"
+                weight="bold"
+              />
             </button>
           ))}
         </nav>
