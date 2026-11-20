@@ -103,6 +103,7 @@ fn place(spine_index: i64, progress: f64, current: i64) -> Reading {
             unit: "characters".into(),
             current,
             total: 1000,
+            completed_at: None,
         }),
     }
 }
@@ -281,6 +282,34 @@ fn a_place_changed_on_one_side_goes_to_the_other() {
     sync(&mut sides);
     assert_eq!(reading(&sides.phone, BOOK), Reading::default());
     assert_eq!(conflict_of(&sides.phone, BOOK).unwrap(), None);
+}
+
+#[test]
+fn a_book_marked_completed_stays_completed_on_the_phone() {
+    let mut sides = sides();
+    read_to(&sides.pc, BOOK, &place(1, 0.1, 100));
+    crate::reading_position::mark_completed(
+        &sides.pc,
+        &[BOOK.to_string()],
+        None,
+        crate::reading_sessions::now_ms(),
+    )
+    .unwrap();
+    let marked = reading(&sides.pc, BOOK).progress.unwrap();
+    assert_eq!(marked.current, 1000);
+    assert!(marked.completed_at.is_some());
+    sync(&mut sides);
+    assert_eq!(reading(&sides.phone, BOOK).progress, Some(marked.clone()));
+    // Reading on from the old place on the phone keeps it at the end.
+    let mut lower = place(1, 0.2, 200).progress.unwrap();
+    lower.completed_at = None;
+    crate::reading_position::save_progress_to(&sides.phone, BOOK, &lower).unwrap();
+    assert_eq!(
+        reading(&sides.phone, BOOK)
+            .progress
+            .map(|p| (p.current, p.completed_at)),
+        Some((1000, marked.completed_at))
+    );
 }
 
 #[test]
@@ -558,6 +587,21 @@ fn a_session_changed_on_both_sides_keeps_the_version_of_the_device_that_read_it(
 }
 
 #[test]
+fn a_finished_date_crosses_and_its_clearing_follows() {
+    let mut sides = sides();
+    reading_sessions::save_to(&sides.phone, BOOK, &session(ID_A, T)).unwrap();
+    sync(&mut sides);
+    let finished =
+        |connection: &Connection| reading_sessions::list_from(connection).unwrap()[0].finished_at;
+    reading_sessions::set_finished_date(&mut sides.pc, BOOK, Some(T + 1000), T).unwrap();
+    sync(&mut sides);
+    assert_eq!(finished(&sides.phone), Some(T + 1000));
+    reading_sessions::set_finished_date(&mut sides.phone, BOOK, None, T).unwrap();
+    sync(&mut sides);
+    assert_eq!(finished(&sides.pc), None);
+}
+
+#[test]
 fn malformed_items_from_the_phone_are_left_out() {
     let mut sides = sides();
     let mut request = PushRequest::default();
@@ -568,6 +612,7 @@ fn malformed_items_from_the_phone_are_left_out() {
         adjustment: SessionAdjustment::default(),
         device: None,
         session: session(ID_A, T),
+        finished_at: None,
     });
     request.bookmarks.push(SyncBookmark {
         id: ID_B.into(),

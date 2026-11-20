@@ -111,14 +111,14 @@ export class ReadingSessionTracker {
     this.started = this.running;
   }
 
-  /** Whether time and reading count now. */
+  /** Whether time and reading count now: not paused, and not stopped for want of progress. */
   get counting() {
-    return this.running;
+    return this.running && !this.idle;
   }
 
-  /** Starts counting, or resumes after a pause. */
+  /** Starts counting, or resumes after a pause or an idle stop. */
   resume() {
-    if (this.running) return;
+    if (this.counting) return;
     const now = this.now();
     if (!this.started) {
       this.started = true;
@@ -214,6 +214,11 @@ export class ReadingSessionTracker {
     }
   }
 
+  /** The units read so far. */
+  get unitsCounted() {
+    return this.unitsRead;
+  }
+
   /** The active time so far, for the Reader's footer. */
   get readingMs() {
     return this.confirmedMs + this.pendingMs;
@@ -229,11 +234,14 @@ export class ReadingSessionTracker {
     return perHour === null ? null : { perHour, unit: this.position.unit };
   }
 
-  /** The session to save, or null while it has no counted book or nothing worth recording. */
-  record(): ReadingSession | null {
+  /**
+   * The session to save, or null while it has no counted book or nothing worth recording.
+   * `saved`, it is returned whatever it holds, so a save is corrected after an idle stop.
+   */
+  record(saved = false): ReadingSession | null {
     const { start, position } = this;
     if (!start || !position || !this.started) return null;
-    if (this.unitsRead <= 0 && this.readingMs < minRecordedMs) return null;
+    if (!saved && this.unitsRead <= 0 && this.readingMs < minRecordedMs) return null;
     const endedAt = Math.max(this.endedAt, this.startedAt);
     return {
       id: this.id,

@@ -19,6 +19,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { MarkCompletedDialog } from "../features/library/MarkCompletedDialog";
 import { EmptyState } from "../components/ui/EmptyState";
 import { NoticeClose } from "../components/ui/NoticeClose";
 import { ToggleSetting } from "../components/ui/ToggleSetting";
@@ -181,6 +182,7 @@ function LibraryContent({ group }: { group: string | null }) {
   const [seriesOpen, setSeriesOpen] = useState(false);
   const [seriesError, setSeriesError] = useState<string | null>(null);
   const [completeError, setCompleteError] = useState<string | null>(null);
+  const [completeOpen, setCompleteOpen] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false);
   // Whether Remove takes the PC's books out of its Library too, not only their copies here.
@@ -469,6 +471,7 @@ function LibraryContent({ group }: { group: string | null }) {
     seriesOpen ||
     bulkRemoveOpen ||
     unreadOpen ||
+    completeOpen ||
     removing !== null ||
     viewOpen ||
     info !== null;
@@ -520,13 +523,18 @@ function LibraryContent({ group }: { group: string | null }) {
    * Has the PC change its books as its own Library does. A sync first sends what was read here
    * of the copies, and one after brings the PC's places back; the PC is listed again.
    */
-  async function changePc(change: "completed" | "unread" | "remove", entries: PcEntry[]) {
+  async function changePc(
+    change: "completed" | "unread" | "remove",
+    entries: PcEntry[],
+    completedAt?: number,
+  ) {
     if (entries.some((entry) => entry.pc.localId !== null)) await autoSync();
     let changed: string[];
     try {
       changed = await changePcBooks(
         change,
         entries.map((entry) => entry.pc.id),
+        completedAt,
       );
     } catch (error) {
       throw new Error(t(pcErrorKey(error), { name: pcName }));
@@ -536,16 +544,17 @@ function LibraryContent({ group }: { group: string | null }) {
     return new Set(changed);
   }
 
-  // Marking completed asks nothing, as on the PC: reading on undoes it.
-  async function markCompleted(books: LibraryBook[], entries: PcEntry[]) {
+  // Marking completed asks only the day they were finished, as on the PC.
+  async function markCompleted(books: LibraryBook[], entries: PcEntry[], completedAt: number) {
     setBusy(true);
     setCompleteError(null);
     try {
       const own = books.filter(canMarkCompleted).map((book) => book.id);
-      if (own.length) await markBooksCompleted(own);
+      if (own.length) await markBooksCompleted(own, completedAt);
       const pcBooks = entries.filter((entry) => canMarkCompleted(entry.book));
-      if (pcBooks.length) await changePc("completed", pcBooks);
+      if (pcBooks.length) await changePc("completed", pcBooks, completedAt);
       await refresh();
+      setCompleteOpen(false);
       cancel();
     } catch (error) {
       setCompleteError(errorMessage(error));
@@ -795,7 +804,10 @@ function LibraryContent({ group }: { group: string | null }) {
             label: t("library.markCompleted"),
             icon: <CheckCircleIcon aria-hidden="true" />,
             disabled: busy,
-            onClick: () => void markCompleted(chosenOwn, chosenPc),
+            onClick: () => {
+              setCompleteError(null);
+              setCompleteOpen(true);
+            },
           },
         ]
       : []),
@@ -872,7 +884,7 @@ function LibraryContent({ group }: { group: string | null }) {
         {relinkNotice ? (
           <RelinkNotice notice={relinkNotice} onClose={() => setRelinkNotice(null)} />
         ) : null}
-        {completeError ? (
+        {completeError && !completeOpen ? (
           <div className="library-notice" role="alert">
             <span>{completeError}</span>
             <NoticeClose onClose={() => setCompleteError(null)} />
@@ -1175,6 +1187,13 @@ function LibraryContent({ group }: { group: string | null }) {
           />
         ) : null}
       </ConfirmDialog>
+      <MarkCompletedDialog
+        busy={busy}
+        error={completeError}
+        onCancel={() => setCompleteOpen(false)}
+        onConfirm={(completedAt) => void markCompleted(chosenOwn, chosenPc, completedAt)}
+        open={completeOpen}
+      />
       <ConfirmDialog
         busy={busy}
         busyLabel={t("library.markingUnread")}

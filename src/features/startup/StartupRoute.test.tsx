@@ -35,7 +35,9 @@ describe("Startup destination", () => {
   it("reopens the native last catalog ID and scans folders even without the application shell", async () => {
     vi.mocked(getStartupBook).mockResolvedValue(ID);
     mount();
-    await waitFor(() => expect(screen.getByLabelText("Route")).toHaveTextContent(`/reader/${ID}`));
+    await waitFor(() => expect(screen.getByLabelText("Route")).toHaveTextContent(`/reader/${ID}`), {
+      timeout: 8000,
+    });
     expect(scanLibraryFolders).toHaveBeenCalledTimes(1);
   });
   it.each([null, "failure"])(

@@ -274,7 +274,7 @@ impl Language {
     /// the wa-, fa-, bi- or ka- joined before it (li- with it is لل), and with a hamza on a bare alif,
     /// ى as ي or ه as ة at the end; Greek also without a second accent (πρόσωπό); Vietnamese also with its
     /// tone marks placed by the older and newer rules (hòa, hoà); Turkish also tries its own lowercase and
-    /// capitalized forms (I: ı, İ: i). Thai, like Japanese and Chinese, does not space its words.
+    /// capitalized forms (I: ı, İ: i), and each without a circumflex (kâğıt: kağıt). Thai, like Japanese and Chinese, does not space its words.
     /// Japanese and Chinese try only the text.
     pub(crate) fn variants(self, text: &str) -> Vec<String> {
         let mut variants = vec![text.to_owned()];
@@ -373,7 +373,17 @@ impl Language {
                     };
                     first + letters.as_str()
                 });
-                vec![lower, capitalized]
+                let mut respelled = vec![lower, capitalized];
+                // Dictionaries keep the circumflex of older spellings (daimî, kâğıt) that books
+                // often leave out, so imports keep the bare spelling as the reading; a start
+                // written with one is also tried bare.
+                let bare: Vec<String> = variants
+                    .iter()
+                    .chain(&respelled)
+                    .filter_map(|variant| without_turkish_circumflex(variant))
+                    .collect();
+                respelled.extend(bare);
+                respelled
             }
             _ => Vec::new(),
         };
@@ -576,6 +586,25 @@ fn arabic_spellings(word: &str) -> Vec<String> {
         }
     }
     spellings
+}
+
+/// Turkish text with â, î and û as a, i and u, or None when it has none. Dictionaries mostly
+/// keep the circumflex of older spellings (daimî, kâğıt, hâlâ) and books mostly leave it out, so
+/// imports into Turkish keep the bare spelling as the reading lookups match.
+pub(crate) fn without_turkish_circumflex(text: &str) -> Option<String> {
+    let bare: String = text
+        .chars()
+        .map(|letter| match letter {
+            'â' => 'a',
+            'î' => 'i',
+            'û' => 'u',
+            'Â' => 'A',
+            'Î' => 'I',
+            'Û' => 'U',
+            other => other,
+        })
+        .collect();
+    (bare != text).then_some(bare)
 }
 
 /// A Greek word with a second accent (πρόσωπό) without it, or None.
@@ -789,6 +818,21 @@ mod tests {
         assert!(variants.contains(&"izmir".to_owned()), "{variants:?}");
         let variants = Language::Turkish.variants("ilk");
         assert!(variants.contains(&"İlk".to_owned()), "{variants:?}");
+    }
+
+    #[test]
+    fn turkish_also_tries_a_start_without_its_circumflex() {
+        let variants = Language::Turkish.variants("Kâğıt");
+        assert!(variants.contains(&"kağıt".to_owned()), "{variants:?}");
+        assert_eq!(
+            super::without_turkish_circumflex("dâimî").as_deref(),
+            Some("daimi")
+        );
+        assert_eq!(super::without_turkish_circumflex("daimi"), None);
+        // French keeps its circumflex.
+        assert!(!Language::French
+            .variants("pâte")
+            .contains(&"pate".to_owned()));
     }
 
     #[test]

@@ -22,6 +22,7 @@ import { i18n, useI18n } from "../i18n/i18n";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { MarkCompletedDialog } from "../features/library/MarkCompletedDialog";
 import { useShellSearchSlot } from "../components/layout/shellSlots";
 import { EmptyState } from "../components/ui/EmptyState";
 import { NoticeClose } from "../components/ui/NoticeClose";
@@ -155,6 +156,11 @@ function LibraryContent({ group }: { group: string | null }) {
   const [unreadError, setUnreadError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
+  // The books Mark as completed asks the day for, and whether they are the selection.
+  const [completeTargets, setCompleteTargets] = useState<{
+    ids: string[];
+    selection: boolean;
+  } | null>(null);
   const [renameError, setRenameError] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -592,13 +598,13 @@ function LibraryContent({ group }: { group: string | null }) {
     }
   }
 
-  // Marking completed asks nothing: the saved position stays, so reading on undoes it.
+  // Marking completed asks only the day they were finished; the saved position stays.
   const markCompleted = useCallback(
-    async (ids: string[]) => {
+    async (ids: string[], completedAt: number) => {
       setCompleting(true);
       setCompleteError(null);
       try {
-        await markBooksCompleted(ids);
+        await markBooksCompleted(ids, completedAt);
         await refresh();
         return true;
       } catch (error) {
@@ -610,10 +616,10 @@ function LibraryContent({ group }: { group: string | null }) {
     },
     [refresh],
   );
-  const requestCompleted = useCallback(
-    (book: LibraryBook) => void markCompleted([book.id]),
-    [markCompleted],
-  );
+  const requestCompleted = useCallback((book: LibraryBook) => {
+    setCompleteError(null);
+    setCompleteTargets({ ids: [book.id], selection: false });
+  }, []);
 
   function cancelSelection() {
     selection.cancel();
@@ -798,7 +804,7 @@ function LibraryContent({ group }: { group: string | null }) {
           </div>
         ) : null}
         {imports.result ? <ImportNotice result={imports.result} onClose={imports.dismiss} /> : null}
-        {completeError ? (
+        {completeError && !completeTargets ? (
           <div className="library-notice" role="alert">
             <span>{t("library.completeFailed", { error: failureText(completeError, t) })}</span>
             <NoticeClose onClose={() => setCompleteError(null)} />
@@ -1002,11 +1008,10 @@ function LibraryContent({ group }: { group: string | null }) {
               <button
                 className="library-selection-bar__button"
                 disabled={!canComplete || completing || Boolean(operation?.active)}
-                onClick={() =>
-                  void markCompleted([...selection.selectedIds]).then(
-                    (marked) => marked && cancelSelection(),
-                  )
-                }
+                onClick={() => {
+                  setCompleteError(null);
+                  setCompleteTargets({ ids: [...selection.selectedIds], selection: true });
+                }}
                 type="button"
               >
                 <CheckCircleIcon aria-hidden="true" size={16} />
@@ -1064,6 +1069,28 @@ function LibraryContent({ group }: { group: string | null }) {
         onConfirm={() => void confirmRemoval()}
         open={removeTarget !== null}
         title={t("library.removeDialogTitle")}
+      />
+      <MarkCompletedDialog
+        busy={completing}
+        error={
+          completeError
+            ? t("library.completeFailed", { error: failureText(completeError, t) })
+            : null
+        }
+        onCancel={() => {
+          setCompleteTargets(null);
+          setCompleteError(null);
+        }}
+        onConfirm={(completedAt) => {
+          const targets = completeTargets;
+          if (!targets) return;
+          void markCompleted(targets.ids, completedAt).then((marked) => {
+            if (!marked) return;
+            setCompleteTargets(null);
+            if (targets.selection) cancelSelection();
+          });
+        }}
+        open={completeTargets !== null}
       />
       <ConfirmDialog
         busy={markingUnread}

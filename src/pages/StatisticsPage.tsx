@@ -35,8 +35,10 @@ import {
   currentStreak,
   dayKey,
   languageBreakdown,
+  libraryCompletions,
   libraryOverview,
   rangePeriods,
+  finishDates,
   speed,
   startOfMonth,
   summarize,
@@ -154,10 +156,19 @@ export function StatisticsPage() {
   }, [loaded, devices, language]);
   const sessions = useMemo(() => loaded?.sessions ?? [], [loaded]);
   const periods = useMemo(() => rangePeriods(range, now), [range, now]);
-  const summary = useMemo(() => summarize(sessions, periods.current), [sessions, periods]);
+  // Books the Library shows completed count as finished, even with no session reading them to the end.
+  const completions = useMemo(
+    () => libraryCompletions(loaded?.books ?? [], sessions),
+    [loaded, sessions],
+  );
+  const summary = useMemo(
+    () => summarize(sessions, periods.current, completions),
+    [sessions, periods, completions],
+  );
+  const finishes = useMemo(() => finishDates(sessions, completions), [sessions, completions]);
   const previous = useMemo(
-    () => (periods.previous ? summarize(sessions, periods.previous) : null),
-    [sessions, periods],
+    () => (periods.previous ? summarize(sessions, periods.previous, completions) : null),
+    [sessions, periods, completions],
   );
   const days = useMemo(() => calendarMonth(sessions, month), [sessions, month]);
   const firstMonth = useMemo(
@@ -325,7 +336,7 @@ export function StatisticsPage() {
         </div>
       </section>
 
-      {summary.books.length ? (
+      {summary.finishedBooks.length ? (
         <section className="statistics-card" aria-labelledby="statistics-books">
           <div className="statistics-card__heading">
             <div>
@@ -333,7 +344,18 @@ export function StatisticsPage() {
               <span>{rangeDescription}</span>
             </div>
           </div>
-          <BookTotals books={summary.books} library={library} />
+          <BookTotals
+            books={summary.finishedBooks}
+            finishes={finishes}
+            library={library}
+            onLibraryChanged={() => void load()}
+            onSessionsChanged={(updated) => {
+              ++loadVersion.current;
+              setData((current) =>
+                typeof current === "object" ? { ...current, sessions: updated } : current,
+              );
+            }}
+          />
         </section>
       ) : null}
 

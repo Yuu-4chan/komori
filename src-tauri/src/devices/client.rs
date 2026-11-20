@@ -409,6 +409,7 @@ impl Client {
         &self,
         change: super::protocol::BookChange,
         ids: &[String],
+        completed_at: Option<i64>,
     ) -> Result<Vec<String>, LinkError> {
         let answer: super::protocol::ChangedBooks = self
             .json(
@@ -416,6 +417,7 @@ impl Client {
                     .json(&super::protocol::ChangeBooks {
                         change,
                         ids: ids.to_vec(),
+                        completed_at,
                     })
                     .timeout(LISTING),
             )

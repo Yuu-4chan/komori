@@ -1,5 +1,6 @@
 import { i18n, useI18n, type MessageKey } from "../../i18n/i18n";
 import {
+  ArrowCounterClockwiseIcon,
   BookOpenTextIcon,
   CaretDownIcon,
   CaretLeftIcon,
@@ -26,10 +27,12 @@ import { createPortal } from "react-dom";
 
 import { DialogCaption } from "../../components/layout/WindowControls";
 import { Button } from "../../components/ui/Button";
+import { IconButton } from "../../components/ui/IconButton";
 import { useBackdropDismiss } from "../../components/ui/backdropDismiss";
 
 import { BookCover } from "../library/BookCover";
-import type { LibraryBook } from "../library/libraryApi";
+import { DayPicker, dayValue, finishedDayTime } from "./DayPicker";
+import { setBookCompletedDate, type LibraryBook } from "../library/libraryApi";
 import {
   bookTitle,
   progressLabel,
@@ -43,10 +46,11 @@ import {
   startOfMonth,
   type ActivitySummary,
   type BookActivity,
+  type BookFinish,
   type CalendarDay,
   type LanguageShare,
 } from "./statistics";
-import type { LibraryKanji } from "./statisticsApi";
+import { setBookFinishedDate, type LibraryKanji, type StoredReadingSession } from "./statisticsApi";
 import { amount } from "../../i18n/amounts";
 import { inlineSign } from "../../i18n/direction";
 
@@ -399,15 +403,29 @@ const BOOKS_PREVIEW = 16;
 export function BookTotals({
   books,
   library,
+  finishes = noFinishes,
+  onLibraryChanged,
+  onSessionsChanged,
 }: {
   books: BookActivity[];
   library: ReadonlyMap<string, LibraryBook>;
+  /** When each finished book was finished. */
+  finishes?: ReadonlyMap<string, BookFinish>;
+  /** Every session, after a book's finished date changed. */
+  onSessionsChanged?: (sessions: StoredReadingSession[]) => void;
+  /** After the finished date of a book with no sessions changed in the Library. */
+  onLibraryChanged?: () => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const [open, setOpen] = useState<BookActivity | null>(null);
   const { t } = useI18n();
   const available = books.filter((book) => library.has(book.bookId));
   const shown = showAll ? available : available.slice(0, BOOKS_PREVIEW);
+  // The open book follows its latest totals, so a changed finished day shows at once; a book
+  // the change moved out of the range keeps the totals it last showed.
+  const latest = open ? books.find((book) => book.bookId === open.bookId) : undefined;
+  if (open && latest && latest !== open) setOpen(latest);
+  const current = latest ?? open;
   return (
     <>
       <ul className="statistics-books">
@@ -448,26 +466,129 @@ export function BookTotals({
           )}
         </button>
       ) : null}
-      {open ? (
+      {current ? (
         <BookStatisticsDialog
-          activity={open}
-          book={library.get(open.bookId)!}
+          activity={current}
+          book={library.get(current.bookId)!}
+          finish={finishes.get(current.bookId) ?? null}
           onClose={() => setOpen(null)}
+          onLibraryChanged={onLibraryChanged}
+          onSessionsChanged={onSessionsChanged}
         />
       ) : null}
     </>
   );
 }
 
-/** One book's totals over the range: time read, sessions, amount read, speed, days and last read. */
+const noFinishes: ReadonlyMap<string, BookFinish> = new Map();
+
+/** The `YYYY-MM-DD` of the local day of `time`. */
+export { finishedDayTime };
+
+export function dateValue(time: number): string {
+  return dayValue(new Date(time));
+}
+
+/**
+ * The day a book was finished, changed in place: a chosen day replaces the day its sessions
+ * read it to the end, and resetting goes back to that day. A book completed without a session
+ * has nowhere to keep a day, so it shows when the Library completed it.
+ */
+function FinishedDate({
+  bookId,
+  keptOn,
+  finish,
+  onLibraryChanged,
+  onSessionsChanged,
+}: {
+  bookId: string;
+  /** Where a chosen day is kept: the book's sessions, its Library progress, or nowhere here. */
+  keptOn: "sessions" | "library" | null;
+  finish: BookFinish | null;
+  onLibraryChanged?: () => void;
+  onSessionsChanged?: (sessions: StoredReadingSession[]) => void;
+}) {
+  const { t, date } = useI18n();
+  const id = useId();
+  const shown = finish ? dateValue(finish.at) : "";
+  const [failed, setFailed] = useState(false);
+  const saving = useRef(0);
+  const save = async (finishedAt: number | null) => {
+    const version = ++saving.current;
+    setFailed(false);
+    try {
+      if (keptOn === "library") {
+        if (finishedAt === null || !(await setBookCompletedDate(bookId, finishedAt)))
+          throw new Error("not completed");
+        if (version === saving.current) onLibraryChanged?.();
+        return;
+      }
+      const sessions = await setBookFinishedDate(bookId, finishedAt);
+      if (version === saving.current) onSessionsChanged?.(sessions);
+    } catch {
+      if (version === saving.current) setFailed(true);
+    }
+  };
+  if (!keptOn)
+    return (
+      <div className="statistics-book-dialog__finished">
+        <span>{t("statisticsCards.finishedDate")}</span>
+        <span>
+          {finish
+            ? date(new Date(finish.at), { dateStyle: "medium" })
+            : t("statisticsCards.finishedNotSet")}
+        </span>
+      </div>
+    );
+  return (
+    <div className="statistics-book-dialog__finished">
+      <label htmlFor={id} id={`${id}-label`}>
+        {t("statisticsCards.finishedDate")}
+      </label>
+      <span>
+        <DayPicker
+          empty={t("statisticsCards.finishedNotSet")}
+          id={id}
+          labelledBy={`${id}-label`}
+          max={dateValue(Date.now())}
+          min="2000-01-01"
+          onChoose={(next) => {
+            const time = finishedDayTime(next);
+            if (time !== null) void save(time);
+          }}
+          value={shown}
+        />
+        {finish?.set && keptOn === "sessions" ? (
+          <IconButton
+            compact
+            label={t("statisticsCards.resetFinishedDate")}
+            onClick={() => void save(null)}
+            quiet
+          >
+            <ArrowCounterClockwiseIcon aria-hidden="true" size={16} />
+          </IconButton>
+        ) : null}
+      </span>
+      {failed ? <small role="alert">{t("statisticsCards.finishedDateFailed")}</small> : null}
+    </div>
+  );
+}
+
+/** A finished book's totals over all its sessions: time read, sessions, amount read, speed, days and last read. */
 function BookStatisticsDialog({
   activity,
   book,
+  finish,
   onClose,
+  onLibraryChanged,
+  onSessionsChanged,
 }: {
   activity: BookActivity;
   book: LibraryBook;
+  finish: BookFinish | null;
   onClose: () => void;
+  onLibraryChanged?: () => void;
+  onSessionsChanged?: (sessions: StoredReadingSession[]) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -535,6 +656,14 @@ function BookStatisticsDialog({
             </div>
           ))}
         </dl>
+        <FinishedDate
+          bookId={activity.bookId}
+          // A PC's book shown on the phone keeps its day on the PC.
+          keptOn={activity.sessions > 0 ? "sessions" : book.fromPc ? null : "library"}
+          onLibraryChanged={onLibraryChanged}
+          finish={finish}
+          onSessionsChanged={onSessionsChanged}
+        />
         <div className="confirm-dialog__actions">
           <Button data-dialog-cancel onClick={onClose} tone="secondary">
             {t("common.close")}

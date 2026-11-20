@@ -62,7 +62,7 @@ by default, makes series in this order: what you set by hand, then numbered file
 (`Harry Potter 1.epub`, `Harry Potter 2.epub`, `09 Title.epub`, `【小説9巻】Title～…～第三部….epub` and `【2】Title - Author.epub`, ignoring a copy's `(1)`, notes such as `(2020)`, a checksum or the sites it was downloaded from, and the store tags titles drop, such as `【電子版限定特典付き】`, spelled as the books' titles spell the same words, taking the number after `Vol`, `Volume` or `第` before a later year, as in `Baccano! - Vol 13 - 2002`, and leaving to the titles file names that only spell a Japanese title's katakana reading or that a few files name apart from the series their titles name, such as `SUN_6.epub`),
 then a book's own series, then numbered volumes sharing a title (`Title 01`, `Title 02`), full-width
 or not, with Roman numerals and numeral signs anywhere beside Japanese text (`キノの旅XIV the Beautiful World`, `Title（Ⅳ）Subtitle`; after Latin words only closing the title or before `:`, `,` or `-`), circled numbers (`Title①`), kanji volumes (`四巻`, `一〇巻`), （上）/〔下〕/` 中` parts and volumes whose title adds a subtitle
-(`Title～Subtitle～01`), or a spin-off named by the subtitle after its number (`Title２　Subtitle`, though not an edition note such as `11 特装版【…】`), keeping a title's own ＜＞ and ！？ in the series name; a lone numbered volume pairs with the book whose whole title is its name (`Title` and `Title２`), a book titled the series' name is its volume 1 when the series has none, and other books whose titles start with a series' name and a space, subtitle mark or bracket (after Latin letters, `:`, `,`, `-` or ` (`) join it as side stories without a volume (`Title　Side Story`, `Title: Short Stories`) unless a number follows, as numbered spin-offs keep their own series; books ending in the same `「Name」シリーズ` share it; and off leaves only series set by hand; Stop on the adding notice ends an import between two books, keeping those already added; Mark as completed from a card's menu or the selection; per-card selection boxes
+(`Title～Subtitle～01`), or a spin-off named by the subtitle after its number (`Title２　Subtitle`, though not an edition note such as `11 特装版【…】`), keeping a title's own ＜＞ and ！？ in the series name; a lone numbered volume pairs with the book whose whole title is its name (`Title` and `Title２`), a book titled the series' name is its volume 1 when the series has none, and other books whose titles start with a series' name and a space, subtitle mark or bracket (after Latin letters, `:`, `,`, `-` or ` (`) join it as side stories without a volume (`Title　Side Story`, `Title: Short Stories`) unless a number follows, as numbered spin-offs keep their own series; books ending in the same `「Name」シリーズ` share it; and off leaves only series set by hand; Stop on the adding notice ends an import between two books, keeping those already added; Mark as completed from a card's menu or the selection, asking the day they were finished (today by default; the book stays completed while read on, until Mark as unread); per-card selection boxes
 (Continue reading stays while selecting) with bulk removal,
 relink and import with native progress. Drop EPUB files from Windows Explorer anywhere
 on the Library to add them; a drag overlay shows the accepted file type or a busy
@@ -124,8 +124,10 @@ back. The search stays in the top bar even in an empty Library.
   A click in the book or Space finishes the reveal, then reads on.
 - **Footer.** Book and chapter position and percentage in a lower pill with reading speed;
   clock and session reading time in an upper pill, with the session's play/stop button
-  between them while statistics are recorded (alone with Manual start); both center over the available
-  reading area, including while the sidebar is pinned. Empty pills disappear.
+  between them while statistics are recorded (alone with Manual start); resting on either pill
+  shows this session's time, amount and speed, the book's progress, time, sessions,
+  days, amount and speed, and what is left with the time it takes at each speed; both center
+  over the available reading area, including while the sidebar is pinned. Empty pills disappear.
 - **Images.** The book's illustrations as cards and a modal viewer with zoom, rotation,
   reset, panning, pinch to zoom on a touch screen and Go to location, fitting the picture to the window but enlarging a small one no more than three times; clicking an unblurred book image opens it.
 - **Find in book.** Whole book or this chapter, up to 100 results with excerpts.
@@ -215,8 +217,11 @@ Only look up Japanese/CJK text, the kanji entry and JapanesePod101 are for Japan
 
 Range menu; reading activity metrics (characters or words read, time, speed per hour,
 books finished); the daily activity calendar with day details and editable daily
-books (right-click or pencil); Books read in the range as covers, most time first, each opening
-a popup with its time, sessions, characters or words read, speed, days read and last read;
+books (right-click or pencil); Books read: the books finished in the range as covers (read to
+the end, or shown completed in the Library: marked completed or moved to the end), the last
+finished first, each opening a popup with its time, sessions, characters or words read, speed,
+days read, last read and the day it was finished, chosen in a calendar (it then counts as
+finished on that day) or reset (a book completed without a session keeps its day in the Library, with no reset);
 Library overview, language breakdown, completion
 and the character explorer whose tiles open their Dictionary search.
 Completion shows 300 books until Show all.
@@ -224,7 +229,8 @@ Reader statistics pause while Komori's window is unfocused, hidden or minimized
 and resume on returning; P pauses and resumes a session in every start mode, and a
 paused session stays paused. After the minutes set in Settings > Statistics (default 5,
 0 never) without reading forward, counting stops and that stretch is dropped, so time
-away never lowers the speed.
+away never lowers the speed; the play button then shows, and reading forward or the button
+counts again.
 
 ## Settings
 

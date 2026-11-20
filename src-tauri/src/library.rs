@@ -88,6 +88,10 @@ pub struct BookProgress {
     pub(crate) unit: String,
     pub(crate) current: i64,
     pub(crate) total: i64,
+    /// When the book was marked completed: its later saves stay at the end until Mark as unread.
+    /// Left out when unset, so older Komori and existing sync and backup data read it unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) completed_at: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -583,6 +587,19 @@ pub(crate) fn open_catalog(path: &Path) -> Result<Connection, String> {
              );",
         )
         .map_err(storage_error)?;
+    let has_completed_at: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('book_progress')
+                            WHERE name = 'completed_at')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(storage_error)?;
+    if !has_completed_at {
+        connection
+            .execute_batch("ALTER TABLE book_progress ADD COLUMN completed_at TEXT;")
+            .map_err(storage_error)?;
+    }
     // Covers are stored inline before `imported_at` and `cover_revision`; the index lets listings
     // read both without walking every cover's pages. Older Komori versions open it unchanged.
     connection
@@ -616,7 +633,7 @@ const BOOK_COLUMNS: &str = "books.id, books.source_path, books.file_name,
                             CASE WHEN named.book_id IS NULL THEN NULL ELSE books.title END,
                             named.book_id IS NOT NULL,
                             CASE WHEN authored.book_id IS NULL THEN NULL ELSE books.author END,
-                            authored.book_id IS NOT NULL";
+                            authored.book_id IS NOT NULL, progress.completed_at";
 const BOOK_SOURCE: &str = "books
      LEFT JOIN book_progress AS progress ON progress.book_id = books.id
      LEFT JOIN reading_positions AS position ON position.book_id = books.id
@@ -1018,7 +1035,7 @@ fn library_book_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LibraryBoo
         availability: source_availability(&source_path),
         has_cover,
         cover_url,
-        progress: book_progress_from_columns(row.get(7)?, row.get(8)?, row.get(9)?),
+        progress: book_progress_from_columns(row.get(7)?, row.get(8)?, row.get(9)?, row.get(23)?),
         last_read_at: row.get(10)?,
         language: row.get(12)?,
         series: row.get(13)?,
@@ -1036,11 +1053,13 @@ fn book_progress_from_columns(
     unit: Option<String>,
     current: Option<i64>,
     total: Option<i64>,
+    completed_at: Option<String>,
 ) -> Option<BookProgress> {
     let progress = BookProgress {
         unit: unit?,
         current: current?,
         total: total?,
+        completed_at,
     };
     progress.is_valid().then_some(progress)
 }
@@ -2488,6 +2507,7 @@ pub(crate) mod tests {
             unit: "characters".into(),
             current: 250,
             total: 1000,
+            completed_at: None,
         };
         assert!(reading_position::save_progress_to(&connection, &book.id, &progress).unwrap());
         let listed = get_book_from_catalog(&connection, &book.id)
@@ -2500,6 +2520,36 @@ pub(crate) mod tests {
             serde_json::json!({ "unit": "characters", "current": 250, "total": 1000 })
         );
         assert!(serialized["lastReadAt"].is_string());
+
+        // Marked completed, it lists the day it was marked.
+        reading_position::mark_completed(
+            &connection,
+            std::slice::from_ref(&book.id),
+            None,
+            crate::reading_sessions::now_ms(),
+        )
+        .unwrap();
+        connection
+            .execute(
+                "UPDATE book_progress SET completed_at = '2026-01-02T03:04:05.000Z'",
+                [],
+            )
+            .unwrap();
+        let serialized = serde_json::to_value(
+            get_book_from_catalog(&connection, &book.id)
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            serialized["progress"],
+            serde_json::json!({
+                "unit": "characters",
+                "current": 1000,
+                "total": 1000,
+                "completedAt": "2026-01-02T03:04:05.000Z"
+            })
+        );
 
         // A malformed stored row lists as no progress rather than failing the Library.
         connection

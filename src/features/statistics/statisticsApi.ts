@@ -13,6 +13,8 @@ export interface StoredReadingSession extends ReadingSession {
   adjustment?: { unitsDelta: number; activeMsDelta: number };
   /** The device that read it, when another one did: a phone on the PC, the PC on a phone. */
   device?: string;
+  /** When the reader set the book as finished, on the book's latest session only. */
+  finishedAt?: number;
 }
 
 /** A device whose reading sessions this one holds, by the name it last had. */
@@ -118,7 +120,7 @@ export function normalizeSession(value: unknown): StoredReadingSession | null {
   if (!value || typeof value !== "object") return null;
   const session = value as Record<string, unknown>;
   const { bookId, id, startedAt, endedAt, activeMs, unit, bookTitle, finishCleared } = session;
-  const { unitsRead, startUnits, endUnits, totalUnits, device } = session;
+  const { unitsRead, startUnits, endUnits, totalUnits, device, finishedAt } = session;
   if (typeof bookId !== "string" || !uuid.test(bookId)) return null;
   if (typeof id !== "string" || !uuid.test(id)) return null;
   if (unit !== "characters" && unit !== "words") return null;
@@ -146,6 +148,7 @@ export function normalizeSession(value: unknown): StoredReadingSession | null {
     bookTitle: typeof bookTitle === "string" && bookTitle.trim() ? bookTitle : null,
     finishCleared: finishCleared === true,
     ...(typeof device === "string" && uuid.test(device) ? { device } : {}),
+    ...(validFinishTime(finishedAt) ? { finishedAt } : {}),
     ...(adjustment
       ? {
           adjustment: {
@@ -155,6 +158,37 @@ export function normalizeSession(value: unknown): StoredReadingSession | null {
         }
       : {}),
   };
+}
+
+const earliestFinish = Date.UTC(2000, 0, 1);
+
+/** A time a book can have been finished at: from 2000 to a day from now. */
+export function validFinishTime(value: unknown, now = Date.now()): value is number {
+  return count(value) && value >= earliestFinish && value <= now + 86_400_000;
+}
+
+/** One book's sessions, oldest first, for the Reader. */
+export async function listBookReadingSessions(bookId: string): Promise<StoredReadingSession[]> {
+  if (!isTauri() || !uuid.test(bookId)) return [];
+  const listed = await invoke<unknown>("list_book_reading_sessions", { bookId });
+  if (!Array.isArray(listed)) return [];
+  return listed.flatMap((value) => normalizeSession(value) ?? []);
+}
+
+/**
+ * Sets the day a book was finished, or with null leaves its sessions to say so again, and
+ * returns every session.
+ */
+export async function setBookFinishedDate(
+  bookId: string,
+  finishedAt: number | null,
+): Promise<StoredReadingSession[]> {
+  if (!isTauri()) throw new Error(i18n().t("statistics.desktopOnly"));
+  if (finishedAt !== null && !validFinishTime(finishedAt))
+    throw new Error(i18n().t("statisticsCards.finishedDateFailed"));
+  const listed = await invoke<unknown>("set_book_finished_date", { bookId, finishedAt });
+  if (!Array.isArray(listed)) throw new Error(i18n().t("statisticsCards.finishedDateFailed"));
+  return listed.flatMap((value) => normalizeSession(value) ?? []);
 }
 
 export async function listReadingSessions(): Promise<StoredReadingSession[]> {
