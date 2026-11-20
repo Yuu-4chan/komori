@@ -10,10 +10,16 @@ use super::{affix, deinflect_bounded, Candidate, Rule, RuleSet, MAX_STEPS};
 
 /// A word as dictionaries list it.
 pub(crate) const W: u32 = 1;
-/// A word whose particles are off.
+/// A word whose particle (-lah, -kah, -pun, -tah) is off, which may still have a pronoun.
 const PARTICLE: u32 = 1 << 1;
 /// A word whose suffix is off, which may still have a prefix.
 const SUFFIX: u32 = 1 << 2;
+/// A word whose pronoun (-nya, -ku, -mu) is off.
+const PRONOUN: u32 = 1 << 3;
+/// The searched text only: no rule gives it, so a particle comes off first or not at all.
+const SEARCHED: u32 = 1 << 4;
+/// A word that may still have a suffix or prefix.
+const AFFIXED: u32 = PARTICLE | PRONOUN;
 /// The word classes a term's rules can name.
 pub(crate) const DICTIONARY_FORMS: u32 = W;
 
@@ -35,15 +41,21 @@ const NASAL: &[(&str, &[&str])] = &[
 
 static RULES_LIST: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     let mut rules = Vec::new();
-    for particle in ["nya", "lah", "kah", "pun", "tah", "ku", "mu"] {
+    // A particle follows a pronoun (bukumulah), and a word has one of each at most, so
+    // bukunya is buku and not bu with -ku and -nya.
+    for particle in ["lah", "kah", "pun", "tah"] {
         let name: &'static str = format!("-{particle}").leak();
-        rules.push(affix(name, "", "", particle, "", PARTICLE, PARTICLE | W));
+        rules.push(affix(name, "", "", particle, "", SEARCHED, PARTICLE | W));
+    }
+    for pronoun in ["nya", "ku", "mu"] {
+        let name: &'static str = format!("-{pronoun}").leak();
+        rules.push(affix(name, "", "", pronoun, "", SEARCHED | PARTICLE, PRONOUN | W));
     }
     for suffix in ["kan", "i", "an"] {
         let name: &'static str = format!("-{suffix}").leak();
-        rules.push(affix(name, "", "", suffix, "", PARTICLE, SUFFIX | W));
+        rules.push(affix(name, "", "", suffix, "", AFFIXED, SUFFIX | W));
     }
-    let prefixes = PARTICLE | SUFFIX;
+    let prefixes = AFFIXED | SUFFIX;
     for (nasal, restored) in NASAL {
         for &letter in *restored {
             for (start, name) in [("me", "meN-"), ("pe", "peN-"), ("memper", "memper-")] {
@@ -54,7 +66,7 @@ static RULES_LIST: LazyLock<Vec<Rule>> = LazyLock::new(|| {
                 rules.push(affix(name, prefix, letter, "", "", prefixes, W));
                 if start == "pe" {
                     // peN-…-an: pembacaan, penulisan.
-                    rules.push(affix("peN-an", prefix, letter, "an", "", PARTICLE, W));
+                    rules.push(affix("peN-an", prefix, letter, "an", "", AFFIXED, W));
                 }
             }
         }
@@ -65,7 +77,7 @@ static RULES_LIST: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     }
     for prefix in ["ke", "per", "ber"] {
         let name: &'static str = format!("{prefix}-an").leak();
-        rules.push(affix(name, prefix, "", "an", "", PARTICLE, W));
+        rules.push(affix(name, prefix, "", "an", "", AFFIXED, W));
     }
     rules
 });
@@ -116,5 +128,9 @@ mod tests {
         ] {
             assert!(finds(text, base), "{text}: {:?}", deinflect(text));
         }
+        assert!(finds("bukumulah", "buku"));
+        // One pronoun and one particle at most.
+        assert!(!finds("bukunya", "bu"));
+        assert!(!finds("bacalahkah", "baca"));
     }
 }
