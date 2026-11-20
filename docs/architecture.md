@@ -1528,12 +1528,31 @@ publisher colors, use a soft yellow note highlight.
 
 ## Lookup language
 
-The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko`, `zh`, `de` or `ru`, default `ja`; anything else is dropped, so
+The appearance record's `lookupLanguage` (`ja`, `en`, `fr`, `pt`, `it`, `es`, `ko`, `zh`, `de`, `ru`, `nl`, `pl`, `sv`, `nb`,
+`da`, `fi`, `el`, `tr`, `ar`, `hi`, `th`, `vi` or `id`, default `ja`; anything else is dropped, so
 older records read as Japanese) is the language every lookup reads text in. Settings >
 Dictionary chooses it as Lookup language, above that language's dictionaries; the Reader popup, its
 child popups, the Dictionary page, Anki and word audio follow it at once. The frontend sends
 `language` to `lookup_terms` and `lookup_kanji` only when it is not Japanese, and native code
 reads it as `Language` (`src-tauri/src/dictionary/language.rs`), Japanese when absent.
+
+Dutch, Polish, Swedish, Norwegian (Bokmål), Danish, Finnish, Greek, Turkish, Arabic, Hindi, Thai,
+Vietnamese and Indonesian have no deinflection rules: their lookups find dictionary forms and the
+inflected forms their dictionaries list as entries of their own. Dictionaries mostly write Arabic
+headwords with their short vowels (U+064B–U+065F, U+0670) and books mostly without, so an import
+stores a reading's bare spelling (`without_arabic_marks`, also dropping tatweel) as the reading, and
+Arabic starts are also tried bare and without the article al- and the wa-, fa-, bi- or ka- joined
+before it (li- with it is لل), so والكتاب finds كِتَاب, and with the spellings books simplify (a
+hamza added to the first bare alif, a final ى as ي and ه as ة). Greek starts are also tried without a
+second accent (πρόσωπό μου), and Vietnamese ones with each syllable's tone mark placed by the older
+and the newer rules (hòa/hoà, thủy/thuỷ: `vietnamese_tones`). Dictionaries imported before these languages
+keep their readings and their language (Japanese) until moved or imported again. Turkish starts are
+also tried in Turkish lowercase and capitalization (I: ı, İ: i). Word boundaries count combining marks (a virama, Arabic short vowels)
+and ZWNJ/ZWJ as part of the word. Thai, like Japanese and Chinese, does not space its words, so its
+lookups read on from the pointer and `sentenceAt` ends its sentences at whitespace; Arabic-script
+marks (؟ ۔), the danda (। ॥) and Greek's question mark (;) end the other languages' sentences.
+Books and dictionaries naming these languages by three-letter codes (`nld`/`dut`, `nob`/`nor`,
+`ell`/`gre`, `ara`/`arb`, …) are read as them; Nynorsk (`nn`) is not Bokmål.
 
 A language decides its deinflection rules and word classes, the spellings of a start a lookup
 also tries, whether starts end at word boundaries, which dictionaries it uses, and whether the
@@ -1574,7 +1593,7 @@ participles of regular verbs with their spelling changes (fiquei → ficar, cerc
 adjective plurals, feminines, diminutives, superlatives and adverbs in -mente. Their tense rules
 take only the scanned text or a verb a pronoun was removed from (class `VF`, never a dictionary
 form), so a dictionary form never takes a second tense. Irregular verbs come from the
-dictionaries' own form entries, as in English. Every language but Japanese spaces its words, so
+dictionaries' own form entries, as in English. Every language but Japanese, Chinese and Thai spaces its words, so
 its starts end at word boundaries and are tried with the same apostrophe and capitalization
 spellings as English; French, Italian and Portuguese also try a start without the elided word that
 begins it (l', d', qu'; dell', un'; d', n'), so l'homme finds homme. Their classes are `v`, `n`, `adj` and `adv`
@@ -1620,6 +1639,52 @@ removed first to class `VF` (a verb form, never a dictionary form), which the ve
 continue from. Irregular forms rely on the dictionaries' own form entries. A Russian lookup also
 tries each spelling without its stress marks (U+0301), with ё as е and with each one е as ё. Its classes
 are `v`, `n` and `adj`.
+
+Arabic (`deinflect/ar.rs`, from `ext/js/language/ar/arabic-transforms.js` at commit d3c54c1) takes
+the particles و ف ب ك ل and the article ال off a noun (لل before a stem not starting with ل, or ل
+
+- ال assimilated before one that does), then its possessive pronouns, ة, duals and sound plurals;
+  a perfect verb's person suffixes and object pronouns, after و ف ل; an imperfect verb's person
+  prefix and suffix together, with the particles و ف س ل and object pronouns joined to them, also
+  tried with أ and ا before the stem (يكرم → أكرم, يستخدمون → استخدم); and an imperative's. Each rule
+  of this kind (an affix rule) takes a prefix and suffix off a stem of letters, with the stem's
+  first or last letter guarded where the transforms guard it, and is indexed by its suffix's last
+  letter or else its prefix's first. Arabic keeps up to 256 candidates. A prefix's inflection name
+  is the prefix itself (ال-, وال-); the others are `possessive`, `feminine`, `plural`, `case`,
+  `past`, `present` and `imperative`, and a dual's suffix (-ان). Its classes are `n` and `v` (perfect,
+  imperfect and imperative forms alike). The rules read the bare spelling imports store as the
+  reading.
+
+Komori's own rules cover the other inflecting lookup languages, whose Wiktionary dictionaries
+name no word classes and list most inflected forms as form entries. A rule candidate that a
+dictionary lists as a form entry leads on to the word that entry names, with the entry's
+inflection names before the rules' (talossanikin: talossa, then talo as singular inessive,
+possessive, -kin). Turkish (`deinflect/tr.rs`) takes a noun's or adjective's plural, possessive,
+case and copula suffixes off in any order, restoring a softened final consonant (kitabı → kitap)
+and dropping a proper noun's apostrophe, and a verb's tense with its person ending, participle or
+converb, then its negative, ability, passive and causative suffixes, adding -mek or -mak
+(gideceğim → gitmek); its suffixes are written once with harmony letters (`I`, `A`, `D`, `C`) and
+a tense is named by its suffix (-iyor). Finnish (`deinflect/fi.rs`) takes clitics and then one
+possessive suffix off. Swedish, Norwegian and Danish (`deinflect/nordic.rs`) take a genitive -s off
+a stem not ending in s, x or z. Polish (`deinflect/pl.rs`) has verbs' past, conditional and regular
+present endings and adjectives' case endings with naj-. Greek (`deinflect/el.rs`) has ξανα- (from
+`ext/js/language/el/modern-greek-transforms.js` at commit d3c54c1), -ος endings and regular present
+endings, and its `past_tenses` reads regular imperfects and aorists outside the rule table, since
+their accent moves: accents are ignored, an augment ε- or η- may be dropped, an aorist's ψ, ξ or σ
+gives the present stems it may come from, and the verb's accent goes back on its stem's last vowel
+(έγραψα → γράφω, διάβασα → διαβάζω, ερχόμουν → έρχομαι) or its contracted ending (αγάπησε → αγαπώ,
+αγαπάω), also after ξανα-. Indonesian (`deinflect/id.rs`) takes a particle (-lah, -kah, -pun, -tah)
+and then a pronoun (-nya, -ku, -mu) off, one of each at most, then -kan, -i or -an, then a
+prefix (meN- and peN- restoring the stem's first letter, di-, ber-, ke-) or a prefix and suffix
+together (ke-…-an), each named by the affix. Dutch (`deinflect/nl.rs`) has nouns' plurals and
+diminutives, adjectives' -e, comparative and superlative, and regular verbs' present, past and ge-…-t
+participle, which give the stem and then -en, each restoring a respelled last syllable (bomen →
+boom, huizen → huis, loopt → lopen, zit → zitten). Hindi (`deinflect/hi.rs`) has nouns' plural and
+oblique endings, adjectives' agreement, and verbs' habitual, perfect, future (named -गा),
+subjunctive, imperative and conjunctive endings, which give the stem and then -ना, plus the
+irregular perfects of करना, जाना, देना and लेना; endings with a chandrabindu also match an anusvara.
+Turkish keeps up to 256 candidates, and Indonesian, Dutch and Hindi 128. Thai and Vietnamese do not
+inflect, so they have no rules. A rule without a name (a sound change) adds no inflection name.
 
 A candidate from a language's rules must be a term its rules allow. Japanese dictionaries name
 every inflecting word's class, so a term must name the candidate's. Other languages' dictionaries

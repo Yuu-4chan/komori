@@ -25,10 +25,13 @@ use crate::reader_fonts::FontChoice;
 use crate::word_audio::AudioSource;
 
 /// The languages lookups deinflect and choose dictionaries for (`dictionary::language`).
-const LOOKUP_LANGUAGES: [&str; 10] = ["ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru"];
-const DEFINITION_LANGUAGES: [&str; 20] = [
-    "ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru", "cs", "el", "id", "ku", "ms", "nl",
-    "pl", "th", "tr", "vi",
+const LOOKUP_LANGUAGES: [&str; 23] = [
+    "ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru", "nl", "pl", "sv", "nb", "da", "fi",
+    "el", "tr", "ar", "hi", "th", "vi", "id",
+];
+const DEFINITION_LANGUAGES: [&str; 26] = [
+    "ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru", "nl", "pl", "sv", "nb", "da", "fi",
+    "el", "tr", "ar", "hi", "th", "vi", "id", "cs", "ku", "ms",
 ];
 const POPUP_SHORTCUTS: [&str; 3] = ["shift-enter", "alt-x", "ctrl-space"];
 const POPUP_MOUSE_TRIGGERS: [&str; 4] = ["left", "double", "shift-right", "middle"];
@@ -2186,7 +2189,7 @@ mod tests {
     fn a_stored_lookup_language_is_kept_only_when_known() {
         for stored in [
             serde_json::json!({}),
-            serde_json::json!({"lookupLanguage": "nl"}),
+            serde_json::json!({"lookupLanguage": "jv"}),
             serde_json::json!({"lookupLanguage": 1}),
         ] {
             assert_eq!(
@@ -2194,7 +2197,7 @@ mod tests {
                 None
             );
         }
-        for language in ["ja", "en", "fr", "pt", "it", "es", "ko", "zh", "de", "ru"] {
+        for language in super::LOOKUP_LANGUAGES {
             let stored = serde_json::json!({ "lookupLanguage": language });
             assert_eq!(
                 super::AppearancePreferences::from_stored(&stored)

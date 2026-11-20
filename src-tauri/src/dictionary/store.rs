@@ -34,7 +34,7 @@ use super::archive::{
     BankKind, DictionaryArchive, DictionaryArchiveError, TermEntry, TermMetaMode,
 };
 use super::deinflect::ja::{self, VS};
-use super::language::Language;
+use super::language::{without_arabic_marks, Language};
 use super::sources::SourcePolicy;
 
 const SCHEMA_VERSION: i64 = 9;
@@ -1215,9 +1215,16 @@ fn add_transcriptions(
 /// Whether `start`, a start of `query`, ends a word: it does not end in a space, and the query
 /// ends with it or goes on with a character that is not a letter, digit or apostrophe (`looked`
 /// in `looked up`, `up` in `up.`, but not `look` in `looked` or `cat` in `cat's`).
+static COMBINING_MARK: std::sync::LazyLock<regex::Regex> =
+    std::sync::LazyLock::new(|| regex::Regex::new(r"^\p{M}$").expect("valid pattern"));
+
 fn ends_word(query: &str, start: &str) -> bool {
-    let word =
-        |character: char| character.is_alphanumeric() || matches!(character, '\'' | '\u{2019}');
+    // Combining marks (a virama, a nukta, Arabic short vowels) and joiners belong to their word.
+    let word = |character: char| {
+        character.is_alphanumeric()
+            || matches!(character, '\'' | '\u{2019}' | '\u{200C}' | '\u{200D}')
+            || COMBINING_MARK.is_match(character.encode_utf8(&mut [0; 4]))
+    };
     !start.ends_with(char::is_whitespace)
         && query[start.len()..]
             .chars()
@@ -1390,8 +1397,28 @@ fn add_start_groups(
                 inflections: form.inflections.iter().map(|&name| name.into()).collect(),
             };
             let mut found = exact_groups(connection, text, filter, sources, limits)?;
+            // A candidate a dictionary lists as a form leads on to the word it is a form of
+            // (Finnish talossanikin: talossa, a form of talo).
+            let mut candidate_lemmas = Vec::new();
+            for term in found.iter().flat_map(|group| &group.terms) {
+                if term.is_form_entry() {
+                    add_form_lemmas(term, &mut candidate_lemmas, limits)?;
+                }
+            }
             drop_form_entries(&mut found);
             add(found, Some(&deinflection));
+            for lemma in candidate_lemmas {
+                let mut found =
+                    exact_groups(connection, &lemma.form, TermFilter::All, sources, limits)?;
+                drop_form_entries(&mut found);
+                let mut inflections = lemma.inflections;
+                inflections.extend(deinflection.inflections.iter().cloned());
+                let deinflection = Deinflection {
+                    form: lemma.form,
+                    inflections,
+                };
+                add(found, Some(&deinflection));
+            }
         }
     }
     if language.is_japanese() {
@@ -2555,7 +2582,9 @@ fn write_dictionary(
             statement.execute(params![
                 dictionary,
                 term.expression,
-                term.reading,
+                without_arabic_marks(&term.reading)
+                    .as_deref()
+                    .unwrap_or(&term.reading),
                 term.definition_tags,
                 term.rules,
                 term.score,
@@ -2732,6 +2761,17 @@ mod tests {
     use sha2::{Digest, Sha256};
     use std::{io::Read, time::Instant};
     use tempfile::tempdir;
+
+    #[test]
+    fn a_start_ends_a_word_only_before_a_letter_free_boundary() {
+        assert!(ends_word("cat sat", "cat"));
+        assert!(!ends_word("cats", "cat"));
+        // A virama, an Arabic short vowel or a joiner still belongs to the word before it.
+        assert!(!ends_word("नमस्ते", "नमस"));
+        assert!(!ends_word("كِتَاب", "ك"));
+        assert!(!ends_word("می\u{200C}روم", "می"));
+        assert!(ends_word("كتاب جديد", "كتاب"));
+    }
 
     #[test]
     fn bulk_progress_counts_refused_imports_and_automatically_reclaims_partial_removals() {
@@ -4917,6 +4957,59 @@ mod tests {
     }
 
     #[test]
+    fn a_rule_candidate_listed_as_a_form_leads_to_the_word_it_is_a_form_of() {
+        let directory = tempdir().unwrap();
+        let words = fixture_with(
+            directory.path(),
+            "fi.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"fi","revision":"1","format":3,"sourceLanguage":"fi"}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["talo","","","",0,["house"],1,""],
+                        ["talossa","","non-lemma","",0,[["talo",["singular inessive"]]],2,""]]"#,
+                ),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        let (status, _) = import_one_into(&mut connection, &words, Language::Japanese);
+        assert_eq!(status, ImportStatus::Imported);
+        let sources =
+            language_sources(&connection, &SourcePolicy::default(), Language::Finnish).unwrap();
+        let found = lookup_longest_start_in(
+            &connection,
+            "talossanikin",
+            &sources,
+            Language::Finnish,
+            None,
+            GLOSSARY_LIMITS,
+        )
+        .unwrap();
+        let groups: Vec<_> = found
+            .groups
+            .into_iter()
+            .map(|group| (group.expression, group.deinflection))
+            .collect();
+        assert_eq!(
+            groups,
+            [(
+                "talo".to_owned(),
+                Some(Deinflection {
+                    form: "talo".into(),
+                    inflections: vec![
+                        "singular inessive".into(),
+                        "possessive".into(),
+                        "-kin".into()
+                    ],
+                })
+            )]
+        );
+    }
+
+    #[test]
     fn entries_carry_their_languages_enabled_transcriptions() {
         let directory = tempdir().unwrap();
         let archive = |name: &str, bank: &str, data: &str| {
@@ -6270,7 +6363,7 @@ mod tests {
             tagged("French", Some("fr")),
             tagged("Spanish", Some("es")),
             tagged("German", Some("de")),
-            tagged("Dutch", Some("nl")),
+            tagged("Javanese", Some("jv")),
             tagged("Untagged", None),
         ];
         {
@@ -6301,10 +6394,70 @@ mod tests {
                 ("French".to_owned(), Language::French),
                 ("Spanish".to_owned(), Language::Spanish),
                 ("German".to_owned(), Language::German),
-                ("Dutch".to_owned(), Language::Japanese),
+                ("Javanese".to_owned(), Language::Japanese),
                 ("Untagged".to_owned(), Language::Japanese),
             ]
         );
+    }
+
+    #[test]
+    fn arabic_headwords_keep_their_bare_spelling_as_the_reading_lookups_match() {
+        let directory = tempdir().unwrap();
+        let database = directory.path().join(DATABASE_FILE_NAME);
+        let tagged = |name: &str, language: &str, terms: &str| {
+            let index = format!(
+                r#"{{"title":"{name}","revision":"1","format":3,"sourceLanguage":"{language}"}}"#
+            );
+            fixture_with(
+                directory.path(),
+                &format!("{name}.zip"),
+                &[("index.json", &index), ("term_bank_1.json", terms)],
+            )
+        };
+        let paths = [tagged(
+            "Arabic",
+            "ar",
+            r#"[["كِتَابٌ","","n","",0,["book"],1,""],["قلم","","n","",0,["pen"],2,""]]"#,
+        )];
+        let readings = |connection: &Connection| {
+            connection
+                .prepare("SELECT expression, reading FROM terms ORDER BY rowid")
+                .unwrap()
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .unwrap()
+                .collect::<Result<Vec<(String, String)>, _>>()
+                .unwrap()
+        };
+        {
+            let mut connection = open_store(&database).unwrap();
+            for path in &paths {
+                assert_eq!(
+                    import_one_into(&mut connection, path, Language::Japanese).0,
+                    ImportStatus::Imported
+                );
+            }
+            assert_eq!(
+                readings(&connection),
+                [
+                    ("كِتَابٌ".to_owned(), "كتاب".to_owned()),
+                    ("قلم".to_owned(), "قلم".to_owned()),
+                ]
+            );
+            let sources =
+                language_sources(&connection, &SourcePolicy::default(), Language::Arabic).unwrap();
+            for query in ["كتاب", "الكتاب", "كِتَابٌ"] {
+                let found = lookup_longest_start_in(
+                    &connection,
+                    query,
+                    &sources,
+                    Language::Arabic,
+                    None,
+                    GLOSSARY_LIMITS,
+                )
+                .unwrap();
+                assert_eq!(found.groups.len(), 1, "{query}");
+            }
+        }
     }
 
     #[test]
