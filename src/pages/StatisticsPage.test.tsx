@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 import type { AppearancePreferencesStore as AppearanceStore } from "../features/appearance/appearancePreferences";
-import { listLibrary, type LibraryBook } from "../features/library/libraryApi";
+import {
+  listLibrary,
+  setBookCompletedDate,
+  type LibraryBook,
+} from "../features/library/libraryApi";
 import { libraryCache } from "../features/library/libraryCache";
 import {
   listLibraryKanji,
@@ -19,6 +23,7 @@ import { StatisticsPage } from "./StatisticsPage";
 
 vi.mock("../features/library/libraryApi", () => ({
   listLibrary: vi.fn(),
+  setBookCompletedDate: vi.fn(async () => true),
   onLibraryDetailsUpdated: vi.fn(() => () => {}),
 }));
 vi.mock("../features/statistics/statisticsApi", async (importOriginal) => ({
@@ -439,15 +444,22 @@ describe("Statistics", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     page.unmount();
 
-    // A book marked completed in the Library is finished without any session, on the day it was.
-    vi.mocked(listLibrary).mockResolvedValueOnce([
-      ...books,
+    // A book marked completed in the Library is finished without any session, on the day it was
+    // marked, whenever it was read since.
+    const nightTrain = (completedAt: Date) =>
       book("33333333-3333-4333-8333-333333333333", {
         title: "Night Train",
-        lastReadAt: new Date(2026, 9, 12, 20).toISOString(),
-        progress: { unit: "characters", current: 90_000, total: 90_000 },
-      }),
-    ]);
+        lastReadAt: new Date(2026, 9, 14, 20).toISOString(),
+        progress: {
+          unit: "characters",
+          current: 90_000,
+          total: 90_000,
+          completedAt: completedAt.toISOString(),
+        },
+      });
+    vi.mocked(listLibrary)
+      .mockResolvedValueOnce([...books, nightTrain(new Date(2026, 9, 12, 12))])
+      .mockResolvedValueOnce([...books, nightTrain(new Date(2026, 9, 11, 12))]);
     libraryCache.reset();
     page = renderPage();
     const marked = await screen.findByRole("region", { name: "Books read" });
@@ -461,9 +473,20 @@ describe("Statistics", () => {
     await user.click(within(marked).getByRole("button", { name: "Night Train" }));
     dialog = screen.getByRole("dialog", { name: "Night Train" });
     expect(value(dialog, "Sessions")).toHaveTextContent("0");
-    // With no session to keep a day, the date is shown, not changed.
-    expect(dialog).toHaveTextContent("FinishedOct 12, 2026");
-    expect(within(dialog).queryByRole("button", { name: /^Finished/ })).not.toBeInTheDocument();
+    // With no session, a day chosen is kept in the Library, which is listed again.
+    await user.click(within(dialog).getByRole("button", { name: "Finished Oct 12, 2026" }));
+    await user.keyboard("{ArrowLeft}{Enter}");
+    expect(setBookCompletedDate).toHaveBeenCalledWith(
+      "33333333-3333-4333-8333-333333333333",
+      +new Date(2026, 9, 11, 12),
+    );
+    expect(
+      await within(dialog).findByRole("button", { name: "Finished Oct 11, 2026" }),
+    ).toBeInTheDocument();
+    // It has no sessions' day to go back to.
+    expect(
+      within(dialog).queryByRole("button", { name: "Reset finished date" }),
+    ).not.toBeInTheDocument();
   });
 
   it("leaves out the word cards when no book is counted in words", async () => {

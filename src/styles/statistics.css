@@ -684,8 +684,10 @@ div.statistics-card__empty p {
   font-variant-numeric: tabular-nums;
 }
 
-/* The day the book was finished, under its totals: a row with the date to change. */
-.statistics-book-dialog__finished {
+/* The day the book was finished, under its totals (and when marking it completed): a row with
+   the date to change. */
+.statistics-book-dialog__finished,
+.finished-day {
   margin-top: 0.5rem;
   padding: 0.35rem 0.4rem 0.35rem 0.8rem;
   display: flex;
@@ -698,18 +700,27 @@ div.statistics-card__empty p {
 }
 
 .statistics-book-dialog__finished label,
-.statistics-book-dialog__finished > span:first-child {
+.statistics-book-dialog__finished > span:first-child,
+.finished-day label {
   color: var(--text-muted);
   font-size: var(--font-size-1);
 }
 
-.statistics-book-dialog__finished > span {
+.statistics-book-dialog__finished > span,
+.finished-day > span {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
 }
 
-/* Shown, not changed: a book completed without a session. */
+/* The day itself reads as the totals above it do. */
+.statistics-book-dialog__finished .day-picker__trigger,
+.statistics-book-dialog__finished > span:first-child + span:last-child,
+.finished-day .day-picker__trigger {
+  font-weight: 650;
+}
+
+/* Shown, not changed: a PC's book shown on the phone. */
 .statistics-book-dialog__finished > span:first-child + span:last-child {
   min-height: 2rem;
   padding-right: 0.4rem;

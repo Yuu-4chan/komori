@@ -288,7 +288,13 @@ fn a_place_changed_on_one_side_goes_to_the_other() {
 fn a_book_marked_completed_stays_completed_on_the_phone() {
     let mut sides = sides();
     read_to(&sides.pc, BOOK, &place(1, 0.1, 100));
-    crate::reading_position::mark_completed(&sides.pc, &[BOOK.to_string()]).unwrap();
+    crate::reading_position::mark_completed(
+        &sides.pc,
+        &[BOOK.to_string()],
+        None,
+        crate::reading_sessions::now_ms(),
+    )
+    .unwrap();
     let marked = reading(&sides.pc, BOOK).progress.unwrap();
     assert_eq!(marked.current, 1000);
     assert!(marked.completed_at.is_some());

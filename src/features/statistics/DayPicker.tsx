@@ -16,6 +16,19 @@ export function dayValue(day: Date): string {
   return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
 }
 
+/**
+ * Noon of a `YYYY-MM-DD` local day, so the day stays the same across time zone changes, or
+ * null for anything that is not a day from 2000 to today.
+ */
+export function finishedDayTime(value: string, now = Date.now()): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const time = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12).getTime();
+  if (dayValue(new Date(time)) !== value || value < "2000-01-01" || value > dayValue(new Date(now)))
+    return null;
+  return time;
+}
+
 function parseDay(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return null;

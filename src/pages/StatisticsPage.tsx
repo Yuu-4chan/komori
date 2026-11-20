@@ -348,6 +348,7 @@ export function StatisticsPage() {
             books={summary.finishedBooks}
             finishes={finishes}
             library={library}
+            onLibraryChanged={() => void load()}
             onSessionsChanged={(updated) => {
               ++loadVersion.current;
               setData((current) =>

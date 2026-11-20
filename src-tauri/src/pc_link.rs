@@ -975,6 +975,7 @@ pub async fn change_pc_books(
     catalog: State<'_, CatalogState>,
     change: crate::devices::protocol::BookChange,
     ids: Vec<String>,
+    completed_at: Option<i64>,
 ) -> Result<Vec<String>, String> {
     let database = catalog_path(&catalog);
     let link = {
@@ -986,7 +987,7 @@ pub async fn change_pc_books(
     for chunk in ids.chunks(crate::devices::protocol::MAX_CHANGED_BOOKS) {
         changed.extend(
             client
-                .change_books(change, chunk)
+                .change_books(change, chunk, completed_at)
                 .await
                 .map_err(|error| error.code())?,
         );

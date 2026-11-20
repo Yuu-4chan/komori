@@ -227,7 +227,7 @@ pub(crate) fn valid_finish_time(finished_at: i64, now: i64) -> bool {
     (MIN_TIME_MS..=MAX_TIME_MS).contains(&finished_at) && finished_at <= now + 24 * 60 * 60 * 1000
 }
 
-fn now_ms() -> i64 {
+pub(crate) fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_millis() as i64)

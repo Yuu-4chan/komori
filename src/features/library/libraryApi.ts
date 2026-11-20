@@ -96,10 +96,19 @@ export async function markBookUnread(id: string): Promise<boolean> {
   return invoke<boolean>("mark_book_unread", { id });
 }
 
-/** Moves each book's progress to its end, returning the IDs marked; uncounted books stay. */
-export async function markBooksCompleted(ids: string[]): Promise<string[]> {
+/**
+ * Moves each book's progress to its end, finished at `completedAt` (else now), returning the IDs
+ * marked; uncounted books stay.
+ */
+export async function markBooksCompleted(ids: string[], completedAt?: number): Promise<string[]> {
   requireDesktop();
-  return invoke<string[]>("mark_books_completed", { ids });
+  return invoke<string[]>("mark_books_completed", { ids, completedAt: completedAt ?? null });
+}
+
+/** Changes the day a completed book was finished; false when it is not completed. */
+export async function setBookCompletedDate(bookId: string, completedAt: number): Promise<boolean> {
+  requireDesktop();
+  return invoke<boolean>("set_book_completed_date", { bookId, completedAt });
 }
 
 /** Resolves one catalog record by ID without loading or checking the whole Library. */

@@ -112,6 +112,10 @@ pub enum BookChange {
 pub(crate) struct ChangeBooks {
     pub(crate) change: BookChange,
     pub(crate) ids: Vec<String>,
+    /// The day Completed books were finished (Unix milliseconds); none is now. Left out when
+    /// unset, so a PC that knows no day still takes the request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) completed_at: Option<i64>,
 }
 
 /// A series or author group renamed on the paired phone, each book with its new series or

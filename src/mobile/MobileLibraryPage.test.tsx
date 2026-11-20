@@ -186,7 +186,15 @@ describe("selecting books on the phone", () => {
     library();
     await longPress(await tile("羅生門"), () => tile("羅生門"));
     await userEvent.click(bar().getByRole("button", { name: "Mark as completed" }));
-    expect(markBooksCompleted).toHaveBeenCalledWith(["book-1"]);
+    // It asks the day it was finished, today by default.
+    const dialog = screen.getByRole("dialog", { name: "Mark as completed" });
+    expect(within(dialog).getByRole("button", { name: /^Finished / })).toBeTruthy();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Mark as completed" }));
+    const today = new Date();
+    expect(markBooksCompleted).toHaveBeenCalledWith(
+      ["book-1"],
+      +new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12),
+    );
     await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
     expect(listLibrary).toHaveBeenCalledTimes(2);
   });

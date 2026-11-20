@@ -2522,7 +2522,13 @@ pub(crate) mod tests {
         assert!(serialized["lastReadAt"].is_string());
 
         // Marked completed, it lists the day it was marked.
-        reading_position::mark_completed(&connection, std::slice::from_ref(&book.id)).unwrap();
+        reading_position::mark_completed(
+            &connection,
+            std::slice::from_ref(&book.id),
+            None,
+            crate::reading_sessions::now_ms(),
+        )
+        .unwrap();
         connection
             .execute(
                 "UPDATE book_progress SET completed_at = '2026-01-02T03:04:05.000Z'",

@@ -202,6 +202,7 @@ pub fn run() {
             reading_position::save_reading_position,
             reading_position::save_book_progress,
             reading_position::mark_books_completed,
+            reading_position::set_book_completed_date,
             reading_sessions::save_reading_session,
             reading_sessions::list_reading_sessions,
             reading_sessions::list_book_reading_sessions,

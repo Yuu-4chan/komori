@@ -12,6 +12,7 @@ use tauri::State;
 use uuid::Uuid;
 
 use crate::library::{open_catalog, storage_error, BookProgress, CatalogState};
+use crate::reading_sessions::{now_ms, valid_finish_time};
 
 // Generous for real books while keeping stored values bounded.
 const MAX_SPINE_INDEX: i64 = 100_000;
@@ -106,25 +107,38 @@ pub(crate) fn save_progress_to(
 }
 
 /// Marks catalog books completed: each one's progress moves to its end, in the units the Reader
-/// last counted or, for a book never opened, those Komori counted at import. Books Komori has
-/// not counted and unknown IDs are left alone. Returns the IDs marked.
+/// last counted or, for a book never opened, those Komori counted at import, finished at
+/// `completed_at` (Unix milliseconds) or now. Books Komori has not counted and unknown IDs are
+/// left alone. Returns the IDs marked.
 #[tauri::command]
 pub async fn mark_books_completed(
     catalog: State<'_, CatalogState>,
     ids: Vec<String>,
+    completed_at: Option<i64>,
 ) -> Result<Vec<String>, String> {
     let database = catalog.database.clone();
-    tauri::async_runtime::spawn_blocking(move || mark_completed(&open_catalog(&database)?, &ids))
-        .await
-        .map_err(|error| format!("Book progress task failed: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        mark_completed(&open_catalog(&database)?, &ids, completed_at, now_ms())
+    })
+    .await
+    .map_err(|error| format!("Book progress task failed: {error}"))?
 }
 
-/// Progress already saved keeps its time, so the book still shows when it was last read. The
-/// mark's own time is kept from the first time it was marked, until Mark as unread.
+/// `completed_at` as stored: an ISO time from Unix milliseconds, else now.
+const COMPLETED_AT_SQL: &str = "CASE WHEN ?2 IS NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                                     ELSE strftime('%Y-%m-%dT%H:%M:%fZ', ?2 / 1000.0, 'unixepoch')
+                                END";
+
+/// Progress already saved keeps its time, so the book still shows when it was last read. Without
+/// a day given, the mark's own time is kept from the first time it was marked, until Mark as
+/// unread; a day out of range (before 2000 or after tomorrow) counts as none.
 pub(crate) fn mark_completed(
     connection: &Connection,
     ids: &[String],
+    completed_at: Option<i64>,
+    now: i64,
 ) -> Result<Vec<String>, String> {
+    let completed_at = completed_at.filter(|time| valid_finish_time(*time, now));
     let transaction = connection.unchecked_transaction().map_err(storage_error)?;
     let mut marked = Vec::new();
     for id in ids {
@@ -133,8 +147,9 @@ pub(crate) fn mark_completed(
         }
         let written = transaction
             .execute(
-                "INSERT INTO book_progress (book_id, unit, current_units, total_units, completed_at)
-                 SELECT id, unit, units, units, strftime('%Y-%m-%dT%H:%M:%fZ', 'now') FROM (
+                &format!(
+                    "INSERT INTO book_progress (book_id, unit, current_units, total_units, completed_at)
+                 SELECT id, unit, units, units, {COMPLETED_AT_SQL} FROM (
                    SELECT books.id AS id,
                           coalesce(progress.unit, CASE WHEN details.characters > 0
                                                        THEN 'characters' ELSE 'words' END) AS unit,
@@ -147,8 +162,11 @@ pub(crate) fn mark_completed(
                   WHERE units > 0
                  ON CONFLICT(book_id) DO UPDATE SET
                    current_units = excluded.total_units,
-                   completed_at = coalesce(book_progress.completed_at, excluded.completed_at)",
-                [id],
+                   completed_at = CASE WHEN ?2 IS NULL
+                                       THEN coalesce(book_progress.completed_at, excluded.completed_at)
+                                       ELSE excluded.completed_at END"
+                ),
+                params![id, completed_at],
             )
             .map_err(storage_error)?;
         if written == 1 {
@@ -157,6 +175,47 @@ pub(crate) fn mark_completed(
     }
     transaction.commit().map_err(storage_error)?;
     Ok(marked)
+}
+
+/// Changes the day a completed book was finished (Unix milliseconds, from 2000 to tomorrow),
+/// which also keeps it completed as Mark as completed does. False for a book that is not
+/// completed, an unknown ID or a day out of range.
+#[tauri::command]
+pub async fn set_book_completed_date(
+    catalog: State<'_, CatalogState>,
+    book_id: String,
+    completed_at: i64,
+) -> Result<bool, String> {
+    let database = catalog.database.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if Uuid::parse_str(&book_id).is_err() {
+            return Ok(false);
+        }
+        set_completed_date(&open_catalog(&database)?, &book_id, completed_at, now_ms())
+    })
+    .await
+    .map_err(|error| format!("Book progress task failed: {error}"))?
+}
+
+pub(crate) fn set_completed_date(
+    connection: &Connection,
+    id: &str,
+    completed_at: i64,
+    now: i64,
+) -> Result<bool, String> {
+    if !valid_finish_time(completed_at, now) {
+        return Ok(false);
+    }
+    connection
+        .execute(
+            &format!(
+                "UPDATE book_progress SET completed_at = {COMPLETED_AT_SQL}
+                  WHERE book_id = ?1 AND total_units > 0 AND current_units >= total_units"
+            ),
+            params![id, completed_at],
+        )
+        .map(|written| written == 1)
+        .map_err(storage_error)
 }
 
 fn load(database: &Path, id: &str) -> Result<Option<ReadingPosition>, String> {
@@ -390,7 +449,7 @@ mod tests {
         ]
         .map(String::from);
         assert_eq!(
-            mark_completed(&connection, &ids).unwrap(),
+            mark_completed(&connection, &ids, None, now_ms()).unwrap(),
             [ID, WORDS].map(String::from)
         );
         let stored: Vec<(String, String, i64, i64)> = connection
@@ -423,6 +482,57 @@ mod tests {
     }
 
     #[test]
+    fn marks_books_completed_on_a_chosen_day_and_changes_that_day() {
+        let directory = tempdir().unwrap();
+        let database = directory.path().join("library.sqlite3");
+        catalog_with_book(&database);
+        let connection = open_catalog(&database).unwrap();
+        let completed_at = || -> Option<String> {
+            connection
+                .query_row(
+                    "SELECT completed_at FROM book_progress WHERE book_id = ?1",
+                    [ID],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+        let now = 1_790_000_000_000;
+        let day = now - 10 * 86_400_000;
+        assert!(save_progress_to(&connection, ID, &progress("characters", 120, 480)).unwrap());
+        // A changed day goes nowhere until the book is completed.
+        assert!(!set_completed_date(&connection, ID, day, now).unwrap());
+
+        mark_completed(&connection, &[ID.to_string()], Some(day), now).unwrap();
+        assert_eq!(completed_at().as_deref(), Some("2026-09-11T14:13:20.000Z"));
+        // Marked again on another day, that day wins.
+        mark_completed(&connection, &[ID.to_string()], Some(day + 86_400_000), now).unwrap();
+        assert_eq!(completed_at().as_deref(), Some("2026-09-12T14:13:20.000Z"));
+        // A day out of range marks it without changing the day.
+        mark_completed(
+            &connection,
+            &[ID.to_string()],
+            Some(now + 2 * 86_400_000),
+            now,
+        )
+        .unwrap();
+        assert_eq!(completed_at().as_deref(), Some("2026-09-12T14:13:20.000Z"));
+
+        assert!(set_completed_date(&connection, ID, day, now).unwrap());
+        assert_eq!(completed_at().as_deref(), Some("2026-09-11T14:13:20.000Z"));
+        for out_of_range in [946_684_799_999, now + 2 * 86_400_000] {
+            assert!(!set_completed_date(&connection, ID, out_of_range, now).unwrap());
+        }
+        assert!(!set_completed_date(
+            &connection,
+            "22222222-2222-4222-8222-222222222222",
+            day,
+            now
+        )
+        .unwrap());
+        assert_eq!(completed_at().as_deref(), Some("2026-09-11T14:13:20.000Z"));
+    }
+
+    #[test]
     fn a_book_marked_completed_stays_at_its_end_until_marked_unread() {
         let directory = tempdir().unwrap();
         let database = directory.path().join("library.sqlite3");
@@ -441,7 +551,7 @@ mod tests {
         assert!(save_progress_to(&connection, ID, &progress("characters", 120, 480)).unwrap());
         assert_eq!(stored(&connection), (120, 480, None));
 
-        mark_completed(&connection, &[ID.to_string()]).unwrap();
+        mark_completed(&connection, &[ID.to_string()], None, now_ms()).unwrap();
         let (_, _, marked) = stored(&connection);
         let marked = marked.expect("the day it was marked");
         // Reading on from the old place, and a recount, keep it at the end.
@@ -456,7 +566,7 @@ mod tests {
                 [],
             )
             .unwrap();
-        mark_completed(&connection, &[ID.to_string()]).unwrap();
+        mark_completed(&connection, &[ID.to_string()], None, now_ms()).unwrap();
         assert_eq!(
             stored(&connection).2.as_deref(),
             Some("2026-01-02T03:04:05.000Z")

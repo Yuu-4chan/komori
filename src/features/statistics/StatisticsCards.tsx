@@ -31,8 +31,8 @@ import { IconButton } from "../../components/ui/IconButton";
 import { useBackdropDismiss } from "../../components/ui/backdropDismiss";
 
 import { BookCover } from "../library/BookCover";
-import { DayPicker, dayValue } from "./DayPicker";
-import type { LibraryBook } from "../library/libraryApi";
+import { DayPicker, dayValue, finishedDayTime } from "./DayPicker";
+import { setBookCompletedDate, type LibraryBook } from "../library/libraryApi";
 import {
   bookTitle,
   progressLabel,
@@ -404,6 +404,7 @@ export function BookTotals({
   books,
   library,
   finishes = noFinishes,
+  onLibraryChanged,
   onSessionsChanged,
 }: {
   books: BookActivity[];
@@ -412,6 +413,8 @@ export function BookTotals({
   finishes?: ReadonlyMap<string, BookFinish>;
   /** Every session, after a book's finished date changed. */
   onSessionsChanged?: (sessions: StoredReadingSession[]) => void;
+  /** After the finished date of a book with no sessions changed in the Library. */
+  onLibraryChanged?: () => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const [open, setOpen] = useState<BookActivity | null>(null);
@@ -464,6 +467,7 @@ export function BookTotals({
           book={library.get(open.bookId)!}
           finish={finishes.get(open.bookId) ?? null}
           onClose={() => setOpen(null)}
+          onLibraryChanged={onLibraryChanged}
           onSessionsChanged={onSessionsChanged}
         />
       ) : null}
@@ -474,20 +478,10 @@ export function BookTotals({
 const noFinishes: ReadonlyMap<string, BookFinish> = new Map();
 
 /** The `YYYY-MM-DD` of the local day of `time`. */
+export { finishedDayTime };
+
 export function dateValue(time: number): string {
   return dayValue(new Date(time));
-}
-
-/**
- * Noon of a `YYYY-MM-DD` local day, so the day stays the same across time zone changes, or
- * null for anything that is not a day from 2000 to today.
- */
-export function finishedDayTime(value: string, now = Date.now()): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return null;
-  const time = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12).getTime();
-  if (dateValue(time) !== value || value < "2000-01-01" || value > dateValue(now)) return null;
-  return time;
 }
 
 /**
@@ -497,13 +491,16 @@ export function finishedDayTime(value: string, now = Date.now()): number | null 
  */
 function FinishedDate({
   bookId,
-  editable,
+  keptOn,
   finish,
+  onLibraryChanged,
   onSessionsChanged,
 }: {
   bookId: string;
-  editable: boolean;
+  /** Where a chosen day is kept: the book's sessions, its Library progress, or nowhere here. */
+  keptOn: "sessions" | "library" | null;
   finish: BookFinish | null;
+  onLibraryChanged?: () => void;
   onSessionsChanged?: (sessions: StoredReadingSession[]) => void;
 }) {
   const { t, date } = useI18n();
@@ -515,13 +512,19 @@ function FinishedDate({
     const version = ++saving.current;
     setFailed(false);
     try {
+      if (keptOn === "library") {
+        if (finishedAt === null || !(await setBookCompletedDate(bookId, finishedAt)))
+          throw new Error("not completed");
+        if (version === saving.current) onLibraryChanged?.();
+        return;
+      }
       const sessions = await setBookFinishedDate(bookId, finishedAt);
       if (version === saving.current) onSessionsChanged?.(sessions);
     } catch {
       if (version === saving.current) setFailed(true);
     }
   };
-  if (!editable)
+  if (!keptOn)
     return (
       <div className="statistics-book-dialog__finished">
         <span>{t("statisticsCards.finishedDate")}</span>
@@ -550,7 +553,7 @@ function FinishedDate({
           }}
           value={shown}
         />
-        {finish?.set ? (
+        {finish?.set && keptOn === "sessions" ? (
           <IconButton
             compact
             label={t("statisticsCards.resetFinishedDate")}
@@ -572,12 +575,14 @@ function BookStatisticsDialog({
   book,
   finish,
   onClose,
+  onLibraryChanged,
   onSessionsChanged,
 }: {
   activity: BookActivity;
   book: LibraryBook;
   finish: BookFinish | null;
   onClose: () => void;
+  onLibraryChanged?: () => void;
   onSessionsChanged?: (sessions: StoredReadingSession[]) => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -648,7 +653,9 @@ function BookStatisticsDialog({
         </dl>
         <FinishedDate
           bookId={activity.bookId}
-          editable={activity.sessions > 0}
+          // A PC's book shown on the phone keeps its day on the PC.
+          keptOn={activity.sessions > 0 ? "sessions" : book.fromPc ? null : "library"}
+          onLibraryChanged={onLibraryChanged}
           finish={finish}
           onSessionsChanged={onSessionsChanged}
         />
