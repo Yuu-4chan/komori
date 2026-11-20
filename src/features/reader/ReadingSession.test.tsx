@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -267,8 +267,12 @@ describe("Reader sessions", () => {
     };
     const { view } = openBook({}, { status: "book", book, cover: null } as ReaderIdentity);
     await screen.findByText("Reader ready");
-    const footer = view.container.querySelector<HTMLElement>(".reader-footer")!;
-    expect(footer).toHaveClass("reader-stats-area");
+    // The footer answers the pointer once the book is counted, which a loaded run can delay.
+    const footer = await waitFor(() => {
+      const shown = view.container.querySelector<HTMLElement>(".reader-footer.reader-stats-area");
+      expect(shown).not.toBeNull();
+      return shown!;
+    });
     fireEvent.pointerOver(footer);
     await act(async () => vi.advanceTimersByTimeAsync(300));
     expect(within(footer).getByRole("tooltip")).toHaveClass("reader-reading-stats--above");

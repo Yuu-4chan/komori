@@ -437,6 +437,33 @@ describe("Statistics", () => {
     // Escape, as the browser reports it to a modal dialog.
     fireEvent(dialog, new Event("cancel", { cancelable: true }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    page.unmount();
+
+    // A book marked completed in the Library is finished without any session, on the day it was.
+    vi.mocked(listLibrary).mockResolvedValueOnce([
+      ...books,
+      book("33333333-3333-4333-8333-333333333333", {
+        title: "Night Train",
+        lastReadAt: new Date(2026, 9, 12, 20).toISOString(),
+        progress: { unit: "characters", current: 90_000, total: 90_000 },
+      }),
+    ]);
+    libraryCache.reset();
+    page = renderPage();
+    const marked = await screen.findByRole("region", { name: "Books read" });
+    await waitFor(() =>
+      expect(
+        within(marked)
+          .getAllByRole("button", { name: /秋の手紙|Harbor Notes|Night Train/ })
+          .map((cover) => cover.getAttribute("aria-label")),
+      ).toEqual(["Harbor Notes", "Night Train"]),
+    );
+    await user.click(within(marked).getByRole("button", { name: "Night Train" }));
+    dialog = screen.getByRole("dialog", { name: "Night Train" });
+    expect(value(dialog, "Sessions")).toHaveTextContent("0");
+    // With no session to keep a day, the date is shown, not changed.
+    expect(dialog).toHaveTextContent("FinishedOct 12, 2026");
+    expect(within(dialog).queryByRole("button", { name: /^Finished/ })).not.toBeInTheDocument();
   });
 
   it("leaves out the word cards when no book is counted in words", async () => {

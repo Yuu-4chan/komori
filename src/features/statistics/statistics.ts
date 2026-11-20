@@ -98,14 +98,55 @@ function readsToEnd(session: StoredReadingSession): boolean {
 }
 
 export interface BookFinish {
-  /** When the book was finished: the day the reader set, or the start of the last session that read it to the end. */
+  /**
+   * When the book was finished: the day the reader set, else the start of the last session that
+   * read it to the end, else when the Library's progress reached its end.
+   */
   at: number;
   /** The reader set it. */
   set: boolean;
 }
 
+/** A book the Library shows completed (marked so, or its progress at the end), and since when. */
+export interface LibraryCompletion {
+  at: number;
+  unit: StoredReadingSession["unit"];
+}
+
+const noCompletions: ReadonlyMap<string, LibraryCompletion> = new Map();
+
+/**
+ * The Library's completed books: progress at its end, as of its last save, else the book's last
+ * session, else its import.
+ */
+export function libraryCompletions(
+  books: readonly Pick<LibraryBook, "id" | "progress" | "lastReadAt" | "importedAt">[],
+  sessions: readonly StoredReadingSession[],
+): Map<string, LibraryCompletion> {
+  const lastSession = new Map<string, number>();
+  for (const session of sessions)
+    lastSession.set(
+      session.bookId,
+      Math.max(lastSession.get(session.bookId) ?? 0, session.endedAt),
+    );
+  const completions = new Map<string, LibraryCompletion>();
+  for (const book of books) {
+    const progress = book.progress;
+    if (!progress || !(progress.total > 0) || progress.current < progress.total) continue;
+    const saved = Date.parse(book.lastReadAt ?? "");
+    const at = Number.isFinite(saved)
+      ? saved
+      : (lastSession.get(book.id) ?? Date.parse(book.importedAt ?? ""));
+    if (Number.isFinite(at)) completions.set(book.id, { at, unit: progress.unit });
+  }
+  return completions;
+}
+
 /** When each finished book was finished, by book ID. */
-export function finishDates(sessions: readonly StoredReadingSession[]): Map<string, BookFinish> {
+export function finishDates(
+  sessions: readonly StoredReadingSession[],
+  completions: ReadonlyMap<string, LibraryCompletion> = noCompletions,
+): Map<string, BookFinish> {
   const dates = new Map<string, BookFinish>();
   for (const session of sessions) {
     const known = dates.get(session.bookId);
@@ -116,6 +157,8 @@ export function finishDates(sessions: readonly StoredReadingSession[]): Map<stri
       dates.set(session.bookId, { at: session.startedAt, set: false });
     }
   }
+  for (const [bookId, { at }] of completions)
+    if (!dates.has(bookId)) dates.set(bookId, { at, set: false });
   return dates;
 }
 
@@ -153,10 +196,14 @@ function addToBook(
   bookDays.set(session.bookId, days);
 }
 
-/** Totals over the sessions in a period. */
+/**
+ * Totals over the sessions in a period. A book counts as finished on the day the reader set,
+ * else in the session that read it to its end, else when the Library shows it completed.
+ */
 export function summarize(
   sessions: readonly StoredReadingSession[],
   period: Period | null,
+  completions: ReadonlyMap<string, LibraryCompletion> = noCompletions,
 ): ActivitySummary {
   const summary: ActivitySummary = {
     activeMs: 0,
@@ -204,6 +251,17 @@ export function summarize(
     const device = session.device ?? null;
     devices.set(device, (devices.get(device) ?? 0) + activeMs);
   }
+  // Marked completed, or moved to the end without a session reading it there.
+  if (completions.size) {
+    const readToEnd = new Set(sessions.filter(readsToEnd).map((session) => session.bookId));
+    for (const [bookId, { at }] of completions)
+      if (
+        !setFinishes.has(bookId) &&
+        !readToEnd.has(bookId) &&
+        (!period || (at >= period.start && at < period.end))
+      )
+        finished.add(bookId);
+  }
   summary.started = started.size;
   summary.finished = finished.size;
   for (const book of books.values()) book.days = bookDays.get(book.bookId)?.size ?? 0;
@@ -217,7 +275,19 @@ export function summarize(
       if (finished.has(session.bookId) && !emptied(session))
         addToBook(finishedBooks, finishedDays, session);
     for (const book of finishedBooks.values()) book.days = finishedDays.get(book.bookId)?.size ?? 0;
-    const dates = finishDates(sessions);
+    const dates = finishDates(sessions, completions);
+    // A book marked completed without being read here has no totals.
+    for (const bookId of finished)
+      if (!finishedBooks.has(bookId))
+        finishedBooks.set(bookId, {
+          bookId,
+          unit: completions.get(bookId)?.unit ?? "characters",
+          unitsRead: 0,
+          activeMs: 0,
+          sessions: 0,
+          days: 0,
+          lastReadAt: dates.get(bookId)?.at ?? 0,
+        });
     const at = (book: BookActivity) => dates.get(book.bookId)?.at ?? book.lastReadAt;
     summary.finishedBooks = [...finishedBooks.values()].sort((a, b) => at(b) - at(a));
   }

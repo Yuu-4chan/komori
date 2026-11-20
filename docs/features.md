@@ -217,10 +217,11 @@ Only look up Japanese/CJK text, the kanji entry and JapanesePod101 are for Japan
 
 Range menu; reading activity metrics (characters or words read, time, speed per hour,
 books finished); the daily activity calendar with day details and editable daily
-books (right-click or pencil); Books read: the books finished in the range as covers, the last
+books (right-click or pencil); Books read: the books finished in the range as covers (read to
+the end, or shown completed in the Library: marked completed or moved to the end), the last
 finished first, each opening a popup with its time, sessions, characters or words read, speed,
 days read, last read and the day it was finished, chosen in a calendar (it then counts as
-finished on that day) or reset;
+finished on that day) or reset, and only shown for a book completed without a session;
 Library overview, language breakdown, completion
 and the character explorer whose tiles open their Dictionary search.
 Completion shows 300 books until Show all.

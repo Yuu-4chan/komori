@@ -697,7 +697,8 @@ div.statistics-card__empty p {
   border-radius: var(--radius-sm);
 }
 
-.statistics-book-dialog__finished label {
+.statistics-book-dialog__finished label,
+.statistics-book-dialog__finished > span:first-child {
   color: var(--text-muted);
   font-size: var(--font-size-1);
 }
@@ -706,6 +707,12 @@ div.statistics-card__empty p {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+/* Shown, not changed: a book completed without a session. */
+.statistics-book-dialog__finished > span:first-child + span:last-child {
+  min-height: 2rem;
+  padding-right: 0.4rem;
 }
 
 .day-picker {

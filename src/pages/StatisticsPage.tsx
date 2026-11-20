@@ -35,6 +35,7 @@ import {
   currentStreak,
   dayKey,
   languageBreakdown,
+  libraryCompletions,
   libraryOverview,
   rangePeriods,
   finishDates,
@@ -155,11 +156,19 @@ export function StatisticsPage() {
   }, [loaded, devices, language]);
   const sessions = useMemo(() => loaded?.sessions ?? [], [loaded]);
   const periods = useMemo(() => rangePeriods(range, now), [range, now]);
-  const summary = useMemo(() => summarize(sessions, periods.current), [sessions, periods]);
-  const finishes = useMemo(() => finishDates(sessions), [sessions]);
+  // Books the Library shows completed count as finished, even with no session reading them to the end.
+  const completions = useMemo(
+    () => libraryCompletions(loaded?.books ?? [], sessions),
+    [loaded, sessions],
+  );
+  const summary = useMemo(
+    () => summarize(sessions, periods.current, completions),
+    [sessions, periods, completions],
+  );
+  const finishes = useMemo(() => finishDates(sessions, completions), [sessions, completions]);
   const previous = useMemo(
-    () => (periods.previous ? summarize(sessions, periods.previous) : null),
-    [sessions, periods],
+    () => (periods.previous ? summarize(sessions, periods.previous, completions) : null),
+    [sessions, periods, completions],
   );
   const days = useMemo(() => calendarMonth(sessions, month), [sessions, month]);
   const firstMonth = useMemo(

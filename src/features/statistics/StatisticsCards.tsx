@@ -492,18 +492,21 @@ export function finishedDayTime(value: string, now = Date.now()): number | null 
 
 /**
  * The day a book was finished, changed in place: a chosen day replaces the day its sessions
- * read it to the end, and resetting goes back to that day.
+ * read it to the end, and resetting goes back to that day. A book completed without a session
+ * has nowhere to keep a day, so it shows when the Library completed it.
  */
 function FinishedDate({
   bookId,
+  editable,
   finish,
   onSessionsChanged,
 }: {
   bookId: string;
+  editable: boolean;
   finish: BookFinish | null;
   onSessionsChanged?: (sessions: StoredReadingSession[]) => void;
 }) {
-  const { t } = useI18n();
+  const { t, date } = useI18n();
   const id = useId();
   const shown = finish ? dateValue(finish.at) : "";
   const [failed, setFailed] = useState(false);
@@ -518,6 +521,17 @@ function FinishedDate({
       if (version === saving.current) setFailed(true);
     }
   };
+  if (!editable)
+    return (
+      <div className="statistics-book-dialog__finished">
+        <span>{t("statisticsCards.finishedDate")}</span>
+        <span>
+          {finish
+            ? date(new Date(finish.at), { dateStyle: "medium" })
+            : t("statisticsCards.finishedNotSet")}
+        </span>
+      </div>
+    );
   return (
     <div className="statistics-book-dialog__finished">
       <label htmlFor={id} id={`${id}-label`}>
@@ -634,6 +648,7 @@ function BookStatisticsDialog({
         </dl>
         <FinishedDate
           bookId={activity.bookId}
+          editable={activity.sessions > 0}
           finish={finish}
           onSessionsChanged={onSessionsChanged}
         />

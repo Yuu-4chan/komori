@@ -9,6 +9,7 @@ import {
   finishDates,
   heatLevel,
   languageBreakdown,
+  libraryCompletions,
   libraryOverview,
   rangePeriods,
   speed,
@@ -275,6 +276,55 @@ describe("finished dates", () => {
     });
     expect(summarize(all, month(8)).finishedBooks).toEqual([]);
     expect(summarize([unfinished], null).finishedBooks).toEqual([]);
+  });
+
+  it("finishes the books the Library shows completed, after a set day or a read to the end", () => {
+    const at = (day: number) => new Date(2026, 9, day, 18).toISOString();
+    const book = (id: string, current: number, lastReadAt: string | null) => ({
+      id,
+      importedAt: at(1),
+      lastReadAt,
+      progress: { unit: "characters" as const, current, total: 100_000 },
+    });
+    const partial = session(A, new Date(2026, 9, 3, 8), 30, 1000);
+    const readToEnd = session(B, new Date(2026, 9, 4, 8), 30, 1000, toEnd);
+    const completions = libraryCompletions(
+      [
+        book(A, 100_000, at(9)),
+        book(B, 100_000, at(11)),
+        book(C, 100_000, null),
+        book("unread", 99_999, at(9)),
+        {
+          ...book("no total", 0, at(9)),
+          progress: { unit: "words" as const, current: 0, total: 0 },
+        },
+      ],
+      [partial, readToEnd],
+    );
+    expect([...completions.keys()]).toEqual([A, B, C]);
+    expect(completions.get(C)?.at).toBe(+new Date(2026, 9, 1, 18));
+    expect(libraryCompletions([book(A, 100_000, null)], [partial]).get(A)?.at).toBe(
+      partial.endedAt,
+    );
+
+    const october = summarize([partial, readToEnd], month(9), completions);
+    expect(october.finished).toBe(3);
+    // B keeps the day its session read it to the end; C was never read here.
+    expect(october.finishedBooks.map((finished) => finished.bookId)).toEqual([A, B, C]);
+    expect(october.finishedBooks[2]).toMatchObject({ sessions: 0, unitsRead: 0, days: 0 });
+    expect(summarize([partial, readToEnd], month(8), completions).finished).toBe(0);
+    expect(summarize([], null, completions).finished).toBe(3);
+    const dates = finishDates([partial, readToEnd], completions);
+    expect(dates.get(A)).toEqual({ at: +new Date(2026, 9, 9, 18), set: false });
+    expect(dates.get(B)).toEqual({ at: readToEnd.startedAt, set: false });
+
+    // A day the reader set wins over the Library's.
+    const set = { ...partial, finishedAt: +new Date(2026, 8, 30, 12) };
+    expect(summarize([set], month(9), completions).finishedBooks.map((b) => b.bookId)).toEqual([
+      B,
+      C,
+    ]);
+    expect(finishDates([set], completions).get(A)?.set).toBe(true);
   });
 
   it("leaves out a session an idle stop emptied, but not one corrected to nothing", () => {
