@@ -1548,7 +1548,9 @@ second accent (πρόσωπό μου), and Vietnamese ones with each syllable's 
 and the newer rules (hòa/hoà, thủy/thuỷ: `vietnamese_tones`). Dictionaries imported before these languages
 keep their readings and their language (Japanese) until moved or imported again. Turkish starts are
 also tried in Turkish lowercase and capitalization (I: ı, İ: i). Word boundaries count combining marks (a virama, Arabic short vowels)
-and ZWNJ/ZWJ as part of the word. Thai, like Japanese and Chinese, does not space its words, so its
+and ZWNJ/ZWJ as part of the word, and a scan never starts on a combining mark (a Thai vowel or tone
+mark, a Devanagari vowel sign) or on Thai and Lao AM (ำ, ຳ), which draw over the letter before them,
+but on the letter it belongs to. Thai, like Japanese and Chinese, does not space its words, so its
 lookups read on from the pointer and `sentenceAt` ends its sentences at whitespace; Arabic-script
 marks (؟ ۔), the danda (। ॥) and Greek's question mark (;) end the other languages' sentences.
 Books and dictionaries naming these languages by three-letter codes (`nld`/`dut`, `nob`/`nor`,
@@ -1617,7 +1619,9 @@ joined back into syllables: an initial consonant with its vowel, then a final co
 follows. Endings stack, so Korean keeps up to 512 candidates. Its classes are `v`, `adj`, `ida` and
 `n`. Yomitan's rules have no noun particles, so after their candidates Komori adds the nouns the text
 may be with up to three particles attached (전차는, 사람들에게는), each form only after the ending it
-follows (은 after a final consonant, 는 after a vowel, 로 also after ㄹ). Chinese (`zh`, also declared as `zho`, `chi`, `cmn` or `yue`) is one language for both
+follows (은 after a final consonant, 는 after a vowel, 로 also after ㄹ). Outside Japanese, a start's
+readings with fewer word-form steps come first, in the order found otherwise, so 눈을 shows 눈 with
+-을 before 누다 (through the form entry 눈다). Chinese (`zh`, also declared as `zho`, `chi`, `cmn` or `yue`) is one language for both
 scripts, since its dictionaries list traditional and simplified headwords; it has no
 inflections, so a lookup matches the scanned text's starts exactly. Neither Japanese nor Chinese
 spaces its words; Korean does. On the Dictionary page a Chinese or Korean headword's reading

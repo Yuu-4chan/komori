@@ -496,6 +496,24 @@ describe("English scanning and sentences", () => {
     view.cleanup();
   });
 
+  it("starts a scan on the letter a combining mark belongs to, never on the mark", () => {
+    const view = englishBook("<p>นับเป็นเรื่องดี คำชี้แจง</p>", { lookupLanguage: "th" });
+    // ั sits above น and shares its box, so the pointer on น can find the mark.
+    view.at("นับ", 1);
+    view.shift();
+    expect(view.report).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ text: expect.stringMatching(/^นับเป็นเรื่องดี/) }),
+    );
+    view.report.mockClear();
+    // ำ draws its ring over ค, so the pointer on ค can find it too.
+    view.at("คำ", 1);
+    view.shift();
+    expect(view.report).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ text: expect.stringMatching(/^คำชี้แจง/) }),
+    );
+    view.cleanup();
+  });
+
   it("starts no scan on spaces or punctuation, and only on a word starting with a letter", () => {
     const view = englishBook("<p>Wait … 1984 “Go”</p>", { readerPopupCjkOnly: true });
     view.at("…");

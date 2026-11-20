@@ -126,3 +126,18 @@ it("resets a chosen day, and says so when saving fails", async () => {
     finishedAt: null,
   });
 });
+
+it("shows the open book's latest totals after its finished day changes", () => {
+  const library = new Map([[A, book]]);
+  const { view } = open({ at: +new Date(2026, 9, 3, 20), set: false });
+  const lastRead = () => screen.getByText("Last read").nextElementSibling;
+  expect(lastRead()).toHaveTextContent("Oct 14, 2026");
+  // A book marked completed without sessions reads its Last read from its finished day.
+  const moved = { ...activity, sessions: 0, lastReadAt: +new Date(2026, 9, 9, 12) };
+  view.rerender(<BookTotals books={[moved]} library={library} />);
+  expect(lastRead()).toHaveTextContent("Oct 9, 2026");
+  // Moved out of the range, the book keeps the totals it showed.
+  view.rerender(<BookTotals books={[]} library={library} />);
+  expect(screen.getByRole("dialog", { name: "Book A" })).toBeInTheDocument();
+  expect(lastRead()).toHaveTextContent("Oct 9, 2026");
+});

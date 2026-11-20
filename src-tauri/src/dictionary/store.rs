@@ -1423,6 +1423,15 @@ fn add_start_groups(
     }
     if language.is_japanese() {
         rank_kana_groups(start, groups, first, limits)?;
+    } else {
+        // A reading with fewer steps comes first, in the order found otherwise: 눈을 is 눈 with
+        // -을 before 누다, which 눈다 is a form of.
+        groups[first..].sort_by_key(|group| {
+            group
+                .deinflection
+                .as_ref()
+                .map_or(0, |deinflection| deinflection.inflections.len())
+        });
     }
     lead_with_ranked_group(groups, first);
     Ok(())
@@ -6334,6 +6343,48 @@ mod tests {
                 .unwrap()
                 .definitions,
             super::super::sources::SourceSelection::All
+        );
+    }
+
+    #[test]
+    fn a_reading_with_fewer_steps_comes_first() {
+        let directory = tempdir().unwrap();
+        let korean = fixture_with(
+            directory.path(),
+            "korean.zip",
+            &[
+                (
+                    "index.json",
+                    r#"{"title":"Korean","revision":"1","format":3,"sourceLanguage":"ko"}"#,
+                ),
+                (
+                    "term_bank_1.json",
+                    r#"[["누다","","v","v",0,["to urinate"],1,""],
+                        ["눈다","","non-lemma","v",0,[["누다",["formal non-past indicative"]]],2,""],
+                        ["눈","","n","n",0,["eye"],3,""]]"#,
+                ),
+            ],
+        );
+        let mut connection = open_store(&directory.path().join(DATABASE_FILE_NAME)).unwrap();
+        assert_eq!(
+            import_one_into(&mut connection, &korean, Language::Korean).0,
+            ImportStatus::Imported
+        );
+        let sources =
+            language_sources(&connection, &SourcePolicy::default(), Language::Korean).unwrap();
+        let lookup = lookup_longest_start_in(
+            &connection,
+            "눈을",
+            &sources,
+            Language::Korean,
+            None,
+            GLOSSARY_LIMITS,
+        )
+        .unwrap();
+        // 눈 with the object particle takes one step; 누다, through its form 눈다, takes two.
+        assert_eq!(
+            lookup.groups.first().map(|group| group.expression.as_str()),
+            Some("눈")
         );
     }
 

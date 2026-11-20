@@ -421,6 +421,11 @@ export function BookTotals({
   const { t } = useI18n();
   const available = books.filter((book) => library.has(book.bookId));
   const shown = showAll ? available : available.slice(0, BOOKS_PREVIEW);
+  // The open book follows its latest totals, so a changed finished day shows at once; a book
+  // the change moved out of the range keeps the totals it last showed.
+  const latest = open ? books.find((book) => book.bookId === open.bookId) : undefined;
+  if (open && latest && latest !== open) setOpen(latest);
+  const current = latest ?? open;
   return (
     <>
       <ul className="statistics-books">
@@ -461,11 +466,11 @@ export function BookTotals({
           )}
         </button>
       ) : null}
-      {open ? (
+      {current ? (
         <BookStatisticsDialog
-          activity={open}
-          book={library.get(open.bookId)!}
-          finish={finishes.get(open.bookId) ?? null}
+          activity={current}
+          book={library.get(current.bookId)!}
+          finish={finishes.get(current.bookId) ?? null}
           onClose={() => setOpen(null)}
           onLibraryChanged={onLibraryChanged}
           onSessionsChanged={onSessionsChanged}

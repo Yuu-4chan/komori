@@ -463,9 +463,31 @@ export function characterAtPoint(document: Document, x: number, y: number): Rang
           y < box.bottom,
       )
     )
-      return range;
+      return clusterStart(range, data);
   }
   return null;
+}
+
+/**
+ * A combining mark (a Thai vowel or tone mark above its consonant, a Devanagari vowel sign, a
+ * kana voicing mark) shares its letter's box, so the pointer can land on it; a scan starts at
+ * the letter the mark belongs to instead. Thai and Lao AM (ำ, ຳ) are letters, but draw their ring
+ * over the letter before them and never begin a word, so they count as marks here.
+ */
+function clusterStart(range: Range, data: string): Range {
+  const mark = /^[\p{M}\u0E33\u0EB3]/u;
+  let start = range.startOffset;
+  while (start > 0 && mark.test(data.slice(start))) {
+    start -= start > 1 && isLowSurrogate(data.charCodeAt(start - 1)) ? 2 : 1;
+  }
+  if (start === range.startOffset) return range;
+  const result = range.startContainer.ownerDocument!.createRange();
+  result.setStart(range.startContainer, start);
+  result.setEnd(
+    range.startContainer,
+    start + String.fromCodePoint(data.codePointAt(start)!).length,
+  );
+  return result;
 }
 
 /**
