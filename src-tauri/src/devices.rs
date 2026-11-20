@@ -763,9 +763,12 @@ fn change_books(
         return error(stream, 400, "malformed");
     }
     let changed = open_catalog(&shared.catalog).and_then(|mut connection| match change.change {
-        protocol::BookChange::Completed => {
-            crate::reading_position::mark_completed(&connection, &change.ids)
-        }
+        protocol::BookChange::Completed => crate::reading_position::mark_completed(
+            &connection,
+            &change.ids,
+            change.completed_at,
+            crate::reading_sessions::now_ms(),
+        ),
         protocol::BookChange::Unread => {
             let mut marked = Vec::new();
             for id in change.ids {

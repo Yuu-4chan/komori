@@ -83,6 +83,31 @@ describe("reading session tracker", () => {
     expect(never.session.readingMs).toBe(60 * 60_000);
   });
 
+  it("stops counting at the idle limit until reading forward or resuming, keeping a save", () => {
+    const idleLimitMs = 60_000;
+    const { session, advance } = tracker(1_790_000_000_000, { idleLimitMs });
+    session.progress(at(0), true);
+    advance(40_000);
+    expect(session.record()).not.toBeNull();
+    advance(30_000);
+    // Nothing was read forward: the stretch is dropped and counting stops.
+    expect(session.counting).toBe(false);
+    expect(session.readingMs).toBe(0);
+    expect(session.record()).toBeNull();
+    // A session saved before the stop is still recorded, so its save is corrected.
+    expect(session.record(true)).toMatchObject({ activeMs: 0, unitsRead: 0 });
+    // Resuming counts again from now.
+    session.resume();
+    expect(session.counting).toBe(true);
+    advance(10_000);
+    expect(session.readingMs).toBe(10_000);
+    // So does reading forward after another stop.
+    advance(idleLimitMs);
+    expect(session.counting).toBe(false);
+    session.progress(at(300), false);
+    expect(session.counting).toBe(true);
+  });
+
   it("keeps the time before a pause even without progress", () => {
     const { session, advance } = tracker(1_790_000_000_000, { idleLimitMs: 60_000 });
     session.progress(at(0), true);

@@ -6,8 +6,10 @@ import {
   calendarMonth,
   completionOrder,
   currentStreak,
+  finishDates,
   heatLevel,
   languageBreakdown,
+  libraryCompletions,
   libraryOverview,
   rangePeriods,
   speed,
@@ -17,6 +19,7 @@ import { normalizeSession, type StoredReadingSession } from "./statisticsApi";
 
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
+const C = "44444444-4444-4444-8444-444444444444";
 let sessionIds = 0;
 
 function session(
@@ -219,5 +222,135 @@ describe("statistics", () => {
       { ...valid, endUnits: valid.totalUnits + 1 },
     ])
       expect(normalizeSession(invalid)).toBeNull();
+  });
+});
+
+describe("finished dates", () => {
+  const month = (index: number) => ({
+    start: +new Date(2026, index, 1),
+    end: +new Date(2026, index + 1, 1),
+  });
+  const toEnd = { startUnits: 99_000, endUnits: 100_000 };
+
+  it("counts a book on the day the reader set instead of the day it was read to the end", () => {
+    const read = session(A, new Date(2026, 9, 20, 8), 30, 1000, toEnd);
+    const later = session(A, new Date(2026, 9, 22, 8), 10, 0, {
+      startUnits: 100_000,
+      endUnits: 100_000,
+      finishedAt: +new Date(2026, 8, 30, 12),
+    });
+    expect(summarize([read], month(9)).finished).toBe(1);
+    expect(summarize([read, later], month(9)).finished).toBe(0);
+    expect(summarize([read, later], month(8)).finished).toBe(1);
+    expect(summarize([read, later], null).finished).toBe(1);
+    expect(finishDates([read])).toEqual(new Map([[A, { at: read.startedAt, set: false }]]));
+    expect(finishDates([read, later])).toEqual(
+      new Map([[A, { at: +new Date(2026, 8, 30, 12), set: true }]]),
+    );
+  });
+
+  it("finishes a book its sessions never read to the end, and none marked unread", () => {
+    const partial = session(B, new Date(2026, 9, 5, 8), 30, 1000, {
+      finishedAt: +new Date(2026, 9, 6, 12),
+    });
+    expect(summarize([partial], month(9)).finished).toBe(1);
+    const cleared = { ...partial, finishCleared: true };
+    expect(summarize([cleared], month(9)).finished).toBe(0);
+    expect(finishDates([cleared, session(A, new Date(2026, 9, 5), 5, 10)]).size).toBe(0);
+  });
+
+  it("lists only the books finished in the range, with all their sessions, the last first", () => {
+    const earlier = session(A, new Date(2026, 8, 20, 8), 40, 2000);
+    const finishA = session(A, new Date(2026, 9, 3, 8), 30, 1000, toEnd);
+    const finishB = session(B, new Date(2026, 9, 10, 8), 20, 500, toEnd);
+    const unfinished = session(C, new Date(2026, 9, 12, 8), 60, 3000);
+    const all = [earlier, finishA, finishB, unfinished];
+    const october = summarize(all, month(9));
+    expect(october.books.map((book) => book.bookId)).toEqual([C, A, B]);
+    expect(october.finishedBooks.map((book) => book.bookId)).toEqual([B, A]);
+    expect(october.finishedBooks[1]).toMatchObject({
+      activeMs: 70 * 60_000,
+      unitsRead: 3000,
+      sessions: 2,
+      days: 2,
+    });
+    expect(summarize(all, month(8)).finishedBooks).toEqual([]);
+    expect(summarize([unfinished], null).finishedBooks).toEqual([]);
+  });
+
+  it("finishes the books the Library shows completed, after a set day or a read to the end", () => {
+    const at = (day: number) => new Date(2026, 9, day, 18).toISOString();
+    const book = (id: string, current: number, lastReadAt: string | null) => ({
+      id,
+      importedAt: at(1),
+      lastReadAt,
+      progress: { unit: "characters" as const, current, total: 100_000 },
+    });
+    const partial = session(A, new Date(2026, 9, 3, 8), 30, 1000);
+    const readToEnd = session(B, new Date(2026, 9, 4, 8), 30, 1000, toEnd);
+    const completions = libraryCompletions(
+      [
+        book(A, 100_000, at(9)),
+        book(B, 100_000, at(11)),
+        book(C, 100_000, null),
+        book("unread", 99_999, at(9)),
+        {
+          ...book("no total", 0, at(9)),
+          progress: { unit: "words" as const, current: 0, total: 0 },
+        },
+      ],
+      [partial, readToEnd],
+    );
+    expect([...completions.keys()]).toEqual([A, B, C]);
+    expect(completions.get(C)?.at).toBe(+new Date(2026, 9, 1, 18));
+    expect(libraryCompletions([book(A, 100_000, null)], [partial]).get(A)?.at).toBe(
+      partial.endedAt,
+    );
+    // Marked completed, it keeps that day while reading on moves the last save.
+    const marked = book(A, 100_000, at(20));
+    const progress = { ...marked.progress, completedAt: at(2) };
+    expect(libraryCompletions([{ ...marked, progress }], []).get(A)?.at).toBe(
+      +new Date(2026, 9, 2, 18),
+    );
+
+    const october = summarize([partial, readToEnd], month(9), completions);
+    expect(october.finished).toBe(3);
+    // B keeps the day its session read it to the end; C was never read here.
+    expect(october.finishedBooks.map((finished) => finished.bookId)).toEqual([A, B, C]);
+    expect(october.finishedBooks[2]).toMatchObject({ sessions: 0, unitsRead: 0, days: 0 });
+    expect(summarize([partial, readToEnd], month(8), completions).finished).toBe(0);
+    expect(summarize([], null, completions).finished).toBe(3);
+    const dates = finishDates([partial, readToEnd], completions);
+    expect(dates.get(A)).toEqual({ at: +new Date(2026, 9, 9, 18), set: false });
+    expect(dates.get(B)).toEqual({ at: readToEnd.startedAt, set: false });
+
+    // A day the reader set wins over the Library's.
+    const set = { ...partial, finishedAt: +new Date(2026, 8, 30, 12) };
+    expect(summarize([set], month(9), completions).finishedBooks.map((b) => b.bookId)).toEqual([
+      B,
+      C,
+    ]);
+    expect(finishDates([set], completions).get(A)?.set).toBe(true);
+  });
+
+  it("leaves out a session an idle stop emptied, but not one corrected to nothing", () => {
+    const read = session(A, new Date(2026, 9, 3, 8), 30, 1000);
+    const emptied = session(A, new Date(2026, 9, 4, 8), 0, 0, { activeMs: 0 });
+    const corrected = session(A, new Date(2026, 9, 5, 8), 10, 100, {
+      adjustment: { unitsDelta: -100, activeMsDelta: -600_000 },
+    });
+    expect(summarize([read, emptied], month(9)).sessions).toBe(1);
+    expect(summarize([read, emptied, corrected], month(9)).books[0]).toMatchObject({
+      sessions: 2,
+      days: 2,
+    });
+  });
+
+  it("keeps a valid finished date from native sessions and drops anything else", () => {
+    const valid = session(A, new Date(2026, 9, 5, 8), 30, 1000);
+    const at = +new Date(2026, 9, 6, 12);
+    expect(normalizeSession({ ...valid, finishedAt: at })?.finishedAt).toBe(at);
+    for (const finishedAt of [0, 1.5, "x", Date.now() + 2 * 86_400_000])
+      expect(normalizeSession({ ...valid, finishedAt })).not.toHaveProperty("finishedAt");
   });
 });

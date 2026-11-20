@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppearanceProvider } from "../features/appearance/AppearanceProvider";
 import type { AppearancePreferencesStore as AppearanceStore } from "../features/appearance/appearancePreferences";
-import { listLibrary, type LibraryBook } from "../features/library/libraryApi";
+import {
+  listLibrary,
+  setBookCompletedDate,
+  type LibraryBook,
+} from "../features/library/libraryApi";
 import { libraryCache } from "../features/library/libraryCache";
 import {
   listLibraryKanji,
@@ -19,6 +23,7 @@ import { StatisticsPage } from "./StatisticsPage";
 
 vi.mock("../features/library/libraryApi", () => ({
   listLibrary: vi.fn(),
+  setBookCompletedDate: vi.fn(async () => true),
   onLibraryDetailsUpdated: vi.fn(() => () => {}),
 }));
 vi.mock("../features/statistics/statisticsApi", async (importOriginal) => ({
@@ -384,50 +389,104 @@ describe("Statistics", () => {
     expect(screen.queryByRole("region", { name: /volume/i })).not.toBeInTheDocument();
   });
 
-  it("shows the books read in the range as covers, each opening its own totals", async () => {
-    renderPage();
+  it("shows only the books finished in the range as covers, each opening its own totals", async () => {
+    let page = renderPage();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const card = await screen.findByRole("region", { name: "Books read" });
     const covers = () => within(card).getAllByRole("button", { name: /秋の手紙|Harbor Notes/ });
-    // Most time read first: this month's hour of 秋の手紙, then 20 minutes of Harbor Notes.
-    expect(covers().map((cover) => cover.getAttribute("aria-label"))).toEqual([
-      "秋の手紙",
-      "Harbor Notes",
-    ]);
+    // 秋の手紙 was read this month but not finished.
+    expect(covers().map((cover) => cover.getAttribute("aria-label"))).toEqual(["Harbor Notes"]);
     const value = (dialog: HTMLElement, label: string) =>
       within(dialog).getByText(label, { selector: "dt" }).nextElementSibling;
 
     await user.click(covers()[0]);
-    let dialog = screen.getByRole("dialog", { name: "秋の手紙" });
-    expect(dialog).toHaveTextContent("山田 花子");
-    expect(dialog).toHaveTextContent("25%");
-    expect(value(dialog, "Reading time")).toHaveTextContent("1h 00m");
-    expect(value(dialog, "Sessions")).toHaveTextContent("1");
-    expect(value(dialog, "Characters read")).toHaveTextContent("18,000");
-    expect(value(dialog, "Avg. Ch./h")).toHaveTextContent("18,000");
-    expect(value(dialog, "Days read")).toHaveTextContent("1");
-    await user.click(within(dialog).getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(covers()[0]).toHaveFocus();
-
-    await user.click(covers()[1]);
-    dialog = screen.getByRole("dialog", { name: "Harbor Notes" });
+    let dialog = screen.getByRole("dialog", { name: "Harbor Notes" });
     expect(dialog).toHaveTextContent("Completed");
     expect(value(dialog, "Words read")).toHaveTextContent("6,000");
     expect(value(dialog, "Avg. Wo./h")).toHaveTextContent("18,000");
-    // Escape, as the browser reports it to a modal dialog.
-    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    expect(screen.getByRole("button", { name: "Finished Oct 15, 2026" })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(covers()[0]).toHaveFocus();
+    page.unmount();
 
-    await user.click(screen.getByRole("button", { name: "Statistics range: This month" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /All time/ }));
-    await user.click(covers()[0]);
+    // Given a finished day, 秋の手紙 is listed after the book finished later, with all its sessions.
+    vi.mocked(listReadingSessions).mockResolvedValueOnce([
+      session(JA, new Date(2026, 8, 20, 9), 30, 6_000),
+      session(JA, new Date(2026, 9, 14, 9), 60, 18_000, {
+        finishedAt: +new Date(2026, 9, 10, 12),
+      }),
+      session(EN, new Date(2026, 9, 15, 8), 20, 6_000, {
+        unit: "words",
+        startUnits: 182_000,
+        endUnits: 188_000,
+        totalUnits: 188_000,
+      }),
+    ]);
+    page = renderPage();
+    const finished = await screen.findByRole("region", { name: "Books read" });
+    expect(
+      within(finished)
+        .getAllByRole("button", { name: /秋の手紙|Harbor Notes/ })
+        .map((cover) => cover.getAttribute("aria-label")),
+    ).toEqual(["Harbor Notes", "秋の手紙"]);
+    await user.click(within(finished).getByRole("button", { name: "秋の手紙" }));
     dialog = screen.getByRole("dialog", { name: "秋の手紙" });
+    expect(dialog).toHaveTextContent("山田 花子");
+    expect(dialog).toHaveTextContent("25%");
     expect(value(dialog, "Reading time")).toHaveTextContent("1h 30m");
     expect(value(dialog, "Sessions")).toHaveTextContent("2");
     expect(value(dialog, "Characters read")).toHaveTextContent("24,000");
     expect(value(dialog, "Avg. Ch./h")).toHaveTextContent("16,000");
     expect(value(dialog, "Days read")).toHaveTextContent("2");
+    // Escape, as the browser reports it to a modal dialog.
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    page.unmount();
+
+    // A book marked completed in the Library is finished without any session, on the day it was
+    // marked, whenever it was read since.
+    const nightTrain = (completedAt: Date) =>
+      book("33333333-3333-4333-8333-333333333333", {
+        title: "Night Train",
+        lastReadAt: new Date(2026, 9, 14, 20).toISOString(),
+        progress: {
+          unit: "characters",
+          current: 90_000,
+          total: 90_000,
+          completedAt: completedAt.toISOString(),
+        },
+      });
+    vi.mocked(listLibrary)
+      .mockResolvedValueOnce([...books, nightTrain(new Date(2026, 9, 12, 12))])
+      .mockResolvedValueOnce([...books, nightTrain(new Date(2026, 9, 11, 12))]);
+    libraryCache.reset();
+    page = renderPage();
+    const marked = await screen.findByRole("region", { name: "Books read" });
+    await waitFor(() =>
+      expect(
+        within(marked)
+          .getAllByRole("button", { name: /秋の手紙|Harbor Notes|Night Train/ })
+          .map((cover) => cover.getAttribute("aria-label")),
+      ).toEqual(["Harbor Notes", "Night Train"]),
+    );
+    await user.click(within(marked).getByRole("button", { name: "Night Train" }));
+    dialog = screen.getByRole("dialog", { name: "Night Train" });
+    expect(value(dialog, "Sessions")).toHaveTextContent("0");
+    // With no session, a day chosen is kept in the Library, which is listed again.
+    await user.click(within(dialog).getByRole("button", { name: "Finished Oct 12, 2026" }));
+    await user.keyboard("{ArrowLeft}{Enter}");
+    expect(setBookCompletedDate).toHaveBeenCalledWith(
+      "33333333-3333-4333-8333-333333333333",
+      +new Date(2026, 9, 11, 12),
+    );
+    expect(
+      await within(dialog).findByRole("button", { name: "Finished Oct 11, 2026" }),
+    ).toBeInTheDocument();
+    // It has no sessions' day to go back to.
+    expect(
+      within(dialog).queryByRole("button", { name: "Reset finished date" }),
+    ).not.toBeInTheDocument();
   });
 
   it("leaves out the word cards when no book is counted in words", async () => {

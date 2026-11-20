@@ -496,6 +496,24 @@ describe("English scanning and sentences", () => {
     view.cleanup();
   });
 
+  it("starts a scan on the letter a combining mark belongs to, never on the mark", () => {
+    const view = englishBook("<p>นับเป็นเรื่องดี คำชี้แจง</p>", { lookupLanguage: "th" });
+    // ั sits above น and shares its box, so the pointer on น can find the mark.
+    view.at("นับ", 1);
+    view.shift();
+    expect(view.report).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ text: expect.stringMatching(/^นับเป็นเรื่องดี/) }),
+    );
+    view.report.mockClear();
+    // ำ draws its ring over ค, so the pointer on ค can find it too.
+    view.at("คำ", 1);
+    view.shift();
+    expect(view.report).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ text: expect.stringMatching(/^คำชี้แจง/) }),
+    );
+    view.cleanup();
+  });
+
   it("starts no scan on spaces or punctuation, and only on a word starting with a letter", () => {
     const view = englishBook("<p>Wait … 1984 “Go”</p>", { readerPopupCjkOnly: true });
     view.at("…");
@@ -533,5 +551,22 @@ describe("English scanning and sentences", () => {
     // Japanese ends sentences only at 。！？ and line breaks, as before.
     expect(sentence("left")).toBe("“Stop!” she said. Mr.Smith waved... and left? Yes");
     expect(sentence("left", "ja")).toBe(sentence("left"));
+  });
+
+  it("ends Arabic, Hindi and Greek sentences at their own marks, and Thai ones at spaces", () => {
+    const iframe = document.createElement("iframe");
+    document.body.append(iframe);
+    const doc = iframe.contentDocument!;
+    const sentence = (html: string, word: string, language: "ar" | "hi" | "el" | "th") => {
+      doc.body.innerHTML = `<p>${html}</p>`;
+      const text = doc.querySelector("p")!.firstChild as Text;
+      const range = doc.createRange();
+      range.setStart(text, text.data.indexOf(word));
+      return sentenceAt(range, language);
+    };
+    expect(sentence("هل قرأت الكتاب؟ نعم قرأته.", "نعم", "ar")).toBe("نعم قرأته.");
+    expect(sentence("हम घर गए। वह सो गया।", "वह", "hi")).toBe("वह सो गया।");
+    expect(sentence("Τι κάνεις; Καλά.", "κάνεις", "el")).toBe("Τι κάνεις;");
+    expect(sentence("ฉันกินข้าว แล้วไปนอน", "แล้ว", "th")).toBe("แล้วไปนอน");
   });
 });

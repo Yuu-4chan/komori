@@ -58,7 +58,11 @@ it("shows the open book's Asian font and sends a new pick to where the book keep
   );
   const asian = await screen.findByRole("combobox", { name: "Asian font" });
   expect(asian).toHaveValue("Noto Sans KR");
-  await user.clear(asian);
+  // A slow run can render the loaded font again after the first clear.
+  await waitFor(async () => {
+    await user.clear(asian);
+    expect(asian).toHaveValue("");
+  });
   await user.type(asian, "Meiryo{Enter}");
   expect(pick).toHaveBeenCalledWith({ source: "system", family: "Meiryo" });
   // The font saved for other books stays.

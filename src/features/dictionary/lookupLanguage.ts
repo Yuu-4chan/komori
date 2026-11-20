@@ -1,6 +1,7 @@
 /**
  * The language lookups deinflect and choose dictionaries for. Japanese is the default; each
- * language decides how the Reader scans text and which parts of an entry show.
+ * language decides how the Reader scans text and which parts of an entry show. The languages
+ * without deinflection rules find inflected words through their dictionaries' own form entries.
  */
 export const lookupLanguages = [
   "ja",
@@ -13,24 +14,25 @@ export const lookupLanguages = [
   "zh",
   "de",
   "ru",
+  "nl",
+  "pl",
+  "sv",
+  "nb",
+  "da",
+  "fi",
+  "el",
+  "tr",
+  "ar",
+  "hi",
+  "th",
+  "vi",
+  "id",
 ] as const;
 export type LookupLanguage = (typeof lookupLanguages)[number];
 export const defaultLookupLanguage: LookupLanguage = "ja";
 
 /** The languages starter dictionaries can have their definitions in, a wider set than lookups. */
-export const definitionLanguages = [
-  ...lookupLanguages,
-  "cs",
-  "el",
-  "id",
-  "ku",
-  "ms",
-  "nl",
-  "pl",
-  "th",
-  "tr",
-  "vi",
-] as const;
+export const definitionLanguages = [...lookupLanguages, "cs", "ku", "ms"] as const;
 export type DefinitionLanguage = (typeof definitionLanguages)[number];
 export const isDefinitionLanguage = (value: unknown): value is DefinitionLanguage =>
   definitionLanguages.some((language) => language === value);
@@ -54,6 +56,24 @@ const threeLetterCodes: Record<string, LookupLanguage> = {
   deu: "de",
   ger: "de",
   rus: "ru",
+  nld: "nl",
+  dut: "nl",
+  pol: "pl",
+  swe: "sv",
+  nob: "nb",
+  nor: "nb",
+  no: "nb",
+  dan: "da",
+  fin: "fi",
+  ell: "el",
+  gre: "el",
+  tur: "tr",
+  ara: "ar",
+  arb: "ar",
+  hin: "hi",
+  tha: "th",
+  vie: "vi",
+  ind: "id",
 };
 
 /**
@@ -66,7 +86,8 @@ export function lookupLanguageOf(tag: string | null | undefined): LookupLanguage
 }
 
 /** Whether the language spaces its words, so a lookup starts at the word under the pointer. */
-export const spacesWords = (language: LookupLanguage) => language !== "ja" && language !== "zh";
+export const spacesWords = (language: LookupLanguage) =>
+  language !== "ja" && language !== "zh" && language !== "th";
 
 /**
  * Whether a headword's reading shows beside it in the Dictionary page's entries: pinyin in

@@ -1446,14 +1446,31 @@ describe("Library page", () => {
       await user.keyboard("{Escape}");
       await user.click(screen.getAllByRole("button", { name: "More actions for Halfway Book" })[0]);
       await user.click(screen.getByRole("menuitem", { name: "Mark as completed" }));
-      await waitFor(() => expect(markBooksCompleted).toHaveBeenCalledWith(["reading"]));
+      // It asks the day it was finished, today unless another is chosen; Enter marks it.
+      const noon = (daysAgo: number) => {
+        const day = new Date();
+        return +new Date(day.getFullYear(), day.getMonth(), day.getDate() - daysAgo, 12);
+      };
+      let dialog = await screen.findByRole("dialog", { name: "Mark as completed" });
+      expect(within(dialog).getByRole("button", { name: /^Finished / })).toHaveTextContent(
+        new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date()),
+      );
+      expect(within(dialog).getByRole("button", { name: "Mark as completed" })).toHaveFocus();
+      await user.keyboard("{Enter}");
+      await waitFor(() => expect(markBooksCompleted).toHaveBeenCalledWith(["reading"], noon(0)));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       // Finished, it leaves Continue reading.
       await waitFor(() =>
         expect(screen.queryByRole("region", { name: "Continue reading" })).not.toBeInTheDocument(),
       );
       await user.click(screen.getByRole("checkbox", { name: "Select Unread Book" }));
       await user.click(screen.getByRole("button", { name: "Mark as completed" }));
-      await waitFor(() => expect(markBooksCompleted).toHaveBeenLastCalledWith(["unread"]));
+      dialog = await screen.findByRole("dialog", { name: "Mark as completed" });
+      // The day before, from the calendar.
+      await user.click(within(dialog).getByRole("button", { name: /^Finished / }));
+      await user.keyboard("{ArrowLeft}{Enter}");
+      await user.click(within(dialog).getByRole("button", { name: "Mark as completed" }));
+      await waitFor(() => expect(markBooksCompleted).toHaveBeenLastCalledWith(["unread"], noon(1)));
       await waitFor(() =>
         expect(screen.queryByRole("button", { name: "Done selecting" })).not.toBeInTheDocument(),
       );

@@ -17,8 +17,10 @@ interface ConfirmDialogProps {
   confirmLabel: string;
   confirmTone?: "primary" | "danger";
   dialogRole?: "dialog" | "alertdialog";
-  description: string;
+  description?: string;
   error?: string | null;
+  /** Opens with the confirming button focused, for an action Enter should take at once. */
+  focusConfirm?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   open: boolean;
@@ -40,6 +42,7 @@ export function ConfirmDialog({
   dialogRole = "alertdialog",
   description,
   error,
+  focusConfirm = false,
   onCancel,
   onConfirm,
   open,
@@ -67,7 +70,12 @@ export function ConfirmDialog({
     if (field) {
       field.focus();
       field.select();
-    } else dialog.querySelector<HTMLButtonElement>("[data-dialog-cancel]")?.focus();
+    } else
+      dialog
+        .querySelector<HTMLButtonElement>(
+          focusConfirm ? "[data-dialog-confirm]" : "[data-dialog-cancel]",
+        )
+        ?.focus();
     return () => {
       if (dialog.open && typeof dialog.close === "function") dialog.close();
       returnFocusRef.current?.focus();
@@ -79,7 +87,7 @@ export function ConfirmDialog({
 
   return createPortal(
     <dialog
-      aria-describedby={descriptionId}
+      aria-describedby={description ? descriptionId : undefined}
       aria-labelledby={titleId}
       className={
         wide === "large"
@@ -100,7 +108,7 @@ export function ConfirmDialog({
       <DialogCaption />
       <div className="confirm-dialog__content">
         <h2 id={titleId}>{title}</h2>
-        <p id={descriptionId}>{description}</p>
+        {description ? <p id={descriptionId}>{description}</p> : null}
         {children}
         {error ? (
           <p className="confirm-dialog__error" role="alert">
@@ -111,7 +119,12 @@ export function ConfirmDialog({
           <Button data-dialog-cancel disabled={busy} onClick={onCancel} tone="secondary">
             {cancelLabel ?? t("common.cancel")}
           </Button>
-          <Button disabled={busy || confirmDisabled} onClick={onConfirm} tone={confirmTone}>
+          <Button
+            data-dialog-confirm
+            disabled={busy || confirmDisabled}
+            onClick={onConfirm}
+            tone={confirmTone}
+          >
             {busy ? (busyLabel ?? t("common.working")) : confirmLabel}
           </Button>
         </div>

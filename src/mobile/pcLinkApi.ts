@@ -147,8 +147,11 @@ export const removePcBook = (book: PcBook) => invoke<void>("remove_pc_book", { i
  * Marks the PC's books completed or unread, or removes them from its Library (their files stay
  * on the PC; their copies here go), returning the books changed.
  */
-export const changePcBooks = (change: "completed" | "unread" | "remove", ids: string[]) =>
-  invoke<string[]>("change_pc_books", { change, ids });
+export const changePcBooks = (
+  change: "completed" | "unread" | "remove",
+  ids: string[],
+  completedAt?: number,
+) => invoke<string[]>("change_pc_books", { change, ids, completedAt: completedAt ?? null });
 /** Renames a series or author group on the PC and the copies here, returning the books changed. */
 export const renamePcGroup = (renames: GroupRename[]) =>
   invoke<string[]>("rename_pc_group", { renames });

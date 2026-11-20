@@ -207,6 +207,9 @@ struct BackupProgress {
     current: i64,
     total: i64,
     updated_at: String,
+    /// When the book was marked completed; absent in older backups and when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    completed_at: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -250,6 +253,9 @@ struct BackupSession {
     /// The device that read it, when another one did.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     device: Option<String>,
+    /// When the reader set the book as finished.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    finished_at: Option<i64>,
 }
 
 /// SQLite's `strftime('%Y-%m-%dT%H:%M:%fZ')`, the only timestamp form Komori stores.
@@ -296,6 +302,7 @@ impl BackupBook {
             unit: progress.unit.clone(),
             current: progress.current,
             total: progress.total,
+            completed_at: progress.completed_at.clone(),
         })
     }
 
@@ -904,7 +911,8 @@ pub(crate) const BACKUP_BOOKS_SQL: &str =
             manual.book_id IS NOT NULL, manual.series, manual.series_index,
             position.spine_index, position.section_key, position.progress,
             position.updated_at, progress.unit, progress.current_units,
-            progress.total_units, progress.updated_at, named.title, authored.author
+            progress.total_units, progress.updated_at, named.title, authored.author,
+            progress.completed_at
        FROM books
        LEFT JOIN book_series AS manual ON manual.book_id = books.id
        LEFT JOIN book_titles AS named ON named.book_id = books.id
@@ -969,6 +977,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
                         current: row.get(13)?,
                         total: row.get(14)?,
                         updated_at: row.get(15)?,
+                        completed_at: row.get(18)?,
                     }),
                     None => None,
                 };
@@ -1132,7 +1141,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
             .prepare(
                 "SELECT id, book_id, started_at, ended_at, active_ms, unit, units_read,
                         start_units, end_units, total_units, book_title, finish_cleared,
-                        units_adjustment, active_adjustment, device
+                        units_adjustment, active_adjustment, device, finished_at
                    FROM reading_sessions ORDER BY started_at, id",
             )
             .map_err(storage_error)?;
@@ -1158,6 +1167,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
                         active_ms_delta: row.get(13)?,
                     }),
                     device: row.get(14)?,
+                    finished_at: row.get(15)?,
                 })
             })
             .map_err(storage_error)?;
@@ -1680,14 +1690,15 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
             transaction
                 .execute(
                     "INSERT INTO book_progress
-                       (book_id, unit, current_units, total_units, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                       (book_id, unit, current_units, total_units, updated_at, completed_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                     params![
                         id,
                         progress.unit,
                         progress.current,
                         progress.total,
-                        progress.updated_at
+                        progress.updated_at,
+                        progress.completed_at
                     ],
                 )
                 .map_err(storage_error)?;
@@ -1727,8 +1738,8 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                 "INSERT INTO reading_sessions
                    (id, book_id, started_at, ended_at, active_ms, unit, units_read,
                     start_units, end_units, total_units, book_title, finish_cleared,
-                    units_adjustment, active_adjustment, device)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+                    units_adjustment, active_adjustment, device, finished_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
                  ON CONFLICT(id) DO UPDATE SET
                    book_id = excluded.book_id, started_at = excluded.started_at,
                    ended_at = excluded.ended_at, active_ms = excluded.active_ms,
@@ -1738,7 +1749,8 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                    finish_cleared = excluded.finish_cleared,
                    units_adjustment = excluded.units_adjustment,
                    active_adjustment = excluded.active_adjustment,
-                   device = excluded.device",
+                   device = excluded.device,
+                   finished_at = excluded.finished_at",
                 params![
                     session.id,
                     book_id,
@@ -1754,7 +1766,8 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
                     stored.finish_cleared,
                     stored.adjustment.as_ref().map_or(0, |a| a.units_delta),
                     stored.adjustment.as_ref().map_or(0, |a| a.active_ms_delta),
-                    stored.device
+                    stored.device,
+                    stored.finished_at
                 ],
             )
             .map_err(storage_error)?;

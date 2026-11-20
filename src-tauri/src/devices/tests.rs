@@ -354,17 +354,27 @@ fn a_paired_phone_marks_the_pcs_books_and_removes_them_from_its_library() {
     let other = "00000000-0000-4000-8000-000000000000".to_owned();
     let ids = [book.id.clone(), other];
 
-    // Completed moves the progress to its end; a book the PC lacks is left out.
+    // Completed moves the progress to its end, finished on the day the phone chose; a book the
+    // PC lacks is left out.
+    let day = 1_790_000_000_000;
     assert_eq!(
-        run(client.change_books(BookChange::Completed, &ids)).unwrap(),
+        run(client.change_books(BookChange::Completed, &ids, Some(day))).unwrap(),
         std::slice::from_ref(&book.id)
     );
     assert_eq!(progress(&catalog), Some((100, 100)));
+    let completed_at: String = catalog
+        .query_row(
+            "SELECT completed_at FROM book_progress WHERE book_id = ?1",
+            [&book.id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(completed_at, "2026-09-21T14:13:20.000Z");
     // Unread forgets the place and the progress.
     let position = crate::reading_position::position(3, None, 0.5);
     assert!(crate::reading_position::save_to(&catalog, &book.id, &position).unwrap());
     assert_eq!(
-        run(client.change_books(BookChange::Unread, &ids)).unwrap(),
+        run(client.change_books(BookChange::Unread, &ids, None)).unwrap(),
         std::slice::from_ref(&book.id)
     );
     assert_eq!(progress(&catalog), None);
@@ -374,7 +384,7 @@ fn a_paired_phone_marks_the_pcs_books_and_removes_them_from_its_library() {
     );
     // Removing takes the book out of the Library and leaves its file.
     assert_eq!(
-        run(client.change_books(BookChange::Remove, &ids)).unwrap(),
+        run(client.change_books(BookChange::Remove, &ids, None)).unwrap(),
         std::slice::from_ref(&book.id)
     );
     assert!(run(client.library()).unwrap().books.is_empty());
@@ -382,13 +392,13 @@ fn a_paired_phone_marks_the_pcs_books_and_removes_them_from_its_library() {
 
     // Only a paired phone may, and only with books' IDs.
     assert!(matches!(
-        run(client.change_books(BookChange::Remove, &["../library.sqlite3".to_owned()]))
+        run(client.change_books(BookChange::Remove, &["../library.sqlite3".to_owned()], None,))
             .unwrap_err(),
         LinkError::Failed(_)
     ));
     let unpaired = Client::new("127.0.0.1", pc.port, Some(pairing.fingerprint), None).unwrap();
     assert_eq!(
-        run(unpaired.change_books(BookChange::Remove, &ids)).unwrap_err(),
+        run(unpaired.change_books(BookChange::Remove, &ids, None)).unwrap_err(),
         LinkError::NotPaired
     );
 }

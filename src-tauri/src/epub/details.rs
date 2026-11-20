@@ -214,6 +214,20 @@ pub(crate) fn normalize_language(value: &str) -> Option<String> {
         "por" => "pt",
         "ita" => "it",
         "rus" => "ru",
+        "nld" | "dut" => "nl",
+        "pol" => "pl",
+        "swe" => "sv",
+        "nob" => "nb",
+        "nor" => "no",
+        "dan" => "da",
+        "fin" => "fi",
+        "ell" | "gre" => "el",
+        "tur" => "tr",
+        "ara" | "arb" => "ar",
+        "hin" => "hi",
+        "tha" => "th",
+        "vie" => "vi",
+        "ind" => "id",
         other => other,
     }
     .to_string();
@@ -672,6 +686,10 @@ mod tests {
             normalize_language("zh_hant_tw").as_deref(),
             Some("zh-Hant-TW")
         );
+        assert_eq!(normalize_language("dut-BE").as_deref(), Some("nl-BE"));
+        assert_eq!(normalize_language("nob").as_deref(), Some("nb"));
+        assert_eq!(normalize_language("nor").as_deref(), Some("no"));
+        assert_eq!(normalize_language("arb").as_deref(), Some("ar"));
         assert_eq!(normalize_language("und"), None);
         for (tag, shown) in [
             ("ja-JP", "ja"),

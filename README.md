@@ -55,10 +55,11 @@
   a font that can show it; fifteen themes plus your own and a background image; furigana
   hiding; bookmarks, notes and highlights; find in book; an image gallery; middle-click
   autoscroll; and a configurable footer with position, clock and reading speed.
-- **Lookup in ten languages.** Look words up in Japanese, English, Spanish, French,
-  Portuguese, Italian, German, Russian, Korean or Chinese books with Shift, a shortcut,
-  selection, click or hover. Each language has its own dictionaries, deinflection and word
-  audio. Readings with furigana, IPA, pitch accent, frequency, tags, kanji cards and nested
+- **Lookup in 23 languages.** Look words up in Japanese, English, Spanish, French,
+  Portuguese, Italian, German, Russian, Korean, Chinese, Dutch, Polish, Swedish, Norwegian,
+  Danish, Finnish, Greek, Turkish, Arabic, Hindi, Thai, Vietnamese or Indonesian books with
+  Shift, a shortcut, selection, click or hover. Each language has its own dictionaries and word
+  audio, and the first ten their own deinflection. Readings with furigana, IPA, pitch accent, frequency, tags, kanji cards and nested
   lookups.
 - **Dictionary.** A full dictionary page with the same results, sources in your order and
   a kanji card for single characters.

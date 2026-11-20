@@ -580,7 +580,7 @@ describe("the Library on a phone paired with a PC", () => {
     expect(screen.getByRole("alertdialog", { name: "Remove 1 book from Komori?" })).toBe(remove);
     await userEvent.click(within(remove).getByRole("button", { name: "Remove book" }));
     await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
-    expect(api.changePcBooks).toHaveBeenLastCalledWith("remove", ["pc-2"]);
+    expect(api.changePcBooks).toHaveBeenLastCalledWith("remove", ["pc-2"], undefined);
     expect(api.removePcBook).toHaveBeenCalledTimes(1);
     vi.restoreAllMocks();
   });
@@ -635,8 +635,11 @@ describe("the Library on a phone paired with a PC", () => {
     // The copy here is synced first, so what was read here is not lost, and again after.
     select("三四郎");
     await userEvent.click(bar().getByRole("button", { name: "Mark as completed" }));
+    const completed = screen.getByRole("dialog", { name: "Mark as completed" });
+    await userEvent.click(within(completed).getByRole("button", { name: "Mark as completed" }));
     await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
-    expect(api.changePcBooks).toHaveBeenLastCalledWith("completed", ["pc-2"]);
+    // The PC marks it finished on the day chosen here.
+    expect(api.changePcBooks).toHaveBeenLastCalledWith("completed", ["pc-2"], expect.any(Number));
     expect(api.autoSync).toHaveBeenCalledTimes(2);
 
     select("三四郎");
@@ -644,7 +647,7 @@ describe("the Library on a phone paired with a PC", () => {
     const unread = screen.getByRole("alertdialog", { name: "Mark this book as unread?" });
     await userEvent.click(within(unread).getByRole("button", { name: "Mark as unread" }));
     await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
-    expect(api.changePcBooks).toHaveBeenLastCalledWith("unread", ["pc-2"]);
+    expect(api.changePcBooks).toHaveBeenLastCalledWith("unread", ["pc-2"], undefined);
 
     // Removing asks first, and says so when the PC does not answer, keeping the selection.
     vi.mocked(api.changePcBooks).mockRejectedValueOnce(Error("unreachable"));
@@ -656,7 +659,7 @@ describe("the Library on a phone paired with a PC", () => {
     expect(screen.getByRole("toolbar")).toBeTruthy();
     await userEvent.click(within(remove).getByRole("button", { name: "Remove book" }));
     await waitFor(() => expect(screen.queryByRole("toolbar")).toBeNull());
-    expect(api.changePcBooks).toHaveBeenLastCalledWith("remove", ["pc-1"]);
+    expect(api.changePcBooks).toHaveBeenLastCalledWith("remove", ["pc-1"], undefined);
     vi.restoreAllMocks();
   });
 });

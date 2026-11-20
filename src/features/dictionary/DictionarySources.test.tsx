@@ -849,6 +849,19 @@ describe("Dictionary sources", () => {
       "Chinese",
       "German",
       "Russian",
+      "Dutch",
+      "Polish",
+      "Swedish",
+      "Norwegian",
+      "Danish",
+      "Finnish",
+      "Greek",
+      "Turkish",
+      "Arabic",
+      "Hindi",
+      "Thai",
+      "Vietnamese",
+      "Indonesian",
     ]);
     languageMock.mockResolvedValue(2);
     listMock.mockResolvedValue([

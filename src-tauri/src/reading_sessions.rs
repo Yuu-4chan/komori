@@ -86,6 +86,8 @@ pub(crate) fn create_tables(connection: &Connection) -> Result<(), String> {
         ("active_adjustment", "INTEGER NOT NULL DEFAULT 0"),
         // The device that read the session, when another one did (a synced PC or phone).
         ("device", "TEXT"),
+        // When the reader says the book was finished; set on the book's latest session only.
+        ("finished_at", "INTEGER"),
     ] {
         let exists: bool = connection
             .query_row(
@@ -211,8 +213,24 @@ pub struct StoredSession {
     /// The device that read it, when another one did; see `list_reading_devices`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) device: Option<String>,
+    /// When the reader set the book as finished, in place of the session that read to its end;
+    /// see `set_book_finished_date`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) finished_at: Option<i64>,
     #[serde(flatten)]
     pub(crate) session: ReadingSession,
+}
+
+/// Whether `finished_at` is a time a book can have been finished at: not before 2000 and not
+/// more than a day ahead of `now`, whose local day may already have begun.
+pub(crate) fn valid_finish_time(finished_at: i64, now: i64) -> bool {
+    (MIN_TIME_MS..=MAX_TIME_MS).contains(&finished_at) && finished_at <= now + 24 * 60 * 60 * 1000
+}
+
+pub(crate) fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_millis() as i64)
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -406,6 +424,93 @@ pub async fn list_reading_sessions(
         .map_err(|error| format!("Reading session task failed: {error}"))?
 }
 
+/// One book's sessions, oldest first, for the Reader's statistics; none for an invalid ID.
+#[tauri::command]
+pub async fn list_book_reading_sessions(
+    catalog: State<'_, CatalogState>,
+    book_id: String,
+) -> Result<Vec<StoredSession>, String> {
+    let database = catalog.database.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if Uuid::parse_str(&book_id).is_err() {
+            return Ok(Vec::new());
+        }
+        list_matching(&open_catalog(&database)?, Some(&book_id))
+    })
+    .await
+    .map_err(|error| format!("Reading session task failed: {error}"))?
+}
+
+/// Sets when a book was finished (`finished_at`, Unix milliseconds) or, with none, lets its
+/// sessions say so again, and returns every session. The date goes on the book's latest
+/// session, which then counts as finishing it even if the book was marked unread before.
+/// Returns None when the book has no session or the time is out of range.
+#[tauri::command]
+pub async fn set_book_finished_date(
+    catalog: State<'_, CatalogState>,
+    book_id: String,
+    finished_at: Option<i64>,
+) -> Result<Option<Vec<StoredSession>>, String> {
+    let database = catalog.database.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        if Uuid::parse_str(&book_id).is_err() {
+            return Ok(None);
+        }
+        let mut connection = open_catalog(&database)?;
+        if !set_finished_date(&mut connection, &book_id, finished_at, now_ms())? {
+            return Ok(None);
+        }
+        list_from(&connection).map(Some)
+    })
+    .await
+    .map_err(|error| format!("Reading session task failed: {error}"))?
+}
+
+pub(crate) fn set_finished_date(
+    connection: &mut Connection,
+    book_id: &str,
+    finished_at: Option<i64>,
+    now: i64,
+) -> Result<bool, String> {
+    if finished_at.is_some_and(|time| !valid_finish_time(time, now)) {
+        return Ok(false);
+    }
+    let transaction = connection.transaction().map_err(storage_error)?;
+    let latest: Option<String> = transaction
+        .query_row(
+            "SELECT id FROM reading_sessions WHERE book_id = ?1
+              ORDER BY ended_at DESC, id DESC LIMIT 1",
+            [book_id],
+            |row| row.get(0),
+        )
+        .map(Some)
+        .or_else(|error| match error {
+            rusqlite::Error::QueryReturnedNoRows => Ok(None),
+            other => Err(other),
+        })
+        .map_err(storage_error)?;
+    let Some(latest) = latest else {
+        return Ok(false);
+    };
+    transaction
+        .execute(
+            "UPDATE reading_sessions SET finished_at = NULL
+              WHERE book_id = ?1 AND finished_at IS NOT NULL",
+            [book_id],
+        )
+        .map_err(storage_error)?;
+    if let Some(time) = finished_at {
+        transaction
+            .execute(
+                "UPDATE reading_sessions SET finished_at = ?1, finish_cleared = 0 WHERE id = ?2",
+                params![time, latest],
+            )
+            .map_err(storage_error)?;
+    }
+    transaction.commit().map_err(storage_error)?;
+    Ok(true)
+}
+
 /// The other devices that read sessions recorded here (a synced PC or phone), with their names.
 #[tauri::command]
 pub async fn list_reading_devices(
@@ -506,7 +611,7 @@ pub(crate) fn mark_unread(connection: &mut Connection, id: &str) -> Result<bool,
     for sql in [
         "DELETE FROM reading_positions WHERE book_id = ?1",
         "DELETE FROM book_progress WHERE book_id = ?1",
-        "UPDATE reading_sessions SET finish_cleared = 1 WHERE book_id = ?1",
+        "UPDATE reading_sessions SET finish_cleared = 1, finished_at = NULL WHERE book_id = ?1",
     ] {
         transaction.execute(sql, [id]).map_err(storage_error)?;
     }
@@ -576,17 +681,27 @@ pub(crate) fn save_to(
 
 /// Every well-formed session, oldest first; a corrupt row is left out.
 pub(crate) fn list_from(connection: &Connection) -> Result<Vec<StoredSession>, String> {
+    list_matching(connection, None)
+}
+
+/// The well-formed sessions of `book`, or of every book, oldest first.
+fn list_matching(
+    connection: &Connection,
+    book: Option<&str>,
+) -> Result<Vec<StoredSession>, String> {
     let mut statement = connection
         .prepare(
             "SELECT book_id, id, started_at, ended_at, active_ms, unit, units_read,
                     start_units, end_units, total_units, book_title, finish_cleared,
-                    units_adjustment, active_adjustment, device
-               FROM reading_sessions ORDER BY started_at, id",
+                    units_adjustment, active_adjustment, device, finished_at
+               FROM reading_sessions WHERE ?1 IS NULL OR book_id = ?1
+              ORDER BY started_at, id",
         )
         .map_err(storage_error)?;
     let rows = statement
-        .query_map([], |row| {
+        .query_map([book], |row| {
             Ok((
+                row.get::<_, Option<i64>>(15).ok().flatten(),
                 row.get::<_, Option<String>>(14)
                     .ok()
                     .flatten()
@@ -616,11 +731,20 @@ pub(crate) fn list_from(connection: &Connection) -> Result<Vec<StoredSession>, S
         .map_err(storage_error)?;
     let mut sessions = Vec::new();
     for row in rows {
-        if let (device, Ok(book_id), book_title, finish_cleared, adjustment, Ok(session)) =
-            row.map_err(storage_error)?
+        if let (
+            finished_at,
+            device,
+            Ok(book_id),
+            book_title,
+            finish_cleared,
+            adjustment,
+            Ok(session),
+        ) = row.map_err(storage_error)?
         {
             if session.is_valid() {
                 sessions.push(StoredSession {
+                    finished_at: finished_at
+                        .filter(|&time| (MIN_TIME_MS..=MAX_TIME_MS).contains(&time)),
                     device,
                     book_id,
                     book_title,
@@ -881,6 +1005,7 @@ mod tests {
                 unit: "characters".into(),
                 current: 900,
                 total: 10000,
+                completed_at: None,
             },
         )
         .unwrap();
@@ -1140,6 +1265,7 @@ mod tests {
                 unit: "characters".into(),
                 current: 10_000,
                 total: 10_000,
+                completed_at: None,
             },
         )
         .unwrap();
@@ -1161,6 +1287,52 @@ mod tests {
 
         assert_eq!(delete_from(&connection, false).unwrap(), 2);
         assert!(list_from(&connection).unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_finished_date_goes_on_the_latest_session_and_marking_unread_clears_it() {
+        let directory = tempdir().unwrap();
+        let mut connection = catalog(directory.path());
+        let now = START + 10_000_000;
+        assert!(!set_finished_date(&mut connection, BOOK, Some(START), now).unwrap());
+        let first = session(60_000, 500);
+        let later = ReadingSession {
+            id: "44444444-4444-4444-8444-444444444444".into(),
+            started_at: START + 1_000_000,
+            ended_at: START + 1_600_000,
+            ..first.clone()
+        };
+        save_to(&connection, BOOK, &first).unwrap();
+        save_to(&connection, BOOK, &later).unwrap();
+        mark_unread(&mut connection, BOOK).unwrap();
+        let finished = |connection: &Connection| {
+            list_from(connection)
+                .unwrap()
+                .into_iter()
+                .map(|stored| (stored.finished_at, stored.finish_cleared))
+                .collect::<Vec<_>>()
+        };
+        // A book marked unread can be set finished again.
+        assert!(set_finished_date(&mut connection, BOOK, Some(START - 86_400_000), now).unwrap());
+        assert_eq!(
+            finished(&connection),
+            [(None, true), (Some(START - 86_400_000), false)]
+        );
+        // The Reader's later save of the session keeps it.
+        save_to(&connection, BOOK, &later).unwrap();
+        assert_eq!(finished(&connection)[1].0, Some(START - 86_400_000));
+        // Out of range: before 2000 or more than a day ahead.
+        for time in [946_684_799_999, now + 86_400_001] {
+            assert!(!set_finished_date(&mut connection, BOOK, Some(time), now).unwrap());
+        }
+        // Clearing it leaves the sessions to say whether the book was finished.
+        assert!(set_finished_date(&mut connection, BOOK, None, now).unwrap());
+        assert_eq!(finished(&connection), [(None, true), (None, false)]);
+        set_finished_date(&mut connection, BOOK, Some(now), now).unwrap();
+        mark_unread(&mut connection, BOOK).unwrap();
+        assert_eq!(finished(&connection), [(None, true), (None, true)]);
+        assert_eq!(list_matching(&connection, Some(OTHER)).unwrap().len(), 0);
+        assert_eq!(list_matching(&connection, Some(BOOK)).unwrap().len(), 2);
     }
 
     #[test]
@@ -1293,6 +1465,7 @@ mod tests {
                 unit: "characters".into(),
                 current: 10,
                 total: 10,
+                completed_at: None,
             },
         )
         .unwrap();
