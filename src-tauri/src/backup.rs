@@ -207,6 +207,9 @@ struct BackupProgress {
     current: i64,
     total: i64,
     updated_at: String,
+    /// When the book was marked completed; absent in older backups and when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    completed_at: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -299,6 +302,7 @@ impl BackupBook {
             unit: progress.unit.clone(),
             current: progress.current,
             total: progress.total,
+            completed_at: progress.completed_at.clone(),
         })
     }
 
@@ -907,7 +911,8 @@ pub(crate) const BACKUP_BOOKS_SQL: &str =
             manual.book_id IS NOT NULL, manual.series, manual.series_index,
             position.spine_index, position.section_key, position.progress,
             position.updated_at, progress.unit, progress.current_units,
-            progress.total_units, progress.updated_at, named.title, authored.author
+            progress.total_units, progress.updated_at, named.title, authored.author,
+            progress.completed_at
        FROM books
        LEFT JOIN book_series AS manual ON manual.book_id = books.id
        LEFT JOIN book_titles AS named ON named.book_id = books.id
@@ -972,6 +977,7 @@ fn collect(connection: &mut Connection, created_at: i64) -> Result<Backup, Strin
                         current: row.get(13)?,
                         total: row.get(14)?,
                         updated_at: row.get(15)?,
+                        completed_at: row.get(18)?,
                     }),
                     None => None,
                 };
@@ -1684,14 +1690,15 @@ fn restore(database: &Path, backup: &Backup, now: i64) -> Result<RestoreResult, 
             transaction
                 .execute(
                     "INSERT INTO book_progress
-                       (book_id, unit, current_units, total_units, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                       (book_id, unit, current_units, total_units, updated_at, completed_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                     params![
                         id,
                         progress.unit,
                         progress.current,
                         progress.total,
-                        progress.updated_at
+                        progress.updated_at,
+                        progress.completed_at
                     ],
                 )
                 .map_err(storage_error)?;

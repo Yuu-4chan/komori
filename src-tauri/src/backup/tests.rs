@@ -294,7 +294,8 @@ fn state(database: &Path) -> Vec<String> {
         "SELECT book_id || ':' || spine_index || ':' || coalesce(section_key, '') || ':' ||
                 progress || ':' || updated_at FROM reading_positions ORDER BY book_id",
         "SELECT book_id || ':' || unit || ':' || current_units || '/' || total_units || ':' ||
-                updated_at FROM book_progress ORDER BY book_id",
+                updated_at || ':' || coalesce(completed_at, '') FROM book_progress
+          ORDER BY book_id",
         "SELECT book_id || ':' || coalesce(series, '<none>') || ':' || coalesce(series_index, '')
            FROM book_series ORDER BY book_id",
         "SELECT book_id || ':' || title FROM book_titles ORDER BY book_id",
@@ -324,6 +325,10 @@ fn read_state(fixture: &Fixture) {
                VALUES ('{A}', 3, '0a1b2c3d', 0.25, '2026-09-30T10:00:00.000Z');
              INSERT INTO book_progress (book_id, unit, current_units, total_units, updated_at)
                VALUES ('{A}', 'characters', 1200, 90000, '2026-09-30T10:00:01.000Z');
+             INSERT INTO book_progress
+               (book_id, unit, current_units, total_units, updated_at, completed_at)
+               VALUES ('{B}', 'words', 500, 500, '2026-09-29T10:00:00.000Z',
+                       '2026-09-29T11:00:00.000Z');
              INSERT INTO book_series (book_id, series, series_index) VALUES ('{A}', 'Saga', 2);
              INSERT INTO book_series (book_id, series, series_index) VALUES ('{B}', NULL, NULL);
              INSERT INTO book_titles (book_id, title) VALUES ('{B}', 'Renamed B');

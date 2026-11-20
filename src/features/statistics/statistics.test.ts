@@ -306,6 +306,12 @@ describe("finished dates", () => {
     expect(libraryCompletions([book(A, 100_000, null)], [partial]).get(A)?.at).toBe(
       partial.endedAt,
     );
+    // Marked completed, it keeps that day while reading on moves the last save.
+    const marked = book(A, 100_000, at(20));
+    const progress = { ...marked.progress, completedAt: at(2) };
+    expect(libraryCompletions([{ ...marked, progress }], []).get(A)?.at).toBe(
+      +new Date(2026, 9, 2, 18),
+    );
 
     const october = summarize([partial, readToEnd], month(9), completions);
     expect(october.finished).toBe(3);

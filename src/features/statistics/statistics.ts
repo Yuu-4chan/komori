@@ -116,8 +116,8 @@ export interface LibraryCompletion {
 const noCompletions: ReadonlyMap<string, LibraryCompletion> = new Map();
 
 /**
- * The Library's completed books: progress at its end, as of its last save, else the book's last
- * session, else its import.
+ * The Library's completed books: progress at its end, as of the day it was marked completed, else
+ * its last save, else the book's last session, else its import.
  */
 export function libraryCompletions(
   books: readonly Pick<LibraryBook, "id" | "progress" | "lastReadAt" | "importedAt">[],
@@ -133,7 +133,8 @@ export function libraryCompletions(
   for (const book of books) {
     const progress = book.progress;
     if (!progress || !(progress.total > 0) || progress.current < progress.total) continue;
-    const saved = Date.parse(book.lastReadAt ?? "");
+    const marked = Date.parse(progress.completedAt ?? "");
+    const saved = Number.isFinite(marked) ? marked : Date.parse(book.lastReadAt ?? "");
     const at = Number.isFinite(saved)
       ? saved
       : (lastSession.get(book.id) ?? Date.parse(book.importedAt ?? ""));

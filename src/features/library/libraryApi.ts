@@ -50,6 +50,8 @@ export interface LibraryBookProgress {
   unit: "characters" | "words";
   current: number;
   total: number;
+  /** When the book was marked completed: the Reader's saves keep it at the end until Mark as unread. */
+  completedAt?: string;
 }
 
 export interface ImportResult {

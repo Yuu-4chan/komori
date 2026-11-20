@@ -1005,6 +1005,7 @@ mod tests {
                 unit: "characters".into(),
                 current: 900,
                 total: 10000,
+                completed_at: None,
             },
         )
         .unwrap();
@@ -1264,6 +1265,7 @@ mod tests {
                 unit: "characters".into(),
                 current: 10_000,
                 total: 10_000,
+                completed_at: None,
             },
         )
         .unwrap();
@@ -1463,6 +1465,7 @@ mod tests {
                 unit: "characters".into(),
                 current: 10,
                 total: 10,
+                completed_at: None,
             },
         )
         .unwrap();

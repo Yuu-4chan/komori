@@ -79,7 +79,8 @@ pub async fn save_book_progress(
     .map_err(|error| format!("Book progress task failed: {error}"))?
 }
 
-/// Upserts the progress only while the catalog record exists.
+/// Upserts the progress only while the catalog record exists. A book marked completed stays at
+/// its end, in whatever units the Reader now counts, and keeps the day it was marked.
 pub(crate) fn save_progress_to(
     connection: &Connection,
     id: &str,
@@ -94,7 +95,8 @@ pub(crate) fn save_progress_to(
              SELECT id, ?2, ?3, ?4 FROM books WHERE id = ?1
              ON CONFLICT(book_id) DO UPDATE SET
                unit = excluded.unit,
-               current_units = excluded.current_units,
+               current_units = CASE WHEN book_progress.completed_at IS NULL
+                                    THEN excluded.current_units ELSE excluded.total_units END,
                total_units = excluded.total_units,
                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')",
             params![id, progress.unit, progress.current, progress.total],
@@ -117,7 +119,8 @@ pub async fn mark_books_completed(
         .map_err(|error| format!("Book progress task failed: {error}"))?
 }
 
-/// Progress already saved keeps its time, so the book still shows when it was last read.
+/// Progress already saved keeps its time, so the book still shows when it was last read. The
+/// mark's own time is kept from the first time it was marked, until Mark as unread.
 pub(crate) fn mark_completed(
     connection: &Connection,
     ids: &[String],
@@ -130,8 +133,8 @@ pub(crate) fn mark_completed(
         }
         let written = transaction
             .execute(
-                "INSERT INTO book_progress (book_id, unit, current_units, total_units)
-                 SELECT id, unit, units, units FROM (
+                "INSERT INTO book_progress (book_id, unit, current_units, total_units, completed_at)
+                 SELECT id, unit, units, units, strftime('%Y-%m-%dT%H:%M:%fZ', 'now') FROM (
                    SELECT books.id AS id,
                           coalesce(progress.unit, CASE WHEN details.characters > 0
                                                        THEN 'characters' ELSE 'words' END) AS unit,
@@ -142,7 +145,9 @@ pub(crate) fn mark_completed(
                      LEFT JOIN book_details AS details ON details.book_id = books.id
                     WHERE books.id = ?1)
                   WHERE units > 0
-                 ON CONFLICT(book_id) DO UPDATE SET current_units = excluded.total_units",
+                 ON CONFLICT(book_id) DO UPDATE SET
+                   current_units = excluded.total_units,
+                   completed_at = coalesce(book_progress.completed_at, excluded.completed_at)",
                 [id],
             )
             .map_err(storage_error)?;
@@ -299,6 +304,7 @@ mod tests {
             unit: unit.into(),
             current,
             total,
+            completed_at: None,
         }
     }
 
@@ -414,6 +420,51 @@ mod tests {
             )
             .unwrap();
         assert_eq!(kept, "2026-01-02T03:04:05.000Z");
+    }
+
+    #[test]
+    fn a_book_marked_completed_stays_at_its_end_until_marked_unread() {
+        let directory = tempdir().unwrap();
+        let database = directory.path().join("library.sqlite3");
+        catalog_with_book(&database);
+        let mut connection = open_catalog(&database).unwrap();
+        let stored = |connection: &Connection| -> (i64, i64, Option<String>) {
+            connection
+                .query_row(
+                    "SELECT current_units, total_units, completed_at FROM book_progress
+                      WHERE book_id = ?1",
+                    [ID],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .unwrap()
+        };
+        assert!(save_progress_to(&connection, ID, &progress("characters", 120, 480)).unwrap());
+        assert_eq!(stored(&connection), (120, 480, None));
+
+        mark_completed(&connection, &[ID.to_string()]).unwrap();
+        let (_, _, marked) = stored(&connection);
+        let marked = marked.expect("the day it was marked");
+        // Reading on from the old place, and a recount, keep it at the end.
+        assert!(save_progress_to(&connection, ID, &progress("characters", 130, 480)).unwrap());
+        assert_eq!(stored(&connection), (480, 480, Some(marked.clone())));
+        assert!(save_progress_to(&connection, ID, &progress("characters", 10, 500)).unwrap());
+        assert_eq!(stored(&connection), (500, 500, Some(marked.clone())));
+        // Marking it again keeps the first day.
+        connection
+            .execute(
+                "UPDATE book_progress SET completed_at = '2026-01-02T03:04:05.000Z'",
+                [],
+            )
+            .unwrap();
+        mark_completed(&connection, &[ID.to_string()]).unwrap();
+        assert_eq!(
+            stored(&connection).2.as_deref(),
+            Some("2026-01-02T03:04:05.000Z")
+        );
+        // Mark as unread lets the Reader's saves through again.
+        assert!(crate::reading_sessions::mark_unread(&mut connection, ID).unwrap());
+        assert!(save_progress_to(&connection, ID, &progress("characters", 140, 500)).unwrap());
+        assert_eq!(stored(&connection), (140, 500, None));
     }
 
     #[test]

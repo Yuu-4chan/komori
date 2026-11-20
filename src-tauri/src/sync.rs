@@ -306,7 +306,7 @@ pub(crate) fn reading_of(
         .flatten();
     let progress = connection
         .query_row(
-            "SELECT unit, current_units, total_units, updated_at FROM book_progress
+            "SELECT unit, current_units, total_units, updated_at, completed_at FROM book_progress
               WHERE book_id = ?1",
             [book],
             |row| {
@@ -315,6 +315,7 @@ pub(crate) fn reading_of(
                         unit: row.get(0)?,
                         current: row.get(1)?,
                         total: row.get(2)?,
+                        completed_at: row.get(4)?,
                     },
                     row.get::<_, Option<String>>(3)?,
                 ))
@@ -371,13 +372,22 @@ fn write_reading(
     .map_err(storage_error)?;
     match &reading.progress {
         Some(progress) => connection.execute(
-            "INSERT INTO book_progress (book_id, unit, current_units, total_units, updated_at)
-             SELECT id, ?2, ?3, ?4, coalesce(?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            "INSERT INTO book_progress
+               (book_id, unit, current_units, total_units, updated_at, completed_at)
+             SELECT id, ?2, ?3, ?4, coalesce(?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), ?6
                FROM books WHERE id = ?1
              ON CONFLICT(book_id) DO UPDATE SET
                unit = excluded.unit, current_units = excluded.current_units,
-               total_units = excluded.total_units, updated_at = excluded.updated_at",
-            params![book, progress.unit, progress.current, progress.total, at],
+               total_units = excluded.total_units, updated_at = excluded.updated_at,
+               completed_at = excluded.completed_at",
+            params![
+                book,
+                progress.unit,
+                progress.current,
+                progress.total,
+                at,
+                progress.completed_at
+            ],
         ),
         None => connection.execute("DELETE FROM book_progress WHERE book_id = ?1", [book]),
     }

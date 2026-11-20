@@ -103,6 +103,7 @@ fn place(spine_index: i64, progress: f64, current: i64) -> Reading {
             unit: "characters".into(),
             current,
             total: 1000,
+            completed_at: None,
         }),
     }
 }
@@ -281,6 +282,28 @@ fn a_place_changed_on_one_side_goes_to_the_other() {
     sync(&mut sides);
     assert_eq!(reading(&sides.phone, BOOK), Reading::default());
     assert_eq!(conflict_of(&sides.phone, BOOK).unwrap(), None);
+}
+
+#[test]
+fn a_book_marked_completed_stays_completed_on_the_phone() {
+    let mut sides = sides();
+    read_to(&sides.pc, BOOK, &place(1, 0.1, 100));
+    crate::reading_position::mark_completed(&sides.pc, &[BOOK.to_string()]).unwrap();
+    let marked = reading(&sides.pc, BOOK).progress.unwrap();
+    assert_eq!(marked.current, 1000);
+    assert!(marked.completed_at.is_some());
+    sync(&mut sides);
+    assert_eq!(reading(&sides.phone, BOOK).progress, Some(marked.clone()));
+    // Reading on from the old place on the phone keeps it at the end.
+    let mut lower = place(1, 0.2, 200).progress.unwrap();
+    lower.completed_at = None;
+    crate::reading_position::save_progress_to(&sides.phone, BOOK, &lower).unwrap();
+    assert_eq!(
+        reading(&sides.phone, BOOK)
+            .progress
+            .map(|p| (p.current, p.completed_at)),
+        Some((1000, marked.completed_at))
+    );
 }
 
 #[test]
