@@ -1669,7 +1669,12 @@ possessive suffix off. Swedish, Norwegian and Danish (`deinflect/nordic.rs`) tak
 a stem not ending in s, x or z. Polish (`deinflect/pl.rs`) has verbs' past, conditional and regular
 present endings and adjectives' case endings with naj-. Greek (`deinflect/el.rs`) has ξανα- (from
 `ext/js/language/el/modern-greek-transforms.js` at commit d3c54c1), -ος endings and regular present
-endings. Indonesian (`deinflect/id.rs`) takes particles (-nya, -lah), then -kan, -i or -an, then a
+endings, and its `past_tenses` reads regular imperfects and aorists outside the rule table, since
+their accent moves: accents are ignored, an augment ε- or η- may be dropped, an aorist's ψ, ξ or σ
+gives the present stems it may come from, and the verb's accent goes back on its stem's last vowel
+(έγραψα → γράφω, διάβασα → διαβάζω, ερχόμουν → έρχομαι) or its contracted ending (αγάπησε → αγαπώ,
+αγαπάω), also after ξανα-. Indonesian (`deinflect/id.rs`) takes a particle (-lah, -kah, -pun, -tah)
+and then a pronoun (-nya, -ku, -mu) off, one of each at most, then -kan, -i or -an, then a
 prefix (meN- and peN- restoring the stem's first letter, di-, ber-, ke-) or a prefix and suffix
 together (ke-…-an), each named by the affix. Dutch (`deinflect/nl.rs`) has nouns' plurals and
 diminutives, adjectives' -e, comparative and superlative, and regular verbs' present, past and ge-…-t

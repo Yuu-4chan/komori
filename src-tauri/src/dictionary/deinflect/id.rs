@@ -49,7 +49,15 @@ static RULES_LIST: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     }
     for pronoun in ["nya", "ku", "mu"] {
         let name: &'static str = format!("-{pronoun}").leak();
-        rules.push(affix(name, "", "", pronoun, "", SEARCHED | PARTICLE, PRONOUN | W));
+        rules.push(affix(
+            name,
+            "",
+            "",
+            pronoun,
+            "",
+            SEARCHED | PARTICLE,
+            PRONOUN | W,
+        ));
     }
     for suffix in ["kan", "i", "an"] {
         let name: &'static str = format!("-{suffix}").leak();
