@@ -1346,6 +1346,7 @@ export const fr: MessageCatalog = {
   "statisticsCards.wordsLabel": "Mots",
   "statisticsCards.booksRead": "Livres lus",
   "statisticsCards.bookRead": "Livre lu",
+  "statisticsCards.daysRead": "Jours de lecture",
   "statisticsCards.editFor": "Modifier l’activité quotidienne de {title}",
   "statisticsCards.editTitle": "Modifier l’activité quotidienne (ou clic droit sur ce livre)",
   "statisticsCards.noBookRead": "Aucun livre lu",

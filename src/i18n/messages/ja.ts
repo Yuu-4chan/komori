@@ -1205,6 +1205,7 @@ export const ja: MessageCatalog = {
   "statisticsCards.wordsLabel": "語数",
   "statisticsCards.booksRead": "読んだ本",
   "statisticsCards.bookRead": "読んだ本",
+  "statisticsCards.daysRead": "読書日数",
   "statisticsCards.editFor": "{title}の日ごとの記録を編集",
   "statisticsCards.editTitle": "日ごとの記録を編集（この本を右クリックしても可）",
   "statisticsCards.noBookRead": "読んだ本はありません",

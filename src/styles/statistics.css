@@ -589,6 +589,105 @@ div.statistics-card__empty p {
   font-weight: 700;
 }
 
+/* Each book read in the range as its cover; choosing one opens its totals. */
+.statistics-books {
+  margin: 0;
+  padding: 1.1rem 1.25rem;
+  display: grid;
+  /* 7rem covers; a narrow phone still fits three in a row. */
+  grid-template-columns: repeat(auto-fill, minmax(min(7rem, calc((100% - 2rem) / 3)), 1fr));
+  gap: 1rem;
+  list-style: none;
+}
+
+.statistics-books__cover {
+  width: 100%;
+  padding: 0;
+  display: block;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.statistics-books__cover:hover .library-book__cover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px color-mix(in srgb, #0c1224 18%, transparent);
+}
+
+.statistics-books__cover:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.statistics-book-dialog__book {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.statistics-book-dialog__book > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.statistics-book-dialog__book h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.statistics-book-dialog__book span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+}
+
+.statistics-book-dialog__book small {
+  color: var(--accent-ink);
+  font-size: var(--font-size-1);
+  font-weight: 700;
+}
+
+.statistics-book-dialog__values {
+  margin: var(--space-5) 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.statistics-book-dialog__values > div {
+  min-width: 0;
+  padding: 0.65rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.statistics-book-dialog__values dt {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-size-1);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.statistics-book-dialog__values dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-3);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.statistics-books + .character-show-all {
+  margin-top: -0.25rem;
+}
+
 .statistics-day-book__empty {
   min-height: 9rem;
   flex: 1;

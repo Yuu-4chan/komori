@@ -12,14 +12,34 @@ import {
   PencilSimpleIcon,
   TranslateIcon,
 } from "@phosphor-icons/react";
-import { useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
+
+import { DialogCaption } from "../../components/layout/WindowControls";
+import { Button } from "../../components/ui/Button";
+import { useBackdropDismiss } from "../../components/ui/backdropDismiss";
 
 import { BookCover } from "../library/BookCover";
 import type { LibraryBook } from "../library/libraryApi";
-import { bookTitle, progressPercent, type LibraryReadingStatus } from "../library/libraryView";
+import {
+  bookTitle,
+  progressLabel,
+  progressPercent,
+  type LibraryReadingStatus,
+} from "../library/libraryView";
 import { formatDuration } from "./readingSession";
 import {
   dayKey,
+  speed,
   startOfMonth,
   type ActivitySummary,
   type BookActivity,
@@ -364,6 +384,163 @@ export function DailyBooks({
         </button>
       ) : null}
     </aside>
+  );
+}
+
+/** How many covers show before Show all. */
+const BOOKS_PREVIEW = 16;
+
+/**
+ * Each book read in the range as its cover, most time first; choosing one opens its own
+ * totals over the range in a popup.
+ */
+export function BookTotals({
+  books,
+  library,
+}: {
+  books: BookActivity[];
+  library: ReadonlyMap<string, LibraryBook>;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const [open, setOpen] = useState<BookActivity | null>(null);
+  const { t } = useI18n();
+  const available = books.filter((book) => library.has(book.bookId));
+  const shown = showAll ? available : available.slice(0, BOOKS_PREVIEW);
+  return (
+    <>
+      <ul className="statistics-books">
+        {shown.map((activity) => {
+          const book = library.get(activity.bookId)!;
+          return (
+            <li key={activity.bookId}>
+              <button
+                aria-haspopup="dialog"
+                aria-label={bookTitle(book)}
+                className="statistics-books__cover"
+                onClick={() => setOpen(activity)}
+                title={bookTitle(book)}
+                type="button"
+              >
+                <BookCover book={book} />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {available.length > BOOKS_PREVIEW ? (
+        <button
+          className="character-show-all"
+          type="button"
+          aria-expanded={showAll}
+          onClick={() => setShowAll((value) => !value)}
+        >
+          <span>
+            {showAll
+              ? t("statisticsCards.showPreview")
+              : t("statisticsCards.showAllBooks", { count: available.length })}
+          </span>
+          {showAll ? (
+            <CaretUpIcon aria-hidden="true" size={16} />
+          ) : (
+            <CaretDownIcon aria-hidden="true" size={16} />
+          )}
+        </button>
+      ) : null}
+      {open ? (
+        <BookStatisticsDialog
+          activity={open}
+          book={library.get(open.bookId)!}
+          onClose={() => setOpen(null)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/** One book's totals over the range: time read, sessions, amount read, speed, days and last read. */
+function BookStatisticsDialog({
+  activity,
+  book,
+  onClose,
+}: {
+  activity: BookActivity;
+  book: LibraryBook;
+  onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const { t, date } = useI18n();
+  const backdrop = useBackdropDismiss(onClose);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const opener = document.activeElement as HTMLElement | null;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+    dialog.querySelector<HTMLButtonElement>("[data-dialog-cancel]")?.focus();
+    return () => {
+      if (dialog.open && typeof dialog.close === "function") dialog.close();
+      opener?.focus();
+    };
+  }, []);
+  const characters = activity.unit === "characters";
+  const pace = speed(activity.unitsRead, activity.activeMs);
+  const values: [string, string][] = [
+    [t("statistics.readingTime"), formatDuration(activity.activeMs)],
+    [t("statistics.sessions"), numbers.format(activity.sessions)],
+    [
+      t(characters ? "statistics.charactersRead" : "statistics.wordsRead"),
+      numbers.format(activity.unitsRead),
+    ],
+    [
+      t(characters ? "statistics.avgChars" : "statistics.avgWords"),
+      pace === null ? "—" : numbers.format(pace),
+    ],
+    [t("statisticsCards.daysRead"), numbers.format(activity.days)],
+    [
+      t("libraryToolbar.cardLastRead"),
+      date(new Date(activity.lastReadAt), { dateStyle: "medium" }),
+    ],
+  ];
+  return createPortal(
+    <dialog
+      aria-labelledby={titleId}
+      className="confirm-dialog statistics-book-dialog"
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={backdrop.onClick}
+      onPointerDown={backdrop.onPointerDown}
+      ref={dialogRef}
+    >
+      <DialogCaption />
+      <div className="confirm-dialog__content">
+        <div className="statistics-book-dialog__book">
+          <BookCover book={book} size="small" />
+          <div>
+            <h2 id={titleId}>{bookTitle(book)}</h2>
+            {book.author ? <span>{book.author}</span> : null}
+            {/* A removed book's sessions keep no progress. */}
+            {book.fileName ? <small>{progressLabel(book)}</small> : null}
+          </div>
+        </div>
+        <dl className="statistics-book-dialog__values">
+          {values.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="confirm-dialog__actions">
+          <Button data-dialog-cancel onClick={onClose} tone="secondary">
+            {t("common.close")}
+          </Button>
+        </div>
+      </div>
+    </dialog>,
+    document.body,
   );
 }
 

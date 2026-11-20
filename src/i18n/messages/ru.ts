@@ -1369,6 +1369,7 @@ export const ru: MessageCatalog = {
   "statisticsCards.wordsLabel": "Слова",
   "statisticsCards.booksRead": "Прочитанные книги",
   "statisticsCards.bookRead": "Прочитанная книга",
+  "statisticsCards.daysRead": "Дней чтения",
   "statisticsCards.editFor": "Изменить активность по дням для {title}",
   "statisticsCards.editTitle": "Изменить активность по дням (или щёлкните книгу правой кнопкой)",
   "statisticsCards.noBookRead": "Книги не читались",

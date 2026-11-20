@@ -1336,6 +1336,7 @@ export const it: MessageCatalog = {
   "statisticsCards.wordsLabel": "Parole",
   "statisticsCards.booksRead": "Libri letti",
   "statisticsCards.bookRead": "Libro letto",
+  "statisticsCards.daysRead": "Giorni di lettura",
   "statisticsCards.editFor": "Modifica l’attività giornaliera di {title}",
   "statisticsCards.editTitle":
     "Modifica l’attività giornaliera (o fai clic destro su questo libro)",

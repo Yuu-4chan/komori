@@ -57,6 +57,10 @@ export interface BookActivity {
   unit: StoredReadingSession["unit"];
   unitsRead: number;
   activeMs: number;
+  /** The book's sessions, the days they began on, and when the last one ended. */
+  sessions: number;
+  days: number;
+  lastReadAt: number;
 }
 
 export interface ActivitySummary {
@@ -100,6 +104,7 @@ export function summarize(
     devices: [],
   };
   const books = new Map<string, BookActivity>();
+  const bookDays = new Map<string, Set<string>>();
   const devices = new Map<string | null, number>();
   const started = new Set<string>();
   const finished = new Set<string>();
@@ -127,16 +132,25 @@ export function summarize(
       unit: session.unit,
       unitsRead: 0,
       activeMs: 0,
+      sessions: 0,
+      days: 0,
+      lastReadAt: 0,
     };
     book.unit = session.unit;
     book.unitsRead += unitsRead;
     book.activeMs += activeMs;
+    book.sessions += 1;
+    book.lastReadAt = Math.max(book.lastReadAt, session.endedAt);
     books.set(session.bookId, book);
+    const days = bookDays.get(session.bookId) ?? new Set<string>();
+    days.add(dayKey(new Date(session.startedAt)));
+    bookDays.set(session.bookId, days);
     const device = session.device ?? null;
     devices.set(device, (devices.get(device) ?? 0) + activeMs);
   }
   summary.started = started.size;
   summary.finished = finished.size;
+  for (const book of books.values()) book.days = bookDays.get(book.bookId)?.size ?? 0;
   summary.books = [...books.values()].sort(
     (a, b) => b.activeMs - a.activeMs || b.unitsRead - a.unitsRead,
   );

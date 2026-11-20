@@ -1302,6 +1302,7 @@ export const en = {
   "statisticsCards.wordsLabel": "Words",
   "statisticsCards.booksRead": "Books read",
   "statisticsCards.bookRead": "Book read",
+  "statisticsCards.daysRead": "Days read",
   "statisticsCards.editFor": "Edit daily activity for {title}",
   "statisticsCards.editTitle": "Edit daily activity (or right-click this book)",
   "statisticsCards.noBookRead": "No book read",

@@ -1,6 +1,6 @@
 import { useI18n } from "../../i18n/i18n";
 import { useCallback, useEffect, useState } from "react";
-import { Clock } from "@phosphor-icons/react";
+import { Clock, PlayIcon, StopIcon } from "@phosphor-icons/react";
 
 import {
   formatDurationSeconds,
@@ -37,12 +37,17 @@ function useEverySecond(active: boolean, refresh: () => void) {
 /** No time read, one function for every render, so the refresh it feeds stays the same. */
 const NO_READING_TIME = () => 0;
 
-/** The upper-center status pill, separate from the book's layout. */
+/**
+ * The upper-center status pill, separate from the book's layout: the clock and the time read,
+ * with the session's play/stop button between them while statistics are recorded.
+ */
 export function ReaderReadingStatus({
   clock,
   readingTime,
   readingMs = NO_READING_TIME,
   session = "counting",
+  onToggleSession,
+  manual = false,
 }: {
   clock: boolean;
   readingTime: boolean;
@@ -50,6 +55,10 @@ export function ReaderReadingStatus({
   readingMs?: () => number;
   /** `off` while reading statistics are disabled. */
   session?: SessionState;
+  /** Starts or stops the session; given, the pill shows its play/stop button. */
+  onToggleSession?: () => void;
+  /** A Manual session only counts from the button, so the pill shows it on its own too. */
+  manual?: boolean;
 }) {
   const [now, setNow] = useState(() => new Date());
   const [elapsed, setElapsed] = useState(readingMs);
@@ -60,7 +69,8 @@ export function ReaderReadingStatus({
   }, [readingMs]);
   useEverySecond(clock || (readingTime && session !== "off"), refresh);
 
-  if (!clock && !readingTime) return null;
+  const toggle = onToggleSession && session !== "off" ? onToggleSession : null;
+  if (!clock && !readingTime && !(toggle && manual)) return null;
   const time = date(now, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   const duration = formatDurationSeconds(elapsed);
   return (
@@ -70,6 +80,26 @@ export function ReaderReadingStatus({
           <Clock size={14} aria-hidden="true" />
           <time dateTime={now.toISOString()}>{time}</time>
         </span>
+      )}
+      {toggle && (
+        <button
+          aria-label={t(
+            session === "counting" ? "readingStatus.stopSession" : "readingStatus.startSession",
+          )}
+          aria-pressed={session === "counting"}
+          className="reader-reading-status__session"
+          onClick={toggle}
+          title={t(
+            session === "counting" ? "readingStatus.stopSession" : "readingStatus.startSession",
+          )}
+          type="button"
+        >
+          {session === "counting" ? (
+            <StopIcon aria-hidden="true" weight="fill" />
+          ) : (
+            <PlayIcon aria-hidden="true" weight="fill" />
+          )}
+        </button>
       )}
       {readingTime &&
         (session === "off" ? (
