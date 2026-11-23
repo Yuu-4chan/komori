@@ -355,14 +355,14 @@ describe("Statistics", () => {
     const metric = (label: string) =>
       within(metrics).getByText(label, { selector: "span" }).closest("article")!;
     expect(metric("Reading time")).toHaveTextContent("1h 20m");
-    expect(metric("Reading time")).toHaveTextContent("+167% vs last month");
+    expect(metric("Reading time")).toHaveTextContent("+167% vs the month before");
     expect(metric("Sessions")).toHaveTextContent("2");
     expect(metric("Characters read")).toHaveTextContent("18,000");
     expect(metric("Words read")).toHaveTextContent("6,000");
     expect(metric("Avg. Ch./h")).toHaveTextContent("18,000");
     expect(metric("Books finished")).toHaveTextContent("1");
 
-    await user.click(screen.getByRole("button", { name: "Statistics range: This month" }));
+    await user.click(screen.getByRole("button", { name: "Statistics range: Month" }));
     await user.click(screen.getByRole("menuitemradio", { name: /Today/ }));
     expect(metric("Reading time")).toHaveTextContent("20m");
     expect(metric("Characters read")).toHaveTextContent("0");
@@ -387,6 +387,62 @@ describe("Statistics", () => {
     ).toBeInTheDocument();
     // The reading volume cards are gone.
     expect(screen.queryByRole("region", { name: /volume/i })).not.toBeInTheDocument();
+  });
+
+  it("shows an earlier month or chosen days, each against the period before", async () => {
+    const { container } = renderPage();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const metrics = await screen.findByRole("region", { name: "Reading activity" });
+    const metric = (label: string) =>
+      within(metrics).getByText(label, { selector: "span" }).closest("article")!;
+    const range = container.querySelector<HTMLElement>(".statistics-range")!;
+    const calendar = screen.getByRole("region", { name: "Daily activity" });
+    expect(metrics).toHaveTextContent("October 2026");
+    // The month field beside the range shows a year's months, back to the first session's;
+    // the daily calendar follows.
+    const monthField = within(range).getByRole("button", { name: "Month: October 2026" });
+    await user.click(monthField);
+    expect(screen.getByRole("button", { name: "November 2026" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "August 2026" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Previous year" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "October 2026" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "September 2026" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(monthField).toHaveTextContent("September 2026");
+    expect(monthField).toHaveFocus();
+    expect(metrics).toHaveTextContent("September 2026");
+    expect(metric("Reading time")).toHaveTextContent("30m");
+    expect(metric("Reading time")).not.toHaveTextContent("vs");
+    expect(
+      within(calendar).getByRole("button", { name: "September 20: 30m read" }),
+    ).toBeInTheDocument();
+    // The arrows move by a month, Escape closes.
+    await user.click(monthField);
+    expect(screen.getByRole("button", { name: "September 2026" })).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("button", { name: "October 2026" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(monthField).toHaveTextContent("September 2026");
+
+    // Custom days: the last week at first, then the days chosen.
+    await user.click(screen.getByRole("button", { name: "Statistics range: Month" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /Custom range/ }));
+    expect(within(metrics).getByText(/Oct 9\s–\s15, 2026/)).toBeInTheDocument();
+    expect(metric("Reading time")).toHaveTextContent("1h 20m");
+    expect(metric("Reading time")).not.toHaveTextContent("vs");
+    await user.click(within(range).getByRole("button", { name: /^From/ }));
+    await user.click(screen.getByRole("button", { name: "Thursday, October 15, 2026" }));
+    expect(within(range).getByRole("button", { name: /^From/ })).toHaveTextContent("Oct 15, 2026");
+    expect(within(metrics).getByText("Oct 15, 2026")).toBeInTheDocument();
+    expect(metric("Reading time")).toHaveTextContent("20m");
+    expect(metric("Reading time")).toHaveTextContent("-67% vs the period before");
+    // The last day can go no earlier than the first.
+    await user.click(within(range).getByRole("button", { name: /^To/ }));
+    expect(screen.getByRole("button", { name: "Wednesday, October 14, 2026" })).toBeDisabled();
   });
 
   it("shows only the books finished in the range as covers, each opening its own totals", async () => {
@@ -503,18 +559,24 @@ describe("Statistics", () => {
     expect(within(overview).queryByText("Words counted")).not.toBeInTheDocument();
   });
 
-  it("shows a calendar day's reading and books, and other months", async () => {
+  it("shows a calendar day's reading and books, in the range's month", async () => {
     renderPage();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const calendar = await screen.findByRole("region", { name: "Daily activity" });
-    expect(within(calendar).getByText("October 2026")).toBeInTheDocument();
+    // The range is the page's one month: the calendar has no switcher of its own.
+    expect(within(calendar).queryByRole("button", { name: "Previous month" })).toBeNull();
+    expect(within(calendar).getByRole("button", { name: "October 31: no reading" })).toBeTruthy();
     // Today is chosen first.
     const details = within(calendar).getByRole("complementary", { name: "Day details" });
     expect(details).toHaveTextContent("20m reading");
     expect(within(calendar).getByRole("complementary", { name: "Books read" })).toHaveTextContent(
       "Harbor Notes",
     );
-    await user.hover(within(calendar).getByRole("button", { name: "October 14: 1h 00m read" }));
+    const october14 = within(calendar).getByRole("button", { name: "October 14: 1h 00m read" });
+    // Hovering a day leaves the chosen one; a click picks it.
+    await user.hover(october14);
+    expect(details).toHaveTextContent("20m reading");
+    await user.click(october14);
     expect(details).toHaveTextContent("1h 00m reading");
     expect(details).toHaveTextContent("18,000 Ch.");
     expect(within(calendar).getByRole("complementary", { name: "Books read" })).toHaveTextContent(
@@ -523,14 +585,18 @@ describe("Statistics", () => {
     await user.click(within(calendar).getByRole("button", { name: "October 13: no reading" }));
     expect(details).toHaveTextContent("Rest day");
     expect(within(calendar).getByText("No book read")).toBeInTheDocument();
-    expect(within(calendar).getByRole("button", { name: "Next month" })).toBeDisabled();
-    await user.click(within(calendar).getByRole("button", { name: "Previous month" }));
-    expect(within(calendar).getByText("September 2026")).toBeInTheDocument();
+    // An earlier month in the range shows it, its first day chosen.
+    await user.click(screen.getByRole("button", { name: "Month: October 2026" }));
+    await user.click(screen.getByRole("button", { name: "September 2026" }));
     expect(
       within(calendar).getByRole("button", { name: "September 20: 30m read" }),
     ).toBeInTheDocument();
-    // No sessions before September.
-    expect(within(calendar).getByRole("button", { name: "Previous month" })).toBeDisabled();
+    expect(details).toHaveTextContent("Sep 1, 2026");
+    // Today and All time show this month again, today chosen.
+    await user.click(screen.getByRole("button", { name: "Statistics range: Month" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /All time/ }));
+    expect(within(calendar).getByRole("button", { name: "October 31: no reading" })).toBeTruthy();
+    expect(details).toHaveTextContent("20m reading");
   });
 
   it("splits a day's reading between this PC and a phone that synced", async () => {

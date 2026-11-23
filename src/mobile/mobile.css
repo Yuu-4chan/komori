@@ -149,7 +149,6 @@
 .mobile-choice:focus-visible,
 .mobile-selection-bar__action:focus-visible,
 .mobile-selection-header__all:focus-visible,
-.mobile-continue:focus-visible,
 .mobile-sheet-row:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
@@ -311,104 +310,6 @@
   margin: 0;
   color: var(--text-muted);
   font-size: 0.875rem;
-}
-
-.mobile-continue {
-  padding: 0.75rem;
-  display: flex;
-  gap: 0.875rem;
-  color: inherit;
-  background: var(--surface-card);
-  border: 1px solid var(--border-soft);
-  border-radius: 0.9375rem;
-  text-decoration: none;
-}
-
-/* The cover keeps its shape however tall the card's text makes the card. */
-.mobile-continue .library-book__cover {
-  width: 4.5rem;
-  height: auto;
-  flex: none;
-  align-self: center;
-  aspect-ratio: 70 / 104;
-  border-radius: 0.375rem;
-}
-
-.mobile-continue__copy {
-  min-width: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.mobile-continue__copy strong,
-.mobile-continue__copy span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mobile-continue__copy strong {
-  color: var(--text-primary);
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.mobile-continue__copy > div > span {
-  margin-top: 0.125rem;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
-.mobile-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-}
-
-.mobile-chips:empty {
-  display: none;
-}
-
-.mobile-chips span {
-  height: 1.375rem;
-  padding: 0 0.5rem;
-  display: inline-flex;
-  align-items: center;
-  color: var(--text-secondary);
-  background: var(--surface-subtle);
-  border-radius: var(--radius-pill);
-  font-size: 0.6875rem;
-}
-
-/* A card's chips stay on one line, the last shortened when they do not fit. */
-.mobile-continue .mobile-chips {
-  flex-wrap: nowrap;
-  overflow: hidden;
-}
-
-.mobile-continue .mobile-chips > span {
-  padding: 0 0.4375rem;
-  flex: none;
-  white-space: nowrap;
-}
-
-.mobile-continue .mobile-chips > span:last-child:not(.mobile-chips__saved) {
-  min-width: 0;
-  flex: 0 1 auto;
-  display: block;
-  line-height: 1.375rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mobile-continue__count {
-  color: var(--text-muted);
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
 }
 
 .mobile-progress {
@@ -668,8 +569,7 @@
 /* A long press on a book selects it, with no Android callout or text selection. */
 .mobile-tile,
 .mobile-book-row,
-.mobile-group-heading,
-.mobile-continue {
+.mobile-group-heading {
   -webkit-touch-callout: none;
   user-select: none;
   -webkit-user-select: none;
@@ -942,7 +842,22 @@
   flex: 1;
 }
 
-/* Daily activity: the month beside the heading, and a calendar of small days, each with its
+/* Under the heading, a month range's month or a custom range's days across it. */
+.mobile-statistics-range {
+  margin-bottom: var(--space-3);
+}
+
+.mobile-statistics-range .statistics-range-days {
+  justify-content: space-between;
+}
+
+/* A month's months open from its start, under it. */
+.mobile-statistics-range > .day-picker .day-picker__popover {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+}
+
+/* Daily activity: its heading, and a calendar of small days, each with its
    number and its dot. */
 .mobile-shell .statistics-card__heading--activity {
   min-height: 0;
@@ -954,19 +869,6 @@
 
 .mobile-shell .statistics-card__heading--activity h2 {
   font-size: 1rem;
-}
-
-.mobile-shell .statistics-month-switcher {
-  gap: 0.25rem;
-}
-
-.mobile-shell .statistics-month-switcher button {
-  border-radius: 999px;
-}
-
-.mobile-shell .statistics-month-switcher strong {
-  min-width: 0;
-  font-size: 0.8125rem;
 }
 
 .mobile-shell .statistics-activity-layout {
@@ -1111,41 +1013,6 @@
 
 .mobile-shell .dictionary-sheet > .lookup-entry + .lookup-entry {
   border-top-color: var(--border-soft);
-}
-
-/* Library: the books in progress, a row of cards that scrolls sideways. */
-.mobile-continue-row {
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-auto-columns: 100%;
-  grid-auto-flow: column;
-  gap: 0.625rem;
-  list-style: none;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.mobile-continue-row::-webkit-scrollbar {
-  display: none;
-}
-
-/* The next card shows at the edge, so the row reads as one to scroll. */
-.mobile-continue-row--several {
-  grid-auto-columns: calc(100% - 2.5rem);
-}
-
-.mobile-continue-row > li {
-  min-width: 0;
-  display: flex;
-  scroll-snap-align: start;
-}
-
-.mobile-continue-row .mobile-continue {
-  min-width: 0;
-  flex: 1;
 }
 
 /* Library: the paired PC's status */
@@ -1342,33 +1209,6 @@
     ),
     conic-gradient(var(--accent-action) var(--saved, 0%), var(--surface-subtle) 0);
   cursor: default;
-}
-
-.mobile-continue--button {
-  width: 100%;
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-  -webkit-touch-callout: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.mobile-continue--button .mobile-chips,
-.mobile-continue--button .mobile-progress {
-  display: flex;
-}
-
-.mobile-continue--button .mobile-continue__copy > span:first-child > span {
-  margin-top: 0.125rem;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
-.mobile-chips .mobile-chips__saved {
-  gap: 0.25rem;
-  color: var(--accent-ink);
-  background: var(--accent-soft);
 }
 
 /* Settings > Sync */
@@ -1818,14 +1658,12 @@
   outline-offset: 2px;
 }
 
-.mobile-book-row.is-selected,
-.mobile-continue.is-selected {
+.mobile-book-row.is-selected {
   background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface-card));
   border-color: var(--accent-action);
 }
 
-.mobile-book-row .mobile-select-mark,
-.mobile-continue .mobile-select-mark {
+.mobile-book-row .mobile-select-mark {
   width: 1.25rem;
   height: 1.25rem;
   top: 0.25rem;
@@ -1886,7 +1724,7 @@ button.mobile-group-heading {
 }
 
 /* Grouped: each group's heading over its books in a row that scrolls sideways. */
-.mobile-library__grid--carousels .mobile-library__row {
+.mobile-carousel {
   display: flex;
   flex-direction: column;
   gap: 0.625rem;

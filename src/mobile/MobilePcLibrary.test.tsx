@@ -415,10 +415,13 @@ describe("the Library on a phone paired with a PC", () => {
     expect(shelf.querySelector(".mobile-group-heading__link")!.getAttribute("href")).toBe(
       "/library?group=reading",
     );
+    // A carousel of the Library's tiles, as any group's, the PC's book among the phone's.
+    expect(shelf.classList.contains("mobile-carousel")).toBe(true);
+    expect(shelf.querySelectorAll(".mobile-carousel__track .mobile-tile")).toHaveLength(2);
     // The PC's book shows how much was read as the phone's own does.
     expect(
-      [...shelf.querySelectorAll(".mobile-continue__count")].map((each) => each.textContent),
-    ).toEqual(["100 / 1,000 characters", "1,200 / 10,000 characters"]);
+      [...shelf.querySelectorAll(".mobile-progress__count")].map((each) => each.textContent),
+    ).toEqual(["100 / 1,000 Ch.", "1,200 / 10,000 Ch."]);
   });
 
   it("is only the phone's books unpaired or with Sync with PC off", async () => {

@@ -3,7 +3,17 @@ import type { LibraryBook } from "../library/libraryApi";
 import { languageName, readingStatus, type LibraryReadingStatus } from "../library/libraryView";
 import { sessionMeasurements, type StoredReadingSession } from "./statisticsApi";
 
-export type StatisticsRange = "today" | "month" | "all";
+export type StatisticsRange = "today" | "month" | "custom" | "all";
+
+/** The month a Month range shows and the days a Custom range spans, each day counted whole. */
+export interface RangeChoice {
+  month?: Date;
+  from?: Date;
+  to?: Date;
+}
+
+/** A Custom range spans the last week until other days are chosen. */
+export const CUSTOM_RANGE_DAYS = 7;
 
 /** Local-time bounds, inclusive start and exclusive end; null for all time. */
 export interface Period {
@@ -27,10 +37,15 @@ function addMonths(date: Date, months: number): Date {
   return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
 
-/** The range's period and the one before it, to compare with. */
+/**
+ * The range's period and the one before it, to compare with: yesterday for today, the month
+ * before for a month (this month unless `choice.month`), and the same number of days just
+ * before for a custom range (`choice.from` to `choice.to`, in either order).
+ */
 export function rangePeriods(
   range: StatisticsRange,
   now: Date,
+  choice: RangeChoice = {},
 ): { current: Period | null; previous: Period | null } {
   if (range === "all") return { current: null, previous: null };
   if (range === "today") {
@@ -40,11 +55,26 @@ export function rangePeriods(
       previous: { start: +addDays(today, -1), end: +today },
     };
   }
-  const month = startOfMonth(now);
+  if (range === "custom") {
+    const to = startOfDay(choice.to ?? now);
+    const from = startOfDay(choice.from ?? addDays(to, 1 - CUSTOM_RANGE_DAYS));
+    const [first, last] = from <= to ? [from, to] : [to, from];
+    const days = dayCount(first, last);
+    return {
+      current: { start: +first, end: +addDays(last, 1) },
+      previous: { start: +addDays(first, -days), end: +first },
+    };
+  }
+  const month = startOfMonth(choice.month ?? now);
   return {
     current: { start: +month, end: +addMonths(month, 1) },
     previous: { start: +addMonths(month, -1), end: +month },
   };
+}
+
+/** The days from `first` to `last`, both counted, whatever daylight saving does between them. */
+export function dayCount(first: Date, last: Date): number {
+  return Math.round((+startOfDay(last) - +startOfDay(first)) / 86_400_000) + 1;
 }
 
 /** A session belongs to the local day (and month) it started on. */

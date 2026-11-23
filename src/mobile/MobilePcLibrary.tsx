@@ -1,12 +1,9 @@
-import { ArrowsClockwiseIcon, CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { BookCover } from "../features/library/BookCover";
 import type { LibraryBook } from "../features/library/libraryApi";
 import {
-  languageName,
-  lastReadLabel,
   progressLabel,
   progressPercent,
   readCounts,
@@ -14,7 +11,6 @@ import {
   timeAgo,
 } from "../features/library/libraryView";
 import { useI18n, type MessageKey } from "../i18n/i18n";
-import { useLongPress } from "./longPress";
 import { pcSession, type PcConnection } from "./pcLibrarySession";
 import {
   asLibraryBook,
@@ -333,58 +329,5 @@ export function Progress({
       <span className="mobile-progress__percent">{progressLabel(book)}</span>
       {total ? <span className="mobile-progress__count">{total}</span> : null}
     </span>
-  );
-}
-
-/** A PC book in Continue reading, with whether it is on this phone; marked while selected. */
-export function PcContinueCard({
-  entry,
-  onChoose,
-  onOpen,
-  selected,
-}: {
-  entry: PcEntry;
-  onChoose: (entry: PcEntry) => void;
-  onOpen: (entry: PcEntry) => void;
-  /** Whether the book is selected, while selecting; undefined otherwise. */
-  selected?: boolean;
-}) {
-  const { t } = useI18n();
-  const longPress = useLongPress(() => onChoose(entry));
-  const lastRead = lastReadLabel(entry.book, Date.now(), "narrow");
-  return (
-    <button
-      aria-pressed={selected}
-      className={`mobile-continue mobile-continue--button${selected ? " is-selected" : ""}`}
-      onClick={() => onOpen(entry)}
-      type="button"
-      {...longPress}
-    >
-      <BookCover book={entry.book} size="small">
-        {selected !== undefined ? (
-          <span aria-hidden="true" className="mobile-select-mark">
-            {selected ? <CheckIcon weight="bold" /> : null}
-          </span>
-        ) : null}
-      </BookCover>
-      <span className="mobile-continue__copy">
-        <span>
-          <strong>{entry.book.title ?? t("library.untitled")}</strong>
-          <span>{entry.book.author ?? t("libraryCard.unknownAuthor")}</span>
-        </span>
-        <span className="mobile-chips">
-          {entry.pc.kept ? (
-            <span className="mobile-chips__saved">
-              <CheckIcon aria-hidden="true" weight="bold" />
-              {t("sync.onPhone")}
-            </span>
-          ) : null}
-          {entry.book.language ? <span>{languageName(entry.book.language)}</span> : null}
-          {lastRead ? <span>{lastRead}</span> : null}
-        </span>
-        <Progress book={entry.book} />
-        <span className="mobile-continue__count">{readTotalLabel(entry.book)}</span>
-      </span>
-    </button>
   );
 }

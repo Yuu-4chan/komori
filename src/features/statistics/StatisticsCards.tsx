@@ -3,8 +3,6 @@ import {
   ArrowCounterClockwiseIcon,
   BookOpenTextIcon,
   CaretDownIcon,
-  CaretLeftIcon,
-  CaretRightIcon,
   CaretUpIcon,
   CheckCircleIcon,
   DeviceMobileIcon,
@@ -43,7 +41,6 @@ import { formatDuration } from "./readingSession";
 import {
   dayKey,
   speed,
-  startOfMonth,
   type ActivitySummary,
   type BookActivity,
   type BookFinish,
@@ -138,7 +135,7 @@ const weekdays = () =>
     i18n().date(new Date(2024, 0, 1 + index), { weekday: "short" }),
   );
 
-/** The month's days, Monday first, shaded by reading time; hover, focus or a click picks one. */
+/** The month's days, Monday first, shaded by reading time; a click (or the arrow keys) picks one, not hovering. */
 export function ActivityCalendar({
   days,
   selected,
@@ -209,9 +206,6 @@ export function ActivityCalendar({
               key={key}
               onClick={() => onSelect(key)}
               onFocus={() => onSelect(key)}
-              // An uncovered calendar cell gets mouseenter when a modal closes. Only
-              // deliberate pointer movement should change the inspected day then.
-              onMouseMove={() => onSelect(key)}
               tabIndex={key === stop ? 0 : -1}
               title={minutes ? t("statisticsCards.minutes", { count: minutes }) : undefined}
               type="button"
@@ -672,44 +666,6 @@ function BookStatisticsDialog({
       </div>
     </dialog>,
     document.body,
-  );
-}
-
-/** The month switcher above the calendar; the next month stops at the current one. */
-export function MonthSwitcher({
-  month,
-  first,
-  last,
-  onChange,
-}: {
-  month: Date;
-  first: Date;
-  last: Date;
-  onChange: (month: Date) => void;
-}) {
-  const previous = new Date(month.getFullYear(), month.getMonth() - 1, 1);
-  const next = new Date(month.getFullYear(), month.getMonth() + 1, 1);
-  const { t } = useI18n();
-  return (
-    <div className="statistics-month-switcher">
-      <button
-        aria-label={t("statisticsCards.previousMonth")}
-        disabled={previous < startOfMonth(first)}
-        onClick={() => onChange(previous)}
-        type="button"
-      >
-        <CaretLeftIcon aria-hidden="true" className="flip-rtl" size={16} weight="bold" />
-      </button>
-      <strong aria-live="polite">{formatMonth(month)}</strong>
-      <button
-        aria-label={t("statisticsCards.nextMonth")}
-        disabled={next > last}
-        onClick={() => onChange(next)}
-        type="button"
-      >
-        <CaretRightIcon aria-hidden="true" className="flip-rtl" size={16} weight="bold" />
-      </button>
-    </div>
   );
 }
 

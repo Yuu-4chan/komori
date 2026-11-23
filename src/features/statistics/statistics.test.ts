@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { LibraryBook } from "../library/libraryApi";
 import {
+  addDays,
   bestStreakInMonth,
   calendarMonth,
   completionOrder,
   currentStreak,
+  dayCount,
   finishDates,
   heatLevel,
   languageBreakdown,
@@ -13,6 +15,7 @@ import {
   libraryOverview,
   rangePeriods,
   speed,
+  startOfDay,
   summarize,
 } from "./statistics";
 import { normalizeSession, type StoredReadingSession } from "./statisticsApi";
@@ -124,6 +127,41 @@ describe("statistics", () => {
     // A book marked unread since no longer counts as finished by its earlier sessions.
     const unread = sessions.map((entry) => ({ ...entry, finishCleared: entry.bookId === B }));
     expect(summarize(unread, rangePeriods("month", now).current).finished).toBe(0);
+  });
+
+  it("summarizes a chosen month or custom days against the period just before", () => {
+    const sessions = [
+      session(A, new Date(2026, 7, 20, 9), 30, 4_000),
+      session(A, new Date(2026, 8, 3, 9), 30, 6_000),
+      session(A, new Date(2026, 8, 30, 23, 50), 30, 9_000),
+      session(B, new Date(2026, 9, 1, 8), 60, 18_000),
+      session(B, new Date(2026, 9, 5, 8), 10, 1_000),
+    ];
+    // An earlier month, compared with the month before it.
+    const september = rangePeriods("month", now, { month: new Date(2026, 8, 17) });
+    expect(september.current).toEqual({
+      start: +new Date(2026, 8, 1),
+      end: +new Date(2026, 9, 1),
+    });
+    expect(summarize(sessions, september.current)).toMatchObject({ characters: 15_000 });
+    expect(summarize(sessions, september.previous)).toMatchObject({ characters: 4_000 });
+    // Custom days count whole, both ends included, in either order; before them come as many.
+    const custom = rangePeriods("custom", now, {
+      from: new Date(2026, 9, 5, 18),
+      to: new Date(2026, 8, 30, 7),
+    });
+    expect(custom).toEqual({
+      current: { start: +new Date(2026, 8, 30), end: +new Date(2026, 9, 6) },
+      previous: { start: +new Date(2026, 8, 24), end: +new Date(2026, 8, 30) },
+    });
+    expect(summarize(sessions, custom.current)).toMatchObject({ sessions: 3, characters: 28_000 });
+    expect(summarize(sessions, custom.previous).sessions).toBe(0);
+    // Without days chosen, a custom range is the last week, today included.
+    expect(rangePeriods("custom", now).current).toEqual({
+      start: +addDays(startOfDay(now), -6),
+      end: +addDays(startOfDay(now), 1),
+    });
+    expect(dayCount(new Date(2026, 2, 1), new Date(2026, 2, 31))).toBe(31);
   });
 
   it("builds the month's calendar, heat levels and streaks", () => {

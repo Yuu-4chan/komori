@@ -29,7 +29,8 @@ export function finishedDayTime(value: string, now = Date.now()): number | null 
   return time;
 }
 
-function parseDay(value: string): Date | null {
+/** The local day of a `YYYY-MM-DD` value, or null for anything else. */
+export function parseDay(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return null;
   const day = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
