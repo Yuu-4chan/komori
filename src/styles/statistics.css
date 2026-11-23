@@ -50,6 +50,11 @@
   min-height: var(--toolbar-height);
 }
 
+/* The range's month and days are as bold as the range menu's name. */
+:is(.statistics-range, .mobile-statistics-range) .day-picker__trigger {
+  font-weight: 620;
+}
+
 /* The first day's calendar opens from its start, so it stays on a narrow screen. */
 .statistics-range-days__field:first-child .day-picker__popover {
   inset-inline-start: 0;
