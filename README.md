@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Yuu-4chan/komori/releases/download/v2.5.0/Komori_2.5.0_x64-setup.exe"><img src="docs/images/download-windows.svg" alt="Download for Windows" height="52"></a>
+  <a href="https://github.com/Yuu-4chan/komori/releases/download/v2.6.0/Komori_2.6.0_x64-setup.exe"><img src="docs/images/download-windows.svg" alt="Download for Windows" height="52"></a>
   &nbsp;
-  <a href="https://github.com/Yuu-4chan/komori/releases/download/v2.5.0/Komori_2.5.0_android-arm64.apk"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/download-android-dark.svg"><img src="docs/images/download-android.svg" alt="Download for Android" height="52"></picture></a>
+  <a href="https://github.com/Yuu-4chan/komori/releases/download/v2.6.0/Komori_2.6.0_android-arm64.apk"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/download-android-dark.svg"><img src="docs/images/download-android.svg" alt="Download for Android" height="52"></picture></a>
   <br>
-  <sub>Version 2.5.0 · Free and open source · <a href="#install">Installation guide</a> · <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a></sub>
+  <sub>Version 2.6.0 · Free and open source · <a href="#install">Installation guide</a> · <a href="https://github.com/Yuu-4chan/komori/releases">All releases</a></sub>
 </p>
 
 <p align="center">

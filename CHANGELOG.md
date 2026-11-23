@@ -2,6 +2,13 @@
 
 All notable changes to Komori are listed here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 2.6.0
+
+- Statistics can show one month or a custom range of days. Choose Month to pick any month since you started reading, or Custom range to choose the first and last days. Each is compared with the month or the days just before it.
+- The Daily activity calendar follows the range's month, so the page has one date to set.
+- A day in the Daily activity calendar is chosen with a click or the arrow keys; resting the pointer on one no longer changes it.
+- On the phone, Continue reading is a row of covers you scroll sideways, like the Library's other groups.
+
 ## 2.5.0
 
 - Thirteen more interface languages: Dutch, Polish, Swedish, Norwegian, Danish, Finnish, Greek, Turkish, Arabic, Hindi, Thai, Vietnamese and Indonesian. In Arabic the whole layout reads right to left.
