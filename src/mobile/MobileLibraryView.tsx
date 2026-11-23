@@ -429,7 +429,6 @@ export function LibraryBooks({
   renderItem: (item: MergedBook, view: LibraryView) => ReactNode;
   renderHeading: (section: ItemSection) => ReactNode;
 }) {
-  const { t } = useI18n();
   const listRef = useRef<HTMLDivElement>(null);
   const gridWidth = useGridColumns(listRef);
   const columns = view === "grid" ? gridWidth : 1;
@@ -471,39 +470,19 @@ export function LibraryBooks({
         const row = rows[index];
         if (!row) return null;
         const style = list.virtual ? { transform: `translateY(${start}px)` } : undefined;
-        if (row.kind === "carousel") {
-          const { section } = row;
-          const more = section.items.length > CAROUSEL_BOOKS;
+        if (row.kind === "carousel")
           return (
-            <section
-              aria-label={section.title ?? undefined}
-              className="mobile-library__row mobile-carousel"
-              data-index={index}
-              key={`group:${section.key}`}
-              ref={list.measureRef}
+            <BookCarousel
+              className="mobile-library__row"
+              heading={renderHeading(row.section)}
+              index={index}
+              key={`group:${row.section.key}`}
+              measureRef={list.measureRef}
+              renderItem={renderItem}
+              section={row.section}
               style={style}
-            >
-              {renderHeading(section)}
-              <div className="mobile-carousel__track" role="list">
-                {section.items.slice(0, CAROUSEL_BOOKS).map((item) => (
-                  <div className="mobile-carousel__item" key={itemKey(item)} role="listitem">
-                    {renderItem(item, "grid")}
-                  </div>
-                ))}
-                {more ? (
-                  <Link
-                    aria-label={t("libraryCarousel.seeAllOf", { title: section.title ?? "" })}
-                    className="mobile-carousel__more"
-                    to={groupPageLink(section.key)}
-                  >
-                    <CaretRightIcon aria-hidden="true" className="flip-rtl" weight="bold" />
-                    {t("libraryCarousel.seeAll")}
-                  </Link>
-                ) : null}
-              </div>
-            </section>
+            />
           );
-        }
         return (
           <div
             className="mobile-library__row"
@@ -526,6 +505,60 @@ export function LibraryBooks({
 }
 
 /**
+ * A group's books under its heading, in one row that scrolls sideways (as the PC's carousels): the
+ * first 20, then See all, which opens the group's page.
+ */
+export function BookCarousel({
+  section,
+  heading,
+  renderItem,
+  className,
+  index,
+  measureRef,
+  style,
+}: {
+  section: ItemSection;
+  heading: ReactNode;
+  renderItem: (item: MergedBook, view: LibraryView) => ReactNode;
+  className?: string;
+  /** The row's place among the virtual rows, which measure it. */
+  index?: number;
+  measureRef?: (element: HTMLElement | null) => void;
+  style?: CSSProperties;
+}) {
+  const { t } = useI18n();
+  const more = section.items.length > CAROUSEL_BOOKS;
+  return (
+    <section
+      aria-label={section.title ?? undefined}
+      className={className ? `${className} mobile-carousel` : "mobile-carousel"}
+      data-index={index}
+      ref={measureRef}
+      style={style}
+    >
+      {heading}
+      <div className="mobile-carousel__track" role="list">
+        {section.items.slice(0, CAROUSEL_BOOKS).map((item) => (
+          <div className="mobile-carousel__item" key={itemKey(item)} role="listitem">
+            {renderItem(item, "grid")}
+          </div>
+        ))}
+        {more ? (
+          <Link
+            aria-label={t("libraryCarousel.seeAllOf", { title: section.title ?? "" })}
+            className="mobile-carousel__more"
+            to={groupPageLink(section.key)}
+          >
+            <CaretRightIcon aria-hidden="true" className="flip-rtl" weight="bold" />
+            {t("libraryCarousel.seeAll")}
+          </Link>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+/**
  * A group's heading with its count: a tap opens the group's page and a long press selects its
  * books; while selecting, a tap selects them all or, when they all are, leaves them.
  */
@@ -534,12 +567,16 @@ export function GroupHeading({
   selecting,
   allSelected,
   onSelect,
+  level = 3,
 }: {
   section: ItemSection;
   selecting: boolean;
   allSelected: boolean;
   onSelect: (section: ItemSection) => void;
+  /** Continue reading's heading is the page's first group, a level above the Library's groups. */
+  level?: 2 | 3;
 }) {
+  const Heading = level === 2 ? "h2" : "h3";
   const { tp } = useI18n();
   const longPress = useLongPress(() => onSelect(section));
   const content = (
@@ -562,7 +599,7 @@ export function GroupHeading({
       {content}
     </button>
   ) : (
-    <h3 className="mobile-group-heading">
+    <Heading className="mobile-group-heading">
       <Link className="mobile-group-heading__link" to={groupPageLink(section.key)} {...longPress}>
         {content}
         <CaretRightIcon
@@ -571,7 +608,7 @@ export function GroupHeading({
           weight="bold"
         />
       </Link>
-    </h3>
+    </Heading>
   );
 }
 

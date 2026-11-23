@@ -1,9 +1,7 @@
 import {
   ArrowCounterClockwiseIcon,
   BooksIcon,
-  CaretRightIcon,
   CheckCircleIcon,
-  CheckIcon,
   DownloadSimpleIcon,
   FunnelSimpleIcon,
   InfoIcon,
@@ -14,8 +12,8 @@ import {
   TrashIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
@@ -61,12 +59,7 @@ import {
   groupPageLink,
   groupRenames,
   hasReadingProgress,
-  languageName,
-  lastReadLabel,
   matchesQuery,
-  progressLabel,
-  progressPercent,
-  readTotalLabel,
   READING_GROUP,
   readingStatus,
   renamableGroup,
@@ -80,8 +73,8 @@ import { failureText } from "../i18n/failure";
 import { i18n, useI18n } from "../i18n/i18n";
 import { MobilePageHeader } from "./MobileShell";
 
-import { useLongPress } from "./longPress";
 import {
+  BookCarousel,
   BookInfoSheet,
   GroupHeading,
   itemKey,
@@ -97,7 +90,6 @@ import {
   type SelectionAction,
 } from "./MobileLibraryView";
 import {
-  PcContinueCard,
   PcStatusRow,
   removePcCopies,
   usePcBookActions,
@@ -409,6 +401,11 @@ function LibraryContent({ group }: { group: string | null }) {
         false,
       ).flatMap((book) => byId.get(book.id) ?? []),
     [byId, display.filter, placedBooks, query],
+  );
+  // Shown as any group's carousel, its heading opening the group's page.
+  const continueSection = useMemo<ItemSection>(
+    () => ({ key: READING_GROUP, title: t("libraryCard.continue"), items: inProgress }),
+    [inProgress, t],
   );
   const ownBooks = useMemo(() => allBooks.filter((book) => !book.fromPc), [allBooks]);
   const seriesNames = useMemo(
@@ -943,57 +940,25 @@ function LibraryContent({ group }: { group: string | null }) {
           {onGroupPage ? null : status}
 
           {inProgress.length > 0 && !onGroupPage ? (
-            <section className="mobile-library__section" aria-labelledby="mobile-continue">
-              <h2 className="mobile-section-heading">
-                {selecting ? (
-                  <>
-                    <span id="mobile-continue">{t("libraryCard.continue")}</span>
-                    <small>{tp("librarySummary.books", inProgress.length)}</small>
-                  </>
-                ) : (
-                  <Link className="mobile-group-heading__link" to={groupPageLink(READING_GROUP)}>
-                    <span id="mobile-continue">{t("libraryCard.continue")}</span>
-                    <small>{tp("librarySummary.books", inProgress.length)}</small>
-                    <CaretRightIcon
-                      aria-hidden="true"
-                      className="mobile-group-heading__caret flip-rtl"
-                      weight="bold"
-                    />
-                  </Link>
-                )}
-              </h2>
-              <ul
-                className={
-                  inProgress.length > 1
-                    ? "mobile-continue-row mobile-continue-row--several"
-                    : "mobile-continue-row"
-                }
-              >
-                {inProgress.map((item) => {
-                  const key = itemKey(item);
-                  const selected = selecting && selection.isSelected(key);
-                  return (
-                    <li key={key}>
-                      {item.kind === "phone" ? (
-                        <ContinueCard
-                          book={item.book}
-                          onSelect={() => select(key)}
-                          selected={selected}
-                          selecting={selecting}
-                        />
-                      ) : (
-                        <PcContinueCard
-                          entry={item.entry}
-                          onChoose={() => select(key)}
-                          onOpen={(entry) => (selecting ? select(key) : void openPc(entry))}
-                          selected={selecting ? selected : undefined}
-                        />
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
+            <BookCarousel
+              className="mobile-library__section"
+              heading={
+                <GroupHeading
+                  allSelected={
+                    selecting &&
+                    inProgress.every((item) => selection.selectedIds.has(itemKey(item)))
+                  }
+                  level={2}
+                  onSelect={selectGroup}
+                  section={continueSection}
+                  selecting={selecting}
+                />
+              }
+              renderItem={(item, view) => (
+                <LibraryItem actions={itemActions} item={item} view={view} />
+              )}
+              section={continueSection}
+            />
           ) : null}
 
           <section className="mobile-library__section" aria-labelledby="mobile-all-books">
@@ -1219,67 +1184,4 @@ function LibraryContent({ group }: { group: string | null }) {
 
 function errorMessage(error: unknown): string {
   return failureText(error instanceof Error ? error.message : String(error), i18n().t);
-}
-
-/** The book read last, large, with how far it is read and when; while selecting, a tap selects it. */
-function ContinueCard({
-  book,
-  selecting,
-  selected,
-  onSelect,
-}: {
-  book: LibraryBook;
-  selecting: boolean;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const { t } = useI18n();
-  const percent = progressPercent(book);
-  const lastRead = lastReadLabel(book, Date.now(), "narrow");
-  const longPress = useLongPress(onSelect);
-  return (
-    <Link
-      aria-pressed={selecting ? selected : undefined}
-      className={`mobile-continue${selected ? " is-selected" : ""}`}
-      onClick={(event: MouseEvent) => {
-        if (!selecting) return;
-        event.preventDefault();
-        onSelect();
-      }}
-      to={`/reader/${book.id}`}
-      {...longPress}
-    >
-      <BookCover book={book} size="small">
-        {selecting ? (
-          <span aria-hidden="true" className="mobile-select-mark">
-            {selected ? <CheckIcon weight="bold" /> : null}
-          </span>
-        ) : null}
-      </BookCover>
-      <div className="mobile-continue__copy">
-        <div>
-          <strong>{book.title ?? t("library.untitled")}</strong>
-          <span>{book.author ?? t("libraryCard.unknownAuthor")}</span>
-        </div>
-        <div className="mobile-chips">
-          {book.language ? <span>{languageName(book.language)}</span> : null}
-          {lastRead ? <span>{lastRead}</span> : null}
-        </div>
-        <div className="mobile-progress">
-          <span
-            aria-label={t("libraryCard.percentRead", { percent })}
-            aria-valuemax={100}
-            aria-valuemin={0}
-            aria-valuenow={percent}
-            className="mobile-progress__bar"
-            role="progressbar"
-          >
-            <span style={{ width: `${percent}%` }} />
-          </span>
-          <span className="mobile-progress__percent">{progressLabel(book)}</span>
-        </div>
-        <span className="mobile-continue__count">{readTotalLabel(book)}</span>
-      </div>
-    </Link>
-  );
 }

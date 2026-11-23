@@ -14,6 +14,7 @@ import {
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { i18n, useI18n } from "../i18n/i18n";
+import { formattingLocale, type InterfaceLanguage } from "../i18n/languages";
 
 import { MobileHeaderContext } from "../components/layout/mobileHeader";
 import { Button } from "../components/ui/Button";
@@ -28,10 +29,14 @@ import {
   DailyActivityEditor,
   type DailyEditTarget,
 } from "../features/statistics/DailyActivityEditor";
+import { DayPicker, dayValue, parseDay } from "../features/statistics/DayPicker";
+import { MonthPicker } from "../features/statistics/MonthPicker";
 import {
+  addDays,
   bestStreakInMonth,
   calendarMonth,
   completionOrder,
+  CUSTOM_RANGE_DAYS,
   currentStreak,
   dayKey,
   languageBreakdown,
@@ -64,7 +69,6 @@ import {
   formatMonth,
   LanguageBreakdown,
   MetricCard,
-  MonthSwitcher,
   numbers,
   OverviewCard,
   SectionHeading,
@@ -73,6 +77,7 @@ import {
 const rangeOptions = [
   { value: "today", label: "statistics.today", description: "statistics.todayHint" },
   { value: "month", label: "statistics.month", description: "statistics.monthHint" },
+  { value: "custom", label: "statistics.custom", description: "statistics.customHint" },
   { value: "all", label: "statistics.all", description: "statistics.allHint" },
 ] as const;
 
@@ -92,8 +97,13 @@ export function StatisticsPage() {
   const [data, setData] = useState<Loaded | "loading" | "failed">("loading");
   const [kanji, setKanji] = useState<LibraryKanji[] | null | "failed">(null);
   const [now] = useState(() => new Date());
-  const [month, setMonth] = useState(() => startOfMonth(now));
   const [selectedDay, setSelectedDay] = useState(() => dayKey(now));
+  // The month a Month range shows and the days a Custom range spans (the last week at first).
+  const [rangeMonth, setRangeMonth] = useState(() => startOfMonth(now));
+  const [rangeDays, setRangeDays] = useState(() => ({
+    from: dayValue(addDays(now, 1 - CUSTOM_RANGE_DAYS)),
+    to: dayValue(now),
+  }));
   const [edit, setEdit] = useState<DailyEditTarget | null>(null);
   const [editNotice, setEditNotice] = useState(false);
   const loadVersion = useRef(0);
@@ -155,7 +165,15 @@ export function StatisticsPage() {
     // Removed books are named in the interface language.
   }, [loaded, devices, language]);
   const sessions = useMemo(() => loaded?.sessions ?? [], [loaded]);
-  const periods = useMemo(() => rangePeriods(range, now), [range, now]);
+  const periods = useMemo(
+    () =>
+      rangePeriods(range, now, {
+        month: rangeMonth,
+        from: parseDay(rangeDays.from) ?? undefined,
+        to: parseDay(rangeDays.to) ?? undefined,
+      }),
+    [range, now, rangeMonth, rangeDays],
+  );
   // Books the Library shows completed count as finished, even with no session reading them to the end.
   const completions = useMemo(
     () => libraryCompletions(loaded?.books ?? [], sessions),
@@ -170,12 +188,73 @@ export function StatisticsPage() {
     () => (periods.previous ? summarize(sessions, periods.previous, completions) : null),
     [sessions, periods, completions],
   );
+  // The daily calendar shows the range's month: a Month range's, a custom range's last day's, else
+  // this one; the range is the page's one date.
+  const month = useMemo(
+    () =>
+      range === "month"
+        ? rangeMonth
+        : startOfMonth((range === "custom" && parseDay(rangeDays.to)) || now),
+    [range, rangeMonth, rangeDays.to, now],
+  );
   const days = useMemo(() => calendarMonth(sessions, month), [sessions, month]);
   const firstMonth = useMemo(
     () => (sessions.length ? startOfMonth(new Date(sessions[0].startedAt)) : startOfMonth(now)),
     [sessions, now],
   );
-  const selected = days.find((day) => dayKey(day.date) === selectedDay) ?? days[0];
+  // The day chosen in the calendar's month, else today in it, else its first day.
+  const selected =
+    days.find((day) => dayKey(day.date) === selectedDay) ??
+    days.find((day) => dayKey(day.date) === dayKey(now)) ??
+    days[0];
+  // Beside the range: a Month range's month, back to the first session's, with the month's first
+  // day chosen in the calendar (today in this month); a Custom range's first and last days, the
+  // calendar following the last.
+  const rangeControls =
+    range === "month" ? (
+      <MonthPicker
+        id="statistics-range-month"
+        label={t("statistics.month")}
+        max={startOfMonth(now)}
+        min={firstMonth}
+        onChoose={(month) => {
+          setRangeMonth(month);
+          setSelectedDay(dayKey(month.getTime() === startOfMonth(now).getTime() ? now : month));
+        }}
+        value={rangeMonth}
+      />
+    ) : range === "custom" ? (
+      <div className="statistics-range-days">
+        <span className="statistics-range-days__field">
+          <span id="statistics-range-from">{t("statistics.rangeFrom")}</span>
+          <DayPicker
+            empty=""
+            id="statistics-range-from-day"
+            labelledBy="statistics-range-from"
+            max={rangeDays.to}
+            min="2000-01-01"
+            onChoose={(from) => setRangeDays((current) => ({ ...current, from }))}
+            value={rangeDays.from}
+          />
+        </span>
+        <span className="statistics-range-days__field">
+          <span id="statistics-range-to">{t("statistics.rangeTo")}</span>
+          <DayPicker
+            empty=""
+            id="statistics-range-to-day"
+            labelledBy="statistics-range-to"
+            max={dayValue(now)}
+            min={rangeDays.from}
+            onChoose={(to) => {
+              setRangeDays((current) => ({ ...current, to }));
+              const day = parseDay(to);
+              if (day) setSelectedDay(dayKey(day));
+            }}
+            value={rangeDays.to}
+          />
+        </span>
+      </div>
+    ) : null;
 
   const rangeMenu = (
     <MenuButton
@@ -208,7 +287,10 @@ export function StatisticsPage() {
           <p>{t("statistics.description")}</p>
         </div>
       </div>
-      {rangeMenu}
+      <div className="statistics-range">
+        {rangeControls}
+        {rangeMenu}
+      </div>
     </header>
   );
 
@@ -249,12 +331,14 @@ export function StatisticsPage() {
     range === "today"
       ? t("statistics.today")
       : range === "month"
-        ? formatMonth(now)
-        : sessions.length
-          ? t("statistics.allSince", {
-              date: i18n().date(new Date(sessions[0].startedAt), { dateStyle: "short" }),
-            })
-          : t("statistics.allTracked");
+        ? formatMonth(rangeMonth)
+        : range === "custom"
+          ? formatDays(rangeDays.from, rangeDays.to, language)
+          : sessions.length
+            ? t("statistics.allSince", {
+                date: i18n().date(new Date(sessions[0].startedAt), { dateStyle: "short" }),
+              })
+            : t("statistics.allTracked");
 
   const activityHeading = (
     <SectionHeading
@@ -271,10 +355,13 @@ export function StatisticsPage() {
       <section className="statistics-section" aria-labelledby="statistics-activity">
         {MobileHeader ? (
           // On the phone the range sits beside the heading it changes.
-          <div className="mobile-statistics-heading">
-            {activityHeading}
-            {rangeMenu}
-          </div>
+          <>
+            <div className="mobile-statistics-heading">
+              {activityHeading}
+              {rangeMenu}
+            </div>
+            {rangeControls ? <div className="mobile-statistics-range">{rangeControls}</div> : null}
+          </>
         ) : (
           activityHeading
         )}
@@ -369,16 +456,6 @@ export function StatisticsPage() {
             {/* A day's activity is edited by right-click, which the phone does not offer. */}
             {MobileHeader ? null : <span>{t("statistics.dailyHint")}</span>}
           </div>
-          <MonthSwitcher
-            first={firstMonth}
-            last={startOfMonth(now)}
-            month={month}
-            onChange={(next) => {
-              setMonth(next);
-              const today = dayKey(now);
-              setSelectedDay(startOfMonth(now).getTime() === next.getTime() ? today : dayKey(next));
-            }}
-          />
         </div>
         <div className="statistics-activity-layout">
           <ActivityCalendar
@@ -549,7 +626,7 @@ function SpeedCard({
   );
 }
 
-/** "+12% vs last month", or null when there is nothing to compare with. */
+/** "+12% vs the month before", or null when there is nothing to compare with. */
 function comparison(
   current: number,
   previous: number | undefined,
@@ -557,9 +634,24 @@ function comparison(
 ): string | null {
   if (range === "all" || previous === undefined || previous <= 0) return null;
   const change = Math.round(((current - previous) / previous) * 100);
-  return i18n().t(range === "today" ? "statistics.vsYesterday" : "statistics.vsLastMonth", {
-    change: `${change >= 0 ? "+" : ""}${change}`,
-  });
+  const key =
+    range === "today"
+      ? "statistics.vsYesterday"
+      : range === "month"
+        ? "statistics.vsMonthBefore"
+        : "statistics.vsPeriodBefore";
+  return i18n().t(key, { change: `${change >= 0 ? "+" : ""}${change}` });
+}
+
+/** A custom range's days, as "Nov 17 – 23, 2026" or one day alone. */
+function formatDays(from: string, to: string, language: InterfaceLanguage) {
+  const first = parseDay(from);
+  const last = parseDay(to);
+  if (!first || !last) return "";
+  return new Intl.DateTimeFormat(formattingLocale(language), { dateStyle: "medium" }).formatRange(
+    first,
+    last,
+  );
 }
 
 function daysRead(summary: ActivitySummary): string {

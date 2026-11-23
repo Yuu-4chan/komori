@@ -215,7 +215,7 @@ Only look up Japanese/CJK text, the kanji entry and JapanesePod101 are for Japan
 
 ## Statistics
 
-Range menu; reading activity metrics (characters or words read, time, speed per hour,
+Range menu (Today, a month back to the first session's or a custom range of days, each compared with the period before, and All time); reading activity metrics (characters or words read, time, speed per hour,
 books finished); the daily activity calendar with day details and editable daily
 books (right-click or pencil); Books read: the books finished in the range as covers (read to
 the end, or shown completed in the Library: marked completed or moved to the end), the last

@@ -20,6 +20,42 @@
   gap: var(--space-6);
 }
 
+/* Beside the range menu: a Month range's month or a Custom range's days. */
+.statistics-range {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.statistics-range-days {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.statistics-range-days__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-secondary);
+  font-size: var(--font-size-2);
+}
+
+/* In the header, the fields stand as tall as the range menu beside them. */
+.statistics-range .day-picker__trigger {
+  min-height: var(--toolbar-height);
+}
+
+/* The first day's calendar opens from its start, so it stays on a narrow screen. */
+.statistics-range-days__field:first-child .day-picker__popover {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+}
+
 .statistics-header__identity {
   min-width: 0;
   display: flex;
@@ -40,8 +76,7 @@
   font-size: var(--font-size-2);
 }
 
-.statistics-back,
-.statistics-month-switcher button {
+.statistics-back {
   display: grid;
   place-items: center;
   flex: none;
@@ -62,16 +97,10 @@
   border-radius: 50%;
 }
 
-.statistics-back:hover,
-.statistics-month-switcher button:hover:not(:disabled) {
+.statistics-back:hover {
   color: var(--accent-ink);
   background: var(--accent-faint);
   border-color: var(--border-accent);
-}
-
-.statistics-month-switcher button:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .statistics-loading,
@@ -248,24 +277,6 @@ div.statistics-card__empty p {
 
 .statistics-card__heading--activity {
   border-bottom: 0;
-}
-
-.statistics-month-switcher {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-}
-
-.statistics-month-switcher button {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.55rem;
-}
-
-.statistics-month-switcher strong {
-  min-width: 8.5rem;
-  text-align: center;
-  font-size: var(--font-size-2);
 }
 
 .statistics-activity-layout {
@@ -824,6 +835,17 @@ div.statistics-card__empty p {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 2px;
+}
+
+/* A month field's year: its months in rows of three. */
+.day-picker__months {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.day-picker__months .day-picker__day {
+  height: 2.25rem;
 }
 
 .day-picker__weekday {
