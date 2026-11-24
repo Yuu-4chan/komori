@@ -10,6 +10,7 @@ import type { ReaderIdentity } from "../features/reader/readerIdentity";
 import { readerPositionStore } from "../features/reader/readingPosition";
 import { bookmarkStore, type BookmarkStore } from "../features/reader/bookmarks";
 import { noteStore, type NoteStore } from "../features/reader/notes";
+import { getOpenedFile } from "../features/reader/openedFiles";
 import type { ReaderPositionStore, ReaderRendererFactory } from "../features/reader/renderer";
 
 interface ReaderPageProps {
@@ -25,11 +26,44 @@ export function ReaderPage({
   bookmarkStore: injectedBookmarks,
   noteStore: injectedNotes,
 }: ReaderPageProps) {
-  const { catalogId } = useParams();
+  const { catalogId: libraryId, fileId } = useParams();
+  // A book opened from a folder has an ID for this run, outside the Library.
+  const routeId = fileId ?? libraryId;
   const [resolved, setResolved] = useState<{ id: string; identity: ReaderIdentity } | null>(null);
 
   useEffect(() => {
-    if (!catalogId) return;
+    if (!fileId) return;
+    let active = true;
+    void getOpenedFile(fileId)
+      .then((found) => {
+        if (!active) return;
+        if (!found) {
+          setResolved({ id: fileId, identity: { status: "unknown" } });
+          return;
+        }
+        const book = {
+          id: found.id,
+          title: found.title,
+          author: found.author,
+          availability: "available" as const,
+          hasCover: false,
+          language: found.language,
+          series: null,
+          seriesIndex: null,
+        };
+        setResolved({ id: fileId, identity: { status: "book", book, cover: null, opened: true } });
+      })
+      .catch(() => {
+        if (active) setResolved({ id: fileId, identity: { status: "error" } });
+      });
+    return () => {
+      active = false;
+    };
+  }, [fileId]);
+
+  useEffect(() => {
+    if (!libraryId) return;
+    const catalogId = libraryId;
     // The Library reads this book again on its return, where it was read to.
     libraryCache.touch(catalogId);
     let active = true;
@@ -59,10 +93,10 @@ export function ReaderPage({
     return () => {
       active = false;
     };
-  }, [catalogId]);
+  }, [libraryId]);
 
-  const identity: ReaderIdentity = catalogId
-    ? resolved?.id === catalogId
+  const identity: ReaderIdentity = routeId
+    ? resolved?.id === routeId
       ? resolved.identity
       : { status: "loading" }
     : { status: "empty" };
@@ -71,14 +105,19 @@ export function ReaderPage({
     identity.status === "book" && identity.book.availability === "available"
       ? identity.book.id
       : null;
+  // A book opened from a folder opens at its start and keeps no place, bookmarks or notes.
+  const opened = identity.status === "book" && identity.opened === true;
   const production = useMemo(
     () =>
       selectedId
-        ? { factory: epubRendererFactory(selectedId), store: readerPositionStore(selectedId) }
+        ? {
+            factory: epubRendererFactory(selectedId),
+            store: opened ? undefined : readerPositionStore(selectedId),
+          }
         : undefined,
-    [selectedId],
+    [selectedId, opened],
   );
-  const catalogBookId = identity.status === "book" ? identity.book.id : undefined;
+  const catalogBookId = identity.status === "book" && !opened ? identity.book.id : undefined;
   const bookmarks = useMemo(
     () => (catalogBookId ? bookmarkStore(catalogBookId) : undefined),
     [catalogBookId],

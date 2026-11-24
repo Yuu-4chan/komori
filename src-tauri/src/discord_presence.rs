@@ -1,7 +1,7 @@
 //! Discord Rich Presence. While it is on and a book is open in the shown window, Komori tells
 //! the Discord app on this computer what the Reader shows, through Discord's local IPC pipe: the
 //! book's title, its progress, the chapter's progress and the reading speed, each as the reader
-//! chooses. Anywhere else, in the tray, or after 20 minutes without reading, Komori closes the
+//! chooses. Anywhere else, in the tray, or after 60 minutes without reading, Komori closes the
 //! pipe and Discord shows nothing of it. Native code owns the choices, the pipe and the idle
 //! timer; the Reader reports only display text and its position. Nothing goes over the network
 //! from Komori: the Discord app shares the status.
@@ -30,7 +30,7 @@ const ICON: &str =
     "https://raw.githubusercontent.com/Yuu-4chan/komori/main/src-tauri/icons/128x128@2x.png";
 /// No reading for this long clears the status.
 /// Long enough for a break while reading, so the status does not come and go.
-const IDLE_AFTER: Duration = Duration::from_secs(20 * 60);
+const IDLE_AFTER: Duration = Duration::from_secs(60 * 60);
 /// Discord accepts five activity updates in 20 s; a change sooner waits for the next slot.
 const UPDATE_EVERY: Duration = Duration::from_secs(15);
 /// While Discord is closed, how often Komori looks for it again.
@@ -478,7 +478,7 @@ fn unix_now() -> u64 {
 /// Keeps Discord's status until the application ends: connects while the choice is on and a
 /// book is being read (again every 30 s while Discord is closed), sends each changed status at
 /// most every 15 s, and closes the connection, clearing the status, when the choice is turned
-/// off or the book closes or goes unread for 20 minutes.
+/// off or the book closes or goes unread for 60 minutes.
 fn run<S: Read + Write>(
     mut preferences: Preferences,
     messages: Receiver<Message>,
@@ -703,7 +703,7 @@ mod tests {
     }
 
     #[test]
-    fn shows_the_chosen_parts_and_nothing_after_twenty_minutes_without_reading() {
+    fn shows_the_chosen_parts_and_nothing_after_an_hour_without_reading() {
         let start = Instant::now();
         let mut presence = Presence::default();
         let everything = Preferences {
@@ -763,7 +763,7 @@ mod tests {
             Some(1_000)
         );
         // Reading again after idling starts a new stretch.
-        let back = start + Duration::from_secs(25 * 60);
+        let back = start + IDLE_AFTER + Duration::from_secs(5 * 60);
         presence.report(Some(reading(11)), back, 2_500);
         assert_eq!(
             presence.activity(&everything, "en", back).unwrap().start,

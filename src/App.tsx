@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Navigate, Route, Routes, useSearchParams } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate, useSearchParams } from "react-router-dom";
 
 import { AppShell } from "./components/layout/AppShell";
 import { DictionaryPage } from "./pages/DictionaryPage";
@@ -11,32 +11,34 @@ import { useLibraryImportController, LibraryImportContext } from "./features/lib
 import { useStarterDictionaryNotifications } from "./features/dictionary/useStarterDictionaries";
 import { UpdatesProvider } from "./features/updates/updates";
 import { refreshReaderFonts } from "./features/reader/readerFonts";
+import { onOpenedFile, openedFileRoute, takeOpenedFile } from "./features/reader/openedFiles";
 
+// A book opened from a folder starts Komori in the Reader; otherwise the last book or the Library.
 function StartupRoute() {
-  const [book, setBook] = useState<string | null | undefined>(undefined);
+  const [route, setRoute] = useState<string | undefined>(undefined);
   useEffect(() => {
     let active = true;
     const timeout = setTimeout(() => {
       if (active) {
         active = false;
-        setBook(null);
+        setRoute("/library");
       }
     }, 2000);
-    void getStartupBook().then(
-      (id) => {
-        if (active) setBook(id);
-      },
-      () => {
-        if (active) setBook(null);
-      },
-    );
+    void (async () => {
+      const opened = await takeOpenedFile().catch(() => null);
+      if (opened) return openedFileRoute(opened);
+      const book = await getStartupBook().catch(() => null);
+      return book ? `/reader/${book}` : "/library";
+    })().then((found) => {
+      if (active) setRoute(found);
+    });
     return () => {
       active = false;
       clearTimeout(timeout);
     };
   }, []);
-  if (book === undefined) return <div className="page" aria-busy="true" />;
-  return <Navigate replace to={book ? `/reader/${book}` : "/library"} />;
+  if (route === undefined) return <div className="page" aria-busy="true" />;
+  return <Navigate replace to={route} />;
 }
 
 // The Reader carries EPUB.js and its ZIP reader; load them only when a book is opened.
@@ -80,6 +82,9 @@ export function App() {
   useEffect(() => {
     void refreshReaderFonts();
   }, []);
+  // A book opened from a folder while Komori runs opens in its window.
+  const navigate = useNavigate();
+  useEffect(() => onOpenedFile((id) => navigate(openedFileRoute(id))), [navigate]);
   return (
     <LibraryImportContext.Provider value={imports}>
       <UpdatesProvider>
@@ -99,6 +104,7 @@ export function App() {
             </Route>
             <Route path="reader" element={reader} />
             <Route path="reader/:catalogId" element={reader} />
+            <Route path="reader/file/:fileId" element={reader} />
           </Routes>
         </Suspense>
       </UpdatesProvider>

@@ -34,6 +34,15 @@
     "targets": ["nsis"],
     "publisher": "Komori",
     "copyright": "Copyright (C) 2026 The Komori authors",
+    "fileAssociations": [
+      {
+        "ext": ["epub"],
+        "name": "Komori.EPUB",
+        "description": "EPUB book",
+        "role": "Viewer",
+        "mimeType": "application/epub+zip"
+      }
+    ],
     "windows": {
       "nsis": {
         "installerIcon": "icons/icon.ico",

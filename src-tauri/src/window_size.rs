@@ -180,7 +180,13 @@ fn after_move(
 
 /// Creates the main window from the app configuration at the restored size and keeps its
 /// record up to date.
-pub fn create_main_window(app: &AppHandle, database: &Path) -> Result<WebviewWindow, String> {
+/// `opening_book` is a launch that names a book to read, which shows the window even when
+/// Komori would start in the tray.
+pub fn create_main_window(
+    app: &AppHandle,
+    database: &Path,
+    opening_book: bool,
+) -> Result<WebviewWindow, String> {
     let mut config = app
         .config()
         .app
@@ -226,9 +232,10 @@ pub fn create_main_window(app: &AppHandle, database: &Path) -> Result<WebviewWin
     config.min_width = Some(fitted_minimum.width);
     config.min_height = Some(fitted_minimum.height);
     // Starting in the tray keeps the window hidden until the tray shows it.
-    if crate::startup::load(database)
-        .unwrap_or_default()
-        .start_in_tray
+    if !opening_book
+        && crate::startup::load(database)
+            .unwrap_or_default()
+            .start_in_tray
     {
         config.visible = false;
     }

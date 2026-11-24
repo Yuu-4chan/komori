@@ -126,7 +126,7 @@ export const el: MessageCatalog = {
   "discord.saveError": "Το Komori δεν μπόρεσε να αποθηκεύσει αυτή την επιλογή. Δοκιμάστε ξανά.",
   "discord.enabled": "Εμφάνιση κατάστασης ανάγνωσης στο Discord",
   "discord.enabledHint":
-    "Όσο είναι ανοιχτό ένα βιβλίο. Καθαρίζει μετά από 20 λεπτά χωρίς ανάγνωση.",
+    "Όσο είναι ανοιχτό ένα βιβλίο. Καθαρίζει μετά από 60 λεπτά χωρίς ανάγνωση.",
   "discord.showBookTitle": "Τίτλος βιβλίου",
   "discord.showBookProgress": "Πρόοδος βιβλίου",
   "discord.showChapterProgress": "Πρόοδος κεφαλαίου",
@@ -1633,6 +1633,7 @@ export const el: MessageCatalog = {
   "appearancePanel.upright": "Όρθιος",
   "appearancePanel.eyebrow": "Χειριστήρια ανάγνωσης",
   "appearancePanel.typography": "Τυπογραφία",
+  "appearancePanel.bookFormatting": "Μορφοποίηση του βιβλίου",
   "appearancePanel.fontSize": "Μέγεθος γραμματοσειράς",
   "appearancePanel.lineHeight": "Ύψος γραμμής",
   "appearancePanel.paragraphIndent": "Εσοχή παραγράφου",

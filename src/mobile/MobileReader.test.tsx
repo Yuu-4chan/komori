@@ -68,6 +68,8 @@ function usePanel(): ReaderAppearancePanelProps {
     onTextJustificationChange: a.setReaderTextJustification,
     prettyTextWrap: a.readerPrettyTextWrap,
     onPrettyTextWrapChange: a.setReaderPrettyTextWrap,
+    bookFormatting: a.readerBookFormatting,
+    onBookFormattingChange: a.setReaderBookFormatting,
     hideFurigana: a.readerHideFurigana,
     onHideFuriganaChange: a.setReaderHideFurigana,
     blurImage: a.readerBlurImage,
