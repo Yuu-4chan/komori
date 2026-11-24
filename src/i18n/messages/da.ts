@@ -974,6 +974,7 @@ export const da: MessageCatalog = {
   "textMenu.selectAll": "Markér alt",
   "textMenu.note": "Tilføj note",
   "textMenu.highlight": "Fremhæv",
+  "textMenu.wikipedia": "Wikipedia",
   "textMenu.lookUp": "Slå op",
   "imageActions.label": "Billede",
   "imageActions.copy": "Kopiér billede",
@@ -1518,8 +1519,6 @@ export const da: MessageCatalog = {
   "readerStatus.noBook": "Ingen bog åben",
   "readingStatus.label": "Læsestatus",
   "readingStatus.localTime": "Lokal tid: {time}",
-  "readingStatus.offHint":
-    "Læsestatistik er slået fra i Indstillinger, så der registreres ingen tid",
   "readingStatus.off": "Statistik fra",
   "readingStatus.time": "Læsetid i denne session",
   "readingStatus.timeLabel": "Læsetid i denne session: {duration}",
@@ -1973,4 +1972,9 @@ export const da: MessageCatalog = {
   "statistics.phoneAndPc": "Telefon og pc",
   "statistics.byDevice": "Læsning pr. enhed",
   "statistics.otherDevice": "En anden enhed",
+  "wikipedia.label": "Wikipedia",
+  "wikipedia.searching": "Søger på Wikipedia…",
+  "wikipedia.missing": "Ingen Wikipedia-side",
+  "wikipedia.failed": "Wikipedia kunne ikke nås",
+  "wikipedia.open": "Åbn i Wikipedia",
 };

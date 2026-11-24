@@ -87,6 +87,9 @@ back. The search stays in the top bar even in an empty Library.
   double-click when Komori is the chosen app) opens in the Reader at its start, in the running
   window if there is one. It is not added to the Library and nothing about it is kept: no
   place, bookmarks, notes, reading time or last book.
+- **Explorer thumbnails.** On Windows, folders show each EPUB's cover as its thumbnail, the
+  cover the Library shows, whichever app opens EPUBs; another app's thumbnails come back
+  when Komori is uninstalled.
 - **Sidebar.** Round Back, Appearance and Pin buttons; the book's card (cover, title,
   author, series when it has one), whose title can be selected and copied; floating tiles for Images, Bookmarks, Notes and Search
   under it; the chapters under a `Chapters` label as a scrolling timeline (read, current, unread) with each entry's
@@ -129,7 +132,8 @@ back. The search stays in the top bar even in an empty Library.
   A click in the book or Space finishes the reveal, then reads on.
 - **Footer.** Book and chapter position and percentage in a lower pill with reading speed;
   clock and session reading time in an upper pill, with the session's play/stop button
-  between them while statistics are recorded (alone with Manual start); resting on either pill
+  between them while statistics are recorded (alone with Manual start); with statistics off
+  the pill shows only the clock, or nothing; resting on either pill
   shows this session's time, amount and speed, the book's progress, time, sessions,
   days, amount and speed, and what is left with the time it takes at each speed; both center
   over the available reading area, including while the sidebar is pinned. Empty pills disappear.
@@ -141,7 +145,9 @@ back. The search stays in the top bar even in an empty Library.
   Highlight color with a little room around the letters, show the hand on hover, and
   clicking one offers Open in notes or Delete. Right-clicking selected text
   offers Look up (the popup for the whole selection, whatever the lookup triggers, while the
-  popup is on), Copy, Add note and Highlight (a saved passage with no note); right-clicking a
+  popup is on), Copy, Add note, Highlight (a saved passage with no note) and Wikipedia (a
+  card with the page's title, description and introduction, and a button that opens it in the
+  browser, from the Wikipedia of the book's language); right-clicking a
   book image, or the image viewer, offers Copy image and Save image. Bookmarks and notes
   show their chapter and how far into the book they lie (until the book is counted, their
   section and its text fraction); search results and images show their chapter, never

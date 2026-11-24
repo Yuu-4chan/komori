@@ -979,6 +979,7 @@ export const hi: MessageCatalog = {
   "textMenu.selectAll": "सभी चुनें",
   "textMenu.note": "नोट जोड़ें",
   "textMenu.highlight": "हाइलाइट",
+  "textMenu.wikipedia": "विकिपीडिया",
   "textMenu.lookUp": "लुकअप",
   "imageActions.label": "इमेज",
   "imageActions.copy": "इमेज कॉपी करें",
@@ -1534,7 +1535,6 @@ export const hi: MessageCatalog = {
 
   "readingStatus.label": "पढ़ने की स्थिति",
   "readingStatus.localTime": "स्थानीय समय: {time}",
-  "readingStatus.offHint": "सेटिंग्स में पढ़ने के आँकड़े बंद हैं, इसलिए कोई समय रिकॉर्ड नहीं होता",
   "readingStatus.off": "आँकड़े बंद",
   "readingStatus.time": "इस सत्र में पढ़ने का समय",
   "readingStatus.timeLabel": "इस सत्र में पढ़ने का समय: {duration}",
@@ -1997,4 +1997,9 @@ export const hi: MessageCatalog = {
   "statistics.phoneAndPc": "फ़ोन और PC",
   "statistics.byDevice": "डिवाइस के अनुसार पढ़ाई",
   "statistics.otherDevice": "दूसरा डिवाइस",
+  "wikipedia.label": "विकिपीडिया",
+  "wikipedia.searching": "विकिपीडिया में खोज रहे हैं…",
+  "wikipedia.missing": "कोई विकिपीडिया पेज नहीं",
+  "wikipedia.failed": "विकिपीडिया से कनेक्ट नहीं हो सका",
+  "wikipedia.open": "विकिपीडिया में खोलें",
 };

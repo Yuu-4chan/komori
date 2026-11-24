@@ -60,7 +60,8 @@ export function useStatsHover(shown: boolean) {
 
 /**
  * The upper-center status pill, separate from the book's layout: the clock and the time read,
- * with the session's play/stop button between them while statistics are recorded. Resting on
+ * with the session's play/stop button between them while statistics are recorded; with
+ * statistics off it shows only the clock, or nothing. Resting on
  * the pill, or focusing its button from the keyboard, shows the session's and the book's
  * statistics below it.
  */
@@ -100,7 +101,9 @@ export function ReaderReadingStatus({
   const statsShown = Boolean(stats?.progress) && session !== "off";
   const statsHover = useStatsHover(statsShown);
   const statsOpen = statsHover.open;
-  if (!clock && !readingTime && !(toggle && manual)) return null;
+  // While statistics are off there is no session to show: no button and no time read.
+  const timeShown = readingTime && session !== "off";
+  if (!clock && !timeShown && !(toggle && manual)) return null;
   const time = date(now, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   const duration = formatDurationSeconds(elapsed);
   return (
@@ -150,17 +153,14 @@ export function ReaderReadingStatus({
           )}
         </button>
       )}
-      {readingTime &&
-        (session === "off" ? (
-          <span title={t("readingStatus.offHint")}>{t("readingStatus.off")}</span>
-        ) : (
-          <span
-            title={statsShown ? undefined : t("readingStatus.time")}
-            aria-label={t("readingStatus.timeLabel", { duration })}
-          >
-            {duration}
-          </span>
-        ))}
+      {timeShown && (
+        <span
+          title={statsShown ? undefined : t("readingStatus.time")}
+          aria-label={t("readingStatus.timeLabel", { duration })}
+        >
+          {duration}
+        </span>
+      )}
       {statsOpen && stats?.progress ? (
         <ReadingStatsPanel
           bookId={stats.bookId}

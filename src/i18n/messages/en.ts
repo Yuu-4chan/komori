@@ -1003,6 +1003,7 @@ export const en = {
   "textMenu.selectAll": "Select all",
   "textMenu.note": "Add note",
   "textMenu.highlight": "Highlight",
+  "textMenu.wikipedia": "Wikipedia",
   "textMenu.lookUp": "Look up",
   "imageActions.label": "Image",
   "imageActions.copy": "Copy image",
@@ -1572,7 +1573,6 @@ export const en = {
   // Reading status
   "readingStatus.label": "Reading status",
   "readingStatus.localTime": "Local time: {time}",
-  "readingStatus.offHint": "Reading statistics are turned off in Settings, so no time is recorded",
   "readingStatus.off": "Statistics off",
   "readingStatus.time": "Time read this session",
   "readingStatus.timeLabel": "Reading time this session: {duration}",
@@ -2046,4 +2046,9 @@ export const en = {
   "statistics.phoneAndPc": "Phone and PC",
   "statistics.byDevice": "Reading by device",
   "statistics.otherDevice": "Another device",
+  "wikipedia.label": "Wikipedia",
+  "wikipedia.searching": "Searching Wikipedia…",
+  "wikipedia.missing": "No Wikipedia page",
+  "wikipedia.failed": "Wikipedia could not be reached",
+  "wikipedia.open": "Open in Wikipedia",
 } as const;

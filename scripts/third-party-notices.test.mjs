@@ -62,8 +62,14 @@ describe("third-party notices", () => {
       "LICENSE",
       "NOTICE",
       "THIRD-PARTY-NOTICES.txt",
+      "komori-thumbnails.dll",
       "reader-fonts",
     ]);
+    // Explorer's thumbnail handler is built before the app and shipped beside it; its crates are
+    // all the app's own, so the notices cover it.
+    expect(release.build.beforeBuildCommand).toMatch(
+      /^pnpm build && cargo build --release .*-p komori-thumbnails$/u,
+    );
     // The build fetches the included Reader fonts before the installer takes them.
     expect(scripts.build).toMatch(/^node scripts\/reader-fonts\.mjs && /u);
     expect(release.bundle.resources.fonts).toBe("reader-fonts");

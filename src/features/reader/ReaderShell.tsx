@@ -104,12 +104,14 @@ import { copyBookImage, imageBlob, saveBookImage } from "./bookImageActions";
 import {
   CopyIcon,
   DownloadSimpleIcon,
+  GlobeIcon,
   HighlighterIcon,
   MagnifyingGlassIcon,
   NotePencilIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { noteAtPoint, noteHoverCursor } from "./noteHighlights";
+import { ReaderWikipediaPopup } from "./ReaderWikipediaPopup";
 import type { NotePassage, NoteStore } from "./notes";
 import { commandTarget, escapeReturnWindow, matchesModifiers, shortcutCommand } from "./shortcuts";
 import { popupShortcut } from "./popupShortcuts";
@@ -219,6 +221,8 @@ export function ReaderShell({
     | { x: number; y: number; kind: "note"; id: string }
     | null
   >(null);
+  // The Wikipedia page selected text names, shown where the text menu opened.
+  const [wikipedia, setWikipedia] = useState<{ x: number; y: number; text: string } | null>(null);
   const [focusNote, setFocusNote] = useState<{ id: string } | undefined>();
   // How many times the image viewer has gone to an image's page, which the phone's
   // Images sheet closes for.
@@ -897,7 +901,10 @@ export function ReaderShell({
       id,
     });
   };
-  useEffect(() => setBookMenu(null), [rendererFactory, status]);
+  useEffect(() => {
+    setBookMenu(null);
+    setWikipedia(null);
+  }, [rendererFactory, status]);
   /** The image a book element shows, as the viewer would show it. */
   async function bookImage(element: Element) {
     const controller = new AbortController();
@@ -940,6 +947,11 @@ export function ReaderShell({
           label: t("textMenu.highlight"),
           icon: <HighlighterIcon aria-hidden="true" />,
           onSelect: () => void createSelectedNote("highlight"),
+        },
+        {
+          label: t("textMenu.wikipedia"),
+          icon: <GlobeIcon aria-hidden="true" />,
+          onSelect: () => setWikipedia({ x: bookMenu.x, y: bookMenu.y, text: bookMenu.text }),
         },
       ];
     }
@@ -2163,6 +2175,15 @@ export function ReaderShell({
           )}
           onClose={() => setBookMenu(null)}
           position={{ x: bookMenu.x, y: bookMenu.y }}
+        />
+      )}
+      {wikipedia && (
+        <ReaderWikipediaPopup
+          // The book's language names its Wikipedia; a book without one uses the interface's.
+          language={bookLanguage ?? i18n().language}
+          onClose={() => setWikipedia(null)}
+          position={{ x: wikipedia.x, y: wikipedia.y }}
+          text={wikipedia.text}
         />
       )}
       {imageOpen.current && imageViewer && (
