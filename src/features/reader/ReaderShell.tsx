@@ -269,8 +269,9 @@ export function ReaderShell({
       ? replacementAsianFonts[fontLanguage]
       : undefined;
   const asianFont = pickedAsianFont ?? replacedFont ?? savedAsianFont;
+  // With the book's own formatting no Komori font is shown, so none is said to change.
   const fontNotice =
-    replacedFont && bookLanguage
+    replacedFont && bookLanguage && !appearance.readerBookFormatting
       ? t("reader.fontChanged", {
           font: fontChoiceLabel(replacedFont),
           language: languageName(bookLanguage),

@@ -21,7 +21,7 @@ export async function getWikipediaSummary(
     typeof summary.title === "string" &&
     typeof summary.extract === "string" &&
     typeof summary.url === "string" &&
-    /^https:\/\/[a-z]{2,3}\.wikipedia\.org\//.test(summary.url)
+    /^https:\/\/[a-z]{2,3}(?:-[a-z]+)*\.wikipedia\.org\//.test(summary.url)
   )
     return summary;
   return summary?.status === "missing" ? { status: "missing" } : { status: "failed" };

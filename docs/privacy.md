@@ -32,11 +32,12 @@ Komori contacts the network only for these features:
 - **Word audio.** When you press Voice, or add a card whose fields use Word audio, Komori asks the word audio sources in Settings > Dictionary for a recording of the word, in order: JapanesePod101 and Wikimedia Commons by default, and any URL you add. The request carries the word and its reading; Wikimedia Commons receives only the word and the lookup language. Recordings are kept in memory only while Komori runs.
 - **Anki.** When you use Anki features, Komori talks to AnkiConnect on your own computer (`127.0.0.1`) only.
 - **Discord status.** Off by default. When you turn it on in Settings > Discord, Komori tells the Discord app on your computer, through its local pipe, the open book's title, book and chapter progress and reading speed (each can be hidden), which Komori page you are using outside the Reader (Library, Dictionary, Statistics or Settings; can be hidden), or Idle. To tell when you stop using a page, Komori counts your clicks and key presses on it; what you typed or clicked is not recorded, and Discord is told only the page. Discord then shows this on your profile to the people who can see your activity. Komori itself sends nothing over the network for it: Discord loads the Komori icon shown with the status from GitHub, and the icon links to Komori's GitHub page.
+- **Wikipedia.** Only when you choose Wikipedia in the Reader's text menu, Komori asks Wikipedia over HTTPS for the page the selected text names: it sends that text (up to 120 characters) to the Wikipedia of the book's language, or of the interface language when the book has none. The answer is shown and not kept.
 - **Links.** Dictionary links and source or license links open in your default web browser; Komori does not fetch them itself.
 
 On Android, starter dictionaries and word audio make the same requests; updates, Reader font downloads, Anki and Discord status are not on the phone.
 
-Those requests carry no identifier and no information about your library or reading. EPUB content is rendered offline, with scripts disabled and no access to remote resources.
+Those requests carry no identifier and no information about your library or reading, apart from the text you send to Wikipedia yourself. EPUB content is rendered offline, with scripts disabled and no access to remote resources.
 
 ## Removing your data
 

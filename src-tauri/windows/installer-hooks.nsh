@@ -6,7 +6,10 @@
 ; "uninstall before installing" step would run the old uninstaller without a folder. Before any
 ; page shows, the earlier folder is carried over to the new key; after installing, the old key goes.
 ;
-; It also registers Komori's Explorer thumbnail handler; see KomoriRegisterThumbnails.
+; It also offers Komori in Explorer's Open with for EPUBs (the Komori.EPUB file class, listed under
+; .epub\OpenWithProgids). Which app opens an EPUB stays the reader's choice: the installer never
+; sets the .epub default, so it has nothing to put back. And it registers Komori's Explorer
+; thumbnail handler; see KomoriRegisterThumbnails.
 
 !include LogicLib.nsh
 
@@ -25,16 +28,26 @@ Function KomoriAdoptLegacyInstall
   Pop $0
 FunctionEnd
 
+!define KOMORI_EPUB_CLASS "Komori.EPUB"
+
 !macro NSIS_HOOK_POSTINSTALL
   DeleteRegKey HKCU "Software\Yuu-4chan\Komori"
   DeleteRegKey /ifempty HKCU "Software\Yuu-4chan"
+  WriteRegStr HKCU "Software\Classes\${KOMORI_EPUB_CLASS}" "" "EPUB book"
+  WriteRegStr HKCU "Software\Classes\${KOMORI_EPUB_CLASS}\DefaultIcon" "" "$INSTDIR\${MAINBINARYNAME}.exe,0"
+  WriteRegStr HKCU "Software\Classes\${KOMORI_EPUB_CLASS}\shell\open\command" "" '"$INSTDIR\${MAINBINARYNAME}.exe" "%1"'
+  WriteRegStr HKCU "Software\Classes\.epub\OpenWithProgids" "${KOMORI_EPUB_CLASS}" ""
   ; This file is read before VERSION is defined; a macro's body only where it is inserted.
-  StrCpy $KomoriThumbnailDll "komori-thumbnails-${VERSION}.dll"
+  StrCpy $KomoriThumbnailDll "${VERSION}"
   Call KomoriRegisterThumbnails
 !macroend
 
+; An update keeps the association and the thumbnail handler; uninstalling removes Komori's file
+; class and its Open with entry, and leaves other apps' entries and the .epub default as they are.
 !macro NSIS_HOOK_PREUNINSTALL
   ${If} $UpdateMode <> 1
+    DeleteRegValue HKCU "Software\Classes\.epub\OpenWithProgids" "${KOMORI_EPUB_CLASS}"
+    DeleteRegKey HKCU "Software\Classes\${KOMORI_EPUB_CLASS}"
     Call un.KomoriUnregisterThumbnails
   ${EndIf}
 !macroend
@@ -43,8 +56,9 @@ FunctionEnd
 ; the current user. Windows takes one thumbnail handler per extension: another app's handler is
 ; kept beside Komori's class and put back when Komori is uninstalled, unless that app has since
 ; taken the extension back itself. Explorer's thumbnail process keeps the DLL it loaded open, so
-; each version installs under its own name and an update never has to replace a file in use;
-; versions no longer loaded are removed.
+; each install puts the DLL under a name of its own (version and install time) and never has to
+; replace or keep a file in use; earlier ones no longer loaded are removed, and uninstalling has
+; Windows remove a loaded one when it restarts.
 
 !define KOMORI_THUMBNAIL_CLASS "{926c88c4-506e-429b-808f-17c2be6eea16}"
 !define KOMORI_THUMBNAIL_CLASS_KEY "Software\Classes\CLSID\${KOMORI_THUMBNAIL_CLASS}"
@@ -55,12 +69,14 @@ Function KomoriRegisterThumbnails
   Push $0
   Push $1
   Push $2
-  ; The same version installed again: its file may be loaded, and is the same file.
-  Delete "$INSTDIR\$KomoriThumbnailDll"
-  ${IfNot} ${FileExists} "$INSTDIR\$KomoriThumbnailDll"
-    Rename "$INSTDIR\komori-thumbnails.dll" "$INSTDIR\$KomoriThumbnailDll"
+  ; $KomoriThumbnailDll holds the version; the install time makes the name this install's own.
+  System::Call 'kernel32::GetTickCount() i .r0'
+  StrCpy $KomoriThumbnailDll "komori-thumbnails-$KomoriThumbnailDll-$0.dll"
+  ClearErrors
+  Rename "$INSTDIR\komori-thumbnails.dll" "$INSTDIR\$KomoriThumbnailDll"
+  ${If} ${Errors}
+    StrCpy $KomoriThumbnailDll "komori-thumbnails.dll"
   ${EndIf}
-  Delete "$INSTDIR\komori-thumbnails.dll"
   FindFirst $0 $1 "$INSTDIR\komori-thumbnails-*.dll"
   ${DoWhile} $1 != ""
     ${If} $1 != "$KomoriThumbnailDll"
@@ -105,9 +121,9 @@ Function un.KomoriUnregisterThumbnails
   ${EndIf}
   DeleteRegKey HKCU "${KOMORI_THUMBNAIL_CLASS_KEY}"
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
-  ; A DLL Explorer still holds stays until Windows lets it go.
-  Delete "$INSTDIR\komori-thumbnails-*.dll"
-  Delete "$INSTDIR\komori-thumbnails.dll"
+  ; A DLL Explorer still holds goes when Windows restarts; no later install reuses its name.
+  Delete /REBOOTOK "$INSTDIR\komori-thumbnails-*.dll"
+  Delete /REBOOTOK "$INSTDIR\komori-thumbnails.dll"
   Pop $1
   Pop $0
 FunctionEnd

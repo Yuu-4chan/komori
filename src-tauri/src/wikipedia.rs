@@ -98,9 +98,21 @@ fn wiki_language(tag: &str) -> Option<Wiki> {
         }
     });
     Some(Wiki {
-        host: format!("{primary}.wikipedia.org"),
+        host: format!("{}.wikipedia.org", wiki_name(&primary)),
         variant: variant.filter(|_| !rest.is_empty()),
     })
+}
+
+/// The Wikipedia a language's own code names. A few languages' Wikipedias live under another
+/// name, and the code's own address only redirects there, which Komori does not follow.
+fn wiki_name(primary: &str) -> &str {
+    match primary {
+        "nb" => "no",
+        "yue" => "zh-yue",
+        "nan" => "zh-min-nan",
+        "lzh" => "zh-classical",
+        other => other,
+    }
 }
 
 fn client() -> Option<Client> {
@@ -276,6 +288,15 @@ mod tests {
             })
         );
         assert_eq!(wiki_language("zh"), Some(wiki("zh.wikipedia.org")));
+        // nb.wikipedia.org and yue.wikipedia.org only redirect to these.
+        assert_eq!(wiki_language("nb"), Some(wiki("no.wikipedia.org")));
+        assert_eq!(wiki_language("nb-NO"), Some(wiki("no.wikipedia.org")));
+        assert_eq!(wiki_language("yue"), Some(wiki("zh-yue.wikipedia.org")));
+        assert_eq!(wiki_language("nan"), Some(wiki("zh-min-nan.wikipedia.org")));
+        assert_eq!(
+            wiki_language("lzh"),
+            Some(wiki("zh-classical.wikipedia.org"))
+        );
         for bad in ["", "x", "abcd", "e1", "evil.com/", "../en"] {
             assert_eq!(wiki_language(bad), None, "{bad}");
         }
@@ -323,6 +344,13 @@ mod tests {
             summary(&json!({"error": {"code": "x"}}), &en),
             WikipediaSummary::Failed
         );
+        let cantonese = json!({"query": {"pages": [{
+            "title": "香港", "extract": "x", "fullurl": "https://zh-yue.wikipedia.org/wiki/香港"
+        }]}});
+        assert!(matches!(
+            summary(&cantonese, &wiki("zh-yue.wikipedia.org")),
+            WikipediaSummary::Found { .. }
+        ));
         // An address elsewhere is never handed to the Reader.
         let elsewhere = json!({"query": {"pages": [{
             "title": "Tokyo", "extract": "x", "fullurl": "https://evil.example/wiki/Tokyo"
