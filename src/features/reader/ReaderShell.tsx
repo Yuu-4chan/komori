@@ -265,8 +265,9 @@ export function ReaderShell({
       ? replacementAsianFonts[fontLanguage]
       : undefined;
   const asianFont = pickedAsianFont ?? replacedFont ?? savedAsianFont;
+  // With the book's own formatting no Komori font is shown, so none is said to change.
   const fontNotice =
-    replacedFont && bookLanguage
+    replacedFont && bookLanguage && !appearance.readerBookFormatting
       ? t("reader.fontChanged", {
           font: fontChoiceLabel(replacedFont),
           language: languageName(bookLanguage),
@@ -478,6 +479,8 @@ export function ReaderShell({
     setReaderTextJustification,
     readerPrettyTextWrap,
     setReaderPrettyTextWrap,
+    readerBookFormatting,
+    setReaderBookFormatting,
     readerHideFurigana,
     setReaderHideFurigana,
     readerFuriganaStyle,
@@ -650,6 +653,7 @@ export function ReaderShell({
     },
     [closeLookup, clearEscape],
   );
+  const own = readerBookFormatting;
   const {
     hostRef,
     status,
@@ -694,15 +698,17 @@ export function ReaderShell({
     onContentDocument,
     positionStore,
     readerFontSize,
-    readerLineHeight,
-    westernWeight,
-    readerParagraphIndent,
+    // The book's own formatting keeps its fonts, line height, weight, indentation, paragraph
+    // spacing, letter and word spacing and alignment; size, margins, colors and the page stay.
+    own ? undefined : readerLineHeight,
+    own ? undefined : westernWeight,
+    own ? undefined : readerParagraphIndent,
     readerPageMargin,
     readerWritingMode,
     readerViewMode === "paginated" ? undefined : readerViewMode,
     readerMaxHeight,
     readerTextOrientation,
-    readerParagraphMargin,
+    own ? undefined : readerParagraphMargin,
     readerHideFurigana,
     readerBlurImage,
     colors.text,
@@ -710,23 +716,25 @@ export function ReaderShell({
     colors.highlight,
     onSelectionChanged,
     triggers,
-    readerFontFamilyGroup1,
-    readerFontFamilyGroup2,
+    own ? undefined : readerFontFamilyGroup1,
+    own ? undefined : readerFontFamilyGroup2,
     readerBlurMode,
-    readerTextJustification,
+    !own && readerTextJustification,
     readerPrettyTextWrap,
-    readerLetterSpacing,
-    readerWordSpacing,
+    own ? undefined : readerLetterSpacing,
+    own ? undefined : readerWordSpacing,
     readerMaxWidth,
     readerPageLayout,
-    {
-      asian: asianFont,
-      western: readerWesternFont,
-      weights: { western: westernWeight, asian: asianWeight },
-      ...(systemFaces.length ? { systemFaces } : {}),
-      downloaded: downloadedFonts,
-      ...(uploadedFonts.length ? { uploaded: uploadedFonts } : {}),
-    },
+    own
+      ? undefined
+      : {
+          asian: asianFont,
+          western: readerWesternFont,
+          weights: { western: westernWeight, asian: asianWeight },
+          ...(systemFaces.length ? { systemFaces } : {}),
+          downloaded: downloadedFonts,
+          ...(uploadedFonts.length ? { uploaded: uploadedFonts } : {}),
+        },
     readerVnParagraphs,
     readerVnTextSpeed,
     readerFuriganaStyle,
@@ -1028,9 +1036,12 @@ export function ReaderShell({
         : undefined,
     [positionStore],
   );
+  // A book opened from a folder, outside the Library, keeps nothing: no last book, reading
+  // sessions, statistics, or Library cover on cards.
+  const outsideLibrary = identity.status === "book" && identity.opened === true;
   const recording = useMemo(
     () => ({
-      enabled: appearance.statisticsEnabled,
+      enabled: appearance.statisticsEnabled && !outsideLibrary,
       start: appearance.statisticsSessionStart,
       jumpLimit: appearance.statisticsJumpLimit,
       idleMinutes: appearance.statisticsIdleMinutes,
@@ -1040,9 +1051,11 @@ export function ReaderShell({
       appearance.statisticsSessionStart,
       appearance.statisticsJumpLimit,
       appearance.statisticsIdleMinutes,
+      outsideLibrary,
     ],
   );
-  const openedId = status === "ready" && identity.status === "book" ? identity.book.id : null;
+  const readyId = status === "ready" && identity.status === "book" ? identity.book.id : null;
+  const openedId = outsideLibrary ? null : readyId;
   useEffect(() => {
     if (openedId) void rememberLastBook(openedId);
   }, [openedId]);
@@ -1064,7 +1077,7 @@ export function ReaderShell({
     session.readingSpeed,
   );
   useDiscordPresence(
-    openedId ? { id: openedId, title: bookTitle } : null,
+    readyId ? { id: readyId, title: bookTitle } : null,
     status === "ready" ? progress : null,
     session.readingSpeed,
   );
@@ -1621,7 +1634,7 @@ export function ReaderShell({
       readerContext={{
         sentence: lookup?.sentence,
         bookTitle: identity.status === "book" ? (identity.book.title ?? "") : "",
-        bookId: identity.status === "book" ? identity.book.id : undefined,
+        bookId: identity.status === "book" && !outsideLibrary ? identity.book.id : undefined,
       }}
       ref={depth === 0 ? popupRef : undefined}
     />
@@ -1769,6 +1782,8 @@ export function ReaderShell({
     onTextJustificationChange: setReaderTextJustification,
     prettyTextWrap: readerPrettyTextWrap,
     onPrettyTextWrapChange: setReaderPrettyTextWrap,
+    bookFormatting: readerBookFormatting,
+    onBookFormattingChange: setReaderBookFormatting,
     hideFurigana: readerHideFurigana,
     onHideFuriganaChange: setReaderHideFurigana,
     furiganaStyle: readerFuriganaStyle,

@@ -646,12 +646,14 @@ pub(crate) async fn font_supports_book(
     book_id: String,
     fonts: State<'_, FontState>,
     catalog: State<'_, crate::library::CatalogState>,
+    archives: State<'_, crate::reader_content::ReaderArchives>,
 ) -> Result<bool, String> {
     if !font.valid() {
         return Err("Unknown font.".into());
     }
     let (root, bundled) = (fonts.root.clone(), fonts.bundled.clone());
     let database = catalog.database.clone();
+    let opened = archives.file_path(&book_id);
     tauri::async_runtime::spawn_blocking(move || {
         let connection = crate::library::open_catalog(&database)?;
         let (language, han) = connection
@@ -665,6 +667,9 @@ pub(crate) async fn font_supports_book(
                     ))
                 },
             )
+            .ok()
+            // A book opened from a folder is not in the catalog; its own text says what it needs.
+            .or_else(|| opened.as_deref().map(file_text_needs))
             .unwrap_or((None, None));
         Ok(covers_language(
             language.as_deref().unwrap_or_default(),
@@ -674,6 +679,17 @@ pub(crate) async fn font_supports_book(
     })
     .await
     .map_err(|_| "Could not check this font.".to_string())?
+}
+
+/// The shown language of the EPUB at `path` and the kanji its text uses, as the catalog keeps
+/// them for a Library book.
+fn file_text_needs(path: &str) -> (Option<String>, Option<String>) {
+    crate::book_source::open(path)
+        .ok()
+        .and_then(|source| crate::epub::read_details(source).ok())
+        .map_or((None, None), |details| {
+            (details.language(), details.text.map(|text| text.kanji))
+        })
 }
 
 #[derive(Clone, Serialize)]
@@ -1019,6 +1035,52 @@ fn response(status: StatusCode, bytes: Vec<u8>) -> Response<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_book_outside_the_catalog_is_judged_by_its_own_text() {
+        use std::io::Write;
+        use zip::{write::SimpleFileOptions, ZipWriter};
+        let folder = tempfile::tempdir().unwrap();
+        let path = folder.path().join("korean.epub");
+        let mut archive = ZipWriter::new(std::fs::File::create(&path).unwrap());
+        let options = SimpleFileOptions::default();
+        for (name, content) in [
+            ("mimetype", "application/epub+zip"),
+            (
+                "META-INF/container.xml",
+                r#"<?xml version="1.0"?><container><rootfiles><rootfile full-path="book.opf"/></rootfiles></container>"#,
+            ),
+            (
+                "book.opf",
+                r#"<?xml version="1.0"?><package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata><dc:title>책</dc:title></metadata><manifest><item id="a" href="a.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="a"/></spine></package>"#,
+            ),
+            (
+                "a.xhtml",
+                "<html><body><p>오늘은 비가 온다. 학교에 간다. 漢字</p></body></html>",
+            ),
+        ] {
+            archive.start_file(name, options).unwrap();
+            archive.write_all(content.as_bytes()).unwrap();
+        }
+        archive.finish().unwrap();
+
+        let (language, han) = super::file_text_needs(path.to_str().unwrap());
+        assert_eq!(language.as_deref(), Some("ko"));
+        assert_eq!(han.as_deref().map(|han| han.contains('漢')), Some(true));
+        // A Japanese-only font lacks the Hangul this book needs.
+        assert!(!super::covers_language(
+            language.as_deref().unwrap(),
+            han.as_deref().unwrap(),
+            |chars: &[char]| chars
+                .iter()
+                .map(|c| super::KANA_SAMPLE.contains(*c))
+                .collect()
+        ));
+        assert_eq!(
+            super::file_text_needs(folder.path().join("gone.epub").to_str().unwrap()),
+            (None, None)
+        );
+    }
+
     #[test]
     fn a_font_fits_a_book_by_the_characters_its_text_needs() {
         let having = |text: &'static str| {

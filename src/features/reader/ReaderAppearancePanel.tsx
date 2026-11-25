@@ -75,6 +75,12 @@ export interface ReaderAppearancePanelProps extends ReaderThemeSectionProps {
   onTextJustificationChange: (justify: boolean) => void;
   prettyTextWrap: boolean;
   onPrettyTextWrapChange: (pretty: boolean) => void;
+  /**
+   * Whether the book keeps its own formatting: its rows for fonts, line height, indentation,
+   * letter and word spacing, paragraph spacing and justification leave the panel.
+   */
+  bookFormatting: boolean;
+  onBookFormattingChange: (own: boolean) => void;
   /** Whether every book's furigana is hidden. */
   hideFurigana: boolean;
   onHideFuriganaChange: (hideFurigana: boolean) => void;
@@ -157,6 +163,8 @@ export function ReaderAppearancePanel({
   onTextJustificationChange,
   prettyTextWrap,
   onPrettyTextWrapChange,
+  bookFormatting,
+  onBookFormattingChange,
   hideFurigana,
   onHideFuriganaChange,
   furiganaStyle = "hide",
@@ -204,7 +212,15 @@ export function ReaderAppearancePanel({
           {t("appearancePanel.typography")}
         </h3>
         <div className="reader-appearance-rows">
-          <ReaderFontControls asianFont={asianFont} onAsianFontChange={onAsianFontChange} />
+          {/* The book's own formatting leaves only the size here; its other rows go. */}
+          <ToggleSetting
+            label={t("appearancePanel.bookFormatting")}
+            checked={bookFormatting}
+            onChange={onBookFormattingChange}
+          />
+          {!bookFormatting && (
+            <ReaderFontControls asianFont={asianFont} onAsianFontChange={onAsianFontChange} />
+          )}
           <Stepper
             label={t("appearancePanel.fontSize")}
             value={fontSize}
@@ -214,42 +230,46 @@ export function ReaderAppearancePanel({
             unit={t("unit.px")}
             onChange={onFontSizeChange}
           />
-          <Stepper
-            label={t("appearancePanel.lineHeight")}
-            value={lineHeight}
-            min={readerLineHeight.min}
-            max={readerLineHeight.max}
-            step={readerLineHeight.step}
-            format={(value) => value.toFixed(2)}
-            onChange={onLineHeightChange}
-          />
-          <Stepper
-            label={t("appearancePanel.paragraphIndent")}
-            value={paragraphIndent}
-            min={readerParagraphIndent.min}
-            max={readerParagraphIndent.max}
-            step={readerParagraphIndent.step}
-            unit={t("unit.em")}
-            onChange={onParagraphIndentChange}
-          />
-          <Stepper
-            label={t("appearancePanel.letterSpacing")}
-            value={letterSpacing}
-            min={readerLetterSpacing.min}
-            max={readerLetterSpacing.max}
-            step={readerLetterSpacing.step}
-            unit={t("unit.px")}
-            onChange={onLetterSpacingChange}
-          />
-          <Stepper
-            label={t("appearancePanel.wordSpacing")}
-            value={wordSpacing}
-            min={readerWordSpacing.min}
-            max={readerWordSpacing.max}
-            step={readerWordSpacing.step}
-            unit={t("unit.px")}
-            onChange={onWordSpacingChange}
-          />
+          {!bookFormatting && (
+            <>
+              <Stepper
+                label={t("appearancePanel.lineHeight")}
+                value={lineHeight}
+                min={readerLineHeight.min}
+                max={readerLineHeight.max}
+                step={readerLineHeight.step}
+                format={(value) => value.toFixed(2)}
+                onChange={onLineHeightChange}
+              />
+              <Stepper
+                label={t("appearancePanel.paragraphIndent")}
+                value={paragraphIndent}
+                min={readerParagraphIndent.min}
+                max={readerParagraphIndent.max}
+                step={readerParagraphIndent.step}
+                unit={t("unit.em")}
+                onChange={onParagraphIndentChange}
+              />
+              <Stepper
+                label={t("appearancePanel.letterSpacing")}
+                value={letterSpacing}
+                min={readerLetterSpacing.min}
+                max={readerLetterSpacing.max}
+                step={readerLetterSpacing.step}
+                unit={t("unit.px")}
+                onChange={onLetterSpacingChange}
+              />
+              <Stepper
+                label={t("appearancePanel.wordSpacing")}
+                value={wordSpacing}
+                min={readerWordSpacing.min}
+                max={readerWordSpacing.max}
+                step={readerWordSpacing.step}
+                unit={t("unit.px")}
+                onChange={onWordSpacingChange}
+              />
+            </>
+          )}
         </div>
       </section>
       <section className="reader-appearance-card" aria-labelledby="reader-appearance-page-flow">
@@ -292,15 +312,17 @@ export function ReaderAppearancePanel({
               onChange={onTextOrientationChange}
             />
           )}
-          <Stepper
-            label={t("appearancePanel.paragraphMargin")}
-            value={paragraphMargin}
-            min={readerParagraphMargin.min}
-            max={readerParagraphMargin.max}
-            step={readerParagraphMargin.step}
-            unit={t("unit.px")}
-            onChange={onParagraphMarginChange}
-          />
+          {!bookFormatting && (
+            <Stepper
+              label={t("appearancePanel.paragraphMargin")}
+              value={paragraphMargin}
+              min={readerParagraphMargin.min}
+              max={readerParagraphMargin.max}
+              step={readerParagraphMargin.step}
+              unit={t("unit.px")}
+              onChange={onParagraphMarginChange}
+            />
+          )}
           <Stepper
             label={t("appearancePanel.pageMargin")}
             value={pageMargin}
@@ -414,11 +436,13 @@ export function ReaderAppearancePanel({
           {t("appearancePanel.textBehavior")}
         </h3>
         <div className="reader-appearance-rows">
-          <ToggleSetting
-            label={t("appearancePanel.justification")}
-            checked={textJustification}
-            onChange={onTextJustificationChange}
-          />
+          {!bookFormatting && (
+            <ToggleSetting
+              label={t("appearancePanel.justification")}
+              checked={textJustification}
+              onChange={onTextJustificationChange}
+            />
+          )}
           <ToggleSetting
             label={t("appearancePanel.prettyWrap")}
             checked={prettyTextWrap}

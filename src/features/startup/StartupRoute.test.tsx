@@ -1,10 +1,17 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../../App";
 import { AppearanceProvider } from "../appearance/AppearanceProvider";
 import { getStartupBook } from "./startupApi";
 import { scanLibraryFolders } from "../library/libraryApi";
+import { onOpenedFile, takeOpenedFile } from "../reader/openedFiles";
+vi.mock("../reader/openedFiles", async (original) => ({
+  ...(await original<typeof import("../reader/openedFiles")>()),
+  takeOpenedFile: vi.fn(async () => null),
+  onOpenedFile: vi.fn(() => () => {}),
+  getOpenedFile: vi.fn(async () => null),
+}));
 vi.mock("./startupApi", async (original) => ({
   ...(await original<typeof import("./startupApi")>()),
   getStartupBook: vi.fn(),
@@ -49,6 +56,23 @@ describe("Startup destination", () => {
       await waitFor(() => expect(screen.getByLabelText("Route")).toHaveTextContent("/library"));
     },
   );
+  it("opens a book opened from a folder before the last book", async () => {
+    const FILE = "22222222-2222-4222-8222-222222222222";
+    vi.mocked(takeOpenedFile).mockResolvedValueOnce(FILE);
+    vi.mocked(getStartupBook).mockResolvedValue(ID);
+    mount();
+    await waitFor(() =>
+      expect(screen.getByLabelText("Route")).toHaveTextContent(`/reader/file/${FILE}`),
+    );
+    expect(getStartupBook).not.toHaveBeenCalled();
+  });
+  it("opens a book opened from a folder while Komori runs", async () => {
+    const FILE = "44444444-4444-4444-8444-444444444444";
+    mount("/library");
+    const open = vi.mocked(onOpenedFile).mock.calls.at(-1)![0];
+    act(() => open(FILE));
+    expect(screen.getByLabelText("Route")).toHaveTextContent(`/reader/file/${FILE}`);
+  });
   it("preserves a direct route", async () => {
     mount("/settings?section=general");
     expect(screen.getByLabelText("Route")).toHaveTextContent("/settings");

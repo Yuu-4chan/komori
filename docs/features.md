@@ -83,6 +83,10 @@ back. The search stays in the top bar even in an empty Library.
 
 ## Reader
 
+- **Open with.** On Windows, an EPUB opened with Komori from a folder (Open with, or a
+  double-click when Komori is the chosen app) opens in the Reader at its start, in the running
+  window if there is one. It is not added to the Library and nothing about it is kept: no
+  place, bookmarks, notes, reading time or last book.
 - **Sidebar.** Round Back, Appearance and Pin buttons; the book's card (cover, title,
   author, series when it has one), whose title can be selected and copied; floating tiles for Images, Bookmarks, Notes and Search
   under it; the chapters under a `Chapters` label as a scrolling timeline (read, current, unread) with each entry's
@@ -110,7 +114,8 @@ back. The search stays in the top bar even in an empty Library.
   adjacent + opens a floating manager on Asian, Western or Added fonts tabs for
   TTF/OTF imports up to 100 MB and 93 Google families with separate weights or variable ranges;
   each font has its own Weight dropdown, limited to its available managed weights;
-  size,
+  Book's formatting, which leaves the fonts, line height, weight, indentation, paragraph
+  spacing, letter and word spacing and alignment to each book, hiding those rows; size,
   line height, indentation, letter and word spacing), Page flow (Continuous,
   Semi-continuous, Paginated or VN; writing mode, pages, orientation, margins, maximum
   width and height, wheel step, VN paragraphs and reveal speed, chapter wheel

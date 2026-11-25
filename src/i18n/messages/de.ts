@@ -126,7 +126,7 @@ export const de: MessageCatalog = {
   "discord.saveError": "Komori konnte diese Auswahl nicht speichern. Versuche es erneut.",
   "discord.enabled": "Lesestatus in Discord anzeigen",
   "discord.enabledHint":
-    "Solange ein Buch geöffnet ist. Nach 20 Minuten ohne Lesen verschwindet er.",
+    "Solange ein Buch geöffnet ist. Nach 60 Minuten ohne Lesen verschwindet er.",
   "discord.showBookTitle": "Buchtitel",
   "discord.showBookProgress": "Buchfortschritt",
   "discord.showChapterProgress": "Kapitelfortschritt",
@@ -1611,6 +1611,7 @@ export const de: MessageCatalog = {
   "appearancePanel.upright": "Aufrecht",
   "appearancePanel.eyebrow": "Bedienelemente der Leseansicht",
   "appearancePanel.typography": "Typografie",
+  "appearancePanel.bookFormatting": "Formatierung des Buchs",
   "appearancePanel.fontSize": "Schriftgröße",
   "appearancePanel.lineHeight": "Zeilenhöhe",
   "appearancePanel.paragraphIndent": "Absatzeinzug",

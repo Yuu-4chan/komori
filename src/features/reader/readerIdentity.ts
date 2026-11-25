@@ -8,6 +8,12 @@ type ReaderBook = Pick<
 export type ReaderIdentity =
   | { status: "empty" }
   | { status: "loading" }
-  | { status: "book"; book: ReaderBook; cover: string | null }
+  | {
+      status: "book";
+      book: ReaderBook;
+      cover: string | null;
+      /** Opened from a folder, outside the Library: the Reader keeps nothing about it. */
+      opened?: boolean;
+    }
   | { status: "unknown" }
   | { status: "error" };

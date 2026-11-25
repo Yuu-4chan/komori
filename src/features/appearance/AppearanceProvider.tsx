@@ -296,6 +296,9 @@ interface AppearanceContextValue
   setReaderTextJustification: (justify: boolean) => void;
   readerPrettyTextWrap: boolean;
   setReaderPrettyTextWrap: (pretty: boolean) => void;
+  /** Whether books keep their own formatting in place of the chosen typography. */
+  readerBookFormatting: boolean;
+  setReaderBookFormatting: (own: boolean) => void;
   /** Whether the Reader hides every book's furigana (ruby annotations). */
   readerHideFurigana: boolean;
   setReaderHideFurigana: (hide: boolean) => void;
@@ -523,6 +526,7 @@ export function AppearanceProvider({
     readerTextOrientation,
     readerTextJustification,
     readerPrettyTextWrap,
+    readerBookFormatting,
     readerHideFurigana,
     readerFuriganaStyle,
     readerBlurImage,
@@ -835,6 +839,10 @@ export function AppearanceProvider({
       setReaderPrettyTextWrap: (pretty: boolean) => {
         if (typeof pretty === "boolean") update({ readerPrettyTextWrap: pretty });
       },
+      readerBookFormatting,
+      setReaderBookFormatting: (own: boolean) => {
+        if (typeof own === "boolean") update({ readerBookFormatting: own });
+      },
       setReaderHideFurigana: (hide: boolean) => update({ readerHideFurigana: hide === true }),
       readerBlurImage,
       readerBackgroundBlur,
@@ -980,6 +988,7 @@ export function AppearanceProvider({
       readerTextOrientation,
       readerTextJustification,
       readerPrettyTextWrap,
+      readerBookFormatting,
       readerHideFurigana,
       readerBlurImage,
       readerFuriganaStyle,

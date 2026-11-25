@@ -450,6 +450,8 @@ pub struct AppearancePreferences {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_pretty_text_wrap: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    reader_book_formatting: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_hide_furigana: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reader_furigana_style: Option<String>,
@@ -1044,6 +1046,7 @@ impl AppearancePreferences {
                 .get("readerTextJustification")
                 .and_then(Value::as_bool),
             reader_pretty_text_wrap: value.get("readerPrettyTextWrap").and_then(Value::as_bool),
+            reader_book_formatting: value.get("readerBookFormatting").and_then(Value::as_bool),
             reader_hide_furigana: value.get("readerHideFurigana").and_then(Value::as_bool),
             reader_furigana_style: choice(
                 "readerFuriganaStyle",
@@ -1369,6 +1372,40 @@ mod tests {
         assert!(legacy.reader_text_justification.is_none());
         assert!(legacy.reader_pretty_text_wrap.is_none());
         assert_eq!(legacy.reader_font_size, Some(20));
+    }
+
+    #[test]
+    fn book_formatting_persists_and_ignores_malformed_values() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("library.sqlite3");
+        for own in [false, true] {
+            let chosen = super::AppearancePreferences {
+                reader_book_formatting: Some(own),
+                reader_font_size: Some(18),
+                ..Default::default()
+            };
+            assert!(super::save(&database, &chosen).unwrap());
+            assert_eq!(super::load(&database).unwrap(), chosen);
+            let saved = serde_json::to_value(&chosen).unwrap();
+            assert_eq!(saved["readerBookFormatting"], own);
+            for bad in [
+                serde_json::json!("true"),
+                serde_json::json!(1),
+                serde_json::Value::Null,
+            ] {
+                let mut value = saved.clone();
+                value["readerBookFormatting"] = bad.clone();
+                if !bad.is_null() {
+                    assert!(
+                        serde_json::from_value::<super::AppearancePreferences>(value.clone())
+                            .is_err()
+                    );
+                }
+                let loaded = super::AppearancePreferences::from_stored(&value);
+                assert!(loaded.reader_book_formatting.is_none());
+                assert_eq!(loaded.reader_font_size, Some(18));
+            }
+        }
     }
 
     #[test]
@@ -1713,6 +1750,7 @@ mod tests {
             reader_text_orientation: None,
             reader_text_justification: None,
             reader_pretty_text_wrap: None,
+            reader_book_formatting: None,
             reader_hide_furigana: None,
             reader_furigana_style: None,
             reader_blur_image: None,

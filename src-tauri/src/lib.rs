@@ -27,6 +27,8 @@ mod interface_text;
 mod library;
 mod library_drop;
 mod library_folders;
+#[cfg(desktop)]
+mod opened_files;
 #[cfg(mobile)]
 mod pc_link;
 #[cfg(any(mobile, test))]
@@ -57,11 +59,12 @@ pub fn run() {
     let builder = tauri::Builder::default();
     // One Komori at a time: opening it again, even from a shortcut while it waits in the tray,
     // shows the running window instead of a second copy writing the same catalog. Android runs
-    // one Komori by itself and updates through the release, not in the app.
+    // one Komori by itself and updates through the release, not in the app. A second launch
+    // naming a book, as Windows' "Open with" does, opens it in the running window.
     #[cfg(desktop)]
     let builder = builder
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            window_lifecycle::second_launch(app)
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            opened_files::second_launch(app, args, cwd)
         }))
         .plugin(tauri_plugin_updater::Builder::new().build());
     #[cfg(mobile)]
@@ -78,9 +81,19 @@ pub fn run() {
         )
         .setup(|app| {
             let catalog = library::initialize_catalog(app.handle())?;
+            // A book opened from a folder starts Komori in the Reader, shown even when it would
+            // start in the tray.
+            #[cfg(desktop)]
+            let opened_book = {
+                app.manage(opened_files::OpenedFiles::default());
+                let args: Vec<_> = std::env::args_os().collect();
+                let cwd = std::env::current_dir().unwrap_or_default();
+                opened_files::register_launch(app.handle(), &args, &cwd)
+            };
             #[cfg_attr(not(windows), allow(unused_variables))]
             #[cfg(desktop)]
-            let window = window_size::create_main_window(app.handle(), &catalog.database)?;
+            let window =
+                window_size::create_main_window(app.handle(), &catalog.database, opened_book)?;
             // The phone has one full-screen window; the system decides its size.
             #[cfg(mobile)]
             let window = tauri::WebviewWindowBuilder::from_config(
@@ -236,6 +249,9 @@ pub fn run() {
             #[cfg(desktop)]
             discord_presence::set_discord_activity,
             #[cfg(desktop)]
+            opened_files::take_opened_file,
+            #[cfg(desktop)]
+            opened_files::get_opened_file,
             #[cfg(desktop)]
             devices::get_devices,
             #[cfg(desktop)]

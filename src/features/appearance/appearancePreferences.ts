@@ -266,6 +266,11 @@ export interface AppearancePreferences
   /** Independent prose paragraph choices. Off preserves publisher composition. */
   readerTextJustification: boolean;
   readerPrettyTextWrap: boolean;
+  /**
+   * Whether books keep their own fonts, line height, weight, indentation, paragraph spacing,
+   * letter and word spacing and alignment, in place of the chosen ones.
+   */
+  readerBookFormatting: boolean;
   /** Whether the Reader hides every book's furigana (ruby annotations). */
   readerHideFurigana: boolean;
   readerFuriganaStyle: ReaderFuriganaStyle;
@@ -362,6 +367,7 @@ export const defaultAppearance: AppearancePreferences = {
   readerTextOrientation: defaultTextOrientation,
   readerTextJustification: false,
   readerPrettyTextWrap: false,
+  readerBookFormatting: false,
   readerHideFurigana: false,
   readerFuriganaStyle: "hide",
   readerBlurImage: false,
@@ -465,6 +471,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     readerTextOrientation,
     readerTextJustification,
     readerPrettyTextWrap,
+    readerBookFormatting,
     readerHideFurigana,
     readerFuriganaStyle,
     readerBlurImage,
@@ -609,6 +616,7 @@ export function normalizeAppearancePreferences(value: unknown): Partial<Appearan
     ...(isTextOrientation(readerTextOrientation) && { readerTextOrientation }),
     ...(typeof readerTextJustification === "boolean" && { readerTextJustification }),
     ...(typeof readerPrettyTextWrap === "boolean" && { readerPrettyTextWrap }),
+    ...(typeof readerBookFormatting === "boolean" && { readerBookFormatting }),
     ...(typeof readerHideFurigana === "boolean" && { readerHideFurigana }),
     ...(isFuriganaStyle(readerFuriganaStyle) && { readerFuriganaStyle }),
     ...(typeof readerBlurImage === "boolean" && { readerBlurImage }),
