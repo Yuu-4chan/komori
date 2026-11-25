@@ -1059,6 +1059,7 @@ export const ru: MessageCatalog = {
   "textMenu.selectAll": "Выделить всё",
   "textMenu.note": "Добавить заметку",
   "textMenu.highlight": "Выделить цветом",
+  "textMenu.wikipedia": "Википедия",
   "textMenu.lookUp": "Найти в словаре",
   "imageActions.label": "Изображение",
   "imageActions.copy": "Копировать изображение",
@@ -1630,8 +1631,6 @@ export const ru: MessageCatalog = {
   "readerStatus.noBook": "Книга не открыта",
   "readingStatus.label": "Статус чтения",
   "readingStatus.localTime": "Местное время: {time}",
-  "readingStatus.offHint":
-    "Статистика чтения отключена в настройках, поэтому время не записывается",
   "readingStatus.off": "Статистика отключена",
   "readingStatus.time": "Время чтения за сессию",
   "readingStatus.timeLabel": "Время чтения за сессию: {duration}",
@@ -2095,4 +2094,9 @@ export const ru: MessageCatalog = {
   "statistics.phoneAndPc": "Телефон и ПК",
   "statistics.byDevice": "Чтение по устройствам",
   "statistics.otherDevice": "Другое устройство",
+  "wikipedia.label": "Википедия",
+  "wikipedia.searching": "Поиск в Википедии…",
+  "wikipedia.missing": "Нет страницы в Википедии",
+  "wikipedia.failed": "Не удалось подключиться к Википедии",
+  "wikipedia.open": "Открыть в Википедии",
 };

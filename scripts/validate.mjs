@@ -39,18 +39,19 @@ const checks = [
   {
     name: "rust-format",
     command: cargoCommand,
-    args: ["fmt", "--manifest-path", "src-tauri/Cargo.toml", "--", "--check"],
+    args: ["fmt", "--all", "--manifest-path", "src-tauri/Cargo.toml", "--", "--check"],
   },
   {
     name: "rust-check",
     command: cargoCommand,
-    args: ["check", "--manifest-path", "src-tauri/Cargo.toml"],
+    args: ["check", "--workspace", "--manifest-path", "src-tauri/Cargo.toml"],
   },
   {
     name: "rust-clippy",
     command: cargoCommand,
     args: [
       "clippy",
+      "--workspace",
       "--manifest-path",
       "src-tauri/Cargo.toml",
       "--all-targets",
@@ -62,7 +63,7 @@ const checks = [
   {
     name: "rust-tests",
     command: cargoCommand,
-    args: ["test", "--manifest-path", "src-tauri/Cargo.toml"],
+    args: ["test", "--workspace", "--manifest-path", "src-tauri/Cargo.toml"],
   },
 ];
 

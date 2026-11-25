@@ -1047,6 +1047,7 @@ export const pl: MessageCatalog = {
   "textMenu.selectAll": "Zaznacz wszystko",
   "textMenu.note": "Dodaj notatkę",
   "textMenu.highlight": "Zakreśl",
+  "textMenu.wikipedia": "Wikipedia",
   "textMenu.lookUp": "Wyszukaj",
   "imageActions.label": "Obraz",
   "imageActions.copy": "Kopiuj obraz",
@@ -1621,8 +1622,6 @@ export const pl: MessageCatalog = {
   "readerStatus.noBook": "Brak otwartej książki",
   "readingStatus.label": "Stan czytania",
   "readingStatus.localTime": "Czas lokalny: {time}",
-  "readingStatus.offHint":
-    "Statystyki czytania są wyłączone w Ustawieniach, więc czas nie jest zapisywany",
   "readingStatus.off": "Statystyki wył.",
   "readingStatus.time": "Czas czytania w tej sesji",
   "readingStatus.timeLabel": "Czas czytania w tej sesji: {duration}",
@@ -2087,4 +2086,9 @@ export const pl: MessageCatalog = {
   "statistics.phoneAndPc": "Telefon i komputer",
   "statistics.byDevice": "Czytanie według urządzenia",
   "statistics.otherDevice": "Inne urządzenie",
+  "wikipedia.label": "Wikipedia",
+  "wikipedia.searching": "Wyszukiwanie w Wikipedii…",
+  "wikipedia.missing": "Brak strony w Wikipedii",
+  "wikipedia.failed": "Nie można połączyć się z Wikipedią",
+  "wikipedia.open": "Otwórz w Wikipedii",
 };

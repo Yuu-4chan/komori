@@ -994,6 +994,7 @@ export const fi: MessageCatalog = {
   "textMenu.selectAll": "Valitse kaikki",
   "textMenu.note": "Lisää muistiinpano",
   "textMenu.highlight": "Korosta",
+  "textMenu.wikipedia": "Wikipedia",
   "textMenu.lookUp": "Hae",
   "imageActions.label": "Kuva",
   "imageActions.copy": "Kopioi kuva",
@@ -1541,8 +1542,6 @@ export const fi: MessageCatalog = {
   "readerStatus.noBook": "Ei avointa kirjaa",
   "readingStatus.label": "Lukutila",
   "readingStatus.localTime": "Paikallinen aika: {time}",
-  "readingStatus.offHint":
-    "Lukutilastot on poistettu käytöstä asetuksissa, joten aikaa ei tallenneta",
   "readingStatus.off": "Tilastot pois",
   "readingStatus.time": "Tämän istunnon lukuaika",
   "readingStatus.timeLabel": "Tämän istunnon lukuaika: {duration}",
@@ -1997,4 +1996,9 @@ export const fi: MessageCatalog = {
   "statistics.phoneAndPc": "Puhelin ja PC",
   "statistics.byDevice": "Lukeminen laitteittain",
   "statistics.otherDevice": "Toinen laite",
+  "wikipedia.label": "Wikipedia",
+  "wikipedia.searching": "Haetaan Wikipediasta…",
+  "wikipedia.missing": "Ei Wikipedia-sivua",
+  "wikipedia.failed": "Wikipediaan ei saatu yhteyttä",
+  "wikipedia.open": "Avaa Wikipediassa",
 };

@@ -1042,6 +1042,7 @@ export const fr: MessageCatalog = {
   "textMenu.selectAll": "Tout sélectionner",
   "textMenu.note": "Ajouter une note",
   "textMenu.highlight": "Surligner",
+  "textMenu.wikipedia": "Wikipédia",
   "textMenu.lookUp": "Rechercher",
   "imageActions.label": "Image",
   "imageActions.copy": "Copier l’image",
@@ -1610,8 +1611,6 @@ export const fr: MessageCatalog = {
   "readerStatus.noBook": "Aucun livre ouvert",
   "readingStatus.label": "État de la lecture",
   "readingStatus.localTime": "Heure locale : {time}",
-  "readingStatus.offHint":
-    "Les statistiques de lecture sont désactivées dans les réglages, aucun temps n’est donc enregistré",
   "readingStatus.off": "Statistiques désactivées",
   "readingStatus.time": "Temps de lecture de cette session",
   "readingStatus.timeLabel": "Temps de lecture de cette session : {duration}",
@@ -2081,4 +2080,9 @@ export const fr: MessageCatalog = {
   "statistics.phoneAndPc": "Téléphone et PC",
   "statistics.byDevice": "Lecture par appareil",
   "statistics.otherDevice": "Autre appareil",
+  "wikipedia.label": "Wikipédia",
+  "wikipedia.searching": "Recherche sur Wikipédia…",
+  "wikipedia.missing": "Aucune page Wikipédia",
+  "wikipedia.failed": "Impossible de joindre Wikipédia",
+  "wikipedia.open": "Ouvrir dans Wikipédia",
 };

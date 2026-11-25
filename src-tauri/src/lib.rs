@@ -47,6 +47,7 @@ mod sync;
 mod title_cleaning;
 mod title_series;
 mod updates;
+mod wikipedia;
 mod window_lifecycle;
 #[cfg(desktop)]
 mod window_size;
@@ -169,6 +170,7 @@ pub fn run() {
             updates::check_for_update,
             updates::install_update,
             word_audio::get_word_audio,
+            wikipedia::wikipedia_summary,
             reader_monitor::get_reader_monitor_size,
             reader_background::get_reader_background,
             reader_background::choose_reader_background,

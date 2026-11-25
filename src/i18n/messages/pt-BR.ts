@@ -989,6 +989,7 @@ export const ptBR: MessageCatalog = {
   "textMenu.selectAll": "Selecionar tudo",
   "textMenu.note": "Adicionar nota",
   "textMenu.highlight": "Destacar",
+  "textMenu.wikipedia": "Wikipédia",
   "textMenu.lookUp": "Consultar",
   "imageActions.label": "Imagem",
   "imageActions.copy": "Copiar imagem",
@@ -1539,8 +1540,6 @@ export const ptBR: MessageCatalog = {
   "readerStatus.noBook": "Nenhum livro aberto",
   "readingStatus.label": "Status da leitura",
   "readingStatus.localTime": "Hora local: {time}",
-  "readingStatus.offHint":
-    "As estatísticas de leitura estão desativadas nas Configurações, então nenhum tempo é registrado",
   "readingStatus.off": "Estatísticas desativadas",
   "readingStatus.time": "Tempo lido nesta sessão",
   "readingStatus.timeLabel": "Tempo de leitura nesta sessão: {duration}",
@@ -1999,4 +1998,9 @@ export const ptBR: MessageCatalog = {
   "statistics.phoneAndPc": "Celular e PC",
   "statistics.byDevice": "Leitura por dispositivo",
   "statistics.otherDevice": "Outro dispositivo",
+  "wikipedia.label": "Wikipédia",
+  "wikipedia.searching": "Pesquisando na Wikipédia…",
+  "wikipedia.missing": "Nenhuma página da Wikipédia",
+  "wikipedia.failed": "Não foi possível acessar a Wikipédia",
+  "wikipedia.open": "Abrir na Wikipédia",
 };

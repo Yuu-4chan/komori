@@ -182,5 +182,6 @@ describe("Reader background appearance", () => {
     const restored = reopened.container.querySelector<HTMLElement>(".reader-background--blur")!;
     expect(restored.style.getPropertyValue("--reader-background-blur")).toBe("7px");
     expect(mount).toHaveBeenCalledTimes(2);
-  });
+    // About 5 s alone: two Reader mounts and every view and writing mode, clicked through.
+  }, 45_000);
 });

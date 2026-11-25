@@ -283,7 +283,7 @@ describe("Reader sessions", () => {
     await act(async () => {});
   });
 
-  it("records nothing and says so while statistics are off", async () => {
+  it("records nothing and shows no session while statistics are off", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { view, sessions, move } = openBook({
       readerShowReadingTime: true,
@@ -293,7 +293,9 @@ describe("Reader sessions", () => {
     await screen.findByText("Reader ready");
     await move(1_400);
     await act(async () => vi.advanceTimersByTimeAsync(90_000));
-    expect(screen.getByText("Statistics off")).toBeInTheDocument();
+    expect(screen.queryByText("Statistics off")).toBeNull();
+    expect(screen.queryByRole("button", { name: /session/i })).toBeNull();
+    expect(screen.queryByLabelText(/Reading time/)).toBeNull();
     expect(screen.queryByLabelText(/Reading speed/)).toBeNull();
     view.unmount();
     expect(sessions).toEqual([]);

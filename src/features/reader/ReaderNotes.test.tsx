@@ -106,7 +106,7 @@ describe("Reader notes through real actions", () => {
     await waitFor(() => expect(reader.setNoteHighlights).toHaveBeenLastCalledWith([]));
     expect(reader.mount).toHaveBeenCalledOnce();
   });
-  it("offers Look up, Copy, Add note and Highlight for selected book text, and image actions on an image", async () => {
+  it("offers Look up, Copy, Add note, Highlight and Wikipedia for selected book text, and image actions on an image", async () => {
     const reader = adapter();
     const notes = store();
     const frame = document.createElement("iframe");
@@ -145,7 +145,7 @@ describe("Reader notes through real actions", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual(["Look up", "Copy", "Add note", "Highlight"]);
+    ).toEqual(["Look up", "Copy", "Add note", "Highlight", "Wikipedia"]);
     await user.click(within(menu).getByRole("menuitem", { name: "Highlight" }));
     // A highlight is the passage saved without a note, marked in the book at once.
     await waitFor(() => expect(notes.create).toHaveBeenCalledWith(place, ""));

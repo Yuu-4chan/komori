@@ -1021,6 +1021,7 @@ export const el: MessageCatalog = {
   "textMenu.selectAll": "Επιλογή όλων",
   "textMenu.note": "Σημείωση",
   "textMenu.highlight": "Επισήμανση",
+  "textMenu.wikipedia": "Βικιπαίδεια",
   "textMenu.lookUp": "Αναζήτηση",
   "imageActions.label": "Εικόνα",
   "imageActions.copy": "Αντιγραφή εικόνας",
@@ -1576,8 +1577,6 @@ export const el: MessageCatalog = {
   "readerStatus.noBook": "Κανένα ανοιχτό βιβλίο",
   "readingStatus.label": "Κατάσταση ανάγνωσης",
   "readingStatus.localTime": "Τοπική ώρα: {time}",
-  "readingStatus.offHint":
-    "Τα στατιστικά ανάγνωσης είναι ανενεργά στις Ρυθμίσεις, οπότε δεν καταγράφεται χρόνος",
   "readingStatus.off": "Στατιστικά ανενεργά",
   "readingStatus.time": "Χρόνος ανάγνωσης σε αυτή τη συνεδρία",
   "readingStatus.timeLabel": "Χρόνος ανάγνωσης σε αυτή τη συνεδρία: {duration}",
@@ -2044,4 +2043,9 @@ export const el: MessageCatalog = {
   "statistics.phoneAndPc": "Τηλέφωνο και υπολογιστής",
   "statistics.byDevice": "Ανάγνωση ανά συσκευή",
   "statistics.otherDevice": "Άλλη συσκευή",
+  "wikipedia.label": "Βικιπαίδεια",
+  "wikipedia.searching": "Αναζήτηση στη Βικιπαίδεια…",
+  "wikipedia.missing": "Δεν υπάρχει σελίδα στη Βικιπαίδεια",
+  "wikipedia.failed": "Δεν ήταν δυνατή η σύνδεση με τη Βικιπαίδεια",
+  "wikipedia.open": "Άνοιγμα στη Βικιπαίδεια",
 };

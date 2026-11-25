@@ -760,6 +760,8 @@ class EpubRenderer implements ReaderRenderer {
   private scrollContainer?: HTMLElement;
   private sectionSizes?: ResizeObserver;
   private scrollTimer?: ReturnType<typeof setTimeout>;
+  /** The reader scrolled the book since its reading point was last published. */
+  private readerScrolled = false;
   /** Listeners of the Reader's own scrollbar, and the sizes that change its extent. */
   private scrollWatchers = new Set<() => void>();
   private scrollExtent?: ResizeObserver;
@@ -791,6 +793,7 @@ class EpubRenderer implements ReaderRenderer {
     void this.refreshPageTurns();
   };
   private onResized = () => {
+    if (this.readerScrolled && !this.resizeDisplaced) this.settleScrollNow();
     this.areaSize = undefined;
     this.invalidateSelection();
     // EPUB.js follows a window resize to its own location, a paragraph start that can
@@ -2636,7 +2639,10 @@ class EpubRenderer implements ReaderRenderer {
       this.settledAnchor ??= anchor;
     });
     if (typeof ResizeObserver === "undefined") return;
-    this.hostObserver = new ResizeObserver(() => this.scheduleHostSize());
+    this.hostObserver = new ResizeObserver(() => {
+      if (this.readerScrolled && !this.resizeDisplaced) this.settleScrollNow();
+      this.scheduleHostSize();
+    });
     this.hostObserver.observe(host);
     // A fitted single page may keep its size while its container becomes large
     // enough for a spread again. Follow the container as well as the host.
@@ -3879,6 +3885,7 @@ class EpubRenderer implements ReaderRenderer {
     if (!metrics || !container || this.turnPending || this.layoutPending) return;
     if (!Number.isFinite(position)) return;
     const target = Math.min(metrics.length, Math.max(0, position));
+    this.readerScrolled = true;
     if (metrics.axis === "vertical") container.scrollTop = target;
     else container.scrollLeft = metrics.reversed ? -target : target;
   }
@@ -3893,8 +3900,20 @@ class EpubRenderer implements ReaderRenderer {
   };
 
   settlePosition(): void {
+    if (this.reflowPending()) return;
+    this.settleScrollNow();
+  }
+
+  /**
+   * Publishes a scroll that has not settled yet where it is now, as when the host's size
+   * starts to change while the reader is scrolling: the reflow keeps the settled reading
+   * point, which must not be the one from before that scroll. Only until EPUB.js shows its
+   * own location after a window resize; a scroll after that is EPUB.js's, not the reader's.
+   * The Reader's own scrolls, as while a book opens, keep the point they are placing.
+   */
+  private settleScrollNow(): void {
     if (this.scrollTimer === undefined || !this.continuous || !this.ready || this.disposed) return;
-    if (this.turnPending || this.layoutPending || this.reflowPending()) return;
+    if (this.turnPending || this.layoutPending) return;
     const settled = this.continuousPosition();
     if (
       !settled ||
@@ -3905,6 +3924,7 @@ class EpubRenderer implements ReaderRenderer {
     // Published at once, as the settle would; that settle then finds it published.
     this.jumpedEntryId = undefined;
     this.reflowAnchor = undefined;
+    this.readerScrolled = false;
     this.progressRevision++;
     this.settledAnchor = anchorAt(settled);
     this.published = { spineIndex: settled.locator.spineIndex, progress: settled.locator.progress };
@@ -3958,6 +3978,7 @@ class EpubRenderer implements ReaderRenderer {
     if (this.turnPending || this.layoutPending || !Number.isFinite(distance)) return true;
     // Reading on at a chapter's end, or back at its start, turns to the next chapter.
     if (distance && this.atChapterEdge(distance > 0 ? "advance" : "retreat")) return false;
+    this.readerScrolled = true;
     this.scrollReading(distance);
     return true;
   }
@@ -4923,6 +4944,7 @@ class EpubRenderer implements ReaderRenderer {
     if (!settled || !valid()) return;
     this.updateVnReveal();
     await this.refreshPageTurns();
+    this.readerScrolled = false;
     this.settledAnchor = anchorAt(settled);
     this.published = { spineIndex: settled.locator.spineIndex, progress: settled.locator.progress };
     this.onLocationChanged?.(settled.locator);

@@ -1,0 +1,40 @@
+[package]
+name = "komori-thumbnails"
+version = "0.0.0"
+description = "Shows EPUB covers as thumbnails in Windows Explorer"
+authors = ["The Komori authors"]
+license = "GPL-3.0-or-later"
+edition = "2021"
+publish = false
+
+# Explorer loads the DLL; tests use the library and the DLL itself.
+[lib]
+name = "komori_thumbnails"
+crate-type = ["cdylib", "rlib"]
+
+# The cover is found by the Library's own code, so these match the app's versions.
+[dependencies]
+base64 = "0.22"
+roxmltree = "0.21"
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "tiff"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-core = "0.61"
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Com",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+] }
+
+[target.'cfg(windows)'.dev-dependencies]
+windows = { version = "0.61", features = ["Win32_System_LibraryLoader"] }
+
+[lints.rust]
+# The shared Library files name the app's platform cfgs.
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(desktop)", "cfg(mobile)"] }
+# The linker would rather COM's entry points were left out of the import library, which no one
+# links against; Windows finds them by name either way.
+linker_messages = "allow"

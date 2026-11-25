@@ -6,6 +6,10 @@ authors = ["The Komori authors"]
 license = "GPL-3.0-or-later"
 edition = "2021"
 
+# The Explorer thumbnail handler is a separate DLL that shares the EPUB cover code.
+[workspace]
+members = ["thumbnails"]
+
 [lib]
 name = "komori_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]

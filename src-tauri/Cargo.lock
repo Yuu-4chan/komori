@@ -2349,6 +2349,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "komori-thumbnails"
+version = "0.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "image",
+ "roxmltree",
+ "windows",
+ "windows-core 0.61.2",
+ "zip",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

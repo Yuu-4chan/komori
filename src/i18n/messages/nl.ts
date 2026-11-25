@@ -1007,6 +1007,7 @@ export const nl: MessageCatalog = {
   "textMenu.selectAll": "Alles selecteren",
   "textMenu.note": "Notitie toevoegen",
   "textMenu.highlight": "Markeren",
+  "textMenu.wikipedia": "Wikipedia",
   "textMenu.lookUp": "Opzoeken",
   "imageActions.label": "Afbeelding",
   "imageActions.copy": "Afbeelding kopiëren",
@@ -1568,8 +1569,6 @@ export const nl: MessageCatalog = {
 
   "readingStatus.label": "Leesstatus",
   "readingStatus.localTime": "Lokale tijd: {time}",
-  "readingStatus.offHint":
-    "Leesstatistieken staan uit in Instellingen, dus er wordt geen tijd vastgelegd",
   "readingStatus.off": "Statistieken uit",
   "readingStatus.time": "Leestijd in deze sessie",
   "readingStatus.timeLabel": "Leestijd in deze sessie: {duration}",
@@ -2042,4 +2041,9 @@ export const nl: MessageCatalog = {
   "statistics.phoneAndPc": "Telefoon en pc",
   "statistics.byDevice": "Lezen per apparaat",
   "statistics.otherDevice": "Ander apparaat",
+  "wikipedia.label": "Wikipedia",
+  "wikipedia.searching": "Wikipedia doorzoeken…",
+  "wikipedia.missing": "Geen Wikipedia-pagina",
+  "wikipedia.failed": "Wikipedia is niet bereikbaar",
+  "wikipedia.open": "Openen in Wikipedia",
 };
