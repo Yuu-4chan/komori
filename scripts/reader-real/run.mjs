@@ -632,6 +632,9 @@ async function resizeKeepsPoint(label, patch, move) {
   await open("S05-flow-paginated", patch);
   await move();
   await settle();
+  // The point the scroll published, not the one before it.
+  await evaluate("__readerReal.scrollSettled()");
+  await settle();
   const published = (await state()).published;
   const point = await publishedPoint();
   let kept = true;

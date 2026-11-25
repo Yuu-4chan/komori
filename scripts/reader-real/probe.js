@@ -396,6 +396,22 @@
       setTimeout(tick, 50);
     });
 
+  /**
+   * Resolves once the Reader has settled its last scroll, or after `timeout` ms. A smooth
+   * scroll's sub-pixel tail moves nothing `settle` sees, yet delays where the Reader publishes
+   * it stopped; while a long book loads its sections, it keeps doing so.
+   */
+  R.scrollSettled = (timeout = 3000) =>
+    new Promise((resolve) => {
+      const started = performance.now();
+      const tick = () => {
+        if (R.adapter()?.scrollTimer === undefined) return resolve(true);
+        if (performance.now() - started > timeout) return resolve(false);
+        setTimeout(tick, 25);
+      };
+      tick();
+    });
+
   /** Resolves once nothing has moved for `quiet` ms, busy or not. */
   R.still = (quiet = 80) =>
     new Promise((resolve) => {

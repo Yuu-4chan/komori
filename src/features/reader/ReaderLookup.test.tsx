@@ -440,11 +440,10 @@ describe("Reader lookup popup", () => {
           new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }),
         ),
     );
-    // A loaded test run can take longer than the default second to show them.
-    const menu = await screen.findByRole("menu", { name: "Text" }, { timeout: 5000 });
+    const menu = await screen.findByRole("menu", { name: "Text" });
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Look up" }));
-    const popup = await screen.findByRole("dialog", { name: "Lookup: 読書" }, { timeout: 5000 });
-    await within(popup).findByText("reading books", undefined, { timeout: 5000 });
+    const popup = await screen.findByRole("dialog", { name: "Lookup: 読書" });
+    await within(popup).findByText("reading books");
     iframe.remove();
   });
 

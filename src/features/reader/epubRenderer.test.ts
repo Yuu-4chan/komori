@@ -3415,6 +3415,23 @@ describe("EPUB.js renderer adapter", () => {
         expect(position.onLocationChanged).not.toHaveBeenCalledWith(
           expect.objectContaining({ progress }),
         );
+
+      // A resize that starts before a scroll settles keeps that scroll's point, not the
+      // one settled before it.
+      renderer.scrollBy?.(40);
+      container.dispatchEvent(new Event("scroll"));
+      resize(1066, 20);
+      await wait(150);
+      rendition.emit("relocated");
+      followHost();
+      await wait(400);
+      expect(container.scrollTop).toBe(100);
+      expect(position.onLocationChanged).toHaveBeenLastCalledWith(
+        expect.objectContaining({ spineIndex: 0, progress: 0.5 }),
+      );
+      expect(position.onLocationChanged).not.toHaveBeenCalledWith(
+        expect.objectContaining({ progress: 0.1 }),
+      );
     } finally {
       renderer.dispose();
       container.remove();

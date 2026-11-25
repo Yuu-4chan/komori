@@ -739,8 +739,11 @@ describe("Reader shell", () => {
       </MemoryRouter>,
     );
     await screen.findByText("Reader ready");
-    fireEvent.pointerDown(screen.getByRole("main"), { button: 1, clientX: 100, clientY: 100 });
-    expect(document.querySelector(".autoscroll-marker")).not.toBeNull();
+    // Autoscroll arms in an effect after the ready render, which a busy run can delay.
+    await waitFor(() => {
+      fireEvent.pointerDown(screen.getByRole("main"), { button: 1, clientX: 100, clientY: 100 });
+      expect(document.querySelector(".autoscroll-marker")).not.toBeNull();
+    });
     fireEvent.keyDown(document, { key: "Escape" });
     expect(document.querySelector(".autoscroll-marker")).toBeNull();
     const user = userEvent.setup();
